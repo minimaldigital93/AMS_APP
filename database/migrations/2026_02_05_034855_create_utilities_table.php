@@ -13,6 +13,19 @@ return new class extends Migration
     {
         Schema::create('utilities', function (Blueprint $table) {
             $table->id();
+            $table->foreignId('tenant_id')->constrained('tenants')->onDelete('cascade');
+            $table->foreignId('rental_id')->constrained('rentals')->onDelete('cascade');
+
+            $table->enum('utility_type', ['electricity', 'water', 'internet', 'trash']);
+            $table->string('meter_number')->nullable();
+            $table->decimal('meter_reading_in', 10, 2)->nullable();
+            $table->decimal('meter_reading_out', 10, 2)->nullable();
+            $table->decimal('charge_amount', 10, 2);
+            $table->integer('billing_month');
+            $table->integer('billing_year');
+
+            $table->boolean('paid_status')->default(false);
+            $table->timestamp('paid_at')->nullable();
             $table->timestamps();
         });
     }

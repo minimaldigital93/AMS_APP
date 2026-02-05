@@ -4,6 +4,7 @@ namespace App\Models;
 
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Spatie\Permission\Traits\HasRoles;
@@ -22,6 +23,8 @@ class User extends Authenticatable
         'name',
         'email',
         'password',
+        'status',
+        'last_login_at',
     ];
 
     /**
@@ -43,7 +46,45 @@ class User extends Authenticatable
     {
         return [
             'email_verified_at' => 'datetime',
+            'last_login_at' => 'datetime',
             'password' => 'hashed',
         ];
+    }
+
+    // Relationships
+
+    public function supervisedApartments(): HasMany
+    {
+        return $this->hasMany(Apartments::class, 'supervisor_id');
+    }
+
+    public function tenants(): HasMany
+    {
+        return $this->hasMany(Tenants::class);
+    }
+
+    public function managedTenants(): HasMany
+    {
+        return $this->hasMany(Tenants::class, 'managed_by');
+    }
+
+    public function fiscalPeriods(): HasMany
+    {
+        return $this->hasMany(FiscalPeriods::class);
+    }
+
+    public function accounts(): HasMany
+    {
+        return $this->hasMany(Accounts::class);
+    }
+
+    public function balanceSheets(): HasMany
+    {
+        return $this->hasMany(BalanceSheet::class);
+    }
+
+    public function activityLogs(): HasMany
+    {
+        return $this->hasMany(ActivityLogs::class);
     }
 }

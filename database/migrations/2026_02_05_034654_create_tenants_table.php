@@ -13,7 +13,29 @@ return new class extends Migration
     {
         Schema::create('tenants', function (Blueprint $table) {
             $table->id();
+            $table->foreignId('apartment_id')->nullable()->constrained('apartments')->onDelete('set null');
+            $table->foreignId('user_id')->nullable()->constrained('users')->onDelete('set null');
+            $table->foreignId('managed_by')->nullable()->constrained('users')->onDelete('set null');
+
+            $table->string('name');
+            $table->string('email')->unique();
+            $table->string('phone')->nullable();
+            $table->text('address')->nullable();
+            $table->date('date_of_birth')->nullable();
+            $table->string('place_of_birth')->nullable();
+
+            $table->date('move_in_date')->nullable();
+            $table->date('move_out_date')->nullable();
+            $table->enum('status', ['active', 'moved_out'])->default('active');
+            $table->decimal('deposit', 10, 2)->default(0);
+
+            $table->string('photo_path')->nullable();
+            $table->string('document_path')->nullable();
+            $table->text('notes')->nullable();
+            $table->timestamp('archived_at')->nullable();
+
             $table->timestamps();
+            $table->softDeletes();
         });
     }
 

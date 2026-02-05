@@ -13,6 +13,23 @@ return new class extends Migration
     {
         Schema::create('balance_sheets', function (Blueprint $table) {
             $table->id();
+            $table->foreignId('fiscal_period_id')->constrained('fiscal_periods')->onDelete('cascade');
+            $table->foreignId('user_id')->constrained('users')->onDelete('cascade');
+
+            $table->enum('item_type', ['asset', 'liability', 'equity']);
+            $table->enum('sub_type', [
+                'cash', 'accounts_receivable', 'property', 'equipment', 'other_asset',
+                'accounts_payable', 'loans', 'deposits_held', 'other_liability',
+                'retained_earnings', 'capital', 'other_equity'
+            ]);
+
+            $table->string('name');
+            $table->text('description')->nullable();
+            $table->decimal('amount', 15, 2);
+            $table->date('as_of_date');
+
+            $table->string('reference_number')->nullable();
+            $table->text('notes')->nullable();
             $table->timestamps();
         });
     }

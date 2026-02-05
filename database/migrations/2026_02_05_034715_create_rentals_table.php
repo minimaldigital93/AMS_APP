@@ -13,7 +13,16 @@ return new class extends Migration
     {
         Schema::create('rentals', function (Blueprint $table) {
             $table->id();
+            $table->foreignId('apartment_id')->constrained('apartments')->onDelete('cascade');
+            $table->foreignId('tenant_id')->constrained('tenants')->onDelete('cascade');
+
+            $table->date('start_date');
+            $table->date('end_date')->nullable();
+            $table->decimal('rent_amount', 10, 2);
+            $table->decimal('deposit', 10, 2)->default(0);
+
             $table->timestamps();
+            $table->softDeletes();
         });
     }
 

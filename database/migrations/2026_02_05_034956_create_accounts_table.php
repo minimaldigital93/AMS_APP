@@ -13,6 +13,22 @@ return new class extends Migration
     {
         Schema::create('accounts', function (Blueprint $table) {
             $table->id();
+            $table->foreignId('fiscal_period_id')->constrained('fiscal_periods')->onDelete('cascade');
+            $table->foreignId('payment_id')->nullable()->constrained('payments')->onDelete('set null');
+            $table->foreignId('user_id')->constrained('users')->onDelete('cascade');
+
+            $table->enum('account_type', ['income', 'expense']);
+            $table->enum('category', [
+                'rent_income', 'utility_income', 'deposit_income', 'other_income',
+                'maintenance', 'repairs', 'utilities_expense', 'salaries', 'taxes', 'insurance', 'other_expense'
+            ]);
+
+            $table->text('description')->nullable();
+            $table->decimal('amount', 15, 2);
+            $table->date('transaction_date');
+
+            $table->string('reference_number')->nullable();
+            $table->text('note')->nullable();
             $table->timestamps();
         });
     }

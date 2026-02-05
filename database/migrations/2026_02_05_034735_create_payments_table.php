@@ -13,7 +13,21 @@ return new class extends Migration
     {
         Schema::create('payments', function (Blueprint $table) {
             $table->id();
+            $table->foreignId('rental_id')->constrained('rentals')->onDelete('cascade');
+            $table->decimal('amount', 10, 2);
+            $table->date('due_date');
+            $table->timestamp('paid_at')->nullable();
+
+            $table->enum('payment_method', ['cash', 'bank'])->default('cash');
+            $table->enum('payment_status', ['pending', 'paid', 'overdue'])->default('pending');
+            $table->enum('payment_type', ['rent', 'utilities', 'deposit', 'other'])->default('rent');
+
+            $table->string('transaction_reference')->nullable();
+            $table->decimal('late_fee', 10, 2)->default(0);
+            $table->text('note')->nullable();
+
             $table->timestamps();
+            $table->softDeletes();
         });
     }
 

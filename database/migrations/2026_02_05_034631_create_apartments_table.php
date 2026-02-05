@@ -13,7 +13,14 @@ return new class extends Migration
     {
         Schema::create('apartments', function (Blueprint $table) {
             $table->id();
+            $table->foreignId('floor_id')->constrained('floors')->onDelete('cascade');
+            $table->foreignId('supervisor_id')->nullable()->constrained('users')->onDelete('set null');
+            $table->string('apartment_number')->unique();
+            $table->decimal('monthly_rent', 10, 2);
+            $table->enum('status', ['available', 'occupied'])->default('available');
+            $table->text('description')->nullable();
             $table->timestamps();
+            $table->softDeletes();
         });
     }
 
