@@ -10,16 +10,54 @@ class DatabaseSeeder extends Seeder
 {
     use WithoutModelEvents;
 
-    /**
-     * Seed the application's database.
-     */
     public function run(): void
     {
-        // User::factory(10)->create();
-
-        User::factory()->create([
-            'name' => 'Test User',
-            'email' => 'test@example.com',
+        $this->call([
+            RolePermissionSeeder::class,
+            FloorSeeder::class,
+            ApartmentSeeder::class,
         ]);
+
+        //Create admin user 
+        $admin = User::firstOrCreate([
+            'email' => 'admin@example.com',
+        ], [
+            'name' => 'Admin User',
+            'password' => bcrypt('password'),
+            'email_verified_at' => now(),
+            'status' => 'active',
+        ]);
+
+        if (!$admin->hasRole('admin')) {
+            $admin->assignRole('admin');    
+        }
+
+        //Create supervisor user
+        $supervisor = User::firstOrCreate([
+            'email' => 'sup@example.com',
+        ], [
+            'name' => 'Supervisor User',
+            'password' => bcrypt('password'),
+            'email_verified_at' => now(),
+            'status' => 'active',
+        ]);
+
+        if (!$supervisor->hasRole('supervisor')) {
+            $supervisor->assignRole('supervisor');
+        }
+
+        //Create tenant user
+        $tenant = User::firstOrCreate([
+            'email' => 'tenant@example.com',
+        ], [
+            'name' => 'Tenant User',
+            'password' => bcrypt('password'),
+            'email_verified_at' => now(),
+            'status' => 'active',
+        ]);    
+
+        if (!$tenant->hasRole('tenant')) {
+            $tenant->assignRole('tenant');    
+        }
     }
 }
