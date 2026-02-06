@@ -1,0 +1,285 @@
+/* ===========================================
+   3D Animated Background Styles
+   =========================================== */
+
+/* Main 3D Container */
+.bg-3d-container {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+    perspective: 1000px;
+    z-index: -1;
+}
+
+/* Animated gradient overlay */
+.bg-3d-container::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: 
+        radial-gradient(ellipse at 20% 50%, rgba(120, 119, 198, 0.3) 0%, transparent 50%),
+        radial-gradient(ellipse at 80% 50%, rgba(255, 119, 198, 0.15) 0%, transparent 50%),
+        radial-gradient(ellipse at 50% 100%, rgba(100, 200, 255, 0.2) 0%, transparent 50%);
+    animation: gradientShift 8s ease-in-out infinite;
+}
+
+@keyframes gradientShift {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.8; transform: scale(1.1); }
+}
+
+/* ===========================================
+   3D Floating Shapes
+   =========================================== */
+.shape {
+    position: absolute;
+    border-radius: 50%;
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.05));
+    backdrop-filter: blur(5px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    box-shadow: 
+        0 8px 32px rgba(0, 0, 0, 0.3),
+        inset 0 0 32px rgba(255, 255, 255, 0.1);
+    animation: float3d 15s ease-in-out infinite;
+    transform-style: preserve-3d;
+}
+
+.shape:nth-child(1) {
+    width: 80px;
+    height: 80px;
+    top: 10%;
+    left: 10%;
+    animation-delay: 0s;
+    animation-duration: 12s;
+}
+
+.shape:nth-child(2) {
+    width: 120px;
+    height: 120px;
+    top: 20%;
+    right: 15%;
+    animation-delay: -2s;
+    animation-duration: 14s;
+    border-radius: 30% 70% 70% 30% / 30% 30% 70% 70%;
+}
+
+.shape:nth-child(3) {
+    width: 60px;
+    height: 60px;
+    bottom: 30%;
+    left: 20%;
+    animation-delay: -4s;
+    animation-duration: 10s;
+}
+
+.shape:nth-child(4) {
+    width: 150px;
+    height: 150px;
+    bottom: 15%;
+    right: 10%;
+    animation-delay: -6s;
+    animation-duration: 16s;
+    border-radius: 60% 40% 30% 70% / 60% 30% 70% 40%;
+}
+
+.shape:nth-child(5) {
+    width: 100px;
+    height: 100px;
+    top: 50%;
+    left: 5%;
+    animation-delay: -8s;
+    animation-duration: 13s;
+}
+
+.shape:nth-child(6) {
+    width: 70px;
+    height: 70px;
+    top: 70%;
+    right: 25%;
+    animation-delay: -3s;
+    animation-duration: 11s;
+    border-radius: 40% 60% 60% 40% / 60% 40% 40% 60%;
+}
+
+@keyframes float3d {
+    0%, 100% {
+        transform: translateY(0) translateX(0) rotateX(0deg) rotateY(0deg) scale(1);
+    }
+    25% {
+        transform: translateY(-30px) translateX(20px) rotateX(10deg) rotateY(15deg) scale(1.05);
+    }
+    50% {
+        transform: translateY(-20px) translateX(-15px) rotateX(-5deg) rotateY(-10deg) scale(0.95);
+    }
+    75% {
+        transform: translateY(-40px) translateX(10px) rotateX(15deg) rotateY(5deg) scale(1.02);
+    }
+}
+
+/* ===========================================
+   Floating 3D Cubes
+   =========================================== */
+.cube-container {
+    position: absolute;
+    transform-style: preserve-3d;
+    animation: rotateCube 20s linear infinite;
+}
+
+.cube-container:nth-child(7) {
+    top: 15%;
+    left: 50%;
+    animation-duration: 25s;
+}
+
+.cube-container:nth-child(8) {
+    bottom: 20%;
+    left: 35%;
+    animation-duration: 18s;
+    animation-delay: -5s;
+}
+
+.cube {
+    position: relative;
+    width: 50px;
+    height: 50px;
+    transform-style: preserve-3d;
+}
+
+.cube-face {
+    position: absolute;
+    width: 50px;
+    height: 50px;
+    background: linear-gradient(135deg, rgba(139, 92, 246, 0.2), rgba(59, 130, 246, 0.1));
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    backdrop-filter: blur(5px);
+}
+
+.cube-face.front { transform: translateZ(25px); }
+.cube-face.back { transform: rotateY(180deg) translateZ(25px); }
+.cube-face.right { transform: rotateY(90deg) translateZ(25px); }
+.cube-face.left { transform: rotateY(-90deg) translateZ(25px); }
+.cube-face.top { transform: rotateX(90deg) translateZ(25px); }
+.cube-face.bottom { transform: rotateX(-90deg) translateZ(25px); }
+
+@keyframes rotateCube {
+    0% { transform: rotateX(0deg) rotateY(0deg); }
+    100% { transform: rotateX(360deg) rotateY(360deg); }
+}
+
+/* ===========================================
+   Glowing Particles
+   =========================================== */
+.particle {
+    position: absolute;
+    width: 4px;
+    height: 4px;
+    background: rgba(255, 255, 255, 0.8);
+    border-radius: 50%;
+    box-shadow: 0 0 10px rgba(255, 255, 255, 0.5), 0 0 20px rgba(139, 92, 246, 0.5);
+    animation: particleFloat 10s linear infinite;
+}
+
+.particle:nth-child(9) { left: 10%; animation-delay: 0s; animation-duration: 12s; }
+.particle:nth-child(10) { left: 20%; animation-delay: -2s; animation-duration: 10s; }
+.particle:nth-child(11) { left: 30%; animation-delay: -4s; animation-duration: 14s; }
+.particle:nth-child(12) { left: 40%; animation-delay: -6s; animation-duration: 11s; }
+.particle:nth-child(13) { left: 50%; animation-delay: -1s; animation-duration: 13s; }
+.particle:nth-child(14) { left: 60%; animation-delay: -3s; animation-duration: 9s; }
+.particle:nth-child(15) { left: 70%; animation-delay: -5s; animation-duration: 15s; }
+.particle:nth-child(16) { left: 80%; animation-delay: -7s; animation-duration: 12s; }
+.particle:nth-child(17) { left: 90%; animation-delay: -2s; animation-duration: 10s; }
+
+@keyframes particleFloat {
+    0% {
+        transform: translateY(100vh) scale(0);
+        opacity: 0;
+    }
+    10% {
+        opacity: 1;
+        transform: translateY(90vh) scale(1);
+    }
+    90% {
+        opacity: 1;
+    }
+    100% {
+        transform: translateY(-10vh) scale(0.5);
+        opacity: 0;
+    }
+}
+
+/* ===========================================
+   Glowing Rings
+   =========================================== */
+.glow-ring {
+    position: absolute;
+    border-radius: 50%;
+    border: 2px solid rgba(139, 92, 246, 0.3);
+    animation: ringPulse 4s ease-in-out infinite;
+}
+
+.glow-ring:nth-child(18) {
+    width: 300px;
+    height: 300px;
+    top: 50%;
+    left: 50%;
+    margin-left: -150px;
+    margin-top: -150px;
+    animation-delay: 0s;
+}
+
+.glow-ring:nth-child(19) {
+    width: 400px;
+    height: 400px;
+    top: 50%;
+    left: 50%;
+    margin-left: -200px;
+    margin-top: -200px;
+    animation-delay: -1s;
+}
+
+.glow-ring:nth-child(20) {
+    width: 500px;
+    height: 500px;
+    top: 50%;
+    left: 50%;
+    margin-left: -250px;
+    margin-top: -250px;
+    animation-delay: -2s;
+}
+
+@keyframes ringPulse {
+    0%, 100% {
+        transform: scale(1) rotateX(60deg);
+        opacity: 0.3;
+        border-color: rgba(139, 92, 246, 0.3);
+    }
+    50% {
+        transform: scale(1.1) rotateX(60deg);
+        opacity: 0.6;
+        border-color: rgba(59, 130, 246, 0.5);
+    }
+}
+
+/* ===========================================
+   Login Card & Wrapper
+   =========================================== */
+.login-card {
+    background: rgba(255, 255, 255, 0.1) !important;
+    backdrop-filter: blur(20px) !important;
+    border: 1px solid rgba(255, 255, 255, 0.2) !important;
+    box-shadow: 
+        0 25px 50px -12px rgba(0, 0, 0, 0.5),
+        0 0 0 1px rgba(255, 255, 255, 0.1) inset !important;
+}
+
+.login-wrapper {
+    position: relative;
+    z-index: 10;
+}

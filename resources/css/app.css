@@ -1,3 +1,7 @@
+/* Auth Styles */
+@import 'auth/3d-background.css';
+@import 'auth/login.css';
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
