@@ -23,7 +23,7 @@ class DatabaseSeeder extends Seeder
             'email' => 'admin@example.com',
         ], [
             'name' => 'Admin User',
-            'password' => bcrypt('password'),
+            'password' => bcrypt('12345678'),
             'email_verified_at' => now(),
             'status' => 'active',
         ]);
@@ -37,7 +37,7 @@ class DatabaseSeeder extends Seeder
             'email' => 'sup@example.com',
         ], [
             'name' => 'Supervisor User',
-            'password' => bcrypt('password'),
+            'password' => bcrypt('12345678'),
             'email_verified_at' => now(),
             'status' => 'active',
         ]);
@@ -51,7 +51,7 @@ class DatabaseSeeder extends Seeder
             'email' => 'tenant@example.com',
         ], [
             'name' => 'Tenant User',
-            'password' => bcrypt('password'),
+            'password' => bcrypt('12345678'),
             'email_verified_at' => now(),
             'status' => 'active',
         ]);    

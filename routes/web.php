@@ -12,6 +12,18 @@ Route::get('/dashboard', function () {
     return view('admin.dashboard');
 })->middleware(['auth', 'verified'])->name('dashboard');
 
+Route::get('/admin/dashboard', function () {
+    return view('admin.dashboard');
+})->middleware(['auth', 'verified', 'role:admin'])->name('admin.dashboard');
+
+Route::get('/supervisor/dashboard', function () {
+    return view('supervisor.dashboard');
+})->middleware(['auth', 'verified', 'role:supervisor'])->name('supervisor.dashboard');
+
+Route::get('/tenant/dashboard', function () {
+    return view('tenant.dashboard');
+})->middleware(['auth', 'verified', 'role:tenant'])->name('tenant.dashboard');
+
 Route::middleware('auth')->group(function () {
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
