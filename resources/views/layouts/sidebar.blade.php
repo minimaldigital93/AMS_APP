@@ -1,154 +1,640 @@
-<nav class="space-y-2">
+<nav class="space-y-1" x-data="{ expandedSections: { 'Property': false, 'Tenant': false, 'Revenue': false, 'FiscalPeriod': false, 'Settings': false } }">
     <style>
-        .sidebar-slide-enter {
-            transform: translateX(-100%);
+        /* Modern sidebar styling */
+        .sidebar-transition {
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        /* Creative nav link with modern design */
+        .nav-link {
+            position: relative;
+            overflow: hidden;
+            border-radius: 0.75rem;
+            background: linear-gradient(135deg, transparent 0%, transparent 100%);
+            margin-bottom: 0.25rem;
+        }
+
+        /* Animated background gradient on hover */
+        .nav-link::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(135deg, rgba(59, 130, 246, 0.12) 0%, rgba(99, 102, 241, 0.12) 100%);
             opacity: 0;
+            transition: opacity 0.3s ease;
+            border-radius: 0.75rem;
+            box-shadow: inset 0 0 0 1px rgba(59, 130, 246, 0.2);
         }
-        .sidebar-slide-enter-active {
-            transform: translateX(0);
+
+        .nav-link:hover::before {
             opacity: 1;
-            transition: transform 0.3s cubic-bezier(0.4,0,0.2,1), opacity 0.3s;
+            box-shadow: inset 0 0 0 1px rgba(59, 130, 246, 0.4);
         }
-        .sidebar-slide-leave {
-            transform: translateX(0);
-            opacity: 1;
+
+        /* Shine effect with gradient animation */
+        .nav-link::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.4), transparent);
+            transition: left 0.7s cubic-bezier(0.4, 0, 0.2, 1);
+            border-radius: 0.75rem;
         }
-        .sidebar-slide-leave-active {
-            transform: translateX(-100%);
+
+        .nav-link:hover::after {
+            left: 100%;
+        }
+
+        /* Icon with enhanced styling */
+        .nav-icon {
+            flex-shrink-0;
+            transition: all 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 36px;
+            height: 36px;
+            border-radius: 0.625rem;
+            background: linear-gradient(135deg, rgba(59, 130, 246, 0.15) 0%, rgba(99, 102, 241, 0.12) 100%);
+            position: relative;
+        }
+
+        .nav-icon::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            border-radius: 0.625rem;
+            background: radial-gradient(circle at 30% 30%, rgba(255, 255, 255, 0.2) 0%, transparent 70%);
             opacity: 0;
-            transition: transform 0.3s cubic-bezier(0.4,0,0.2,1), opacity 0.3s;
+            transition: opacity 0.3s ease;
+        }
+
+        .nav-link:hover .nav-icon {
+            transform: scale(1.25) rotate(-8deg);
+            background: linear-gradient(135deg, rgba(59, 130, 246, 0.28) 0%, rgba(99, 102, 241, 0.25) 100%);
+            box-shadow: 0 6px 20px rgba(59, 130, 246, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.3);
+        }
+
+        .nav-link:hover .nav-icon::after {
+            opacity: 1;
+        }
+
+        .nav-link:hover .nav-icon svg {
+            filter: drop-shadow(0 2px 4px rgba(59, 130, 246, 0.3));
+        }
+
+        /* Active state indicator */
+        .nav-link.active {
+            background: linear-gradient(135deg, rgba(59, 130, 246, 0.22) 0%, rgba(99, 102, 241, 0.18) 100%);
+            color: #3b82f6;
+            font-weight: 600;
+            box-shadow: inset 0 0 0 2px rgba(59, 130, 246, 0.35), 0 4px 12px rgba(59, 130, 246, 0.15);
+            position: relative;
+        }
+
+        .nav-link.active::before {
+            opacity: 1;
+            background: linear-gradient(135deg, rgba(59, 130, 246, 0.18) 0%, rgba(99, 102, 241, 0.15) 100%);
+        }
+
+        .nav-link.active .nav-icon {
+            background: linear-gradient(135deg, rgba(59, 130, 246, 0.35) 0%, rgba(99, 102, 241, 0.3) 100%);
+            box-shadow: 0 8px 24px rgba(59, 130, 246, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.4);
+        }
+
+        .nav-link.active .nav-icon svg {
+            animation: iconBounce 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+
+        @keyframes iconBounce {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.3); }
+        }
+
+        /* Section header with creative styling */
+        .section-header {
+            position: relative;
+            padding: 0.75rem 0.75rem;
+            border-radius: 0.75rem;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            overflow: hidden;
+            cursor: pointer;
+        }
+
+        .section-header::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 0;
+            height: 100%;
+            width: 3px;
+            background: linear-gradient(to bottom, #3b82f6, #6366f1, #8b5cf6);
+            opacity: 0;
+            transition: opacity 0.3s ease, width 0.3s ease;
+            border-radius: 3px;
+        }
+
+        .section-header:hover::before {
+            opacity: 1;
+            width: 4px;
+        }
+
+        .section-header::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(135deg, rgba(59, 130, 246, 0.08) 0%, transparent 100%);
+            opacity: 0;
+            transition: opacity 0.3s ease;
+            border-radius: 0.75rem;
+        }
+
+        .section-header:hover::after {
+            opacity: 1;
+        }
+
+        .section-header:hover {
+            color: #3b82f6;
+            transform: translateX(4px);
+        }
+
+
+        /* Chevron rotation animation */
+        .chevron {
+            transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            transform-origin: center;
+            color: #9ca3af;
+        }
+
+        .section-header:hover .chevron {
+            color: #3b82f6;
+            filter: drop-shadow(0 1px 2px rgba(59, 130, 246, 0.2));
+        }
+
+        /* Submenu container */
+        .submenu-container {
+            overflow: hidden;
+        }
+
+        /* Submenu items with stagger animation */
+        .submenu-item {
+            animation: slideInLeft 0.4s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+            opacity: 0;
+            position: relative;
+            padding-left: 0.75rem;
+            border-left: 3px solid rgba(59, 130, 246, 0.25);
+            margin-left: 0.75rem;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .submenu-item::before {
+            content: '';
+            position: absolute;
+            left: -3px;
+            top: 0;
+            height: 100%;
+            width: 3px;
+            background: linear-gradient(to bottom, rgba(59, 130, 246, 0.5), transparent);
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .submenu-item:nth-child(1) { animation-delay: 0.05s; }
+        .submenu-item:nth-child(2) { animation-delay: 0.1s; }
+        .submenu-item:nth-child(3) { animation-delay: 0.15s; }
+        .submenu-item:nth-child(4) { animation-delay: 0.2s; }
+
+        .submenu-item:hover {
+            border-left-color: #3b82f6;
+            padding-left: 1rem;
+        }
+
+        .submenu-item:hover::before {
+            opacity: 1;
+        }
+
+        @keyframes slideInLeft {
+            from {
+                opacity: 0;
+                transform: translateX(-16px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+
+        /* Submenu link styling */
+        .submenu-item .nav-icon {
+            width: 32px;
+            height: 32px;
+            background: linear-gradient(135deg, rgba(99, 102, 241, 0.12) 0%, rgba(139, 92, 246, 0.1) 100%);
+        }
+
+        .submenu-item:hover .nav-icon {
+            background: linear-gradient(135deg, rgba(99, 102, 241, 0.25) 0%, rgba(139, 92, 246, 0.2) 100%);
+            box-shadow: 0 4px 12px rgba(99, 102, 241, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.2);
+            transform: scale(1.15) rotate(-8deg);
+        }
+
+        /* Section header title styling */
+        .section-title {
+            font-size: 0.75rem;
+            letter-spacing: 0.05em;
+            font-weight: 700;
+            color: #9ca3af;
+            position: relative;
+            z-index: 1;
+            transition: color 0.3s ease;
+        }
+
+        .section-header:hover .section-title {
+            color: #3b82f6;
+        }
+
+        /* Separator line between sections */
+        .section-separator {
+            height: 1.5px;
+            background: linear-gradient(to right, transparent 0%, rgba(59, 130, 246, 0.2) 50%, transparent 100%);
+            margin: 1.25rem 0;
+            border-radius: 1px;
+            position: relative;
+        }
+
+        .section-separator::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(90deg, transparent, rgba(99, 102, 241, 0.1), transparent);
+            border-radius: 1px;
+            filter: blur(0.5px);
+        }
+
+        /* Text styling */
+        .nav-text {
+            transition: all 0.2s ease;
+            font-weight: 500;
+            color: inherit;
+        }
+
+        /* Badge for coming soon or counts */
+        .nav-badge {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 1.5rem;
+            height: 1.5rem;
+            padding: 0 0.375rem;
+            background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%);
+            color: white;
+            font-size: 0.625rem;
+            font-weight: 700;
+            border-radius: 0.375rem;
+            margin-left: auto;
+            box-shadow: 0 2px 8px rgba(251, 191, 36, 0.3);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .nav-badge::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: radial-gradient(circle at 30% 30%, rgba(255, 255, 255, 0.3), transparent);
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .nav-link:hover .nav-badge {
+            box-shadow: 0 0 16px rgba(251, 191, 36, 0.6);
+            transform: scale(1.1);
+        }
+
+        .nav-link:hover .nav-badge::before {
+            opacity: 1;
+        }
+
+        /* Focused state for keyboard navigation */
+        .nav-link:focus-visible {
+            outline: 2px solid #3b82f6;
+            outline-offset: 2px;
+        }
+
+        /* Mobile responsive collapse */
+        @media (max-width: 768px) {
+            .submenu-item {
+                font-size: 0.875rem;
+            }
+            
+            .nav-icon {
+                width: 32px;
+                height: 32px;
+            }
+        }
+
+        /* Pulse animation for attention */
+        @keyframes pulseGlow {
+            0%, 100% {
+                box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.7);
+            }
+            50% {
+                box-shadow: 0 0 0 6px rgba(59, 130, 246, 0);
+            }
+        }
+
+        .nav-link.active::after {
+            animation: pulseGlow 2s ease-in-out infinite;
         }
     </style>
+    
     {{-- Dashboard --}}
     <a href="{{ route('admin.dashboard') }}"
-           class="flex items-center gap-2 rounded px-2 py-2 text-sm font-medium transition-colors duration-200 {{ request()->routeIs('admin.dashboard') ? 'bg-blue-100 text-blue-700' : 'text-gray-700 hover:bg-blue-50 hover:text-blue-700' }}">
-        <span class="inline-flex h-5 w-5 items-center justify-center flex-shrink-0">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+       class="nav-link flex items-center gap-3 rounded-lg px-3 py-3 text-sm font-medium transition-all duration-200 {{ request()->routeIs('admin.dashboard') ? 'text-blue-700 active' : 'text-gray-700 hover:text-blue-700' }}">
+        <span class="nav-icon sidebar-transition">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7m-9 2v8m4-8v8m5-12l2 2m-2-2v12a1 1 0 01-1 1h-4m-6 0H4a1 1 0 01-1-1V10m0 0l2-2" />
             </svg>
         </span>
-        <span class="truncate">Dashboard</span>
+        <span class="nav-text truncate sidebar-label">Dashboard</span>
     </a>
 
-    {{-- Management section --}}
-    <div class="mt-6">
-        <button @click="toggleSection('Management')" class="flex items-center justify-between w-full px-3 py-2 text-xs font-semibold uppercase tracking-wide text-gray-500 hover:text-gray-700 transition">
-            <span>Management</span>
-            <svg class="h-4 w-4 transform transition-transform" :class="expandedSections['Management'] ? 'rotate-180' : ''" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 14l-7 7m0 0l-7-7m7 7V3" />
+    {{-- User Management --}}
+    <a href="#" class="nav-link flex items-center gap-3 rounded-lg px-3 py-3 text-sm text-gray-700 hover:text-blue-700 transition-all sidebar-transition">
+        <span class="nav-icon sidebar-transition">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 8.646 4 4 0 010-8.646M3 20.394A9.963 9.963 0 0112 21c4.304 0 8.196-1.702 11-4.504" />
+            </svg>
+        </span>
+        <span class="nav-text truncate sidebar-label">User Management</span>
+    </a>
+
+    <!-- Section Separator -->
+    <div class="section-separator"></div>
+
+    {{-- Property Management Section --}}
+    <div class="mt-4">
+        <button @click="expandedSections['Property'] = !expandedSections['Property']" 
+                class="section-header flex items-center justify-between w-full transition sidebar-transition">
+            <span class="section-title sidebar-label">📍 Property Management</span>
+            <svg class="chevron h-5 w-5 transition-transform flex-shrink-0" :class="expandedSections['Property'] ? 'rotate-90' : ''" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7" />
             </svg>
         </button>
-            <div x-show="expandedSections['Management']" x-transition:enter="sidebar-slide-enter" x-transition:enter-active="sidebar-slide-enter-active" x-transition:leave="sidebar-slide-leave" x-transition:leave-active="sidebar-slide-leave-active" class="mt-2 space-y-1">
-            <a href="#" class="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm text-gray-700 hover:bg-gray-50 hover:text-gray-900 transition-all">
-                <span class="inline-flex h-5 w-5 items-center justify-center flex-shrink-0">
+        <div x-show="expandedSections['Property']" 
+             x-transition:enter="transition ease-out duration-300"
+             x-transition:enter-start="opacity-0 -translate-y-2"
+             x-transition:enter-end="opacity-100 translate-y-0"
+             x-transition:leave="transition ease-in duration-200"
+             x-transition:leave-start="opacity-100 translate-y-0"
+             x-transition:leave-end="opacity-0 -translate-y-2"
+             class="submenu-container mt-2 space-y-1">
+            
+            {{-- Floors --}}
+            <a href="#" class="submenu-item nav-link flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm text-gray-700 hover:text-blue-700 transition-all sidebar-transition">
+                <span class="nav-icon sidebar-transition">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h10" />
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z" />
                     </svg>
                 </span>
-                <span class="truncate">Floors</span>
+                <span class="nav-text truncate sidebar-label">Floors</span>
             </a>
 
-            <a href="#" class="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm text-gray-700 hover:bg-gray-50 hover:text-gray-900 transition-all">
-                <span class="inline-flex h-5 w-5 items-center justify-center flex-shrink-0">
+            {{-- Apartments --}}
+            <a href="#" class="submenu-item nav-link flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm text-gray-700 hover:text-blue-700 transition-all sidebar-transition">
+                <span class="nav-icon sidebar-transition">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7h18M3 12h18M3 17h18" />
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 6l3-3h12l3 3M3 6v12a3 3 0 003 3h12a3 3 0 003-3V6M9 9h6m-6 4h6" />
                     </svg>
                 </span>
-                <span class="truncate">Apartments</span>
+                <span class="nav-text truncate sidebar-label">Apartments</span>
             </a>
+        </div>
+    </div>
 
-            <a href="#" class="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm text-gray-700 hover:bg-gray-50 hover:text-gray-900 transition-all">
-                <span class="inline-flex h-5 w-5 items-center justify-center flex-shrink-0">
+    {{-- Tenant Management Section --}}
+    <div class="mt-4">
+        <button @click="expandedSections['Tenant'] = !expandedSections['Tenant']" 
+                class="section-header flex items-center justify-between w-full transition sidebar-transition">
+            <span class="section-title sidebar-label">👥 Tenant Management</span>
+            <svg class="chevron h-5 w-5 transition-transform flex-shrink-0" :class="expandedSections['Tenant'] ? 'rotate-90' : ''" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7" />
+            </svg>
+        </button>
+        <div x-show="expandedSections['Tenant']"
+             x-transition:enter="transition ease-out duration-300"
+             x-transition:enter-start="opacity-0 -translate-y-2"
+             x-transition:enter-end="opacity-100 translate-y-0"
+             x-transition:leave="transition ease-in duration-200"
+             x-transition:leave-start="opacity-100 translate-y-0"
+             x-transition:leave-end="opacity-0 -translate-y-2"
+             class="submenu-container mt-2 space-y-1">
+            
+            {{-- Active Tenants --}}
+            <a href="#" class="submenu-item nav-link flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm text-gray-700 hover:text-blue-700 transition-all sidebar-transition">
+                <span class="nav-icon sidebar-transition">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2m-10 2H2v-2a3 3 0 015.356-1.857M7 20v-2m5-4a4 4 0 100-8 4 4 0 000 8z" />
                     </svg>
                 </span>
-                <span class="truncate">Tenants</span>
+                <span class="nav-text truncate sidebar-label">Active Tenants</span>
             </a>
 
-            <a href="#" class="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm text-gray-700 hover:bg-gray-50 hover:text-gray-900 transition-all">
-                <span class="inline-flex h-5 w-5 items-center justify-center flex-shrink-0">
+            {{-- Archived Tenants --}}
+            <a href="#" class="submenu-item nav-link flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm text-gray-700 hover:text-blue-700 transition-all sidebar-transition">
+                <span class="nav-icon sidebar-transition">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h10m-9-9h8a2 2 0 012 2v10a2 2 0 01-2 2H8a2 2 0 01-2-2V6a1 1 0 011-1z" />
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" />
                     </svg>
                 </span>
-                <span class="truncate">Rentals</span>
+                <span class="nav-text truncate sidebar-label">Archived Tenants</span>
             </a>
 
-            <a href="#" class="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm text-gray-700 hover:bg-gray-50 hover:text-gray-900 transition-all">
-                <span class="inline-flex h-5 w-5 items-center justify-center flex-shrink-0">
+            {{-- Leave Processing --}}
+            <a href="#" class="submenu-item nav-link flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm text-gray-700 hover:text-blue-700 transition-all sidebar-transition">
+                <span class="nav-icon sidebar-transition">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                </span>
+                <span class="nav-text truncate sidebar-label">Leave Processing</span>
+            </a>
+        </div>
+    </div>
+
+    <!-- Section Separator -->
+    <div class="section-separator"></div>
+
+    {{-- Revenue & Expense Section --}}
+    <div class="mt-4">
+        <button @click="expandedSections['Revenue'] = !expandedSections['Revenue']" 
+                class="section-header flex items-center justify-between w-full transition sidebar-transition">
+            <span class="section-title sidebar-label">💰 Revenue & Expense</span>
+            <svg class="chevron h-5 w-5 transition-transform flex-shrink-0" :class="expandedSections['Revenue'] ? 'rotate-90' : ''" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7" />
+            </svg>
+        </button>
+        <div x-show="expandedSections['Revenue']"
+             x-transition:enter="transition ease-out duration-300"
+             x-transition:enter-start="opacity-0 -translate-y-2"
+             x-transition:enter-end="opacity-100 translate-y-0"
+             x-transition:leave="transition ease-in duration-200"
+             x-transition:leave-start="opacity-100 translate-y-0"
+             x-transition:leave-end="opacity-0 -translate-y-2"
+             class="submenu-container mt-2 space-y-1">
+            
+            {{-- Income Records --}}
+            <a href="#" class="submenu-item nav-link flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm text-gray-700 hover:text-blue-700 transition-all sidebar-transition">
+                <span class="nav-icon sidebar-transition">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V6m0 12v-2m0-14a9 9 0 11-9 9 9 9 0 019-9z" />
                     </svg>
                 </span>
-                <span class="truncate">Payments</span>
+                <span class="nav-text truncate sidebar-label">Income Records</span>
+            </a>
+
+            {{-- Expense Records --}}
+            <a href="#" class="submenu-item nav-link flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm text-gray-700 hover:text-blue-700 transition-all sidebar-transition">
+                <span class="nav-icon sidebar-transition">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
+                    </svg>
+                </span>
+                <span class="nav-text truncate sidebar-label">Expense Records</span>
+            </a>
+
+            {{-- Break-even Analysis --}}
+            <a href="#" class="submenu-item nav-link flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm text-gray-700 hover:text-blue-700 transition-all sidebar-transition">
+                <span class="nav-icon sidebar-transition">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                    </svg>
+                </span>
+                <span class="nav-text truncate sidebar-label">Break-even Analysis</span>
             </a>
         </div>
     </div>
 
-    {{-- Finance section --}}
-    <div class="mt-6">
-        <button @click="toggleSection('Finance')" class="flex items-center justify-between w-full px-3 py-2 text-xs font-semibold uppercase tracking-wide text-gray-500 hover:text-gray-700 transition">
-            <span>Finance</span>
-            <svg class="h-4 w-4 transform transition-transform" :class="expandedSections['Finance'] ? 'rotate-180' : ''" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 14l-7 7m0 0l-7-7m7 7V3" />
+    {{-- Fiscal Period Management Section --}}
+    <div class="mt-4">
+        <button @click="expandedSections['FiscalPeriod'] = !expandedSections['FiscalPeriod']" 
+                class="section-header flex items-center justify-between w-full transition sidebar-transition">
+            <span class="section-title sidebar-label">📅 Fiscal Period</span>
+            <svg class="chevron h-5 w-5 transition-transform flex-shrink-0" :class="expandedSections['FiscalPeriod'] ? 'rotate-90' : ''" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7" />
             </svg>
         </button>
-            <div x-show="expandedSections['Finance']" x-transition:enter="sidebar-slide-enter" x-transition:enter-active="sidebar-slide-enter-active" x-transition:leave="sidebar-slide-leave" x-transition:leave-active="sidebar-slide-leave-active" class="mt-2 space-y-1">
-            <a href="#" class="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm text-gray-700 hover:bg-gray-50 hover:text-gray-900 transition-all">
-                <span class="inline-flex h-5 w-5 items-center justify-center flex-shrink-0">
+        <div x-show="expandedSections['FiscalPeriod']"
+             x-transition:enter="transition ease-out duration-300"
+             x-transition:enter-start="opacity-0 -translate-y-2"
+             x-transition:enter-end="opacity-100 translate-y-0"
+             x-transition:leave="transition ease-in duration-200"
+             x-transition:leave-start="opacity-100 translate-y-0"
+             x-transition:leave-end="opacity-0 -translate-y-2"
+             class="submenu-container mt-2 space-y-1">
+            
+            {{-- Create/Close Periods --}}
+            <a href="#" class="submenu-item nav-link flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm text-gray-700 hover:text-blue-700 transition-all sidebar-transition">
+                <span class="nav-icon sidebar-transition">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 14l2-2 4 4m0 0l4-4m-4 4V3" />
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
                     </svg>
                 </span>
-                <span class="truncate">Utilities</span>
+                <span class="nav-text truncate sidebar-label">Create/Close Periods</span>
             </a>
 
-            <a href="#" class="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm text-gray-700 hover:bg-gray-50 hover:text-gray-900 transition-all">
-                <span class="inline-flex h-5 w-5 items-center justify-center flex-shrink-0">
+            {{-- Opening/Closing Balances --}}
+            <a href="#" class="submenu-item nav-link flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm text-gray-700 hover:text-blue-700 transition-all sidebar-transition">
+                <span class="nav-icon sidebar-transition">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V6m0 12v-2m0-14a9 9 0 11-9 9 9 9 0 019-9z" />
+                    </svg>
+                </span>
+                <span class="nav-text truncate sidebar-label">Opening/Closing Balances</span>
+            </a>
+
+            {{-- Period Reports --}}
+            <a href="#" class="submenu-item nav-link flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm text-gray-700 hover:text-blue-700 transition-all sidebar-transition">
+                <span class="nav-icon sidebar-transition">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
+                </span>
+                <span class="nav-text truncate sidebar-label">Period Reports Export</span>
+            </a>
+
+            {{-- Balance Sheet Items --}}
+            <a href="#" class="submenu-item nav-link flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm text-gray-700 hover:text-blue-700 transition-all sidebar-transition">
+                <span class="nav-icon sidebar-transition">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M5 6h14M7 14h10m-8 4h6" />
                     </svg>
                 </span>
-                <span class="truncate">Accounts</span>
-            </a>
-
-            <a href="#" class="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm text-gray-700 hover:bg-gray-50 hover:text-gray-900 transition-all">
-                <span class="inline-flex h-5 w-5 items-center justify-center flex-shrink-0">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2v6a3 3 0 006 0v-6c0-1.105-1.343-2-3-2z" />
-                    </svg>
-                </span>
-                <span class="truncate">Fiscal Periods</span>
+                <span class="nav-text truncate sidebar-label">Balance Sheet Items</span>
             </a>
         </div>
     </div>
 
-    {{-- System section --}}
-    <div class="mt-6">
-        <button @click="toggleSection('System')" class="flex items-center justify-between w-full px-3 py-2 text-xs font-semibold uppercase tracking-wide text-gray-500 hover:text-gray-700 transition">
-            <span>System</span>
-            <svg class="h-4 w-4 transform transition-transform" :class="expandedSections['System'] ? 'rotate-180' : ''" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 14l-7 7m0 0l-7-7m7 7V3" />
+    {{-- System Settings Section --}}
+    <div class="mt-4">
+        <button @click="expandedSections['Settings'] = !expandedSections['Settings']" 
+                class="section-header flex items-center justify-between w-full transition sidebar-transition">
+            <span class="section-title sidebar-label">⚙️ System Settings</span>
+            <svg class="chevron h-5 w-5 transition-transform flex-shrink-0" :class="expandedSections['Settings'] ? 'rotate-90' : ''" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7" />
             </svg>
         </button>
-            <div x-show="expandedSections['System']" x-transition:enter="sidebar-slide-enter" x-transition:enter-active="sidebar-slide-enter-active" x-transition:leave="sidebar-slide-leave" x-transition:leave-active="sidebar-slide-leave-active" class="mt-2 space-y-1">
-            <a href="#" class="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm text-gray-700 hover:bg-gray-50 hover:text-gray-900 transition-all">
-                <span class="inline-flex h-5 w-5 items-center justify-center flex-shrink-0">
+        <div x-show="expandedSections['Settings']"
+             x-transition:enter="transition ease-out duration-300"
+             x-transition:enter-start="opacity-0 -translate-y-2"
+             x-transition:enter-end="opacity-100 translate-y-0"
+             x-transition:leave="transition ease-in duration-200"
+             x-transition:leave-start="opacity-100 translate-y-0"
+             x-transition:leave-end="opacity-0 -translate-y-2"
+             class="submenu-container mt-2 space-y-1">
+            
+            {{-- Company Information --}}
+            <a href="#" class="submenu-item nav-link flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm text-gray-700 hover:text-blue-700 transition-all sidebar-transition">
+                <span class="nav-icon sidebar-transition">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 11V7a1 1 0 011-1h5m-6 6h4a1 1 0 011 1v4m-6-5H7a1 1 0 00-1 1v4m6-5V7m0 0H7a1 1 0 00-1 1v4m12-5v4a1 1 0 01-1 1h-4" />
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z" />
                     </svg>
                 </span>
-                <span class="truncate">Settings</span>
+                <span class="nav-text truncate sidebar-label">Company Information</span>
             </a>
 
-            <a href="#" class="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm text-gray-700 hover:bg-gray-50 hover:text-gray-900 transition-all">
-                <span class="inline-flex h-5 w-5 items-center justify-center flex-shrink-0">
+            {{-- Currency & Timezone --}}
+            <a href="#" class="submenu-item nav-link flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm text-gray-700 hover:text-blue-700 transition-all sidebar-transition">
+                <span class="nav-icon sidebar-transition">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2m14 0V9a7 7 0 00-14 0v2" />
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                     </svg>
                 </span>
-                <span class="truncate">Activity Logs</span>
+                <span class="nav-text truncate sidebar-label">Currency & Timezone</span>
+            </a>
+
+            {{-- Application Preferences --}}
+            <a href="#" class="submenu-item nav-link flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm text-gray-700 hover:text-blue-700 transition-all sidebar-transition">
+                <span class="nav-icon sidebar-transition">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                    </svg>
+                </span>
+                <span class="nav-text truncate sidebar-label">Application Preferences</span>
+            </a>
+
+            {{-- Activity Logs --}}
+            <a href="#" class="submenu-item nav-link flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm text-gray-700 hover:text-blue-700 transition-all sidebar-transition">
+                <span class="nav-icon sidebar-transition">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
+                </span>
+                <span class="nav-text truncate sidebar-label">Activity Logs</span>
             </a>
         </div>
     </div>
