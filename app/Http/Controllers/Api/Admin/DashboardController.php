@@ -10,15 +10,34 @@ use App\Models\Rentals;
 use App\Models\Tenants;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\View\View;
 
 class DashboardController extends Controller
 {
     /**
-     * Get admin dashboard statistics.
+     * Get dashboard for web view.
+     */
+    public function index(): View
+    {
+        $stats = $this->getStats();
+        return view('admin.dashboard', ['stats' => $stats]);
+    }
+
+    /**
+     * Get admin dashboard statistics (API).
      */
     public function stats(Request $request): JsonResponse
     {
-        $stats = [
+        $stats = $this->getStats();
+        return response()->json($stats);
+    }
+
+    /**
+     * Fetch all dashboard statistics from database.
+     */
+    private function getStats(): array
+    {
+        return [
             'floors_count' => Floors::count(),
             'apartments' => [
                 'total' => Apartments::count(),
@@ -52,8 +71,6 @@ class DashboardController extends Controller
                 'total_monthly_rent' => Apartments::where('status', 'occupied')->sum('monthly_rent'),
             ],
         ];
-
-        return response()->json($stats);
     }
 
     /**

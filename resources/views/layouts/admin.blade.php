@@ -141,14 +141,14 @@
         }
     </style>
 </head>
-<body class="bg-gray-50" x-data="sidebarState()" @init="init()">
+<body class="bg-gray-50 flex flex-col h-screen" x-data="sidebarState()" @init="init()">
     <!-- Top Bar -->
     @include('layouts.topbar')
     
-    <div class="flex min-h-screen">
+    <div class="flex flex-1 overflow-hidden">
         <!-- Animated Sidebar -->
         <aside class="sidebar-container" :class="[isCollapsed ? 'sidebar-collapsed' : 'sidebar-expanded']">
-            <div class="bg-white shadow-lg h-screen flex flex-col sticky top-0 overflow-y-auto">
+            <div class="bg-white shadow-lg h-full flex flex-col sticky top-0 overflow-y-auto">
                 <!-- Collapse Toggle -->
                 <div class="p-4 border-b border-gray-200 flex items-center justify-between">
                     <h2 class="font-bold text-xl text-gray-800 sidebar-label" :class="{'hidden': isCollapsed}">
@@ -191,7 +191,7 @@
         </aside>
 
         <!-- Main Content -->
-        <main class="flex-1 p-8 overflow-auto">
+        <main class="flex-1 p-8 overflow-auto h-full">
             @yield('content')
         </main>
     </div>
