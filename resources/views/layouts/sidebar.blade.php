@@ -363,7 +363,7 @@
     </a>
 
     {{-- User Management --}}
-    <a href="#" class="nav-link flex items-center gap-3 rounded-lg px-3 py-3 text-sm text-gray-700 hover:text-blue-700 transition-all sidebar-transition">
+    <a href="{{ route('admin.users.index') }}" class="nav-link flex items-center gap-3 rounded-lg px-3 py-3 text-sm font-medium transition-all duration-200 {{ request()->routeIs('admin.users.*') ? 'text-blue-700 active' : 'text-gray-700 hover:text-blue-700' }}">
         <span class="nav-icon sidebar-transition">
             <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 8.646 4 4 0 010-8.646M3 20.394A9.963 9.963 0 0112 21c4.304 0 8.196-1.702 11-4.504" />

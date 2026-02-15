@@ -5,22 +5,23 @@ namespace App\Http\Controllers\Api\Admin;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\UserResource;
 use App\Models\User;
-use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
-use Illuminate\Support\Facades\Hash;
-use Illuminate\Validation\Rule;
-use Illuminate\Validation\Rules\Password;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Validation\Rules\Password;
+use Illuminate\Validation\Rule;
+use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
+use Spatie\Permission\Models\Permission;
+use Spatie\Permission\Models\Role;
 
 class UserController extends Controller
 {
     /**
      * Display a listing of users.
      */
-    public function index(Request $request): AnonymousResourceCollection
+    public function index(Request $request)
     {
-        $query = User::query();
+        $query = User::with('roles', 'permissions');
 
         // Filter by role
         if ($request->has('role')) {
@@ -49,13 +50,20 @@ class UserController extends Controller
         $perPage = $request->get('per_page', 15);
         $users = $query->paginate($perPage);
 
-        return UserResource::collection($users);
+        // Return view for web requests, JSON for API requests
+        if ($request->wantsJson() || $request->is('api/*')) {
+            return UserResource::collection($users);
+        }
+
+        $roles = Role::all();
+        $permissions = Permission::all();
+        return view('admin.user', compact('users', 'roles', 'permissions'));
     }
 
     /**
      * Store a newly created user.
      */
-    public function store(Request $request): JsonResponse
+    public function store(Request $request)
     {
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255'],
@@ -74,10 +82,16 @@ class UserController extends Controller
 
         $user->assignRole($validated['role']);
 
-        return response()->json([
-            'message' => 'User created successfully',
-            'data' => new UserResource($user),
-        ], 201);
+        // Return JSON for API requests, redirect for web requests
+        if ($request->wantsJson() || $request->is('api/*')) {
+            return response()->json([
+                'message' => 'User created successfully',
+                'data' => new UserResource($user),
+            ], 201);
+        }
+
+        return redirect()->route('admin.users.index')
+                        ->with('success', 'User created successfully!');
     }
 
     /**
@@ -91,7 +105,7 @@ class UserController extends Controller
     /**
      * Update the specified user.
      */
-    public function update(Request $request, User $user): JsonResponse
+    public function update(Request $request, User $user)
     {
         $validated = $request->validate([
             'name' => ['sometimes', 'required', 'string', 'max:255'],
@@ -99,6 +113,8 @@ class UserController extends Controller
             'password' => ['nullable', 'confirmed', Password::defaults()],
             'status' => ['nullable', Rule::in(['active', 'inactive'])],
             'role' => ['nullable', 'string', Rule::in(['admin', 'supervisor', 'tenant'])],
+            'permissions' => ['nullable', 'array'],
+            'permissions.*' => ['exists:permissions,name'],
         ]);
 
         if (isset($validated['password'])) {
@@ -109,6 +125,9 @@ class UserController extends Controller
 
         $role = $validated['role'] ?? null;
         unset($validated['role']);
+        
+        $permissions = $validated['permissions'] ?? null;
+        unset($validated['permissions']);
 
         $user->update($validated);
 
@@ -116,28 +135,48 @@ class UserController extends Controller
             $user->syncRoles([$role]);
         }
 
-        return response()->json([
-            'message' => 'User updated successfully',
-            'data' => new UserResource($user),
-        ]);
+        if ($permissions) {
+            $user->syncPermissions($permissions);
+        }
+
+        // Return JSON for API requests, redirect for web requests
+        if ($request->wantsJson() || $request->is('api/*')) {
+            return response()->json([
+                'message' => 'User updated successfully',
+                'data' => new UserResource($user),
+            ]);
+        }
+
+        return redirect()->route('admin.users.index')
+                        ->with('success', 'User updated successfully!');
     }
 
     /**
      * Remove the specified user.
      */
-    public function destroy(User $user): JsonResponse
+    public function destroy(Request $request, User $user)
     {
         if ($user->id === Auth::id()) {
-            return response()->json([
-                'message' => 'Cannot delete your own account',
-            ], 403);
+            if ($request->wantsJson() || $request->is('api/*')) {
+                return response()->json([
+                    'message' => 'Cannot delete your own account',
+                ], 403);
+            }
+            return redirect()->route('admin.users.index')
+                            ->with('error', 'You cannot delete your own account!');
         }
 
         $user->delete();
 
-        return response()->json([
-            'message' => 'User deleted successfully',
-        ]);
+        // Return JSON for API requests, redirect for web requests
+        if ($request->wantsJson() || $request->is('api/*')) {
+            return response()->json([
+                'message' => 'User deleted successfully',
+            ]);
+        }
+
+        return redirect()->route('admin.users.index')
+                        ->with('success', 'User deleted successfully!');
     }
 
     /**
@@ -156,5 +195,29 @@ class UserController extends Controller
     {
         $users = User::role('supervisor')->where('status', 'active')->get();
         return UserResource::collection($users);
+    }
+
+    /**
+     * Assign permissions to a user.
+     */
+    public function assignPermissions(Request $request, User $user)
+    {
+        $validated = $request->validate([
+            'permissions' => ['required', 'array'],
+            'permissions.*' => ['exists:permissions,name'],
+        ]);
+
+        $user->syncPermissions($validated['permissions']);
+
+        // Return JSON for API requests, redirect for web requests
+        if ($request->wantsJson() || $request->is('api/*')) {
+            return response()->json([
+                'message' => 'Permissions updated successfully',
+                'data' => new UserResource($user->load('permissions')),
+            ]);
+        }
+
+        return redirect()->back()
+                        ->with('success', 'Permissions updated successfully!');
     }
 }
