@@ -7,7 +7,6 @@
         <!-- Header -->
         <div>
             <h1 class="text-3xl font-bold text-gray-900">Dashboard</h1>
-            <p class="text-gray-500 text-sm mt-2">Welcome back! Here's your property management overview.</p>
         </div>
 
         <!-- Quick Stats -->

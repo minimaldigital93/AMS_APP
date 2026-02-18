@@ -3,6 +3,8 @@
 use App\Http\Controllers\Admin\ProfileController;
 use App\Http\Controllers\Api\Admin\UserController;
 use App\Http\Controllers\Api\Admin\DashboardController;
+use App\Http\Controllers\Api\Admin\FloorController;
+use App\Http\Controllers\Api\Admin\ApartmentController;
 use Illuminate\Support\Facades\Route;
   
 
@@ -39,6 +41,19 @@ Route::middleware(['auth', 'role:admin'])->group(function () {
     Route::put('/admin/users/{user}', [UserController::class, 'update'])->name('admin.users.update');
     Route::delete('/admin/users/{user}', [UserController::class, 'destroy'])->name('admin.users.destroy');
     Route::post('/admin/users/{user}/permissions', [UserController::class, 'assignPermissions'])->name('admin.users.permissions');
+    
+    // Floor Management Routes
+    Route::get('/admin/floors', [FloorController::class, 'index'])->name('admin.floors.index');
+    Route::post('/admin/floors', [FloorController::class, 'store'])->name('admin.floors.store');
+    Route::put('/admin/floors/{floor}', [FloorController::class, 'update'])->name('admin.floors.update');
+    Route::delete('/admin/floors/{floor}', [FloorController::class, 'destroy'])->name('admin.floors.destroy');
+    Route::get('/admin/floors/{floor}/apartments', [FloorController::class, 'getApartments'])->name('admin.floors.apartments');
+    
+    // Apartment Management Routes
+    Route::get('/admin/apartments', [ApartmentController::class, 'index'])->name('admin.apartments.index');
+    Route::post('/admin/apartments', [ApartmentController::class, 'store'])->name('admin.apartments.store');
+    Route::put('/admin/apartments/{apartment}', [ApartmentController::class, 'update'])->name('admin.apartments.update');
+    Route::delete('/admin/apartments/{apartment}', [ApartmentController::class, 'destroy'])->name('admin.apartments.destroy');
 });
 
 require __DIR__.'/auth.php';
