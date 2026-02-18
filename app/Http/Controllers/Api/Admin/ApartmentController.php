@@ -23,23 +23,23 @@ class ApartmentController extends Controller
         $query = Apartments::with(['floor', 'supervisor']);
 
         // Filter by floor
-        if ($request->has('floor_id')) {
+        if ($request->filled('floor_id')) {
             $query->where('floor_id', $request->get('floor_id'));
         }
 
         // Filter by status
-        if ($request->has('status')) {
+        if ($request->filled('status')) {
             $query->where('status', $request->get('status'));
         }
 
         // Filter by supervisor
-        if ($request->has('supervisor_id')) {
+        if ($request->filled('supervisor_id')) {
             $query->where('supervisor_id', $request->get('supervisor_id'));
         }
 
         // Search functionality
-        if ($request->has('search')) {
-            $search = $request->get('search');
+        $search = trim((string) $request->get('search', ''));
+        if ($search !== '') {
             $query->where(function ($q) use ($search) {
                 $q->where('apartment_number', 'like', "%{$search}%")
                   ->orWhere('description', 'like', "%{$search}%");
@@ -47,24 +47,55 @@ class ApartmentController extends Controller
         }
 
         // Sorting
-        $sortBy = $request->get('sort_by', 'id');
+        $defaultSortBy = ($request->wantsJson() || $request->is('api/*')) ? 'id' : 'apartment_number';
+        $sortBy = $request->get('sort_by', $defaultSortBy);
         $sortOrder = $request->get('sort_order', 'asc');
         $query->orderBy($sortBy, $sortOrder);
 
-        // Pagination
-        $perPage = $request->get('per_page', $request->wantsJson() ? 15 : 10);
-        $apartments = $query->with(['floor', 'supervisor', 'tenants'])->paginate($perPage);
-
-        // Return view for web requests, JSON for API requests
+        // Return JSON for API requests
         if ($request->wantsJson() || $request->is('api/*')) {
+            $perPage = $request->get('per_page', 15);
+            $apartments = $query->with(['floor', 'supervisor', 'tenants'])->paginate($perPage);
+
             return ApartmentResource::collection($apartments);
         }
 
         // Get all floors and supervisors for dropdowns
-        $floors = Floors::orderBy('floor_name')->get();
+        $floors = Floors::all()
+            ->sortByDesc('floor_name', SORT_NATURAL | SORT_FLAG_CASE)
+            ->values();
         $supervisors = User::role('supervisor')->orderBy('name')->get();
 
-        return view('admin.PropertyManagement.apartments', compact('apartments', 'floors', 'supervisors'));
+        // Group apartments by floor for the web view
+        $floorsWithApartments = Floors::query()
+            ->when($request->filled('floor_id'), function ($floorQuery) use ($request) {
+                $floorQuery->where('id', $request->get('floor_id'));
+            })
+            ->with(['apartments' => function ($apartmentQuery) use ($request, $search, $sortBy, $sortOrder) {
+                $apartmentQuery->with('supervisor');
+
+                if ($request->filled('status')) {
+                    $apartmentQuery->where('status', $request->get('status'));
+                }
+
+                if ($request->filled('supervisor_id')) {
+                    $apartmentQuery->where('supervisor_id', $request->get('supervisor_id'));
+                }
+
+                if ($search !== '') {
+                    $apartmentQuery->where(function ($q) use ($search) {
+                        $q->where('apartment_number', 'like', "%{$search}%")
+                          ->orWhere('description', 'like', "%{$search}%");
+                    });
+                }
+
+                $apartmentQuery->orderBy($sortBy, $sortOrder);
+            }])
+            ->get()
+            ->sortByDesc('floor_name', SORT_NATURAL | SORT_FLAG_CASE)
+            ->values();
+
+        return view('admin.PropertyManagement.apartments', compact('floors', 'supervisors', 'floorsWithApartments'));
     }
 
     /**

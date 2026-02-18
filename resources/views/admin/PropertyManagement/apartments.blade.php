@@ -37,20 +37,6 @@
     </div>
     @endif
 
-    <!-- Info Box -->
-    <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
-        <div class="flex items-start gap-3">
-            <svg class="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
-                <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"/>
-            </svg>
-            <div>
-                <h3 class="text-sm font-semibold text-blue-900 mb-1">💡 Quick Tip</h3>
-                <p class="text-sm text-blue-800">
-                    Apartments are created when you add a floor. Here you can <strong>edit unit numbers, update prices</strong>, assign supervisors, and change apartment status.
-                </p>
-            </div>
-        </div>
-    </div>
 
     <!-- Filters -->
     <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
@@ -92,95 +78,110 @@
         </form>
     </div>
 
-    <!-- Apartments Table -->
-    <div class="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
-        <div class="overflow-x-auto">
-            <table class="w-full">
-                <thead class="bg-gray-50 border-b border-gray-200">
-                    <tr>
-                        <th class="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Unit #</th>
-                        <th class="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Floor</th>
-                        <th class="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Monthly Rent</th>
-                        <th class="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Status</th>
-                        <th class="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Supervisor</th>
-                        <th class="px-6 py-3 text-center text-xs font-semibold text-gray-700 uppercase tracking-wider">Actions</th>
-                    </tr>
-                </thead>
-                <tbody class="divide-y divide-gray-200">
-                    @forelse($apartments as $apartment)
-                    <tr class="hover:bg-gray-50 transition duration-150">
-                        <td class="px-6 py-4 whitespace-nowrap">
-                            <div class="text-sm font-medium text-gray-900">{{ $apartment->apartment_number }}</div>
-                        </td>
-                        <td class="px-6 py-4 whitespace-nowrap">
-                            <div class="text-sm text-gray-600">{{ $apartment->floor->floor_name ?? 'N/A' }}</div>
-                        </td>
-                        <td class="px-6 py-4 whitespace-nowrap">
-                            <div class="text-sm font-medium text-gray-900">${{ number_format($apartment->monthly_rent, 2) }}</div>
-                        </td>
-                        <td class="px-6 py-4 whitespace-nowrap">
-                            @if($apartment->status === 'available')
-                            <span class="inline-block bg-green-100 text-green-800 text-xs px-2.5 py-0.5 rounded-full font-medium">
-                                Available
-                            </span>
-                            @elseif($apartment->status === 'occupied')
-                            <span class="inline-block bg-blue-100 text-blue-800 text-xs px-2.5 py-0.5 rounded-full font-medium">
-                                Occupied
-                            </span>
-                            @else
-                            <span class="inline-block bg-yellow-100 text-yellow-800 text-xs px-2.5 py-0.5 rounded-full font-medium">
-                                Maintenance
-                            </span>
-                            @endif
-                        </td>
-                        <td class="px-6 py-4 whitespace-nowrap">
-                            <div class="text-sm text-gray-600">{{ $apartment->supervisor->name ?? 'Unassigned' }}</div>
-                        </td>
-                        <td class="px-6 py-4 whitespace-nowrap text-center">
-                            <div class="flex justify-center gap-3">
-                                <!-- Edit Button -->
-                                <button onclick='openEditApartmentModal(@json($apartment))' 
-                                        title="Edit apartment"
-                                        class="inline-flex items-center justify-center w-9 h-9 rounded-lg text-blue-600 hover:bg-blue-50 transition">
-                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                                    </svg>
-                                </button>
-                                
-                                <!-- Delete Button -->
-                                <button onclick="deleteApartment({{ $apartment->id }}, '{{ addslashes($apartment->apartment_number) }}')" 
-                                        title="Delete apartment"
-                                        class="inline-flex items-center justify-center w-9 h-9 rounded-lg text-red-600 hover:bg-red-50 transition">
-                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                                    </svg>
-                                </button>
+    <!-- Apartments by Floor -->
+    <div class="space-y-6">
+        @forelse($floorsWithApartments as $floor)
+        <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+            @php
+                $totalApartments = $floor->apartments->count();
+                $availableCount = $floor->apartments->where('status', 'available')->count();
+                $occupiedCount = $floor->apartments->where('status', 'occupied')->count();
+                $maintenanceCount = $floor->apartments->where('status', 'maintenance')->count();
+            @endphp
+            <div class="px-6 py-5 bg-gradient-to-r from-blue-50 via-white to-indigo-50 border-b border-gray-200">
+                <div class="flex flex-wrap items-center justify-between gap-4">
+                    <div>
+                        <div class="text-xs uppercase tracking-widest text-blue-700">Floor</div>
+                        <h2 class="text-2xl font-semibold text-gray-900">{{ $floor->floor_name }}</h2>
+                        <p class="text-sm text-gray-600 mt-1">{{ $totalApartments }} apartments</p>
+                    </div>
+                    <div class="flex flex-wrap gap-2">
+                        <span class="inline-flex items-center gap-1.5 text-xs font-medium bg-white border border-blue-100 text-blue-700 px-3 py-1 rounded-full">
+                            Total: {{ $totalApartments }}
+                        </span>
+                        <span class="inline-flex items-center gap-1.5 text-xs font-medium bg-green-50 border border-green-200 text-green-700 px-3 py-1 rounded-full">
+                            Available: {{ $availableCount }}
+                        </span>
+                        <span class="inline-flex items-center gap-1.5 text-xs font-medium bg-blue-50 border border-blue-200 text-blue-700 px-3 py-1 rounded-full">
+                            Occupied: {{ $occupiedCount }}
+                        </span>
+                        <span class="inline-flex items-center gap-1.5 text-xs font-medium bg-yellow-50 border border-yellow-200 text-yellow-700 px-3 py-1 rounded-full">
+                            Maintenance: {{ $maintenanceCount }}
+                        </span>
+                    </div>
+                </div>
+            </div>
+            <div class="p-6">
+                @if($floor->apartments->isEmpty())
+                <div class="text-sm text-gray-500">No apartments found for this floor.</div>
+                @else
+                <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
+                    @foreach($floor->apartments as $apartment)
+                    <div class="border border-gray-200 rounded-xl p-5 bg-white hover:shadow-md hover:border-blue-100 transition">
+                        <div class="flex items-start justify-between gap-3">
+                            <div>
+                                <div class="text-xs uppercase tracking-wider text-gray-500">Unit {{ $loop->iteration }}</div>
+                                <div class="text-xl font-semibold text-gray-900">{{ $apartment->apartment_number }}</div>
                             </div>
-                        </td>
-                    </tr>
-                    @empty
-                    <tr>
-                        <td colspan="6" class="px-6 py-8 text-center">
-                            <div class="text-gray-500">
-                                <svg class="w-12 h-12 mx-auto mb-2 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"></path>
+                            <div>
+                                @if($apartment->status === 'available')
+                                <span class="inline-flex items-center bg-green-100 text-green-800 text-xs px-2.5 py-0.5 rounded-full font-medium">
+                                    Available
+                                </span>
+                                @elseif($apartment->status === 'occupied')
+                                <span class="inline-flex items-center bg-blue-100 text-blue-800 text-xs px-2.5 py-0.5 rounded-full font-medium">
+                                    Occupied
+                                </span>
+                                @else
+                                <span class="inline-flex items-center bg-yellow-100 text-yellow-800 text-xs px-2.5 py-0.5 rounded-full font-medium">
+                                    Maintenance
+                                </span>
+                                @endif
+                            </div>
+                        </div>
+                        <div class="mt-4 grid grid-cols-2 gap-3 text-sm">
+                            <div class="rounded-lg bg-gray-50 border border-gray-200 p-2">
+                                <div class="text-xs text-gray-500 uppercase tracking-wider">Rent</div>
+                                <div class="font-semibold text-gray-900">${{ number_format($apartment->monthly_rent, 2) }}</div>
+                            </div>
+                            <div class="rounded-lg bg-gray-50 border border-gray-200 p-2">
+                                <div class="text-xs text-gray-500 uppercase tracking-wider">Supervisor</div>
+                                <div class="font-semibold text-gray-900">{{ $apartment->supervisor->name ?? 'Unassigned' }}</div>
+                            </div>
+                        </div>
+                        <div class="mt-4 flex gap-2">
+                            <button onclick='openEditApartmentModal(@json($apartment))' 
+                                    title="Edit apartment"
+                                    class="inline-flex items-center justify-center w-9 h-9 rounded-lg text-blue-600 hover:bg-blue-50 transition">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                                 </svg>
-                                <p class="font-medium">No apartments found</p>
-                            </div>
-                        </td>
-                    </tr>
-                    @endforelse
-                </tbody>
-            </table>
+                            </button>
+                            <button onclick="deleteApartment({{ $apartment->id }}, '{{ addslashes($apartment->apartment_number) }}')" 
+                                    title="Delete apartment"
+                                    class="inline-flex items-center justify-center w-9 h-9 rounded-lg text-red-600 hover:bg-red-50 transition">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+                    @endforeach
+                </div>
+                @endif
+            </div>
         </div>
+        @empty
+        <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-8 text-center">
+            <div class="text-gray-500">
+                <svg class="w-12 h-12 mx-auto mb-2 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"></path>
+                </svg>
+                <p class="font-medium">No floors found</p>
+            </div>
+        </div>
+        @endforelse
     </div>
-
-    <!-- Pagination -->
-    @if($apartments->hasPages())
-    <div class="flex justify-center">
-        {{ $apartments->links() }}
-    </div>
-    @endif
 </div>
 
 <!-- Add Apartment Modal -->
