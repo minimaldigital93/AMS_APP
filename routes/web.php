@@ -12,6 +12,7 @@ Route::get('/', function () {
     return view('auth.login');
 });
 
+//Route for dashboard and role-based access control
 Route::get('/dashboard', [DashboardController::class, 'index'])
     ->middleware(['auth', 'verified'])
     ->name('dashboard');
@@ -54,6 +55,19 @@ Route::middleware(['auth', 'role:admin'])->group(function () {
     Route::post('/admin/apartments', [ApartmentController::class, 'store'])->name('admin.apartments.store');
     Route::put('/admin/apartments/{apartment}', [ApartmentController::class, 'update'])->name('admin.apartments.update');
     Route::delete('/admin/apartments/{apartment}', [ApartmentController::class, 'destroy'])->name('admin.apartments.destroy');
+    
+    // Tenant Management Routes
+    Route::get('/admin/tenants/archived', function () {
+        return view('admin.TenantManagement.archivedTenants');
+    })->name('admin.tenants.archived');
+    
+    Route::get('/admin/tenants/leave/{tenant}', function ($tenant) {
+        return view('admin.TenantManagement.leaveProcessing');
+    })->name('admin.tenants.leave');
+    
+    Route::get('/admin/tenants', function () {
+        return view('admin.TenantManagement.activeTenants');
+    })->name('admin.tenants.index');
 });
 
 require __DIR__.'/auth.php';

@@ -19,14 +19,17 @@ class TenantController extends Controller
     {
         $query = Tenants::query();
 
+        // Filter by status (active/pending by default if not specified)
+        if ($request->has('status')) {
+            $query->where('status', $request->get('status'));
+        } else {
+            // Default: Show active and pending tenants
+            $query->whereIn('status', ['active', 'pending']);
+        }
+
         // Filter by apartment
         if ($request->has('apartment_id')) {
             $query->where('apartment_id', $request->get('apartment_id'));
-        }
-
-        // Filter by status
-        if ($request->has('status')) {
-            $query->where('status', $request->get('status'));
         }
 
         // Filter by manager

@@ -117,11 +117,22 @@
                 @else
                 <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
                     @foreach($floor->apartments as $apartment)
-                    <div class="border border-gray-200 rounded-xl p-5 bg-white hover:shadow-md hover:border-blue-100 transition">
+                    <div class="border border-gray-200 rounded-xl p-5 bg-white hover:shadow-md hover:border-blue-100 transition" data-apartment-id="{{ $apartment->id }}">
                         <div class="flex items-start justify-between gap-3">
                             <div>
                                 <div class="text-xs uppercase tracking-wider text-gray-500">Unit {{ $loop->iteration }}</div>
-                                <div class="text-xl font-semibold text-gray-900">{{ $apartment->apartment_number }}</div>
+                                <div class="flex items-center gap-2">
+                                    <!-- Tenant Status Indicator Dot -->
+                                    @php
+                                        $tenant = $apartment->tenants()->latest()->first();
+                                        $tenantStatus = $tenant ? $tenant->status : null;
+                                    @endphp
+                                    <span class="w-3 h-3 rounded-full {{ 
+                                        $tenantStatus === 'active' ? 'bg-blue-500' : 
+                                        ($tenantStatus === 'pending' ? 'bg-orange-500' : 'bg-green-500') 
+                                    }}" data-tenant-status-dot title="{{ $tenantStatus === 'active' ? 'Occupied' : ($tenantStatus === 'pending' ? 'Pending' : 'Available') }}"></span>
+                                    <div class="text-xl font-semibold text-gray-900">{{ $apartment->apartment_number }}</div>
+                                </div>
                             </div>
                             <div>
                                 @if($apartment->status === 'available')
@@ -149,7 +160,51 @@
                                 <div class="font-semibold text-gray-900">{{ $apartment->supervisor->name ?? 'Unassigned' }}</div>
                             </div>
                         </div>
+
+                        <!-- Tenant Information -->
+                        @php
+                            $tenant = $apartment->tenants()->latest()->first();
+                        @endphp
+                        <div data-tenant-info>
+                            @if($tenant)
+                            <div class="mt-4 p-3 rounded-lg bg-gray-50 border border-gray-200">
+                                <div class="text-xs text-gray-500 uppercase tracking-wider font-medium">Tenant</div>
+                                <div class="mt-2 space-y-1">
+                                    <div class="font-semibold text-gray-900">{{ $tenant->name }}</div>
+                                    <div class="text-xs text-gray-600">{{ $tenant->email }}</div>
+                                    <div class="text-xs text-gray-600">{{ $tenant->phone }}</div>
+                                    <div class="mt-2 flex items-center gap-2">
+                                        @if($tenant->status === 'active')
+                                            <span class="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium bg-blue-100 text-blue-800 rounded">
+                                                <span class="w-2 h-2 rounded-full bg-blue-600"></span> Active
+                                            </span>
+                                        @elseif($tenant->status === 'pending')
+                                            <span class="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium bg-orange-100 text-orange-800 rounded">
+                                                <span class="w-2 h-2 rounded-full bg-orange-600"></span> Pending
+                                            </span>
+                                        @else
+                                            <span class="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium bg-gray-200 text-gray-800 rounded">
+                                                <span class="w-2 h-2 rounded-full bg-gray-600"></span> Inactive
+                                            </span>
+                                        @endif
+                                    </div>
+                                </div>
+                            </div>
+                            @else
+                            <div class="mt-4 p-3 rounded-lg bg-gray-50 border border-gray-200 text-center">
+                                <div class="text-xs text-gray-500 uppercase tracking-wider font-medium mb-2">Status</div>
+                                <div class="text-sm text-gray-600">No tenant assigned</div>
+                            </div>
+                            @endif
+                        </div>
                         <div class="mt-4 flex gap-2">
+                            <button onclick="openAssignTenantModal({{ $apartment->id }}, '{{ $apartment->apartment_number }}')" 
+                                    title="Assign tenant"
+                                    class="inline-flex items-center justify-center w-9 h-9 rounded-lg text-green-600 hover:bg-green-50 transition">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
+                                </svg>
+                            </button>
                             <button onclick='openEditApartmentModal(@json($apartment))' 
                                     title="Edit apartment"
                                     class="inline-flex items-center justify-center w-9 h-9 rounded-lg text-blue-600 hover:bg-blue-50 transition">
@@ -339,7 +394,247 @@
     </div>
 </div>
 
+<!-- Assign Tenant Modal -->
+<div id="assignTenantModal" class="hidden fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+    <div class="bg-white rounded-lg max-w-lg w-full">
+        <div class="p-6 border-b border-gray-200">
+            <h2 class="text-xl font-bold text-gray-900">Assign Tenant to Apartment <span id="assignToApartment" class="text-blue-600"></span></h2>
+            <p class="text-gray-600 text-sm mt-1">Create a new tenant and assign them to this apartment</p>
+        </div>
+        <form id="assignTenantForm" onsubmit="submitAssignTenant(event)" class="p-6 space-y-4">
+            @csrf
+            <input type="hidden" id="apartmentIdForTenant" name="apartment_id">
+
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Tenant Name *</label>
+                    <input type="text" name="name" required placeholder="Full Name" 
+                           class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Email *</label>
+                    <input type="email" name="email" required placeholder="Email Address" 
+                           class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                </div>
+            </div>
+
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Phone *</label>
+                    <input type="tel" name="phone" required placeholder="Phone Number" 
+                           class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Status *</label>
+                    <select name="status" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        <option value="pending">Pending</option>
+                        <option value="active">Active</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Move In Date *</label>
+                    <input type="date" name="move_in_date" required 
+                           class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Deposit Amount</label>
+                    <input type="number" name="deposit" step="0.01" min="0" placeholder="0.00" 
+                           class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                </div>
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Date of Birth</label>
+                <input type="date" name="date_of_birth" 
+                       class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Address</label>
+                <textarea name="address" rows="2" placeholder="Street address" 
+                          class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"></textarea>
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Notes</label>
+                <textarea name="notes" rows="2" placeholder="Additional notes about the tenant" 
+                          class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"></textarea>
+            </div>
+
+            <div class="flex gap-3 pt-4">
+                <button type="submit" class="flex-1 bg-green-600 hover:bg-green-700 text-white font-semibold py-2 px-4 rounded-lg transition">
+                    Assign Tenant
+                </button>
+                <button type="button" onclick="closeAssignTenantModal()" class="flex-1 bg-gray-300 hover:bg-gray-400 text-gray-800 font-semibold py-2 px-4 rounded-lg transition">
+                    Cancel
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
 <script>
+// Assign Tenant Modal Functions
+function openAssignTenantModal(apartmentId, apartmentNumber) {
+    document.getElementById('apartmentIdForTenant').value = apartmentId;
+    document.getElementById('assignToApartment').textContent = apartmentNumber;
+    document.getElementById('assignTenantForm').reset();
+    document.getElementById('assignTenantModal').classList.remove('hidden');
+}
+
+function closeAssignTenantModal() {
+    document.getElementById('assignTenantModal').classList.add('hidden');
+}
+
+async function submitAssignTenant(event) {
+    event.preventDefault();
+    
+    const formData = new FormData(document.getElementById('assignTenantForm'));
+    const data = Object.fromEntries(formData);
+    const apartmentId = data.apartment_id;
+
+    console.log('📋 Form data being sent:', data);
+    console.log('🏠 Apartment ID:', apartmentId);
+
+    try {
+        const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || 
+                         document.querySelector('input[name="_token"]')?.value;
+        
+        console.log('🔐 CSRF Token:', csrfToken ? 'Found' : 'NOT FOUND');
+        
+        if (!csrfToken) {
+            alert('CSRF token not found. Please refresh the page and try again.');
+            return;
+        }
+
+        console.log('📤 Sending POST request to /api/admin/tenants...');
+        
+        const response = await fetch('/api/admin/tenants', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': csrfToken,
+            },
+            body: JSON.stringify(data)
+        });
+
+        console.log('✓ Response status:', response.status, response.statusText);
+        
+        const responseData = await response.json();
+        
+        console.log('✓ Response data:', responseData);
+
+        if (response.ok) {
+            alert('✓ Tenant assigned successfully!');
+            closeAssignTenantModal();
+            
+            // Update the apartment card immediately without full reload
+            const tenantData = responseData.data ? responseData.data : responseData;
+            console.log('✓ Tenant data for card update:', tenantData);
+            updateApartmentCard(apartmentId, tenantData);
+            
+            // Then reload page after a short delay to ensure consistency
+            setTimeout(() => {
+                console.log('🔄 Reloading page to ensure consistency...');
+                window.location.reload();
+            }, 1000);
+        } else {
+            console.error('✗ Error response:', responseData);
+            alert('✗ Error: ' + (responseData.message || JSON.stringify(responseData.errors || responseData)));
+        }
+    } catch (error) {
+        console.error('✗ Fetch error:', error);
+        alert('✗ Error assigning tenant: ' + error.message);
+    }
+}
+
+// Update apartment card with new tenant info immediately
+function updateApartmentCard(apartmentId, tenantData) {
+    console.log('🎨 Updating apartment card for apt ID:', apartmentId);
+    console.log('📊 Tenant data:', tenantData);
+    
+    // Find all apartment cards and update the matching one
+    const apartmentCards = document.querySelectorAll('[data-apartment-id]');
+    console.log('🔎 Found apartment cards:', apartmentCards.length);
+    
+    let found = false;
+    apartmentCards.forEach(card => {
+        const cardAptId = parseInt(card.getAttribute('data-apartment-id'));
+        console.log('  Checking card with apt ID:', cardAptId, 'vs target:', apartmentId);
+        
+        if (cardAptId === parseInt(apartmentId)) {
+            found = true;
+            console.log('  ✓ Match found! Updating...');
+            
+            // Update tenant status indicator dot
+            const statusDot = card.querySelector('[data-tenant-status-dot]');
+            console.log('    Status dot element:', statusDot ? 'Found' : 'NOT FOUND');
+            
+            if (statusDot) {
+                statusDot.className = 'w-3 h-3 rounded-full';
+                if (tenantData.status === 'active') {
+                    statusDot.classList.add('bg-blue-500');
+                    statusDot.setAttribute('title', 'Occupied');
+                    console.log('    ✓ Status dot set to BLUE');
+                } else if (tenantData.status === 'pending') {
+                    statusDot.classList.add('bg-orange-500');
+                    statusDot.setAttribute('title', 'Pending');
+                    console.log('    ✓ Status dot set to ORANGE');
+                } else {
+                    statusDot.classList.add('bg-green-500');
+                    statusDot.setAttribute('title', 'Available');
+                    console.log('    ✓ Status dot set to GREEN');
+                }
+            }
+            
+            // Update tenant information display
+            const tenantInfoDiv = card.querySelector('[data-tenant-info]');
+            console.log('    Tenant info div:', tenantInfoDiv ? 'Found' : 'NOT FOUND');
+            
+            if (tenantInfoDiv) {
+                tenantInfoDiv.innerHTML = `
+                    <div class="mt-4 p-3 rounded-lg bg-gray-50 border border-gray-200">
+                        <div class="text-xs text-gray-500 uppercase tracking-wider font-medium">Tenant</div>
+                        <div class="mt-2 space-y-1">
+                            <div class="font-semibold text-gray-900">${tenantData.name}</div>
+                            <div class="text-xs text-gray-600">${tenantData.email}</div>
+                            <div class="text-xs text-gray-600">${tenantData.phone}</div>
+                            <div class="mt-2 flex items-center gap-2">
+                                <span class="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium ${
+                                    tenantData.status === 'active' ? 'bg-blue-100 text-blue-800' :
+                                    tenantData.status === 'pending' ? 'bg-orange-100 text-orange-800' :
+                                    'bg-gray-200 text-gray-800'
+                                } rounded">
+                                    <span class="w-2 h-2 rounded-full ${
+                                        tenantData.status === 'active' ? 'bg-blue-600' :
+                                        tenantData.status === 'pending' ? 'bg-orange-600' :
+                                        'bg-gray-600'
+                                    }"></span> 
+                                    ${tenantData.status.charAt(0).toUpperCase() + tenantData.status.slice(1)}
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                console.log('    ✓ Tenant info updated');
+            }
+        }
+    });
+    
+    if (!found) {
+        console.warn('✗ No apartment card found with ID:', apartmentId);
+    }
+}
+                    </div>
+                `;
+            }
+        }
+    });
+}
+
 // Add Apartment Modal Functions
 function openAddApartmentModal() {
     document.getElementById('addApartmentModal').classList.remove('hidden');
@@ -378,7 +673,7 @@ function closeDeleteModal() {
 
 // Close modals when clicking outside
 document.addEventListener('click', function(event) {
-    const modals = ['addApartmentModal', 'editApartmentModal', 'deleteModal'];
+    const modals = ['addApartmentModal', 'editApartmentModal', 'deleteModal', 'assignTenantModal'];
     modals.forEach(modalId => {
         const modal = document.getElementById(modalId);
         if (event.target === modal) {
@@ -390,7 +685,7 @@ document.addEventListener('click', function(event) {
 // Close modals with Escape key
 document.addEventListener('keydown', function(event) {
     if (event.key === 'Escape') {
-        const modals = ['addApartmentModal', 'editApartmentModal', 'deleteModal'];
+        const modals = ['addApartmentModal', 'editApartmentModal', 'deleteModal', 'assignTenantModal'];
         modals.forEach(modalId => {
             document.getElementById(modalId).classList.add('hidden');
         });
