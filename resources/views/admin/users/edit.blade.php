@@ -26,7 +26,7 @@
                     name="name" 
                     value="{{ old('name', $user->name) }}"
                     required 
-                    class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 @error('name') border-red-500 @enderror"
+                    class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 {{ $errors->has('name') ? 'border-red-500' : 'border-gray-300' }}"
                     placeholder="Enter user name"
                 >
                 @error('name')
@@ -42,7 +42,7 @@
                     name="email" 
                     value="{{ old('email', $user->email) }}"
                     required 
-                    class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 @error('email') border-red-500 @enderror"
+                    class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 {{ $errors->has('email') ? 'border-red-500' : 'border-gray-300' }}"
                     placeholder="Enter email address"
                 >
                 @error('email')
@@ -56,7 +56,7 @@
                 <select 
                     name="role" 
                     required 
-                    class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 @error('role') border-red-500 @enderror"
+                    class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 {{ $errors->has('role') ? 'border-red-500' : 'border-gray-300' }}"
                 >
                     <option value="">Select a role</option>
                     @foreach($roles as $role)
@@ -75,7 +75,7 @@
                 <label class="block text-sm font-medium text-gray-700 mb-2">Status</label>
                 <select 
                     name="status" 
-                    class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 @error('status') border-red-500 @enderror"
+                    class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 {{ $errors->has('status') ? 'border-red-500' : 'border-gray-300' }}"
                 >
                     <option value="active" {{ $user->status === 'active' ? 'selected' : '' }}>Active</option>
                     <option value="inactive" {{ $user->status === 'inactive' ? 'selected' : '' }}>Inactive</option>

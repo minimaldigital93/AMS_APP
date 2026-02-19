@@ -11,6 +11,22 @@ use Illuminate\Validation\Rule;
 class FloorController extends Controller
 {
     /**
+     * Show the form for creating a new floor.
+     */
+    public function create(): View
+    {
+        return view('admin.floors.create');
+    }
+
+    /**
+     * Show the form for editing the specified floor.
+     */
+    public function edit(Floors $floor): View
+    {
+        return view('admin.floors.edit', compact('floor'));
+    }
+
+    /**
      * Display a listing of floors.
      */
     public function index(Request $request): View
@@ -24,9 +40,11 @@ class FloorController extends Controller
                   ->orWhere('description', 'like', "%{$search}%");
         }
 
-        $floors = $query->with('apartments')->paginate(10);
+        $floors = $query->with(['apartments' => function ($query) {
+            $query->with('supervisor');
+        }])->paginate(10);
 
-        return view('admin.propertyManagement.floors', compact('floors'));
+        return view('admin.floors.index', compact('floors'));
     }
 
     /**
@@ -42,7 +60,7 @@ class FloorController extends Controller
 
         Floors::create($validated);
 
-        return redirect()->route('admin.propertymanagement.floors.index')->with('success', 'Floor created successfully');
+        return redirect()->route('admin.floors.index')->with('success', 'Floor created successfully');
     }
 
     /**
@@ -57,7 +75,7 @@ class FloorController extends Controller
 
         $floor->update($validated);
 
-        return redirect()->route('admin.propertymanagement.floors.index')->with('success', 'Floor updated successfully');
+        return redirect()->route('admin.floors.index')->with('success', 'Floor updated successfully');
     }
 
     /**
@@ -66,7 +84,7 @@ class FloorController extends Controller
     public function destroy(Floors $floor)
     {
         $floor->delete();
-        return redirect()->route('admin.propertymanagement.floors.index')->with('success', 'Floor deleted successfully');
+        return redirect()->route('admin.floors.index')->with('success', 'Floor deleted successfully');
     }
 
     /**
@@ -75,6 +93,6 @@ class FloorController extends Controller
     public function getApartments(Floors $floor): View
     {
         $apartments = $floor->apartments()->paginate(10);
-        return view('admin.propertyManagement.apartments', compact('floor', 'apartments'));
+        return view('admin.apartments.index', compact('floor', 'apartments'));
     }
 }

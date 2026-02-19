@@ -25,7 +25,7 @@
                     name="name" 
                     value="{{ old('name') }}"
                     required 
-                    class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 @error('name') border-red-500 @enderror"
+                    class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 @error('name') border-red-500 @else border-gray-300 @enderror"
                     placeholder="Enter user name"
                 >
                 @error('name')
@@ -41,7 +41,7 @@
                     name="email" 
                     value="{{ old('email') }}"
                     required 
-                    class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 @error('email') border-red-500 @enderror"
+                    class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 @error('email') border-red-500 @else border-gray-300 @enderror"
                     placeholder="Enter email address"
                 >
                 @error('email')
@@ -56,7 +56,7 @@
                     type="password" 
                     name="password" 
                     required 
-                    class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 @error('password') border-red-500 @enderror"
+                    class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 @error('password') border-red-500 @else border-gray-300 @enderror"
                     placeholder="Enter password"
                 >
                 @error('password')
@@ -71,7 +71,7 @@
                 <select 
                     name="role" 
                     required 
-                    class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 @error('role') border-red-500 @enderror"
+                    class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 @error('role') border-red-500 @else border-gray-300 @enderror"
                 >
                     <option value="">Select a role</option>
                     @foreach($roles as $role)

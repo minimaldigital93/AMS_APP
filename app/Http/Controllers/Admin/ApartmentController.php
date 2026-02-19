@@ -35,7 +35,41 @@ class ApartmentController extends Controller
         $statuses = ['available', 'occupied', 'maintenance'];
         $supervisors = User::role('supervisor')->get();
 
-        return view('admin.propertyManagement.apartments', compact('apartments', 'floors', 'floorsWithApartments', 'statuses', 'supervisors'));
+        return view('admin.apartments.index', compact('apartments', 'floors', 'floorsWithApartments', 'statuses', 'supervisors'));
+    }
+
+    /**
+     * Show the form for creating a new apartment.
+     */
+    public function create(): View
+    {
+        $floors = Floors::all();
+        $supervisors = User::role('supervisor')->get();
+        $statuses = ['available', 'occupied', 'maintenance'];
+
+        return view('admin.apartments.create', compact('floors', 'supervisors', 'statuses'));
+    }
+
+    /**
+     * Show the apartment details.
+     */
+    public function show(Apartments $apartment): View
+    {
+        $apartment = $apartment->load('floor', 'supervisor');
+        return view('admin.apartments.show', compact('apartment'));
+    }
+
+    /**
+     * Show the form for editing an apartment.
+     */
+    public function edit(Apartments $apartment): View
+    {
+        $apartment = $apartment->load('floor', 'supervisor');
+        $floors = Floors::all();
+        $supervisors = User::role('supervisor')->get();
+        $statuses = ['available', 'occupied', 'maintenance'];
+
+        return view('admin.apartments.edit', compact('apartment', 'floors', 'supervisors', 'statuses'));
     }
 
     /**
@@ -52,7 +86,7 @@ class ApartmentController extends Controller
 
         Apartments::create($validated);
 
-        return redirect()->route('admin.propertymanagement.apartments.index')->with('success', 'Apartment created successfully');
+        return redirect()->route('admin.apartments.index')->with('success', 'Apartment created successfully');
     }
 
     /**
@@ -68,7 +102,7 @@ class ApartmentController extends Controller
 
         $apartment->update($validated);
 
-        return redirect()->route('admin.propertymanagement.apartments.index')->with('success', 'Apartment updated successfully');
+        return redirect()->route('admin.apartments.index')->with('success', 'Apartment updated successfully');
     }
 
     /**
@@ -77,6 +111,6 @@ class ApartmentController extends Controller
     public function destroy(Apartments $apartment)
     {
         $apartment->delete();
-        return redirect()->route('admin.propertymanagement.apartments.index')->with('success', 'Apartment deleted successfully');
+        return redirect()->route('admin.apartments.index')->with('success', 'Apartment deleted successfully');
     }
 }
