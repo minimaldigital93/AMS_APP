@@ -7,14 +7,7 @@
         <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-8">
             <div>
                 <h1 class="text-3xl font-bold text-gray-900">Active Tenants Management</h1>
-                <p class="mt-2 text-sm text-gray-600">Manage and monitor all active tenants in your property</p>
             </div>
-            <button onclick="openAddTenantModal()" class="mt-4 sm:mt-0 inline-flex items-center px-6 py-2 border border-transparent text-base font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 transition">
-                <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
-                </svg>
-                Add New Tenant
-            </button>
         </div>
 
         <!-- Filters Section -->
@@ -28,7 +21,6 @@
                     <label class="block text-sm font-medium text-gray-700 mb-2">Filter by Apartment</label>
                     <select id="apartmentFilter" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
                         <option value="">All Apartments</option>
-                        <!-- Options will be populated dynamically -->
                     </select>
                 </div>
                 <div>
@@ -37,12 +29,11 @@
                         <option value="">All Status</option>
                         <option value="active">Active</option>
                         <option value="pending">Pending</option>
-                        <option value="inactive">Inactive</option>
                     </select>
                 </div>
                 <div class="flex items-end">
-                    <button onclick="resetFilters()" class="w-full px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition font-medium">
-                        Reset Filters
+                    <button type="button" onclick="location.reload()" class="w-full px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition font-medium">
+                        Refresh
                     </button>
                 </div>
             </div>
@@ -59,7 +50,7 @@
                     </div>
                     <div class="ml-4">
                         <p class="text-gray-600 text-sm">Total Active Tenants</p>
-                        <p id="totalTenants" class="text-2xl font-bold text-gray-900">0</p>
+                        <p id="totalTenants" class="text-2xl font-bold text-gray-900">{{ $tenants->total() }}</p>
                     </div>
                 </div>
             </div>
@@ -72,7 +63,7 @@
                     </div>
                     <div class="ml-4">
                         <p class="text-gray-600 text-sm">Verified Tenants</p>
-                        <p id="verifiedTenants" class="text-2xl font-bold text-gray-900">0</p>
+                        <p id="verifiedTenants" class="text-2xl font-bold text-gray-900">{{ $tenants->getCollection()->where('status', 'active')->count() }}</p>
                     </div>
                 </div>
             </div>
@@ -85,7 +76,7 @@
                     </div>
                     <div class="ml-4">
                         <p class="text-gray-600 text-sm">Pending Tenants</p>
-                        <p id="pendingTenants" class="text-2xl font-bold text-gray-900">0</p>
+                        <p id="pendingTenants" class="text-2xl font-bold text-gray-900">{{ $tenants->getCollection()->where('status', 'pending')->count() }}</p>
                     </div>
                 </div>
             </div>
@@ -98,7 +89,7 @@
                     </div>
                     <div class="ml-4">
                         <p class="text-gray-600 text-sm">Total Deposits</p>
-                        <p id="totalDeposits" class="text-2xl font-bold text-gray-900">$0</p>
+                        <p id="totalDeposits" class="text-2xl font-bold text-gray-900">${{ number_format($tenants->getCollection()->sum('deposit'), 2) }}</p>
                     </div>
                 </div>
             </div>
@@ -112,7 +103,6 @@
                         <tr>
                             <th class="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Tenant Name</th>
                             <th class="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Apartment</th>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Email</th>
                             <th class="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Phone</th>
                             <th class="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Move In Date</th>
                             <th class="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Status</th>
@@ -120,17 +110,58 @@
                             <th class="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Actions</th>
                         </tr>
                     </thead>
-                    <tbody id="tenantsTableBody" class="bg-white divide-y divide-gray-200">
-                        <!-- Tenants will be populated here via JavaScript -->
+                    <tbody class="bg-white divide-y divide-gray-200">
+                        @forelse ($tenants as $tenant)
+                            <tr class="hover:bg-gray-50 transition">
+                                <td class="px-6 py-4 whitespace-nowrap">
+                                    <div class="flex items-center">
+                                        <div class="h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center">
+                                            <span class="text-blue-600 font-semibold text-sm">{{ strtoupper(substr($tenant->name, 0, 1)) }}</span>
+                                        </div>
+                                        <div class="ml-4">
+                                            <p class="font-medium text-gray-900">{{ $tenant->name }}</p>
+                                            <p class="text-sm text-gray-500">{{ $tenant->user_id ? 'Linked' : 'Not Linked' }}</p>
+                                        </div>
+                                    </div>
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{ $tenant->apartment?->apartment_number ?? 'N/A' }}</td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{{ $tenant->phone }}</td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{{ $tenant->move_in_date }}</td>
+                                <td class="px-6 py-4 whitespace-nowrap">
+                                    <span class="px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full
+                                        {{ $tenant->status === 'active' ? 'bg-green-100 text-green-800' : ($tenant->status === 'pending' ? 'bg-yellow-100 text-yellow-800' : 'bg-red-100 text-red-800') }}">
+                                        {{ ucfirst($tenant->status) }}
+                                    </span>
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${{ number_format($tenant->deposit ?? 0, 2) }}</td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-3">
+                                    <button onclick="viewTenantDetails({{ $tenant->id }})" title="View Details" class="text-blue-600 hover:text-blue-900 transition">
+                                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
+                                        </svg>
+                                    </button>
+                                    <button onclick="editTenant({{ $tenant->id }})" title="Edit Tenant" class="text-green-600 hover:text-green-900 transition">
+                                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-7.5-1.5L15 3m0 0l3 3m-3-3v10"></path>
+                                        </svg>
+                                    </button>
+                                    <button onclick="processTenantLeave({{ $tenant->id }})" title="Process Leave" class="text-orange-600 hover:text-orange-900 transition">
+                                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path>
+                                        </svg>
+                                    </button>
+                                </td>
+                            </tr>
+                        @empty
+                            <tr>
+                                <td colspan="8" class="px-6 py-4 text-center text-gray-500">
+                                    No tenants found
+                                </td>
+                            </tr>
+                        @endforelse
                     </tbody>
                 </table>
-            </div>
-            <div id="noTenantsMessage" class="text-center py-12">
-                <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.856-1.487M15 10a3 3 0 11-6 0 3 3 0 016 0z"></path>
-                </svg>
-                <h3 class="mt-2 text-sm font-medium text-gray-900">No tenants found</h3>
-                <p class="mt-1 text-sm text-gray-600">Get started by adding a new tenant.</p>
             </div>
         </div>
     </div>
@@ -249,29 +280,10 @@
 
 @push('scripts')
 <script>
-    let allTenants = [];
-
     // Initialize on page load
     document.addEventListener('DOMContentLoaded', function() {
         loadApartments();
-        loadTenants();
-        setupFilterListeners();
-        
-        // Reload tenants when user returns to the page (tab focus)
-        document.addEventListener('visibilitychange', function() {
-            if (!document.hidden) {
-                console.log('Page regained focus, reloading tenants');
-                loadTenants();
-            }
-        });
     });
-
-    // Setup filter listeners
-    function setupFilterListeners() {
-        document.getElementById('searchInput').addEventListener('input', filterTenants);
-        document.getElementById('apartmentFilter').addEventListener('change', filterTenants);
-        document.getElementById('statusFilter').addEventListener('change', filterTenants);
-    }
 
     // Load apartments for dropdown
     async function loadApartments() {
@@ -283,143 +295,15 @@
             const apartmentSelects = document.querySelectorAll('[name="apartment_id"], #apartmentFilter');
             apartmentSelects.forEach(select => {
                 apartments.forEach(apt => {
-                    if (select.id === 'apartmentId' || select === document.getElementById('apartmentId')) {
-                        const option = document.createElement('option');
-                        option.value = apt.id;
-                        option.textContent = apt.apartment_number;
-                        select.appendChild(option);
-                    } else if (select === document.getElementById('apartmentFilter')) {
-                        const option = document.createElement('option');
-                        option.value = apt.id;
-                        option.textContent = apt.apartment_number;
-                        select.appendChild(option);
-                    }
+                    const option = document.createElement('option');
+                    option.value = apt.id;
+                    option.textContent = apt.apartment_number;
+                    select.appendChild(option);
                 });
             });
         } catch (error) {
             console.error('Error loading apartments:', error);
         }
-    }
-
-    // Load tenants from API
-    async function loadTenants() {
-        try {
-            // API now returns only active and pending tenants by default
-            const response = await fetch('/api/admin/tenants?per_page=1000');
-            const data = await response.json();
-            let tenants = data.data || data;
-            
-            // Ensure tenants is an array
-            if (!Array.isArray(tenants)) {
-                console.warn('API returned unexpected format:', tenants);
-                tenants = Object.values(tenants || {});
-            }
-            
-            console.log('✓ Active tenants from API (count: ' + tenants.length + '):', tenants);
-            
-            allTenants = tenants;
-            
-            displayTenants(allTenants);
-            updateStatistics();
-        } catch (error) {
-            console.error('✗ Error loading tenants:', error);
-            alert('Error loading tenants. Check console for details: ' + error.message);
-        }
-    }
-    
-    // Refresh tenants every 5 seconds to show newly assigned tenants (only if no modal is open)
-    setInterval(() => {
-        const tenantModal = document.getElementById('tenantModal');
-        const viewModal = document.getElementById('viewTenantModal');
-        if (tenantModal.classList.contains('hidden') && viewModal.classList.contains('hidden')) {
-            loadTenants();
-        }
-    }, 5000);
-
-    // Display tenants in table
-    function displayTenants(tenants) {
-        const tbody = document.getElementById('tenantsTableBody');
-        const noTenantsMsg = document.getElementById('noTenantsMessage');
-
-        if (tenants.length === 0) {
-            tbody.innerHTML = '';
-            noTenantsMsg.classList.remove('hidden');
-            return;
-        }
-
-        noTenantsMsg.classList.add('hidden');
-        tbody.innerHTML = tenants.map(tenant => `
-            <tr class="hover:bg-gray-50 transition">
-                <td class="px-6 py-4 whitespace-nowrap">
-                    <div class="flex items-center">
-                        <div class="h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center">
-                            <span class="text-blue-600 font-semibold text-sm">${tenant.name.charAt(0).toUpperCase()}</span>
-                        </div>
-                        <div class="ml-4">
-                            <p class="font-medium text-gray-900">${tenant.name}</p>
-                            <p class="text-sm text-gray-500">${tenant.user_id ? 'Linked' : 'Not Linked'}</p>
-                        </div>
-                    </div>
-                </td>
-                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${tenant.apartment?.apartment_number || 'N/A'}</td>
-                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">${tenant.email}</td>
-                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">${tenant.phone}</td>
-                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">${tenant.move_in_date}</td>
-                <td class="px-6 py-4 whitespace-nowrap">
-                    <span class="px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full
-                        ${tenant.status === 'active' ? 'bg-green-100 text-green-800' :
-                          tenant.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
-                          'bg-red-100 text-red-800'}">
-                        ${tenant.status.charAt(0).toUpperCase() + tenant.status.slice(1)}
-                    </span>
-                </td>
-                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">$${parseFloat(tenant.deposit || 0).toFixed(2)}</td>
-                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-2">
-                    <button onclick="viewTenantDetails(${tenant.id})" class="text-blue-600 hover:text-blue-900">View</button>
-                    <button onclick="editTenant(${tenant.id})" class="text-green-600 hover:text-green-900">Edit</button>
-                    <button onclick="processTenantLeave(${tenant.id})" class="text-orange-600 hover:text-orange-900">Process Leave</button>
-                </td>
-            </tr>
-        `).join('');
-    }
-
-    // Filter tenants based on search and filters
-    function filterTenants() {
-        const searchTerm = document.getElementById('searchInput').value.toLowerCase();
-        const apartmentId = document.getElementById('apartmentFilter').value;
-        const status = document.getElementById('statusFilter').value;
-
-        const filtered = allTenants.filter(tenant => {
-            const matchSearch = tenant.name.toLowerCase().includes(searchTerm) ||
-                              tenant.email.toLowerCase().includes(searchTerm);
-            const matchApartment = !apartmentId || tenant.apartment_id == apartmentId;
-            const matchStatus = !status || tenant.status === status;
-
-            return matchSearch && matchApartment && matchStatus;
-        });
-
-        displayTenants(filtered);
-    }
-
-    // Reset filters
-    function resetFilters() {
-        document.getElementById('searchInput').value = '';
-        document.getElementById('apartmentFilter').value = '';
-        document.getElementById('statusFilter').value = '';
-        displayTenants(allTenants);
-    }
-
-    // Update statistics
-    function updateStatistics() {
-        const total = allTenants.length;
-        const verified = allTenants.filter(t => t.status === 'active').length;
-        const pending = allTenants.filter(t => t.status === 'pending').length;
-        const deposits = allTenants.reduce((sum, t) => sum + (parseFloat(t.deposit) || 0), 0);
-
-        document.getElementById('totalTenants').textContent = total;
-        document.getElementById('verifiedTenants').textContent = verified;
-        document.getElementById('pendingTenants').textContent = pending;
-        document.getElementById('totalDeposits').textContent = '$' + deposits.toFixed(2);
     }
 
     // Open add tenant modal
@@ -458,9 +342,7 @@
             if (response.ok) {
                 alert(tenantId ? 'Tenant updated successfully!' : 'Tenant created successfully!');
                 closeTenantModal();
-                loadTenants();
-            } else {
-                const error = await response.json();
+                location.reload();
                 alert('Error: ' + (error.message || 'Failed to save tenant'));
             }
         } catch (error) {

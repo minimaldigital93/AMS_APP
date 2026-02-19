@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Admin\ProfileController;
+use App\Http\Controllers\Admin\TenantController;
 use App\Http\Controllers\Api\Admin\UserController;
 use App\Http\Controllers\Api\Admin\DashboardController;
 use App\Http\Controllers\Api\Admin\FloorController;
@@ -57,17 +58,9 @@ Route::middleware(['auth', 'role:admin'])->group(function () {
     Route::delete('/admin/apartments/{apartment}', [ApartmentController::class, 'destroy'])->name('admin.apartments.destroy');
     
     // Tenant Management Routes
-    Route::get('/admin/tenants/archived', function () {
-        return view('admin.TenantManagement.archivedTenants');
-    })->name('admin.tenants.archived');
-    
-    Route::get('/admin/tenants/leave/{tenant}', function ($tenant) {
-        return view('admin.TenantManagement.leaveProcessing');
-    })->name('admin.tenants.leave');
-    
-    Route::get('/admin/tenants', function () {
-        return view('admin.TenantManagement.activeTenants');
-    })->name('admin.tenants.index');
+    Route::get('/admin/tenants', [TenantController::class, 'index'])->name('admin.tenants.index');
+    Route::get('/admin/tenants/archived', [TenantController::class, 'archived'])->name('admin.tenants.archived');
+    Route::get('/admin/tenants/leave/{tenant}', [TenantController::class, 'leave'])->name('admin.tenants.leave');
 });
 
 require __DIR__.'/auth.php';
