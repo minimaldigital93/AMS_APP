@@ -288,7 +288,8 @@
     // Load apartments for dropdown
     async function loadApartments() {
         try {
-            const response = await fetch('/api/admin/apartments?per_page=1000');
+            // API call removed - data should come from Blade controller
+            console.log('Loading apartments from Blade view...');
             const data = await response.json();
             const apartments = data.data;
 
@@ -327,7 +328,8 @@
         const data = Object.fromEntries(formData);
 
         try {
-            const url = tenantId ? `/api/admin/tenants/${tenantId}` : '/api/admin/tenants';
+            // API calls removed - use Blade controller with form submission instead
+            const url = tenantId ? `/admin/tenants/${tenantId}` : '/admin/tenants';
             const method = tenantId ? 'PUT' : 'POST';
 
             const response = await fetch(url, {

@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Http\Controllers\Api\Admin;
+namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Apartments;
@@ -8,28 +8,17 @@ use App\Models\Floors;
 use App\Models\Payments;
 use App\Models\Rentals;
 use App\Models\Tenants;
-use Illuminate\Http\JsonResponse;
-use Illuminate\Http\Request;
 use Illuminate\View\View;
 
 class DashboardController extends Controller
 {
     /**
-     * Get dashboard for web view.
+     * Display admin dashboard with statistics.
      */
     public function index(): View
     {
         $stats = $this->getStats();
         return view('admin.dashboard', ['stats' => $stats]);
-    }
-
-    /**
-     * Get admin dashboard statistics (API).
-     */
-    public function stats(Request $request): JsonResponse
-    {
-        $stats = $this->getStats();
-        return response()->json($stats);
     }
 
     /**
@@ -71,44 +60,5 @@ class DashboardController extends Controller
                 'total_monthly_rent' => Apartments::where('status', 'occupied')->sum('monthly_rent'),
             ],
         ];
-    }
-
-    /**
-     * Get recent activities for admin dashboard.
-     */
-    public function recentActivities(Request $request): JsonResponse
-    {
-        $limit = $request->get('limit', 10);
-
-        $recentPayments = Payments::with(['rental.tenant', 'rental.apartment'])
-            ->orderBy('created_at', 'desc')
-            ->limit($limit)
-            ->get()
-            ->map(fn($p) => [
-                'type' => 'payment',
-                'message' => "Payment of {$p->amount} for " . ($p->rental->tenant->name ?? 'Unknown'),
-                'status' => $p->payment_status,
-                'created_at' => $p->created_at,
-            ]);
-
-        $recentTenants = Tenants::with('apartment')
-            ->orderBy('created_at', 'desc')
-            ->limit($limit)
-            ->get()
-            ->map(fn($t) => [
-                'type' => 'tenant',
-                'message' => "New tenant: {$t->name}",
-                'status' => $t->status,
-                'created_at' => $t->created_at,
-            ]);
-
-        $activities = collect()
-            ->merge($recentPayments)
-            ->merge($recentTenants)
-            ->sortByDesc('created_at')
-            ->take($limit)
-            ->values();
-
-        return response()->json(['data' => $activities]);
     }
 }

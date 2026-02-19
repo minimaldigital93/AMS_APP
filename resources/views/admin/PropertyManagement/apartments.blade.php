@@ -40,7 +40,7 @@
 
     <!-- Filters -->
     <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-        <form method="GET" action="{{ route('admin.apartments.index') }}" class="flex gap-4 flex-wrap items-end">
+        <form method="GET" action="{{ route('admin.propertymanagement.apartments.index') }}" class="flex gap-4 flex-wrap items-end">
             <div class="flex-1 min-w-[200px]">
                 <label class="block text-sm font-medium text-gray-700 mb-2">Search</label>
                 <input type="text" name="search" value="{{ request('search') }}" 
@@ -71,7 +71,7 @@
                 <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-lg transition duration-200">
                     Filter
                 </button>
-                <a href="{{ route('admin.apartments.index') }}" class="bg-gray-300 hover:bg-gray-400 text-gray-800 font-semibold py-2 px-4 rounded-lg transition duration-200">
+                <a href="{{ route('admin.propertymanagement.apartments.index') }}" class="bg-gray-300 hover:bg-gray-400 text-gray-800 font-semibold py-2 px-4 rounded-lg transition duration-200">
                     Reset
                 </a>
             </div>
@@ -245,7 +245,7 @@
         <div class="p-6 border-b border-gray-200">
             <h2 class="text-xl font-bold text-gray-900">Add New Apartment</h2>
         </div>
-        <form method="POST" action="{{ route('admin.apartments.store') }}" class="p-6 space-y-4">
+        <form method="POST" action="{{ route('admin.propertymanagement.apartments.store') }}" class="p-6 space-y-4">
             @csrf
             <div>
                 <label class="block text-sm font-medium text-gray-700 mb-2">Apartment Number <span class="text-red-500">*</span></label>
@@ -510,39 +510,14 @@ async function submitAssignTenant(event) {
             return;
         }
 
-        console.log('📤 Sending POST request to /api/admin/tenants...');
+        console.log('📤 Sending tenant data to Blade controller (API call removed)...');
         
-        const response = await fetch('/api/admin/tenants', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRF-TOKEN': csrfToken,
-            },
-            body: JSON.stringify(data)
-        });
+        // API call removed - use Blade controller with form submission instead
+        try {
+            document.getElementById('assignTenantForm').submit();
 
-        console.log('✓ Response status:', response.status, response.statusText);
-        
-        const responseData = await response.json();
-        
-        console.log('✓ Response data:', responseData);
-
-        if (response.ok) {
-            alert('✓ Tenant assigned successfully!');
-            closeAssignTenantModal();
-            
-            // Update the apartment card immediately without full reload
-            const tenantData = responseData.data ? responseData.data : responseData;
-            console.log('✓ Tenant data for card update:', tenantData);
-            updateApartmentCard(apartmentId, tenantData);
-            
-            // Then reload page after a short delay to ensure consistency
-            setTimeout(() => {
-                console.log('🔄 Reloading page to ensure consistency...');
-                window.location.reload();
-            }, 1000);
-        } else {
-            console.error('✗ Error response:', responseData);
+        } catch (error) {
+            console.error('Form submission error:', error);
             alert('✗ Error: ' + (responseData.message || JSON.stringify(responseData.errors || responseData)));
         }
     } catch (error) {

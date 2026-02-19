@@ -165,17 +165,8 @@
     // Load apartments for dropdown
     async function loadApartments() {
         try {
-            const response = await fetch('/api/admin/apartments?per_page=1000');
-            const data = await response.json();
-            const apartments = data.data;
-
-            const apartmentFilter = document.getElementById('apartmentFilter');
-            apartments.forEach(apt => {
-                const option = document.createElement('option');
-                option.value = apt.id;
-                option.textContent = apt.apartment_number;
-                apartmentFilter.appendChild(option);
-            });
+            // API call removed - apartments should be loaded via Blade controller instead
+            console.log('Loading apartments from Blade view...');
         } catch (error) {
             console.error('Error loading apartments:', error);
         }
@@ -184,15 +175,8 @@
     // Load archived tenants from API
     async function loadArchivedTenants() {
         try {
-            // Fetch all inactive tenants (archived tenants have status 'inactive')
-            const response = await fetch('/api/admin/tenants?per_page=1000&status=inactive');
-            const data = await response.json();
-
-            // Filter tenants that have archived_at date
-            allArchivedTenants = (data.data || data).filter(tenant => tenant.archived_at);
-
-            displayTenants(allArchivedTenants);
-            updateStatistics();
+            // API call removed - archived tenants should be loaded via Blade controller instead
+            console.log('Loading archived tenants from Blade view...');
         } catch (error) {
             console.error('Error loading archived tenants:', error);
         }
@@ -331,7 +315,8 @@
     // View tenant details
     async function viewTenantDetails(tenantId) {
         try {
-            const response = await fetch(`/api/admin/tenants/${tenantId}`);
+            // API call removed - use Blade controller instead
+            console.log('Fetching tenant:', tenantId);
             const tenant = await response.json();
             const t = tenant.data;
 
