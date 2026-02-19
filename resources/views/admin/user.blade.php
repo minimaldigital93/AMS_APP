@@ -36,41 +36,70 @@
     </div>
     @endif
 
-    <!-- Filters -->
-    <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-        <form method="GET" action="{{ route('admin.users.index') }}" class="flex gap-4 flex-wrap items-end">
-            <div class="flex-1 min-w-[200px]">
-                <label class="block text-sm font-medium text-gray-700 mb-2">Search</label>
-                <input type="text" name="search" value="{{ request('search') }}" 
-                       placeholder="Search by name or email..." 
-                       class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
-            </div>
-            <div class="min-w-[150px]">
-                <label class="block text-sm font-medium text-gray-700 mb-2">Role</label>
-                <select name="role" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
-                    <option value="">All Roles</option>
-                    @foreach($roles as $role)
-                    <option value="{{ $role->name }}" {{ request('role') == $role->name ? 'selected' : '' }}>
-                        {{ ucfirst($role->name) }}
-                    </option>
-                    @endforeach
-                </select>
-            </div>
-            <div class="min-w-[150px]">
-                <label class="block text-sm font-medium text-gray-700 mb-2">Status</label>
-                <select name="status" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
-                    <option value="">All Status</option>
-                    <option value="active" {{ request('status') == 'active' ? 'selected' : '' }}>Active</option>
-                    <option value="inactive" {{ request('status') == 'inactive' ? 'selected' : '' }}>Inactive</option>
-                </select>
-            </div>
-            <div class="flex gap-2">
-                <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-lg transition duration-200">
-                    Filter
+    <!-- Simple Search Section -->
+    <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+        <form id="filterForm" method="GET" action="{{ route('admin.users.index') }}" class="space-y-3">
+            <!-- Search Row -->
+            <div class="flex gap-2 items-end">
+                <div class="flex-1 max-w-md">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Search</label>
+                    <div class="relative">
+                        <input type="text" 
+                               id="searchInput"
+                               name="search" 
+                               value="{{ request('search') }}" 
+                               placeholder="Search by name or email..." 
+                               class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        <svg class="absolute right-3 top-2.5 w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                        </svg>
+                    </div>
+                </div>
+                <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-6 rounded-lg transition duration-200 flex items-center gap-2">
+                    <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clip-rule="evenodd" />
+                    </svg>
+                    Search
                 </button>
-                <a href="{{ route('admin.users.index') }}" class="bg-gray-300 hover:bg-gray-400 text-gray-800 font-semibold py-2 px-4 rounded-lg transition duration-200">
+                <a href="{{ route('admin.users.index') }}" class="bg-gray-300 hover:bg-gray-400 text-gray-800 font-semibold py-2 px-6 rounded-lg transition duration-200">
                     Reset
                 </a>
+            </div>
+
+            <!-- Filters Row -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <!-- Role Filter -->
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Role</label>
+                    <select name="role" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        <option value="">All Roles</option>
+                        @foreach($roles as $role)
+                        <option value="{{ $role->name }}" {{ (request('role') ?? '') == $role->name ? 'selected' : '' }}>
+                            {{ ucfirst($role->name) }}
+                        </option>
+                        @endforeach
+                    </select>
+                </div>
+
+                <!-- Status Filter -->
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Status</label>
+                    <select name="status" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        <option value="">All Status</option>
+                        <option value="active" {{ (request('status') ?? '') == 'active' ? 'selected' : '' }}>Active</option>
+                        <option value="inactive" {{ (request('status') ?? '') == 'inactive' ? 'selected' : '' }}>Inactive</option>
+                    </select>
+                </div>
+
+                <!-- Sort By Filter -->
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Sort By</label>
+                    <select name="sort_by" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        <option value="created_at" {{ (request('sort_by') ?? 'created_at') == 'created_at' ? 'selected' : '' }}>Latest</option>
+                        <option value="name" {{ (request('sort_by') ?? '') == 'name' ? 'selected' : '' }}>Name (A-Z)</option>
+                        <option value="email" {{ (request('sort_by') ?? '') == 'email' ? 'selected' : '' }}>Email (A-Z)</option>
+                    </select>
+                </div>
             </div>
         </form>
     </div>
@@ -81,16 +110,64 @@
             <table class="w-full">
                 <thead class="bg-gray-50 border-b border-gray-200">
                     <tr>
-                        <th class="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Name</th>
-                        <th class="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Email</th>
-                        <th class="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Role</th>
-                        <th class="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Status</th>
-                        <th class="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Created</th>
-                        <th class="px-6 py-3 text-center text-xs font-semibold text-gray-700 uppercase tracking-wider">
-                            <svg class="w-4 h-4 mx-auto" fill="currentColor" viewBox="0 0 20 20">
-                                <path d="M10.5 1.5H9.5A1.5 1.5 0 008 3v2a1.5 1.5 0 001.5 1.5h1A1.5 1.5 0 0012 5V3a1.5 1.5 0 00-1.5-1.5zM5.5 6.5H4.5A1.5 1.5 0 003 8v8a1.5 1.5 0 001.5 1.5h1A1.5 1.5 0 007 16V8a1.5 1.5 0 00-1.5-1.5zm9 0h-1A1.5 1.5 0 0012 8v8a1.5 1.5 0 001.5 1.5h1a1.5 1.5 0 001.5-1.5V8a1.5 1.5 0 00-1.5-1.5z"/>
-                            </svg>
+                        <th class="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                            <a href="{{ route('admin.users.index', array_merge(request()->query(), ['sort_by' => 'name', 'sort_order' => request('sort_by') === 'name' && request('sort_order') === 'asc' ? 'desc' : 'asc'])) }}" class="hover:text-blue-600 flex items-center gap-1">
+                                Name
+                                @if(request('sort_by') === 'name')
+                                    <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                                        @if(request('sort_order') === 'asc')
+                                        <path fill-rule="evenodd" d="M3.293 9.707a1 1 0 010-1.414l6-6a1 1 0 011.414 0l6 6a1 1 0 01-1.414 1.414L11 5.414V15a1 1 0 11-2 0V5.414L4.707 9.707a1 1 0 01-1.414 0z" clip-rule="evenodd" />
+                                        @else
+                                        <path fill-rule="evenodd" d="M16.707 10.293a1 1 0 010 1.414l-6 6a1 1 0 01-1.414 0l-6-6a1 1 0 111.414-1.414L9 14.586V5a1 1 0 012 0v9.586l4.293-4.293a1 1 0 011.414 0z" clip-rule="evenodd" />
+                                        @endif
+                                    </svg>
+                                @endif
+                            </a>
                         </th>
+                        <th class="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                            <a href="{{ route('admin.users.index', array_merge(request()->query(), ['sort_by' => 'email', 'sort_order' => request('sort_by') === 'email' && request('sort_order') === 'asc' ? 'desc' : 'asc'])) }}" class="hover:text-blue-600 flex items-center gap-1">
+                                Email
+                                @if(request('sort_by') === 'email')
+                                    <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                                        @if(request('sort_order') === 'asc')
+                                        <path fill-rule="evenodd" d="M3.293 9.707a1 1 0 010-1.414l6-6a1 1 0 011.414 0l6 6a1 1 0 01-1.414 1.414L11 5.414V15a1 1 0 11-2 0V5.414L4.707 9.707a1 1 0 01-1.414 0z" clip-rule="evenodd" />
+                                        @else
+                                        <path fill-rule="evenodd" d="M16.707 10.293a1 1 0 010 1.414l-6 6a1 1 0 01-1.414 0l-6-6a1 1 0 111.414-1.414L9 14.586V5a1 1 0 012 0v9.586l4.293-4.293a1 1 0 011.414 0z" clip-rule="evenodd" />
+                                        @endif
+                                    </svg>
+                                @endif
+                            </a>
+                        </th>
+                        <th class="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Role</th>
+                        <th class="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                            <a href="{{ route('admin.users.index', array_merge(request()->query(), ['sort_by' => 'status', 'sort_order' => request('sort_by') === 'status' && request('sort_order') === 'asc' ? 'desc' : 'asc'])) }}" class="hover:text-blue-600 flex items-center gap-1">
+                                Status
+                                @if(request('sort_by') === 'status')
+                                    <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                                        @if(request('sort_order') === 'asc')
+                                        <path fill-rule="evenodd" d="M3.293 9.707a1 1 0 010-1.414l6-6a1 1 0 011.414 0l6 6a1 1 0 01-1.414 1.414L11 5.414V15a1 1 0 11-2 0V5.414L4.707 9.707a1 1 0 01-1.414 0z" clip-rule="evenodd" />
+                                        @else
+                                        <path fill-rule="evenodd" d="M16.707 10.293a1 1 0 010 1.414l-6 6a1 1 0 01-1.414 0l-6-6a1 1 0 111.414-1.414L9 14.586V5a1 1 0 012 0v9.586l4.293-4.293a1 1 0 011.414 0z" clip-rule="evenodd" />
+                                        @endif
+                                    </svg>
+                                @endif
+                            </a>
+                        </th>
+                        <th class="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                            <a href="{{ route('admin.users.index', array_merge(request()->query(), ['sort_by' => 'created_at', 'sort_order' => request('sort_by') === 'created_at' && request('sort_order') === 'asc' ? 'desc' : 'asc'])) }}" class="hover:text-blue-600 flex items-center gap-1">
+                                Created
+                                @if(request('sort_by') === 'created_at')
+                                    <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                                        @if(request('sort_order') === 'asc')
+                                        <path fill-rule="evenodd" d="M3.293 9.707a1 1 0 010-1.414l6-6a1 1 0 011.414 0l6 6a1 1 0 01-1.414 1.414L11 5.414V15a1 1 0 11-2 0V5.414L4.707 9.707a1 1 0 01-1.414 0z" clip-rule="evenodd" />
+                                        @else
+                                        <path fill-rule="evenodd" d="M16.707 10.293a1 1 0 010 1.414l-6 6a1 1 0 01-1.414 0l-6-6a1 1 0 111.414-1.414L9 14.586V5a1 1 0 012 0v9.586l4.293-4.293a1 1 0 011.414 0z" clip-rule="evenodd" />
+                                        @endif
+                                    </svg>
+                                @endif
+                            </a>
+                        </th>
+                        <th class="px-6 py-3 text-center text-xs font-semibold text-gray-700 uppercase tracking-wider">Actions</th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-gray-200">
@@ -174,13 +251,6 @@
             </table>
         </div>
     </div>
-
-    <!-- Pagination -->
-    @if($users->hasPages())
-    <div class="flex justify-center">
-        {{ $users->links() }}
-    </div>
-    @endif
 </div>
 
 <!-- Add User Modal -->
@@ -346,6 +416,12 @@
 </div>
 
 <script>
+// Apply filters and submit form
+function applyFilters() {
+    document.getElementById('filterForm').submit();
+}
+
+// Modal functions
 function openAddUserModal() {
     document.getElementById('addUserModal').classList.remove('hidden');
 }
@@ -378,7 +454,8 @@ function openPermissionsModal(userId, userName) {
             document.querySelectorAll('#permissionsForm input[type="checkbox"]').forEach(checkbox => {
                 checkbox.checked = userPermissions.includes(checkbox.value);
             });
-        });
+        })
+        .catch(error => console.error('Error fetching permissions:', error));
     
     document.getElementById('permissionsModal').classList.remove('hidden');
 }
@@ -406,6 +483,30 @@ document.addEventListener('click', function(event) {
             modal.classList.add('hidden');
         }
     });
+});
+
+// Add keyboard shortcuts
+document.addEventListener('keydown', function(event) {
+    // Close modals on Escape
+    if (event.key === 'Escape') {
+        document.getElementById('addUserModal').classList.add('hidden');
+        document.getElementById('editUserModal').classList.add('hidden');
+        document.getElementById('permissionsModal').classList.add('hidden');
+        document.getElementById('deleteModal').classList.add('hidden');
+    }
+});
+
+// Initialize search input
+document.addEventListener('DOMContentLoaded', function() {
+    const searchInput = document.getElementById('searchInput');
+    if (searchInput) {
+        // Allow Enter key to submit search
+        searchInput.addEventListener('keypress', function(event) {
+            if (event.key === 'Enter') {
+                document.getElementById('filterForm').submit();
+            }
+        });
+    }
 });
 </script>
 @endsection

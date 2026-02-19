@@ -24,17 +24,20 @@ class UserController extends Controller
         $query = User::with('roles', 'permissions');
 
         // Filter by role
-        if ($request->has('role')) {
-            $query->role($request->get('role'));
+        if ($request->filled('role')) {
+            $role = $request->get('role');
+            $query->whereHas('roles', function ($q) use ($role) {
+                $q->where('name', $role);
+            });
         }
 
         // Filter by status
-        if ($request->has('status')) {
+        if ($request->filled('status')) {
             $query->where('status', $request->get('status'));
         }
 
-        // Search
-        if ($request->has('search')) {
+        // Search - search in name and email
+        if ($request->filled('search')) {
             $search = $request->get('search');
             $query->where(function ($q) use ($search) {
                 $q->where('name', 'like', "%{$search}%")
@@ -43,12 +46,23 @@ class UserController extends Controller
         }
 
         // Sorting
-        $sortBy = $request->get('sort_by', 'id');
+        $sortBy = $request->get('sort_by', 'created_at');
         $sortOrder = $request->get('sort_order', 'desc');
+        
+        // Validate sort fields to prevent SQL injection
+        $allowedSortFields = ['id', 'name', 'email', 'status', 'created_at', 'updated_at'];
+        if (!in_array($sortBy, $allowedSortFields)) {
+            $sortBy = 'created_at';
+        }
+        
+        $sortOrder = strtoupper($sortOrder) === 'ASC' ? 'asc' : 'desc';
         $query->orderBy($sortBy, $sortOrder);
 
         $perPage = $request->get('per_page', 15);
         $users = $query->paginate($perPage);
+        
+        // Append query parameters to pagination links
+        $users->appends($request->query());
 
         // Return view for web requests, JSON for API requests
         if ($request->wantsJson() || $request->is('api/*')) {
@@ -57,7 +71,17 @@ class UserController extends Controller
 
         $roles = Role::all();
         $permissions = Permission::all();
-        return view('admin.user', compact('users', 'roles', 'permissions'));
+        
+        // Pass filter values to view for sticky filters
+        $filters = [
+            'search' => $request->get('search', ''),
+            'role' => $request->get('role', ''),
+            'status' => $request->get('status', ''),
+            'sort_by' => $sortBy,
+            'sort_order' => $sortOrder,
+        ];
+        
+        return view('admin.user', compact('users', 'roles', 'permissions', 'filters'));
     }
 
     /**

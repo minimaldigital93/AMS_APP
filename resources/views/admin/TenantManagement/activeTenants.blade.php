@@ -327,8 +327,14 @@
         }
     }
     
-    // Refresh tenants every 5 seconds to show newly assigned tenants
-    setInterval(loadTenants, 5000);
+    // Refresh tenants every 5 seconds to show newly assigned tenants (only if no modal is open)
+    setInterval(() => {
+        const tenantModal = document.getElementById('tenantModal');
+        const viewModal = document.getElementById('viewTenantModal');
+        if (tenantModal.classList.contains('hidden') && viewModal.classList.contains('hidden')) {
+            loadTenants();
+        }
+    }, 5000);
 
     // Display tenants in table
     function displayTenants(tenants) {
