@@ -147,9 +147,10 @@
     @push('scripts')
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script>
-        // 1. Revenue Trend Chart
-        const revenueCtx = document.getElementById('revenueChart').getContext('2d');
-        new Chart(revenueCtx, {
+        document.addEventListener('DOMContentLoaded', function() {
+            // 1. Revenue Trend Chart
+            const revenueCtx = document.getElementById('revenueChart').getContext('2d');
+            new Chart(revenueCtx, {
             type: 'line',
             data: {
                 labels: ['September', 'October', 'November', 'December', 'January', 'February'],
@@ -312,6 +313,7 @@
                     }
                 }
             }
+        });
         });
     </script>
     @endpush
