@@ -122,6 +122,21 @@ class UserController extends Controller
     }
 
     /**
+     * Update user role.
+     */
+    public function updateRole(Request $request, User $user)
+    {
+        $validated = $request->validate([
+            'role' => 'required|exists:roles,id',
+        ]);
+
+        $role = Role::findById($validated['role']);
+        $user->syncRoles([$role]);
+
+        return redirect()->route('admin.users.index')->with('success', 'User role updated successfully');
+    }
+
+    /**
      * Assign permissions to a user.
      */
     public function assignPermissions(Request $request, User $user)

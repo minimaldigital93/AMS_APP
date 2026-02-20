@@ -42,6 +42,7 @@
                     <th class="px-6 py-3 text-left text-sm font-semibold text-gray-900">Email</th>
                     <th class="px-6 py-3 text-left text-sm font-semibold text-gray-900">Role</th>
                     <th class="px-6 py-3 text-left text-sm font-semibold text-gray-900">Status</th>
+                    <th class="px-6 py-3 text-left text-sm font-semibold text-gray-900">Assigned Roles</th>
                     <th class="px-6 py-3 text-left text-sm font-semibold text-gray-900">Actions</th>
                 </tr>
             </thead>
@@ -59,6 +60,20 @@
                         <span class="px-3 py-1 text-sm font-semibold rounded-full {{ $user->status === 'active' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-700' }}">
                             {{ ucfirst($user->status ?? 'unknown') }}
                         </span>
+                    </td>
+                    <td class="px-6 py-4">
+                        <form action="{{ route('admin.users.updateRole', $user) }}" method="POST">
+                            @csrf
+                            @method('PATCH')
+                            <select name="role" onchange="this.form.submit()" class="px-2 py-1 text-xs font-medium rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                <option value="">Assign Role</option>
+                                @foreach($roles as $role)
+                                    <option value="{{ $role->id }}" {{ $user->roles->contains($role->id) ? 'selected' : '' }}>
+                                        {{ ucfirst($role->name) }}
+                                    </option>
+                                @endforeach
+                            </select>
+                        </form>
                     </td>
                     <td class="px-6 py-4 flex items-center gap-3">
                         <a href="{{ route('admin.users.edit', $user) }}" class="text-blue-600 hover:text-blue-900">

@@ -17,7 +17,7 @@ return new class extends Migration
             $table->foreignId('supervisor_id')->nullable()->constrained('users')->onDelete('set null');
             $table->string('apartment_number')->unique();
             $table->decimal('monthly_rent', 10, 2);
-            $table->enum('status', ['available', 'occupied'])->default('available');
+            $table->enum('status', ['available', 'occupied', 'maintenance'])->default('available');
             $table->text('description')->nullable();
             $table->timestamps();
             $table->softDeletes();

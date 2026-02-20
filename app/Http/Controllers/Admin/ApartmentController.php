@@ -82,6 +82,8 @@ class ApartmentController extends Controller
             'floor_id' => 'required|exists:floors,id',
             'monthly_rent' => 'required|numeric|min:0',
             'status' => 'required|in:available,occupied,maintenance',
+            'supervisor_id' => 'nullable|exists:users,id',
+            'description' => 'nullable|string',
         ]);
 
         Apartments::create($validated);
@@ -98,6 +100,8 @@ class ApartmentController extends Controller
             'apartment_number' => 'required|string|unique:apartments,apartment_number,' . $apartment->id,
             'monthly_rent' => 'required|numeric|min:0',
             'status' => 'required|in:available,occupied,maintenance',
+            'supervisor_id' => 'nullable|exists:users,id',
+            'description' => 'nullable|string',
         ]);
 
         $apartment->update($validated);
@@ -110,7 +114,15 @@ class ApartmentController extends Controller
      */
     public function destroy(Apartments $apartment)
     {
+        $floor = $apartment->floor;
         $apartment->delete();
+        
+        // Check if request came from floor edit page
+        $referrer = request()->headers->get('referer');
+        if ($referrer && str_contains($referrer, '/admin/floors/') && str_contains($referrer, '/edit')) {
+            return back()->with('success', 'Apartment deleted successfully');
+        }
+        
         return redirect()->route('admin.apartments.index')->with('success', 'Apartment deleted successfully');
     }
 }
