@@ -486,34 +486,44 @@
              x-transition:leave-end="opacity-0 -translate-y-2"
              class="submenu-container mt-2 space-y-1">
             
+            {{-- Dashboard --}}
+            <a href="{{ route('admin.revenue_expense.index') }}" class="submenu-item nav-link flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm {{ request()->routeIs('admin.revenue_expense.index') ? 'text-blue-700 active' : 'text-gray-700 hover:text-blue-700' }} transition-all sidebar-transition">
+                <span class="nav-icon sidebar-transition">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7m-9 2v8m4-8v8m5-12l2 2m-2-2v12a1 1 0 01-1 1h-4m-6 0H4a1 1 0 01-1-1V10m0 0l2-2" />
+                    </svg>
+                </span>
+                <span class="nav-text truncate sidebar-label">Dashboard</span>
+            </a>
+
             {{-- Income Records --}}
-            <a href="#" class="submenu-item nav-link flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm text-gray-700 hover:text-blue-700 transition-all sidebar-transition">
+            <a href="{{ route('admin.revenue_expense.record_income') }}" class="submenu-item nav-link flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm {{ request()->routeIs('admin.revenue_expense.record_income') ? 'text-blue-700 active' : 'text-gray-700 hover:text-blue-700' }} transition-all sidebar-transition">
                 <span class="nav-icon sidebar-transition">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V6m0 12v-2m0-14a9 9 0 11-9 9 9 9 0 019-9z" />
                     </svg>
                 </span>
-                <span class="nav-text truncate sidebar-label">Income Records</span>
+                <span class="nav-text truncate sidebar-label">Record Income</span>
             </a>
 
             {{-- Expense Records --}}
-            <a href="#" class="submenu-item nav-link flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm text-gray-700 hover:text-blue-700 transition-all sidebar-transition">
+            <a href="{{ route('admin.revenue_expense.record_expense') }}" class="submenu-item nav-link flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm {{ request()->routeIs('admin.revenue_expense.record_expense') ? 'text-blue-700 active' : 'text-gray-700 hover:text-blue-700' }} transition-all sidebar-transition">
                 <span class="nav-icon sidebar-transition">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
                     </svg>
                 </span>
-                <span class="nav-text truncate sidebar-label">Expense Records</span>
+                <span class="nav-text truncate sidebar-label">Record Expense</span>
             </a>
 
             {{-- Break-even Analysis --}}
-            <a href="#" class="submenu-item nav-link flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm text-gray-700 hover:text-blue-700 transition-all sidebar-transition">
+            <a href="{{ route('admin.revenue_expense.break_even') }}" class="submenu-item nav-link flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm {{ request()->routeIs('admin.revenue_expense.break_even') ? 'text-blue-700 active' : 'text-gray-700 hover:text-blue-700' }} transition-all sidebar-transition">
                 <span class="nav-icon sidebar-transition">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
                     </svg>
                 </span>
-                <span class="nav-text truncate sidebar-label">Break-even Analysis</span>
+                <span class="nav-text truncate sidebar-label">Break-Even Analysis</span>
             </a>
         </div>
     </div>

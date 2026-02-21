@@ -7,6 +7,7 @@ use App\Http\Controllers\Admin\ApartmentController;
 use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\Admin\TenantController;
 use App\Http\Controllers\Admin\FiscalPeriodController;
+use App\Http\Controllers\Admin\RevenueExpenseController;
 use App\Http\Controllers\Supervisor\DashboardController as SupervisorDashboardController;
 use App\Http\Controllers\Tenant\DashboardController as TenantDashboardController;
 use Illuminate\Support\Facades\Route;
@@ -97,6 +98,12 @@ Route::middleware(['auth', 'role:admin'])->group(function () {
     Route::get('/admin/fiscalperiod/{fiscalperiod}/reports', [FiscalPeriodController::class, 'reports'])->name('admin.fiscalperiod.reports');
     Route::get('/admin/fiscalperiod/{fiscalperiod}/export-pdf', [FiscalPeriodController::class, 'exportPDF'])->name('admin.fiscalperiod.exportPDF');
     Route::get('/admin/fiscalperiod/{fiscalperiod}/export-csv', [FiscalPeriodController::class, 'exportCSV'])->name('admin.fiscalperiod.exportCSV');
+    
+    // Revenue & Expense Management Routes
+    Route::get('/admin/revenue-expense', [RevenueExpenseController::class, 'index'])->name('admin.revenue_expense.index');
+    Route::get('/admin/revenue-expense/break-even', [RevenueExpenseController::class, 'breakEvenPoint'])->name('admin.revenue_expense.break_even');
+    Route::get('/admin/revenue-expense/record-income', [RevenueExpenseController::class, 'recordIncome'])->name('admin.revenue_expense.record_income');
+    Route::get('/admin/revenue-expense/record-expense', [RevenueExpenseController::class, 'recordExpense'])->name('admin.revenue_expense.record_expense');
 });
 
 require __DIR__.'/auth.php';

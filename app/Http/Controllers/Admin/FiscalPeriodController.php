@@ -6,6 +6,8 @@ use App\Http\Controllers\Controller;
 use App\Models\FiscalPeriods;
 use App\Models\BalanceSheet;
 use App\Models\User;
+use App\Models\Payments;
+use App\Models\Utilities;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
@@ -158,7 +160,40 @@ class FiscalPeriodController extends Controller
         $balanceSheetItems = $fiscalperiod->balanceSheets()->get();
         $summary = $this->calculateBalanceSheetSummary($fiscalperiod);
 
-        return view('admin.fiscalperiod.period_reports_exports', compact('fiscalperiod', 'balanceSheetItems', 'summary'));
+        // Calculate Revenue from Payments (Rent Income)
+        $revenue = Payments::whereHas('rental', function($query) use ($fiscalperiod) {
+            $query->whereHas('apartment', function($subQuery) use ($fiscalperiod) {
+                $subQuery->where('supervisor_id', $fiscalperiod->user_id);
+            });
+        })
+        ->where('payment_status', 'paid')
+        ->whereBetween('paid_at', [$fiscalperiod->opening_date, $fiscalperiod->closing_date])
+        ->sum('amount');
+
+        // Calculate Expenses by Utility Type
+        $utilities = Utilities::whereHas('rental', function($query) use ($fiscalperiod) {
+            $query->whereHas('apartment', function($subQuery) use ($fiscalperiod) {
+                $subQuery->where('supervisor_id', $fiscalperiod->user_id);
+            });
+        })
+        ->where('paid_status', true)
+        ->whereBetween('paid_at', [$fiscalperiod->opening_date, $fiscalperiod->closing_date])
+        ->get()
+        ->groupBy('utility_type');
+
+        $expenses = [];
+        $totalExpenses = 0;
+
+        foreach ($utilities as $type => $items) {
+            $typeTotal = $items->sum('charge_amount');
+            $expenses[$type] = $typeTotal;
+            $totalExpenses += $typeTotal;
+        }
+
+        // Calculate Breakeven Point
+        $breakevenPoint = $revenue - $totalExpenses;
+
+        return view('admin.fiscalperiod.period_reports_exports', compact('fiscalperiod', 'balanceSheetItems', 'summary', 'revenue', 'expenses', 'totalExpenses', 'breakevenPoint'));
     }
 
     /**

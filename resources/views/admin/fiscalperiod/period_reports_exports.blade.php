@@ -221,6 +221,95 @@
         </div>
     </div>
 
+    <!-- Revenue & Expenses Analysis -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-8">
+        <!-- Revenue Section -->
+        <div class="bg-white rounded-lg shadow p-8 border-t-4 border-green-600">
+            <h2 class="text-xl font-semibold mb-6 text-gray-900">Revenue</h2>
+            <div class="space-y-4">
+                <div class="flex justify-between items-center pb-4 border-b">
+                    <span class="text-gray-700 font-medium">Rent Income</span>
+                    <span class="text-2xl font-bold text-green-600">${{ number_format($revenue, 2) }}</span>
+                </div>
+                <div class="mt-4 p-4 bg-green-50 rounded-lg">
+                    <p class="text-sm text-gray-600">Total paid rent from tenants during this fiscal period</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Expenses Section -->
+        <div class="bg-white rounded-lg shadow p-8 border-t-4 border-red-600">
+            <h2 class="text-xl font-semibold mb-6 text-gray-900">Expenses</h2>
+            <div class="space-y-3">
+                @if(count($expenses) > 0)
+                    @foreach($expenses as $type => $amount)
+                        <div class="flex justify-between items-center pb-2 border-b">
+                            <span class="text-gray-700 text-sm">
+                                @switch($type)
+                                    @case('electricity')
+                                        🔌 Electricity
+                                        @break
+                                    @case('water')
+                                        💧 Water
+                                        @break
+                                    @case('internet')
+                                        📡 Internet
+                                        @break
+                                    @case('parking')
+                                        🅿️ Parking
+                                        @break
+                                    @default
+                                        {{ ucfirst($type) }}
+                                @endswitch
+                            </span>
+                            <span class="font-semibold text-red-600">${{ number_format($amount, 2) }}</span>
+                        </div>
+                    @endforeach
+                    <div class="flex justify-between items-center pt-3 bg-red-50 px-3 py-2 rounded border-t-2 border-red-200">
+                        <span class="text-gray-900 font-semibold">Total Expenses</span>
+                        <span class="text-lg font-bold text-red-600">${{ number_format($totalExpenses, 2) }}</span>
+                    </div>
+                @else
+                    <div class="text-center py-4">
+                        <p class="text-gray-500 text-sm">No expenses recorded</p>
+                    </div>
+                @endif
+            </div>
+        </div>
+
+        <!-- Breakeven Analysis -->
+        <div class="bg-white rounded-lg shadow p-8 border-t-4 {{ $breakevenPoint >= 0 ? 'border-blue-600' : 'border-orange-600' }}">
+            <h2 class="text-xl font-semibold mb-6 text-gray-900">Breakeven Analysis</h2>
+            <div class="space-y-4">
+                <div class="p-4 {{ $breakevenPoint >= 0 ? 'bg-blue-50 border border-blue-200' : 'bg-orange-50 border border-orange-200' }} rounded-lg">
+                    <p class="text-sm {{ $breakevenPoint >= 0 ? 'text-blue-700' : 'text-orange-700' }} mb-2">Net Profit/Loss</p>
+                    <p class="text-3xl font-bold {{ $breakevenPoint >= 0 ? 'text-blue-600' : 'text-orange-600' }}">
+                        {{ $breakevenPoint >= 0 ? '+' : '' }}${{ number_format($breakevenPoint, 2) }}
+                    </p>
+                </div>
+                <div class="space-y-2 text-sm">
+                    <div class="flex justify-between">
+                        <span class="text-gray-600">Revenue</span>
+                        <span class="font-semibold text-green-600">${{ number_format($revenue, 2) }}</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-gray-600">Total Expenses</span>
+                        <span class="font-semibold text-red-600">${{ number_format($totalExpenses, 2) }}</span>
+                    </div>
+                </div>
+                <div class="mt-4 p-3 rounded-lg {{ $breakevenPoint >= 0 ? 'bg-blue-100' : 'bg-orange-100' }}">
+                    <p class="text-xs {{ $breakevenPoint >= 0 ? 'text-blue-800' : 'text-orange-800' }}">
+                        @if($breakevenPoint >= 0)
+                            ✓ Property is profitable. Excellent performance!
+                        @else
+                            ⚠ Property is operating at a loss. Review expenses.
+                        @endif
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Actions -->
     <div class="flex gap-4">
         <a href="{{ route('admin.fiscalperiod.show', $fiscalperiod->id) }}" class="flex-1 text-center bg-gray-400 text-white px-6 py-3 rounded-lg font-semibold hover:bg-gray-500 transition">
