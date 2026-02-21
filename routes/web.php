@@ -6,6 +6,7 @@ use App\Http\Controllers\Admin\FloorController;
 use App\Http\Controllers\Admin\ApartmentController;
 use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\Admin\TenantController;
+use App\Http\Controllers\Admin\FiscalPeriodController;
 use App\Http\Controllers\Supervisor\DashboardController as SupervisorDashboardController;
 use App\Http\Controllers\Tenant\DashboardController as TenantDashboardController;
 use Illuminate\Support\Facades\Route;
@@ -56,6 +57,7 @@ Route::middleware(['auth', 'role:admin'])->group(function () {
     Route::get('/admin/apartments/{apartment}/edit', [ApartmentController::class, 'edit'])->name('admin.apartments.edit');
     Route::post('/admin/apartments', [ApartmentController::class, 'store'])->name('admin.apartments.store');
     Route::put('/admin/apartments/{apartment}', [ApartmentController::class, 'update'])->name('admin.apartments.update');
+    Route::post('/admin/apartments/{apartment}/assign-tenant', [ApartmentController::class, 'assignTenant'])->name('admin.apartments.assignTenant');
     Route::delete('/admin/apartments/{apartment}', [ApartmentController::class, 'destroy'])->name('admin.apartments.destroy');
     
     // User Management Routes
@@ -72,6 +74,29 @@ Route::middleware(['auth', 'role:admin'])->group(function () {
     Route::get('/admin/tenants', [TenantController::class, 'index'])->name('admin.tenants.index');
     Route::get('/admin/tenants/archived', [TenantController::class, 'archived'])->name('admin.tenants.archived');
     Route::get('/admin/tenants/{tenant}/leave', [TenantController::class, 'leave'])->name('admin.tenants.leave');
+
+    // Fiscal Period Management Routes
+    Route::get('/admin/fiscalperiod', [FiscalPeriodController::class, 'index'])->name('admin.fiscalperiod.index');
+    Route::get('/admin/fiscalperiod/create', [FiscalPeriodController::class, 'create'])->name('admin.fiscalperiod.create');
+    Route::post('/admin/fiscalperiod', [FiscalPeriodController::class, 'store'])->name('admin.fiscalperiod.store');
+    Route::get('/admin/fiscalperiod/{fiscalperiod}', [FiscalPeriodController::class, 'show'])->name('admin.fiscalperiod.show');
+    Route::get('/admin/fiscalperiod/{fiscalperiod}/edit', [FiscalPeriodController::class, 'edit'])->name('admin.fiscalperiod.edit');
+    Route::put('/admin/fiscalperiod/{fiscalperiod}', [FiscalPeriodController::class, 'update'])->name('admin.fiscalperiod.update');
+    Route::delete('/admin/fiscalperiod/{fiscalperiod}', [FiscalPeriodController::class, 'destroy'])->name('admin.fiscalperiod.destroy');
+    
+    // Balance Sheet Management Routes
+    Route::get('/admin/fiscalperiod/{fiscalperiod}/balance-sheet', [FiscalPeriodController::class, 'balanceSheet'])->name('admin.fiscalperiod.balance-sheet');
+    Route::post('/admin/fiscalperiod/{fiscalperiod}/balance-sheet', [FiscalPeriodController::class, 'storeBalanceItem'])->name('admin.fiscalperiod.storeBalanceItem');
+    Route::delete('/admin/fiscalperiod/{fiscalperiod}/balance-sheet/{balanceSheet}', [FiscalPeriodController::class, 'deleteBalanceItem'])->name('admin.fiscalperiod.deleteBalanceItem');
+    
+    // Opening/Closing Balances Routes
+    Route::get('/admin/fiscalperiod/{fiscalperiod}/open-close-balances', [FiscalPeriodController::class, 'openCloseBalances'])->name('admin.fiscalperiod.open-close-balances');
+    Route::post('/admin/fiscalperiod/{fiscalperiod}/close', [FiscalPeriodController::class, 'closeperiod'])->name('admin.fiscalperiod.closeperiod');
+    
+    // Reports & Export Routes
+    Route::get('/admin/fiscalperiod/{fiscalperiod}/reports', [FiscalPeriodController::class, 'reports'])->name('admin.fiscalperiod.reports');
+    Route::get('/admin/fiscalperiod/{fiscalperiod}/export-pdf', [FiscalPeriodController::class, 'exportPDF'])->name('admin.fiscalperiod.exportPDF');
+    Route::get('/admin/fiscalperiod/{fiscalperiod}/export-csv', [FiscalPeriodController::class, 'exportCSV'])->name('admin.fiscalperiod.exportCSV');
 });
 
 require __DIR__.'/auth.php';

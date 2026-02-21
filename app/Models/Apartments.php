@@ -23,7 +23,7 @@ class Apartments extends Model
     protected function casts(): array
     {
         return [
-            'monthly_rent' => 'decimal:2',
+            'monthly_rent' => 'float',
         ];
     }
 

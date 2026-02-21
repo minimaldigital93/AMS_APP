@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Apartments;
 use App\Models\Floors;
+use App\Models\Tenants;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -16,7 +17,7 @@ class ApartmentController extends Controller
      */
     public function index(Request $request): View
     {
-        $query = Apartments::with('floor');
+        $query = Apartments::with(['floor', 'tenants', 'supervisor']);
 
         // Search functionality
         if ($request->has('search')) {
@@ -29,13 +30,22 @@ class ApartmentController extends Controller
             $query->where('status', $request->get('status'));
         }
 
-        $apartments = $query->paginate(15);
-        $floorsWithApartments = Floors::with('apartments')->get();
-        $floors = Floors::all();
+        $apartments = $query->get();
+        
+        // Group apartments by floor in ascending order
+        $apartmentsByFloor = $apartments->groupBy(function($apartment) {
+            return $apartment->floor->id;
+        })->sortBy(function($group) {
+            return $group->first()->floor->id;
+        });
+        
+        $floorsWithApartments = Floors::with('apartments')->orderBy('id', 'asc')->get();
+        $floors = Floors::orderBy('id', 'asc')->get();
         $statuses = ['available', 'occupied', 'maintenance'];
         $supervisors = User::role('supervisor')->get();
+        $availableTenants = Tenants::where('status', 'active')->whereNull('apartment_id')->get();
 
-        return view('admin.apartments.index', compact('apartments', 'floors', 'floorsWithApartments', 'statuses', 'supervisors'));
+        return view('admin.apartments.index', compact('apartmentsByFloor', 'floors', 'floorsWithApartments', 'statuses', 'supervisors', 'availableTenants'));
     }
 
     /**
@@ -107,6 +117,55 @@ class ApartmentController extends Controller
         $apartment->update($validated);
 
         return redirect()->route('admin.apartments.index')->with('success', 'Apartment updated successfully');
+    }
+
+    /**
+     * Assign a tenant to an apartment
+     */
+    public function assignTenant(Request $request, Apartments $apartment)
+    {
+        $validated = $request->validate([
+            'tenant_option' => 'required|in:existing,new',
+            'tenant_id' => 'nullable|required_if:tenant_option,existing|exists:tenants,id',
+            'name' => 'nullable|required_if:tenant_option,new|string|max:255',
+            'email' => 'nullable|required_if:tenant_option,new|email|max:255',
+            'phone' => 'nullable|string|max:20',
+            'address' => 'nullable|string',
+            'date_of_birth' => 'nullable|date',
+            'move_in_date' => 'required|date',
+            'move_out_date' => 'nullable|date|after:move_in_date',
+        ]);
+
+        $tenant = null;
+
+        if ($validated['tenant_option'] === 'existing') {
+            // Use existing tenant
+            $tenant = Tenants::findOrFail($validated['tenant_id']);
+        } else {
+            // Create new tenant
+            $tenant = Tenants::create([
+                'name' => $validated['name'],
+                'email' => $validated['email'],
+                'phone' => $validated['phone'] ?? null,
+                'address' => $validated['address'] ?? null,
+                'date_of_birth' => $validated['date_of_birth'] ?? null,
+                'apartment_id' => $apartment->id,
+                'status' => 'active',
+            ]);
+        }
+        
+        // Update tenant information
+        $tenant->update([
+            'apartment_id' => $apartment->id,
+            'move_in_date' => $validated['move_in_date'],
+            'move_out_date' => $validated['move_out_date'],
+            'status' => 'active',
+        ]);
+
+        // Update apartment status to occupied
+        $apartment->update(['status' => 'occupied']);
+
+        return redirect()->route('admin.apartments.index')->with('success', 'Tenant assigned successfully');
     }
 
     /**

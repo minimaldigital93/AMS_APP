@@ -25,8 +25,8 @@ class Rentals extends Model
         return [
             'start_date' => 'date',
             'end_date' => 'date',
-            'rent_amount' => 'decimal:2',
-            'deposit' => 'decimal:2',
+            'rent_amount' => 'float',
+            'deposit' => 'float',
         ];
     }
 

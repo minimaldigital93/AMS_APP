@@ -520,13 +520,13 @@
 
     {{-- Fiscal Period Management Section --}}
     <div class="mt-4">
-        <button @click="expandedSections['FiscalPeriod'] = !expandedSections['FiscalPeriod']" 
-                class="section-header flex items-center justify-between w-full transition sidebar-transition">
+        <a href="{{ route('admin.fiscalperiod.index') }}" 
+           class="section-header flex items-center justify-between w-full transition sidebar-transition {{ request()->routeIs('admin.fiscalperiod.*') ? 'text-blue-700' : '' }}">
             <span class="section-title sidebar-label">📅 Fiscal Period</span>
             <svg class="chevron h-5 w-5 transition-transform flex-shrink-0" :class="expandedSections['FiscalPeriod'] ? 'rotate-90' : ''" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7" />
             </svg>
-        </button>
+        </a>
         <div x-show="expandedSections['FiscalPeriod']"
              x-transition:enter="transition ease-out duration-300"
              x-transition:enter-start="opacity-0 -translate-y-2"
@@ -536,44 +536,44 @@
              x-transition:leave-end="opacity-0 -translate-y-2"
              class="submenu-container mt-2 space-y-1">
             
-            {{-- Create/Close Periods --}}
-            <a href="#" class="submenu-item nav-link flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm text-gray-700 hover:text-blue-700 transition-all sidebar-transition">
+            {{-- All Periods --}}
+            <a href="{{ route('admin.fiscalperiod.index') }}" class="submenu-item nav-link flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm {{ request()->routeIs('admin.fiscalperiod.index') ? 'text-blue-700 active' : 'text-gray-700 hover:text-blue-700' }} transition-all sidebar-transition">
+                <span class="nav-icon sidebar-transition">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                    </svg>
+                </span>
+                <span class="nav-text truncate sidebar-label">All Periods</span>
+            </a>
+
+            {{-- Create Period --}}
+            <a href="{{ route('admin.fiscalperiod.create') }}" class="submenu-item nav-link flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm {{ request()->routeIs('admin.fiscalperiod.create') ? 'text-blue-700 active' : 'text-gray-700 hover:text-blue-700' }} transition-all sidebar-transition">
                 <span class="nav-icon sidebar-transition">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
                     </svg>
                 </span>
-                <span class="nav-text truncate sidebar-label">Create/Close Periods</span>
-            </a>
-
-            {{-- Opening/Closing Balances --}}
-            <a href="#" class="submenu-item nav-link flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm text-gray-700 hover:text-blue-700 transition-all sidebar-transition">
-                <span class="nav-icon sidebar-transition">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V6m0 12v-2m0-14a9 9 0 11-9 9 9 9 0 019-9z" />
-                    </svg>
-                </span>
-                <span class="nav-text truncate sidebar-label">Opening/Closing Balances</span>
-            </a>
-
-            {{-- Period Reports --}}
-            <a href="#" class="submenu-item nav-link flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm text-gray-700 hover:text-blue-700 transition-all sidebar-transition">
-                <span class="nav-icon sidebar-transition">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                    </svg>
-                </span>
-                <span class="nav-text truncate sidebar-label">Period Reports Export</span>
+                <span class="nav-text truncate sidebar-label">Create Period</span>
             </a>
 
             {{-- Balance Sheet Items --}}
-            <a href="#" class="submenu-item nav-link flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm text-gray-700 hover:text-blue-700 transition-all sidebar-transition">
+            <a href="{{ route('admin.fiscalperiod.index') }}" class="submenu-item nav-link flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm text-gray-700 hover:text-blue-700 transition-all sidebar-transition">
                 <span class="nav-icon sidebar-transition">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M5 6h14M7 14h10m-8 4h6" />
                     </svg>
                 </span>
-                <span class="nav-text truncate sidebar-label">Balance Sheet Items</span>
+                <span class="nav-text truncate sidebar-label">Balance Sheet</span>
+            </a>
+
+            {{-- Reports & Export --}}
+            <a href="{{ route('admin.fiscalperiod.index') }}" class="submenu-item nav-link flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm text-gray-700 hover:text-blue-700 transition-all sidebar-transition">
+                <span class="nav-icon sidebar-transition">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
+                </span>
+                <span class="nav-text truncate sidebar-label">Reports & Export</span>
             </a>
         </div>
     </div>

@@ -38,7 +38,7 @@ class Tenants extends Model
             'move_in_date' => 'date',
             'move_out_date' => 'date',
             'archived_at' => 'datetime',
-            'deposit' => 'decimal:2',
+            'deposit' => 'float',
         ];
     }
 

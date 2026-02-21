@@ -23,8 +23,8 @@ class FiscalPeriods extends Model
         return [
             'opening_date' => 'date',
             'closing_date' => 'date',
-            'opening_balance' => 'decimal:2',
-            'closing_balance' => 'decimal:2',
+            'opening_balance' => 'float',
+            'closing_balance' => 'float',
         ];
     }
 

@@ -24,9 +24,9 @@ class Utilities extends Model
     protected function casts(): array
     {
         return [
-            'meter_reading_in' => 'decimal:2',
-            'meter_reading_out' => 'decimal:2',
-            'charge_amount' => 'decimal:2',
+            'meter_reading_in' => 'float',
+            'meter_reading_out' => 'float',
+            'charge_amount' => 'float',
             'paid_status' => 'boolean',
             'paid_at' => 'datetime',
         ];

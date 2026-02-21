@@ -23,7 +23,7 @@ class BalanceSheet extends Model
     protected function casts(): array
     {
         return [
-            'amount' => 'decimal:2',
+            'amount' => 'float',
             'as_of_date' => 'date',
         ];
     }

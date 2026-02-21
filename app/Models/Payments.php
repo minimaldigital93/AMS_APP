@@ -27,10 +27,10 @@ class Payments extends Model
     protected function casts(): array
     {
         return [
-            'amount' => 'decimal:2',
+            'amount' => 'float',
             'due_date' => 'date',
             'paid_at' => 'datetime',
-            'late_fee' => 'decimal:2',
+            'late_fee' => 'float',
         ];
     }
 
