@@ -33,7 +33,9 @@ class ApartmentController extends Controller
         $apartments = $query->get();
         
         // Group apartments by floor in ascending order
-        $apartmentsByFloor = $apartments->groupBy(function($apartment) {
+        $apartmentsByFloor = $apartments->filter(function($apartment) {
+            return $apartment->floor !== null;
+        })->groupBy(function($apartment) {
             return $apartment->floor->id;
         })->sortBy(function($group) {
             return $group->first()->floor->id;

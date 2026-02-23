@@ -146,7 +146,7 @@
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-7.5-1.5L15 3m0 0l3 3m-3-3v10"></path>
                                         </svg>
                                     </button>
-                                    <button onclick="processTenantLeave({{ $tenant->id }})" title="Process Leave" class="text-orange-600 hover:text-orange-900 transition">
+                                    <button onclick="processTenantLeave({{ $tenant->id }}, '{{ $tenant->name }}')" title="Process Leave" class="text-orange-600 hover:text-orange-900 transition">
                                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path>
                                         </svg>
@@ -460,9 +460,17 @@
     }
 
     // Process tenant leave
-    async function processTenantLeave(tenantId) {
-        if (confirm('Are you sure you want to initiate leave processing for this tenant? They will be moved to archived tenants.')) {
-            window.location.href = `/admin/tenants/leave/${tenantId}`;
+    function processTenantLeave(tenantId, tenantName) {
+        console.log('✓ Leave button clicked for tenant:', tenantName, 'ID:', tenantId);
+        
+        const leaveUrl = `/admin/tenants/${tenantId}/leave`;
+        console.log('✓ Navigating to:', leaveUrl);
+        
+        try {
+            window.location.href = leaveUrl;
+        } catch (error) {
+            console.error('✗ Error navigating to leave page:', error);
+            alert('Error: Could not navigate to leave processing page. Please try again.');
         }
     }
 </script>

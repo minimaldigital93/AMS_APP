@@ -164,6 +164,18 @@
                                         </svg>
                                     </a>
                                     
+                                    {{-- Leave Tenant Button --}}
+                                    @if($tenant && $tenant->status === 'active')
+                                    <button type="button" 
+                                            onclick="processLeaveClick(event, {{ $tenant->id }}, '{{ $tenant->name }}')"
+                                            title="Process tenant leave"
+                                            class="leave-tenant-btn inline-flex items-center justify-center w-9 h-9 rounded-lg text-orange-600 hover:bg-orange-50 transition">
+                                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                                        </svg>
+                                    </button>
+                                    @endif
+                                    
                                     {{-- Assign Tenant Button --}}
                                     @if($apartment->status === 'available' || !$apartment->tenants()->where('status', 'active')->exists())
                                     <button type="button" 
@@ -377,6 +389,30 @@ document.addEventListener('DOMContentLoaded', function() {
             modal.classList.add('hidden');
         }
     });
+
+    // Process tenant leave with confirmation
+    window.processLeaveClick = function(event, tenantId, tenantName) {
+        event.preventDefault();
+        
+        console.log('✓ Leave button clicked for tenant:', tenantName, 'ID:', tenantId);
+        
+        // Show confirmation dialog
+        if (confirm(`Are you sure you want to process leave for tenant "${tenantName}"?\n\nThis will:\n- Archive the tenant\n- Calculate final settlement\n- Mark apartment as available`)) {
+            console.log('✓ User confirmed leave action for tenant:', tenantId);
+            
+            const leaveUrl = `/admin/tenants/${tenantId}/leave`;
+            console.log('✓ Navigating to:', leaveUrl);
+            
+            try {
+                window.location.href = leaveUrl;
+            } catch (error) {
+                console.error('✗ Error navigating to leave page:', error);
+                alert('Error: Could not navigate to leave processing page. Please try again.');
+            }
+        } else {
+            console.log('✗ Leave action cancelled by user for tenant:', tenantId);
+        }
+    };
 });
 </script>
 

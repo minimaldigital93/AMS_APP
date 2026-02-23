@@ -1,7 +1,9 @@
 @extends('layouts.admin')
 
+@section('title', 'Process Tenant Leave')
+
 @section('content')
-<div class="min-h-screen bg-gray-50 py-8">
+<div class="space-y-6">
     <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
         <!-- Header -->
         <div class="mb-8">
@@ -51,7 +53,8 @@
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
             <!-- Form Section -->
             <div class="lg:col-span-2">
-                <form id="leaveProcessForm" onsubmit="submitLeaveProcess(event)" class="space-y-6">
+                <form action="{{ route('admin.tenants.processLeave', $tenant->id) }}" method="POST" class="space-y-6">
+                    @csrf
                     <!-- Step 1: Tenant Information -->
                     <div class="bg-white rounded-lg shadow-md p-6">
                         <h2 class="text-lg font-semibold text-gray-900 mb-6">Tenant Information</h2>
@@ -97,71 +100,88 @@
 
                         <div class="space-y-4">
                             <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-2">Move Out Date *</label>
-                                <input type="date" name="move_out_date" id="moveOutDate" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
-                                <p class="mt-1 text-xs text-gray-500">The date the tenant is moving out</p>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Actual Leave Date *</label>
+                                <input type="date" name="leave_date" id="moveOutDate" value="{{ old('leave_date', today()->format('Y-m-d')) }}" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                                <p class="mt-1 text-xs text-gray-500">The date the tenant is actually moving out</p>
                             </div>
 
                             <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-2">Reason for Leaving</label>
-                                <select name="leave_reason" id="leaveReason" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
-                                    <option value="">Select a reason</option>
-                                    <option value="relocation">Relocation</option>
-                                    <option value="end_of_lease">End of Lease</option>
-                                    <option value="early_termination">Early Termination</option>
-                                    <option value="personal">Personal Reasons</option>
-                                    <option value="other">Other</option>
-                                </select>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Electricity Meter Reading (Units)</label>
+                                <input type="number" name="electricity_reading" step="0.01" placeholder="e.g., 1250.50" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" value="{{ old('electricity_reading') }}">
+                                <p class="mt-1 text-xs text-gray-500">Enter the final meter reading</p>
                             </div>
 
                             <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-2">Forwarding Address</label>
-                                <textarea name="forwarding_address" id="forwardingAddress" rows="3" placeholder="Enter the tenant's forwarding address" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"></textarea>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Water Meter Reading (Units)</label>
+                                <input type="number" name="water_reading" step="0.01" placeholder="e.g., 450.30" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" value="{{ old('water_reading') }}">
+                                <p class="mt-1 text-xs text-gray-500">Enter the final meter reading</p>
+                            </div>
+
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Internet Charge ($)</label>
+                                <input type="number" name="internet_charge" step="0.01" placeholder="0.00" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" value="{{ old('internet_charge', '0.00') }}">
+                                <p class="mt-1 text-xs text-gray-500">Pro-rata internet cost</p>
+                            </div>
+
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Parking Charge ($)</label>
+                                <input type="number" name="parking_charge" step="0.01" placeholder="0.00" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" value="{{ old('parking_charge', '0.00') }}">
+                                <p class="mt-1 text-xs text-gray-500">Pro-rata parking cost</p>
                             </div>
 
                             <div>
                                 <label class="block text-sm font-medium text-gray-700 mb-2">Additional Notes</label>
-                                <textarea name="leaving_notes" id="leavingNotes" rows="3" placeholder="Any additional information about the tenant's departure" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"></textarea>
+                                <textarea name="notes" rows="3" placeholder="Any additional information about the tenant's departure" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">{{ old('notes') }}</textarea>
                             </div>
                         </div>
                     </div>
 
-                    <!-- Step 3: Settlement Details -->
+                    <!-- Settlement Summary -->
                     <div class="bg-white rounded-lg shadow-md p-6">
-                        <h2 class="text-lg font-semibold text-gray-900 mb-6">Settlement Details</h2>
+                        <h2 class="text-lg font-semibold text-gray-900 mb-6">Settlement Summary</h2>
 
-                        <div class="space-y-4">
-                            <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-2">Deposit Amount (Read-only)</label>
-                                <input type="number" id="depositAmount" readonly class="w-full px-4 py-2 border border-gray-300 rounded-lg bg-gray-50 text-gray-600" step="0.01">
+                        <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 space-y-3">
+                            <div class="flex justify-between items-center">
+                                <span class="text-gray-700">Pro-rata Rent:</span>
+                                <span class="text-lg font-semibold text-gray-900" id="pro_rata_rent">$0.00</span>
+                            </div>
+                            <div class="flex justify-between items-center">
+                                <span class="text-gray-700">Electricity:</span>
+                                <span class="text-lg font-semibold text-gray-900" id="summary_electricity">$0.00</span>
+                            </div>
+                            <div class="flex justify-between items-center">
+                                <span class="text-gray-700">Water:</span>
+                                <span class="text-lg font-semibold text-gray-900" id="summary_water">$0.00</span>
+                            </div>
+                            <div class="flex justify-between items-center">
+                                <span class="text-gray-700">Internet:</span>
+                                <span class="text-lg font-semibold text-gray-900" id="summary_internet">$0.00</span>
+                            </div>
+                            <div class="flex justify-between items-center">
+                                <span class="text-gray-700">Parking:</span>
+                                <span class="text-lg font-semibold text-gray-900" id="summary_parking">$0.00</span>
                             </div>
 
-                            <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-2">Deductions/Charges Amount</label>
-                                <input type="number" name="deductions" id="deductionsAmount" min="0" step="0.01" placeholder="0.00" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" value="0">
-                                <p class="mt-1 text-xs text-gray-500">e.g., damages, cleaning, unpaid rent</p>
-                            </div>
-
-                            <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                            <div class="border-t border-gray-300 my-3 pt-3">
                                 <div class="flex justify-between items-center">
-                                    <span class="text-gray-700 font-medium">Refundable Amount</span>
-                                    <span id="refundableAmount" class="text-2xl font-bold text-blue-600">$0.00</span>
+                                    <span class="text-gray-700 font-semibold">Total Amount Due:</span>
+                                    <span class="text-xl font-bold text-gray-900" id="total_due">$0.00</span>
                                 </div>
-                                <p class="mt-2 text-xs text-gray-600">Calculated as: Deposit - Deductions</p>
                             </div>
 
-                            <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-2">Refund Status</label>
-                                <select name="refund_status" id="refundStatus" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
-                                    <option value="pending">Pending</option>
-                                    <option value="processed">Processed</option>
-                                    <option value="withheld">Withheld</option>
-                                </select>
-                            </div>
-
-                            <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-2">Refund Date</label>
-                                <input type="date" name="refund_date" id="refundDate" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                            <div class="border-t border-gray-300 my-3 pt-3">
+                                <div class="flex justify-between items-center">
+                                    <span class="text-gray-700">Deposit Applied:</span>
+                                    <span class="text-lg font-semibold text-green-600" id="deposit_applied">$0.00</span>
+                                </div>
+                                <div class="flex justify-between items-center mt-2">
+                                    <span class="text-gray-700">Balance Due:</span>
+                                    <span class="text-lg font-semibold text-red-600" id="balance_due">$0.00</span>
+                                </div>
+                                <div class="flex justify-between items-center mt-2">
+                                    <span class="text-gray-700">Refund Amount:</span>
+                                    <span class="text-lg font-semibold text-green-600" id="refund_amount">$0.00</span>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -172,9 +192,9 @@
                             <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
                             </svg>
-                            Process Tenant Leave
+                            Process Tenant Leave & Archive
                         </button>
-                        <a href="/admin/tenants" class="flex-1 px-6 py-3 border border-gray-300 text-gray-700 font-semibold rounded-lg hover:bg-gray-50 transition flex items-center justify-center">
+                        <a href="{{ route('admin.tenants.index') }}" class="flex-1 px-6 py-3 border border-gray-300 text-gray-700 font-semibold rounded-lg hover:bg-gray-50 transition flex items-center justify-center">
                             <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
                             </svg>
@@ -183,187 +203,75 @@
                     </div>
                 </form>
             </div>
-
-            <!-- Summary Section -->
-            <div>
-                <div class="bg-white rounded-lg shadow-md p-6 sticky top-4">
-                    <h3 class="text-lg font-semibold text-gray-900 mb-6">Summary</h3>
-
-                    <div class="space-y-4">
-                        <div class="border-b border-gray-200 pb-4">
-                            <p class="text-sm text-gray-600">Tenant Status</p>
-                            <p id="summaryStatus" class="text-lg font-semibold text-gray-900 mt-1">-</p>
-                        </div>
-
-                        <div class="border-b border-gray-200 pb-4">
-                            <p class="text-sm text-gray-600">Current Apartment</p>
-                            <p id="summaryApartment" class="text-lg font-semibold text-gray-900 mt-1">-</p>
-                        </div>
-
-                        <div class="border-b border-gray-200 pb-4">
-                            <p class="text-sm text-gray-600">Move In Date</p>
-                            <p id="summaryMoveIn" class="text-lg font-semibold text-gray-900 mt-1">-</p>
-                        </div>
-
-                        <div class="border-b border-gray-200 pb-4">
-                            <p class="text-sm text-gray-600">Tenancy Duration</p>
-                            <p id="summaryDuration" class="text-lg font-semibold text-gray-900 mt-1">-</p>
-                        </div>
-
-                        <div class="bg-gray-50 rounded-lg p-4">
-                            <p class="text-sm text-gray-600">Deposit</p>
-                            <p class="text-2xl font-bold text-gray-900 mt-1" id="summaryDeposit">$0.00</p>
-                        </div>
-
-                        <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-                            <p class="text-sm text-gray-600">After Processing</p>
-                            <p class="text-2xl font-bold text-yellow-600 mt-1" id="summaryRefund">$0.00</p>
-                        </div>
-
-                        <div class="text-xs text-gray-500 bg-blue-50 rounded-lg p-3">
-                            <svg class="w-4 h-4 inline mr-1" fill="currentColor" viewBox="0 0 20 20">
-                                <path fill-rule="evenodd" d="M18 5v8a2 2 0 01-2 2h-5l-5 4v-4H4a2 2 0 01-2-2V5a2 2 0 012-2h12a2 2 0 012 2z" clip-rule="evenodd"></path>
-                            </svg>
-                            Once processed, the tenant will be moved to archived tenants and cannot be edited as active.
-                        </div>
-                    </div>
-                </div>
-            </div>
         </div>
+
     </div>
 </div>
 
-@endsection
-
-@push('scripts')
+<!-- JavaScript for calculations -->
 <script>
-    let tenantData = null;
-
-    // Get tenant ID from URL
-    const tenantId = window.location.pathname.split('/').pop();
-
+    // Populate tenant information
     document.addEventListener('DOMContentLoaded', function() {
-        loadTenantData();
-        setupCalculations();
+        document.getElementById('tenantName').value = '{{ $tenant->name }}';
+        document.getElementById('tenantEmail').value = '{{ $tenant->email }}';
+        document.getElementById('tenantPhone').value = '{{ $tenant->phone ?? "N/A" }}';
+        document.getElementById('apartmentNumber').value = '{{ $tenant->apartment->apartment_number ?? "N/A" }}';
+        document.getElementById('moveInDate').value = '{{ $tenant->move_in_date }}';
+        document.getElementById('currentStatus').value = '{{ ucfirst($tenant->status) }}';
     });
 
-    // Load tenant data
-    async function loadTenantData() {
-        try {
-            const response = await fetch(`/api/admin/tenants/${tenantId}`);
-            const result = await response.json();
-            tenantData = result.data;
+    const monthlyRent = {{ $rental->rent_amount }};
+    const deposit = {{ $tenant->deposit ?? 0 }};
+    const moveInDate = new Date('{{ $tenant->move_in_date }}');
 
-            // Populate tenant information
-            document.getElementById('tenantId').value = tenantData.id;
-            document.getElementById('tenantName').value = tenantData.name;
-            document.getElementById('tenantEmail').value = tenantData.email;
-            document.getElementById('tenantPhone').value = tenantData.phone;
-            document.getElementById('apartmentNumber').value = tenantData.apartment?.apartment_number || 'N/A';
-            document.getElementById('moveInDate').value = tenantData.move_in_date;
-            document.getElementById('currentStatus').value = tenantData.status.charAt(0).toUpperCase() + tenantData.status.slice(1);
-            document.getElementById('depositAmount').value = parseFloat(tenantData.deposit || 0).toFixed(2);
+    function updateCalculations() {
+        // Get values
+        const leaveDateInput = document.getElementById('moveOutDate').value;
+        const leaveDate = new Date(leaveDateInput);
+        const electricityReading = parseFloat(document.querySelector('input[name="electricity_reading"]').value) || 0;
+        const waterReading = parseFloat(document.querySelector('input[name="water_reading"]').value) || 0;
+        const internetCharge = parseFloat(document.querySelector('input[name="internet_charge"]').value) || 0;
+        const parkingCharge = parseFloat(document.querySelector('input[name="parking_charge"]').value) || 0;
 
-            // Update summary
-            document.getElementById('summaryStatus').textContent = tenantData.status.charAt(0).toUpperCase() + tenantData.status.slice(1);
-            document.getElementById('summaryApartment').textContent = tenantData.apartment?.apartment_number || 'N/A';
-            document.getElementById('summaryMoveIn').textContent = tenantData.move_in_date;
-            document.getElementById('summaryDeposit').textContent = '$' + parseFloat(tenantData.deposit || 0).toFixed(2);
+        // Calculate stay days
+        const stayDays = Math.ceil((leaveDate - moveInDate) / (1000 * 60 * 60 * 24)) + 1;
 
-            // Calculate tenancy duration
-            calculateDuration();
-        } catch (error) {
-            console.error('Error loading tenant data:', error);
-            alert('Error loading tenant information');
-        }
+        // Calculate pro-rata rent (assuming 30 days per month)
+        const dailyRate = monthlyRent / 30;
+        const proRataRent = stayDays * dailyRate;
+
+        // Calculate electricity charge (example rates)
+        const electricityCharge = electricityReading * 2.5;
+
+        // Calculate water charge (example rates)
+        const waterCharge = waterReading * 1.8;
+
+        // Calculate totals
+        const totalDue = proRataRent + electricityCharge + waterCharge + internetCharge + parkingCharge;
+        const depositApplied = Math.min(deposit, totalDue);
+        const balanceDue = Math.max(0, totalDue - depositApplied);
+        const refundAmount = deposit - depositApplied;
+
+        // Update display
+        document.getElementById('pro_rata_rent').textContent = '$' + proRataRent.toFixed(2);
+        document.getElementById('summary_electricity').textContent = '$' + electricityCharge.toFixed(2);
+        document.getElementById('summary_water').textContent = '$' + waterCharge.toFixed(2);
+        document.getElementById('summary_internet').textContent = '$' + internetCharge.toFixed(2);
+        document.getElementById('summary_parking').textContent = '$' + parkingCharge.toFixed(2);
+        document.getElementById('total_due').textContent = '$' + totalDue.toFixed(2);
+        document.getElementById('deposit_applied').textContent = '$' + depositApplied.toFixed(2);
+        document.getElementById('balance_due').textContent = '$' + balanceDue.toFixed(2);
+        document.getElementById('refund_amount').textContent = '$' + refundAmount.toFixed(2);
     }
 
-    // Setup event listeners for calculations
-    function setupCalculations() {
-        document.getElementById('deductionsAmount').addEventListener('input', calculateRefund);
-    }
+    // Update calculations on input change
+    document.getElementById('moveOutDate').addEventListener('change', updateCalculations);
+    document.querySelector('input[name="electricity_reading"]').addEventListener('input', updateCalculations);
+    document.querySelector('input[name="water_reading"]').addEventListener('input', updateCalculations);
+    document.querySelector('input[name="internet_charge"]').addEventListener('input', updateCalculations);
+    document.querySelector('input[name="parking_charge"]').addEventListener('input', updateCalculations);
 
-    // Calculate tenancy duration
-    function calculateDuration() {
-        if (!tenantData) return;
-
-        const moveIn = new Date(tenantData.move_in_date);
-        const today = new Date();
-
-        const months = (today.getFullYear() - moveIn.getFullYear()) * 12 + (today.getMonth() - moveIn.getMonth());
-        const days = today.getDate() - moveIn.getDate();
-
-        let duration = '';
-        if (months > 0) duration += months + ' month' + (months > 1 ? 's' : '') + ' ';
-        if (days > 0) duration += days + ' day' + (days > 1 ? 's' : '');
-
-        document.getElementById('summaryDuration').textContent = duration || '0 days';
-    }
-
-    // Calculate refundable amount
-    function calculateRefund() {
-        const deposit = parseFloat(document.getElementById('depositAmount').value) || 0;
-        const deductions = parseFloat(document.getElementById('deductionsAmount').value) || 0;
-        const refund = Math.max(0, deposit - deductions);
-
-        document.getElementById('refundableAmount').textContent = '$' + refund.toFixed(2);
-        document.getElementById('summaryRefund').textContent = '$' + refund.toFixed(2);
-    }
-
-    // Set move out date default to today
-    document.getElementById('moveOutDate').addEventListener('focus', function() {
-        if (!this.value) {
-            const today = new Date().toISOString().split('T')[0];
-            this.value = today;
-        }
-    });
-
-    // Submit form
-    async function submitLeaveProcess(e) {
-        e.preventDefault();
-
-        if (!document.getElementById('moveOutDate').value) {
-            alert('Please specify a move out date');
-            return;
-        }
-
-        // Confirm action
-        if (!confirm('Are you sure you want to process this tenant\'s leave? They will be moved to archived tenants.')) {
-            return;
-        }
-
-        const formData = new FormData(document.getElementById('leaveProcessForm'));
-        const data = {
-            move_out_date: formData.get('move_out_date'),
-            status: 'inactive',
-            archived_at: new Date().toISOString(),
-            notes: formData.get('leaving_notes') || '',
-        };
-
-        try {
-            const response = await fetch(`/api/admin/tenants/${tenantId}`, {
-                method: 'PUT',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
-                },
-                body: JSON.stringify(data)
-            });
-
-            if (response.ok) {
-                alert('Tenant leave processed successfully! They have been moved to archived tenants.');
-                window.location.href = '/admin/tenants/archived';
-            } else {
-                const error = await response.json();
-                alert('Error: ' + (error.message || 'Failed to process leave'));
-            }
-        } catch (error) {
-            console.error('Error processing leave:', error);
-            alert('Error processing tenant leave');
-        }
-    }
-
-    // Initialize refund calculation on load
-    calculateRefund();
+    // Initial calculation
+    updateCalculations();
 </script>
-@endpush
+@endsection

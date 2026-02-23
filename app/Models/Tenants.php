@@ -68,4 +68,9 @@ class Tenants extends Model
     {
         return $this->hasMany(Utilities::class, 'tenant_id');
     }
+
+    public function leaves(): HasMany
+    {
+        return $this->hasMany(TenantLeave::class, 'tenant_id');
+    }
 }
