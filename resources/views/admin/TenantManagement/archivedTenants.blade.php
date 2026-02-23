@@ -122,7 +122,7 @@
                                         {{ $tenant->move_out_date?->format('M d, Y') ?? 'N/A' }}
                                     @endif
                                 </td>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{{ $tenant->archived_at?->format('M d, Y') ?? 'N/A' }}</td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{{ $tenant->deleted_at?->format('M d, Y') ?? 'N/A' }}</td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
                                     @if($tenant->leaves->last() && $tenant->move_in_date)
                                         {{ $tenant->leaves->last()->stay_days }} days

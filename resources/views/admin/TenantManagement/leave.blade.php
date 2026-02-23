@@ -212,17 +212,17 @@
 <script>
     // Populate tenant information
     document.addEventListener('DOMContentLoaded', function() {
-        document.getElementById('tenantName').value = '{{ $tenant->name }}';
-        document.getElementById('tenantEmail').value = '{{ $tenant->email }}';
+        document.getElementById('tenantName').value = '{{ $tenant->name ?? "N/A" }}';
+        document.getElementById('tenantEmail').value = '{{ $tenant->email ?? "N/A" }}';
         document.getElementById('tenantPhone').value = '{{ $tenant->phone ?? "N/A" }}';
-        document.getElementById('apartmentNumber').value = '{{ $tenant->apartment->apartment_number ?? "N/A" }}';
-        document.getElementById('moveInDate').value = '{{ $tenant->move_in_date }}';
-        document.getElementById('currentStatus').value = '{{ ucfirst($tenant->status) }}';
+        document.getElementById('apartmentNumber').value = '{{ $tenant->apartment?->apartment_number ?? "N/A" }}';
+        document.getElementById('moveInDate').value = '{{ $tenant->move_in_date ?? "" }}';
+        document.getElementById('currentStatus').value = '{{ ucfirst($tenant->status) ?? "N/A" }}';
     });
 
-    const monthlyRent = {{ $rental->rent_amount }};
+    const monthlyRent = {{ $rental->rent_amount ?? 0 }};
     const deposit = {{ $tenant->deposit ?? 0 }};
-    const moveInDate = new Date('{{ $tenant->move_in_date }}');
+    const moveInDate = new Date('{{ $tenant->move_in_date ?? date("Y-m-d") }}');
 
     function updateCalculations() {
         // Get values

@@ -73,9 +73,14 @@ Route::middleware(['auth', 'role:admin'])->group(function () {
     
     // Tenant Management Routes
     Route::get('/admin/tenants', [TenantController::class, 'index'])->name('admin.tenants.index');
+    Route::get('/admin/tenants/create', [TenantController::class, 'create'])->name('admin.tenants.create');
+    Route::post('/admin/tenants', [TenantController::class, 'store'])->name('admin.tenants.store');
     Route::get('/admin/tenants/archived', [TenantController::class, 'archived'])->name('admin.tenants.archived');
     Route::get('/admin/tenants/{tenant}/leave', [TenantController::class, 'leave'])->name('admin.tenants.leave');
     Route::post('/admin/tenants/{tenant}/process-leave', [TenantController::class, 'processLeave'])->name('admin.tenants.processLeave');
+    Route::get('/admin/tenants/{tenant}/edit', [TenantController::class, 'edit'])->name('admin.tenants.edit');
+    Route::put('/admin/tenants/{tenant}', [TenantController::class, 'update'])->name('admin.tenants.update');
+    Route::get('/admin/tenants/{tenant}', [TenantController::class, 'show'])->name('admin.tenants.show');
 
     // Fiscal Period Management Routes
     Route::get('/admin/fiscalperiod', [FiscalPeriodController::class, 'index'])->name('admin.fiscalperiod.index');

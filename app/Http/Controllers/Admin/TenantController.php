@@ -6,10 +6,12 @@ use App\Http\Controllers\Controller;
 use App\Models\Tenants;
 use App\Models\TenantLeave;
 use App\Models\Rentals;
+use App\Models\Apartments;
 use App\Services\TenantLeaveCalculator;
 use Illuminate\Http\Request;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\View\View;
+use Illuminate\Database\Eloquent\Builder;
 use Carbon\Carbon;
 
 class TenantController extends Controller
@@ -24,27 +26,44 @@ class TenantController extends Controller
     /**
      * Display active tenants
      */
-    public function index(): View
+    public function index(Request $request): View
     {
-        $tenants = Tenants::whereIn('status', ['active', 'pending'])
-            ->with(['apartment'])
-            ->orderBy('id', 'desc')
-            ->paginate(15);
+        $query = Tenants::whereIn('status', ['active', 'pending'])
+            ->with(['apartment']);
 
-        return view('admin.tenantManagement.activeTenants', compact('tenants'));
+        // Search filter
+        if ($request->has('search') && !empty($request->search)) {
+            $search = $request->search;
+            $query->where(function(Builder $q) use ($search) {
+                $q->where('name', 'like', "%{$search}%")
+                  ->orWhere('email', 'like', "%{$search}%");
+            });
+        }
+
+        // Apartment filter
+        if ($request->has('apartment') && !empty($request->apartment)) {
+            $query->where('apartment_id', $request->apartment);
+        }
+
+        // Status filter
+        if ($request->has('status') && !empty($request->status)) {
+            $query->where('status', $request->status);
+        }
+
+        $tenants = $query->orderBy('id', 'desc')->paginate(15);
+        $apartments = Apartments::all();
+
+        return view('admin.tenantManagement.activeTenants', compact('tenants', 'apartments'));
     }
 
     /**
-     * Display archived tenants
+     * Display archived tenants (soft deleted)
      */
     public function archived(): View
     {
-        $tenants = Tenants::where(function($query) {
-                $query->whereNotNull('archived_at')
-                      ->orWhere('status', 'moved_out');
-            })
+        $tenants = Tenants::onlyTrashed()
             ->with(['apartment', 'leaves'])
-            ->orderBy('archived_at', 'desc')
+            ->orderBy('deleted_at', 'desc')
             ->paginate(15);
 
         return view('admin.tenantManagement.archivedTenants', compact('tenants'));
@@ -55,30 +74,32 @@ class TenantController extends Controller
      */
     public function leave(Tenants $tenant): View|RedirectResponse
     {
-        // Check if tenant exists and is active
-        if (!$tenant || $tenant->status !== 'active') {
+        // Check if tenant exists
+        if (!$tenant) {
             return redirect()->route('admin.tenants.index')
-                ->with('error', 'Tenant not found or is not active');
+                ->with('error', 'Tenant not found');
         }
 
         $tenant->load(['apartment', 'rentals']);
 
-        // Get the current active rental
+        // Get the current active rental (allow any rental, not just active ones)
         $rental = $tenant->rentals()
             ->where('apartment_id', $tenant->apartment_id)
-            ->where(function($query) {
-                $query->whereNull('end_date')
-                      ->orWhere('end_date', '>', now());
-            })
             ->latest()
             ->first();
 
+        // If no rental exists, create a rental object with data from apartment
         if (!$rental) {
-            return redirect()->route('admin.tenants.index')
-                ->with('error', 'No active rental found for this tenant. Cannot process leave.');
+            $rental = new Rentals();
+            $rental->id = null;
+            $rental->apartment_id = $tenant->apartment_id;
+            $rental->tenant_id = $tenant->id;
+            $rental->rent_amount = $tenant->apartment?->monthly_rent ?? 0;
+            $rental->start_date = $tenant->move_in_date;
+            $rental->end_date = null;
         }
 
-        return view('admin.tenantManagement.leaveProcessing', compact('tenant', 'rental'));
+        return view('admin.tenantManagement.leave', compact('tenant', 'rental'));
     }
 
     /**
@@ -188,6 +209,9 @@ class TenantController extends Controller
         // Mark apartment as available
         $this->leaveCalculator->markApartmentAvailable($tenant->apartment);
 
+        // Soft delete the tenant record (will be preserved in tenant_leaves history)
+        $tenant->delete();
+
             return redirect()
                 ->route('admin.tenants.archived')
                 ->with('success', 'Tenant leave processed successfully. Settlement created.');
@@ -198,6 +222,83 @@ class TenantController extends Controller
             ]);
             return back()->with('error', 'Error processing leave: ' . $e->getMessage());
         }
+    }
+
+    /**
+     * Show create tenant form
+     */
+    public function create(): View
+    {
+        $apartments = Apartments::all();
+        return view('admin.tenantManagement.createTenant', compact('apartments'));
+    }
+
+    /**
+     * Store a newly created tenant
+     */
+    public function store(Request $request): RedirectResponse
+    {
+        $validated = $request->validate([
+            'apartment_id' => 'required|exists:apartments,id',
+            'name' => 'required|string|max:255',
+            'email' => 'required|email|unique:tenants|max:255',
+            'phone' => 'required|string|max:20',
+            'address' => 'nullable|string',
+            'date_of_birth' => 'nullable|date',
+            'move_in_date' => 'required|date',
+            'move_out_date' => 'nullable|date|after:move_in_date',
+            'status' => 'required|in:pending,active,inactive',
+            'deposit' => 'nullable|numeric|min:0',
+            'notes' => 'nullable|string',
+        ]);
+
+        Tenants::create($validated);
+
+        return redirect()->route('admin.tenants.index')
+            ->with('success', 'Tenant created successfully!');
+    }
+
+    /**
+     * Show tenant details
+     */
+    public function show(Tenants $tenant): View
+    {
+        $tenant->load(['apartment', 'rentals', 'utilities']);
+        return view('admin.tenantManagement.showTenant', compact('tenant'));
+    }
+
+    /**
+     * Show edit tenant form
+     */
+    public function edit(Tenants $tenant): View
+    {
+        $apartments = Apartments::all();
+        return view('admin.tenantManagement.editTenant', compact('tenant', 'apartments'));
+    }
+
+    /**
+     * Update a tenant
+     */
+    public function update(Request $request, Tenants $tenant): RedirectResponse
+    {
+        $validated = $request->validate([
+            'apartment_id' => 'required|exists:apartments,id',
+            'name' => 'required|string|max:255',
+            'email' => 'required|email|max:255|unique:tenants,email,' . $tenant->id,
+            'phone' => 'required|string|max:20',
+            'address' => 'nullable|string',
+            'date_of_birth' => 'nullable|date',
+            'move_in_date' => 'required|date',
+            'move_out_date' => 'nullable|date|after:move_in_date',
+            'status' => 'required|in:pending,active,inactive',
+            'deposit' => 'nullable|numeric|min:0',
+            'notes' => 'nullable|string',
+        ]);
+
+        $tenant->update($validated);
+
+        return redirect()->route('admin.tenants.show', $tenant->id)
+            ->with('success', 'Tenant updated successfully!');
     }
 }
 
