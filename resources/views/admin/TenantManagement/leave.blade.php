@@ -14,7 +14,6 @@
                 Back to Tenants
             </a>
             <h1 class="text-3xl font-bold text-gray-900">Tenant Leave Processing</h1>
-            <p class="mt-2 text-sm text-gray-600">Complete the leave process to archive the tenant</p>
         </div>
 
         <!-- Progress Steps -->
@@ -62,7 +61,7 @@
                         <div class="grid grid-cols-2 gap-4 mb-6">
                             <div class="col-span-2 md:col-span-1">
                                 <label class="block text-sm font-medium text-gray-700 mb-2">Tenant Name</label>
-                                <input type="text" id="tenantName" readonly class="w-full px-4 py-2 border border-gray-300 rounded-lg bg-gray-50 text-gray-600">
+                                <input type="text" id="tenantName" readonly class="w-full px-4 py-2 border border-gray-300 rounded-lg bg-gray-50 text-gray-600 font-semibold">
                                 <input type="hidden" id="tenantId">
                             </div>
                             <div class="col-span-2 md:col-span-1">
@@ -75,11 +74,12 @@
                             </div>
                             <div class="col-span-2 md:col-span-1">
                                 <label class="block text-sm font-medium text-gray-700 mb-2">Apartment</label>
-                                <input type="text" id="apartmentNumber" readonly class="w-full px-4 py-2 border border-gray-300 rounded-lg bg-gray-50 text-gray-600">
+                                <input type="text" id="apartmentNumber" readonly class="w-full px-4 py-2 border border-gray-300 rounded-lg bg-gray-50 text-gray-600 font-semibold">
                             </div>
                             <div class="col-span-2 md:col-span-1">
                                 <label class="block text-sm font-medium text-gray-700 mb-2">Move In Date</label>
-                                <input type="date" id="moveInDate" readonly class="w-full px-4 py-2 border border-gray-300 rounded-lg bg-gray-50 text-gray-600">
+                                <input type="date" id="moveInDate" readonly class="w-full px-4 py-2 border border-blue-300 rounded-lg bg-blue-50 text-gray-800 font-semibold">
+                                <p class="mt-1 text-xs text-blue-600 font-medium">Move in</p>
                             </div>
                             <div class="col-span-2 md:col-span-1">
                                 <label class="block text-sm font-medium text-gray-700 mb-2">Current Status</label>
@@ -96,49 +96,94 @@
 
                     <!-- Step 2: Leave Details -->
                     <div class="bg-white rounded-lg shadow-md p-6">
-                        <h2 class="text-lg font-semibold text-gray-900 mb-6">Leave Details</h2>
+                        <h2 class="text-lg font-semibold text-gray-900 mb-6">Leave Details & Calculations</h2>
+
+                        <!-- Date Selection & Calculation Summary -->
+                        <div class="mb-6 p-4 bg-green-50 border border-green-200 rounded-lg">
+                            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                <div>
+                                    <p class="text-xs text-gray-600 font-medium">Move In Date</p>
+                                    <p class="text-lg font-semibold text-gray-900" id="displayMoveInDate">--</p>
+                                </div>
+                                <div>
+                                    <p class="text-xs text-gray-600 font-medium">Move Out Date</p>
+                                    <p class="text-lg font-semibold text-gray-900" id="displayMoveOutDate">--</p>
+                                </div>
+                                <div class="bg-blue-100 rounded p-3">
+                                    <p class="text-xs text-gray-700 font-medium">Total Stay Days</p>
+                                    <p class="text-2xl font-bold text-blue-600" id="stayDaysDisplay">0</p>
+                                </div>
+                            </div>
+                        </div>
 
                         <div class="space-y-4">
                             <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-2">Actual Leave Date *</label>
-                                <input type="date" name="leave_date" id="moveOutDate" value="{{ old('leave_date', today()->format('Y-m-d')) }}" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
-                                <p class="mt-1 text-xs text-gray-500">The date the tenant is actually moving out</p>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Move Out / Leave Date *</label>
+                                <input type="date" name="leave_date" id="moveOutDate" value="{{ old('leave_date', today()->format('Y-m-d')) }}" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-lg font-semibold">
+                                <p class="mt-1 text-xs text-gray-500">Select the actual move-out date for the tenant</p>
                             </div>
 
-                            <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-2">Electricity Meter Reading (Units)</label>
-                                <input type="number" name="electricity_reading" step="0.01" placeholder="e.g., 1250.50" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" value="{{ old('electricity_reading') }}">
-                                <p class="mt-1 text-xs text-gray-500">Enter the final meter reading</p>
-                            </div>
+                            <div class="border-t border-gray-200 pt-4">
+                                <h3 class="text-sm font-semibold text-gray-900 mb-4">Utility & Additional Charges</h3>
 
-                            <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-2">Water Meter Reading (Units)</label>
-                                <input type="number" name="water_reading" step="0.01" placeholder="e.g., 450.30" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" value="{{ old('water_reading') }}">
-                                <p class="mt-1 text-xs text-gray-500">Enter the final meter reading</p>
-                            </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-2">Electricity Meter Reading (Units)</label>
+                                    <input type="number" name="electricity_reading" step="0.01" placeholder="e.g., 1250.50" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" value="{{ old('electricity_reading') }}">
+                                    <p class="mt-1 text-xs text-gray-500">Enter the final meter reading</p>
+                                </div>
 
-                            <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-2">Internet Charge ($)</label>
-                                <input type="number" name="internet_charge" step="0.01" placeholder="0.00" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" value="{{ old('internet_charge', '0.00') }}">
-                                <p class="mt-1 text-xs text-gray-500">Pro-rata internet cost</p>
-                            </div>
+                                <div class="mt-3">
+                                    <label class="block text-sm font-medium text-gray-700 mb-2">Water Meter Reading (Units)</label>
+                                    <input type="number" name="water_reading" step="0.01" placeholder="e.g., 450.30" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" value="{{ old('water_reading') }}">
+                                    <p class="mt-1 text-xs text-gray-500">Enter the final meter reading</p>
+                                </div>
 
-                            <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-2">Parking Charge ($)</label>
-                                <input type="number" name="parking_charge" step="0.01" placeholder="0.00" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" value="{{ old('parking_charge', '0.00') }}">
-                                <p class="mt-1 text-xs text-gray-500">Pro-rata parking cost</p>
-                            </div>
+                                <div class="mt-3">
+                                    <label class="block text-sm font-medium text-gray-700 mb-2">Internet Charge ($)</label>
+                                    <input type="number" name="internet_charge" step="0.01" placeholder="0.00" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" value="{{ old('internet_charge', '0.00') }}">
+                                    <p class="mt-1 text-xs text-gray-500">Pro-rata internet cost for the stay period</p>
+                                </div>
 
-                            <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-2">Additional Notes</label>
-                                <textarea name="notes" rows="3" placeholder="Any additional information about the tenant's departure" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">{{ old('notes') }}</textarea>
+                                <div class="mt-3">
+                                    <label class="block text-sm font-medium text-gray-700 mb-2">Parking Charge ($)</label>
+                                    <input type="number" name="parking_charge" step="0.01" placeholder="0.00" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" value="{{ old('parking_charge', '0.00') }}">
+                                    <p class="mt-1 text-xs text-gray-500">Pro-rata parking cost for the stay period</p>
+                                </div>
+
+                                <div class="mt-4">
+                                    <label class="block text-sm font-medium text-gray-700 mb-2">Additional Notes</label>
+                                    <textarea name="notes" rows="3" placeholder="Any additional information about the tenant's departure" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">{{ old('notes') }}</textarea>
+                                </div>
                             </div>
                         </div>
                     </div>
 
                     <!-- Settlement Summary -->
                     <div class="bg-white rounded-lg shadow-md p-6">
-                        <h2 class="text-lg font-semibold text-gray-900 mb-6">Settlement Summary</h2>
+                        <h2 class="text-lg font-semibold text-gray-900 mb-6">Settlement Summary & Rate Calculation</h2>
+
+                        <!-- Rental Rate Info -->
+                        <div class="mb-6 p-4 bg-amber-50 border border-amber-200 rounded-lg">
+                            <h3 class="text-sm font-semibold text-gray-900 mb-3">Rental Rate Information</h3>
+                            <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+                                <div>
+                                    <p class="text-xs text-gray-600">Monthly Rent</p>
+                                    <p class="text-lg font-bold text-amber-700">${{ number_format($rental->rent_amount ?? 0, 2) }}</p>
+                                </div>
+                                <div>
+                                    <p class="text-xs text-gray-600">Daily Rate</p>
+                                    <p class="text-lg font-bold text-amber-700" id="dailyRate">${{ number_format(($rental->rent_amount ?? 0) / 30, 2) }}</p>
+                                </div>
+                                <div>
+                                    <p class="text-xs text-gray-600">Deposit</p>
+                                    <p class="text-lg font-bold text-amber-700">${{ number_format($tenant->deposit ?? 0, 2) }}</p>
+                                </div>
+                                <div>
+                                    <p class="text-xs text-gray-600">Calculation</p>
+                                    <p class="text-lg font-bold text-amber-700">Days × Rate</p>
+                                </div>
+                            </div>
+                        </div>
 
                         <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 space-y-3">
                             <div class="flex justify-between items-center">
@@ -216,13 +261,19 @@
         document.getElementById('tenantEmail').value = '{{ $tenant->email ?? "N/A" }}';
         document.getElementById('tenantPhone').value = '{{ $tenant->phone ?? "N/A" }}';
         document.getElementById('apartmentNumber').value = '{{ $tenant->apartment?->apartment_number ?? "N/A" }}';
-        document.getElementById('moveInDate').value = '{{ $tenant->move_in_date ?? "" }}';
+        document.getElementById('moveInDate').value = '{{ $tenant->move_in_date?->format("Y-m-d") ?? "" }}';
         document.getElementById('currentStatus').value = '{{ ucfirst($tenant->status) ?? "N/A" }}';
     });
 
     const monthlyRent = {{ $rental->rent_amount ?? 0 }};
     const deposit = {{ $tenant->deposit ?? 0 }};
-    const moveInDate = new Date('{{ $tenant->move_in_date ?? date("Y-m-d") }}');
+    const moveInDate = new Date('{{ $tenant->move_in_date?->format("Y-m-d") ?? now()->format("Y-m-d") }}');
+
+    // Format date for display
+    function formatDateDisplay(date) {
+        const options = { year: 'numeric', month: 'long', day: 'numeric' };
+        return date.toLocaleDateString('en-US', options);
+    }
 
     function updateCalculations() {
         // Get values
@@ -233,8 +284,13 @@
         const internetCharge = parseFloat(document.querySelector('input[name="internet_charge"]').value) || 0;
         const parkingCharge = parseFloat(document.querySelector('input[name="parking_charge"]').value) || 0;
 
-        // Calculate stay days
+        // Update date displays
+        document.getElementById('displayMoveInDate').textContent = formatDateDisplay(moveInDate);
+        document.getElementById('displayMoveOutDate').textContent = formatDateDisplay(leaveDate);
+
+        // Calculate stay days (including both start and end date)
         const stayDays = Math.ceil((leaveDate - moveInDate) / (1000 * 60 * 60 * 24)) + 1;
+        document.getElementById('stayDaysDisplay').textContent = stayDays;
 
         // Calculate pro-rata rent (assuming 30 days per month)
         const dailyRate = monthlyRent / 30;

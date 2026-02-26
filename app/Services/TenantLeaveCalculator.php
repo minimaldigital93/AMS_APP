@@ -11,6 +11,43 @@ use Carbon\Carbon;
 class TenantLeaveCalculator
 {
     /**
+     * Get tenant move-in date from database
+     */
+    public function getTenantMoveInDate(Tenants $tenant): Carbon
+    {
+        return Carbon::parse($tenant->move_in_date);
+    }
+
+    /**
+     * Get move-in date from tenant information
+     */
+    public function getMoveInDateFromTenant(Tenants $tenant): ?Carbon
+    {
+        if (!$tenant->move_in_date) {
+            return null;
+        }
+        return Carbon::parse($tenant->move_in_date);
+    }
+
+    /**
+     * Calculate pro-rata rent based on actual stay days using tenant's move-in date from database
+     */
+    public function calculateProRataRentByTenant(Tenants $tenant, Rentals $rental, Carbon $leaveDate): float
+    {
+        $moveInDate = $this->getTenantMoveInDate($tenant);
+        $actualStayDays = $moveInDate->diffInDays($leaveDate) + 1; // Include both start and end date
+        
+        // Get the number of days in the rental period
+        $originalStayDays = $moveInDate->diffInDays(Carbon::parse($rental->end_date ?? $rental->start_date->addMonth())) + 1;
+        
+        // Calculate daily rate
+        $dailyRate = $rental->rent_amount / 30; // Assuming 30 days per month
+        
+        // Calculate pro-rata rent
+        return round($actualStayDays * $dailyRate, 2);
+    }
+
+    /**
      * Calculate pro-rata rent based on actual stay days
      */
     public function calculateProRataRent(Rentals $rental, Carbon $leaveDate): float
@@ -26,6 +63,15 @@ class TenantLeaveCalculator
         
         // Calculate pro-rata rent
         return round($actualStayDays * $dailyRate, 2);
+    }
+
+    /**
+     * Calculate actual stay days using tenant's move-in date from database
+     */
+    public function calculateStayDaysByTenant(Tenants $tenant, Carbon $leaveDate): int
+    {
+        $moveInDate = $this->getTenantMoveInDate($tenant);
+        return $moveInDate->diffInDays($leaveDate) + 1; // Include both start and end date
     }
 
     /**
@@ -84,6 +130,49 @@ class TenantLeaveCalculator
         $charges['parking'] = round((50 / 30) * $stayDays, 2); // Assuming 50 per month
 
         return $charges;
+    }
+
+    /**
+     * Calculate total settlement amount using tenant information from database
+     */
+    public function calculateSettlementByTenant(
+        Tenants $tenant,
+        Rentals $rental,
+        Carbon $leaveDate,
+        array $charges = [],
+        float $deposit = 0
+    ): array
+    {
+        // Ensure we have all charge values
+        $charges = array_merge([
+            'pro_rata_rent' => 0,
+            'electricity' => 0,
+            'water' => 0,
+            'internet' => 0,
+            'parking' => 0,
+        ], $charges);
+
+        // Calculate total amount due
+        $totalAmountDue = array_sum($charges);
+
+        // Apply deposit
+        $depositApplied = min($deposit, $totalAmountDue);
+        $balanceDue = max(0, $totalAmountDue - $depositApplied);
+        $refundAmount = $deposit - $depositApplied;
+
+        return [
+            'move_in_date' => $this->getTenantMoveInDate($tenant)->format('Y-m-d'),
+            'stay_days' => $this->calculateStayDaysByTenant($tenant, $leaveDate),
+            'pro_rata_rent' => round($charges['pro_rata_rent'], 2),
+            'electricity_charge' => round($charges['electricity'], 2),
+            'water_charge' => round($charges['water'], 2),
+            'internet_charge' => round($charges['internet'], 2),
+            'parking_charge' => round($charges['parking'], 2),
+            'total_amount_due' => round($totalAmountDue, 2),
+            'deposit_applied' => round($depositApplied, 2),
+            'balance_due' => round($balanceDue, 2),
+            'refund_amount' => round($refundAmount, 2),
+        ];
     }
 
     /**
