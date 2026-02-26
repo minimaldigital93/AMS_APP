@@ -443,16 +443,6 @@
                 <span class="nav-text truncate sidebar-label">Active Tenants</span>
             </a>
 
-            {{-- Leave Processing --}}
-            <a href="{{ route('admin.tenants.index') }}" class="submenu-item nav-link flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm text-gray-700 hover:text-blue-700 transition-all sidebar-transition">
-                <span class="nav-icon sidebar-transition">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
-                </span>
-                <span class="nav-text truncate sidebar-label">Leave Processing</span>
-            </a>
-
             {{-- Archived Tenants --}}
             <a href="{{ route('admin.tenants.archived') }}" class="submenu-item nav-link flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm text-gray-700 hover:text-blue-700 transition-all sidebar-transition">
                 <span class="nav-icon sidebar-transition">
