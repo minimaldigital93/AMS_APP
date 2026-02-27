@@ -111,6 +111,13 @@
 
                 @if($tenant)
                     <div class="space-y-4">
+                        <!-- Tenant Photo -->
+                        @if($tenant->photo_path)
+                            <div class="mb-6">
+                                <img src="{{ asset('storage/' . $tenant->photo_path) }}" alt="{{ $tenant->name }}" class="h-40 w-40 rounded-lg object-cover shadow-md border border-gray-300">
+                            </div>
+                        @endif
+
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                             <!-- Tenant Name -->
                             <div>
@@ -236,9 +243,18 @@
                     <h4 class="text-sm font-semibold text-gray-700 mb-3">Active Tenants</h4>
                     <div class="space-y-3">
                         @foreach($apartment->tenants->take(5) as $historicalTenant)
-                        <div class="p-3 bg-gray-50 rounded-lg border border-gray-200">
-                            <p class="font-medium text-gray-900">{{ $historicalTenant->name }}</p>
-                            <p class="text-xs text-gray-600 mt-1">From {{ $historicalTenant->move_in_date?->format('M d, Y') ?? 'Date unknown' }}</p>
+                        <div class="p-3 bg-gray-50 rounded-lg border border-gray-200 flex items-center gap-3">
+                            @if($historicalTenant->photo_path)
+                                <img src="{{ asset('storage/' . $historicalTenant->photo_path) }}" alt="{{ $historicalTenant->name }}" class="h-10 w-10 rounded-full object-cover border border-gray-300">
+                            @else
+                                <div class="h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center text-xs font-semibold text-blue-600">
+                                    {{ strtoupper(substr($historicalTenant->name, 0, 1)) }}
+                                </div>
+                            @endif
+                            <div>
+                                <p class="font-medium text-gray-900">{{ $historicalTenant->name }}</p>
+                                <p class="text-xs text-gray-600 mt-1">From {{ $historicalTenant->move_in_date?->format('M d, Y') ?? 'Date unknown' }}</p>
+                            </div>
                         </div>
                         @endforeach
                     </div>
@@ -251,10 +267,19 @@
                     <h4 class="text-sm font-semibold text-gray-700 mb-3">Archived Tenants</h4>
                     <div class="space-y-3">
                         @foreach($apartment->archivedTenants->take(5) as $archivedTenant)
-                        <div class="p-3 bg-amber-50 rounded-lg border border-amber-200">
-                            <p class="font-medium text-gray-900">{{ $archivedTenant->name }}</p>
-                            <p class="text-xs text-gray-600 mt-1">From {{ $archivedTenant->move_in_date?->format('M d, Y') ?? 'Date unknown' }} to {{ $archivedTenant->move_out_date?->format('M d, Y') ?? 'Unknown' }}</p>
-                            <p class="text-xs text-amber-600 mt-1">Archived: {{ $archivedTenant->archived_at?->format('M d, Y') ?? 'N/A' }}</p>
+                        <div class="p-3 bg-amber-50 rounded-lg border border-amber-200 flex items-center gap-3">
+                            @if($archivedTenant->photo_path)
+                                <img src="{{ asset('storage/' . $archivedTenant->photo_path) }}" alt="{{ $archivedTenant->name }}" class="h-10 w-10 rounded-full object-cover border border-gray-300">
+                            @else
+                                <div class="h-10 w-10 rounded-full bg-amber-100 flex items-center justify-center text-xs font-semibold text-amber-600">
+                                    {{ strtoupper(substr($archivedTenant->name, 0, 1)) }}
+                                </div>
+                            @endif
+                            <div>
+                                <p class="font-medium text-gray-900">{{ $archivedTenant->name }}</p>
+                                <p class="text-xs text-gray-600 mt-1">From {{ $archivedTenant->move_in_date?->format('M d, Y') ?? 'Date unknown' }} to {{ $archivedTenant->move_out_date?->format('M d, Y') ?? 'Unknown' }}</p>
+                                <p class="text-xs text-amber-600 mt-1">Archived: {{ $archivedTenant->archived_at?->format('M d, Y') ?? 'N/A' }}</p>
+                            </div>
                         </div>
                         @endforeach
                     </div>

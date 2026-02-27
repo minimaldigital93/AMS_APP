@@ -108,8 +108,19 @@
                                     $tenant = $apartment->tenants()->whereNull('deleted_at')->latest()->first();
                                 @endphp
                                 @if($tenant)
-                                    <div class="font-medium text-gray-900">{{ $tenant->name }}</div>
-                                    <div class="text-xs text-gray-500">{{ $tenant->email }}</div>
+                                    <div class="flex items-center gap-3">
+                                        @if($tenant->photo_path)
+                                            <img src="{{ asset('storage/' . $tenant->photo_path) }}" alt="{{ $tenant->name }}" class="h-8 w-8 rounded-full object-cover border border-gray-300">
+                                        @else
+                                            <div class="h-8 w-8 rounded-full bg-blue-100 flex items-center justify-center text-xs font-semibold text-blue-600">
+                                                {{ strtoupper(substr($tenant->name, 0, 1)) }}
+                                            </div>
+                                        @endif
+                                        <div>
+                                            <div class="font-medium text-gray-900">{{ $tenant->name }}</div>
+                                            <div class="text-xs text-gray-500">{{ $tenant->email }}</div>
+                                        </div>
+                                    </div>
                                 @else
                                     <span class="text-gray-400">No tenant assigned</span>
                                 @endif
@@ -299,6 +310,11 @@
                         <div class="col-span-2">
                             <label for="date_of_birth" class="block text-sm font-medium text-gray-700 mb-1">Date of Birth</label>
                             <input type="date" id="date_of_birth" name="date_of_birth" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                        </div>
+                        <div class= "col-span-2">
+                            <label for="attached_photo" class="block text-sm font-medium text-gray-700 mb-1">Attached Photo</label>
+                            <input type="file" id="attached_photo" name="attached_photo" accept="image/*" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                            <p class="text-xs text-gray-500 mt-1">Accepted formats: JPG, PNG, GIF</p>
                         </div>
                         <div class="col-span-2">
                             <label for="id_pdf" class="block text-sm font-medium text-gray-700 mb-1">Attached ID PDF</label>

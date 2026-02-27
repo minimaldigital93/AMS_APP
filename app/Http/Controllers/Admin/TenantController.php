@@ -302,8 +302,20 @@ class TenantController extends Controller
             'move_out_date' => 'nullable|date|after:move_in_date',
             'status' => 'required|in:pending,active,inactive',
             'deposit' => 'nullable|numeric|min:0',
+            'photo' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:5120',
             'notes' => 'nullable|string',
         ]);
+
+        // Handle photo upload - SEPARATE from validation
+        if ($request->hasFile('photo') && $request->file('photo')->isValid()) {
+            try {
+                $photoPath = $request->file('photo')->store('tenants', 'public');
+                $validated['photo_path'] = $photoPath;
+            } catch (\Exception $e) {
+                // If photo upload fails, continue without it
+                \Log::error('Photo upload failed: ' . $e->getMessage());
+            }
+        }
 
         Tenants::create($validated);
 
@@ -317,6 +329,11 @@ class TenantController extends Controller
     public function show(Tenants $tenant): View
     {
         $tenant->load(['apartment', 'rentals', 'utilities']);
+        \Log::info('Show tenant details', [
+            'tenant_id' => $tenant->id,
+            'name' => $tenant->name,
+            'photo_path' => $tenant->photo_path,
+        ]);
         return view('admin.tenantManagement.showTenant', compact('tenant'));
     }
 
@@ -345,8 +362,25 @@ class TenantController extends Controller
             'move_out_date' => 'nullable|date|after:move_in_date',
             'status' => 'required|in:pending,active,inactive',
             'deposit' => 'nullable|numeric|min:0',
+            'photo' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:5120',
             'notes' => 'nullable|string',
         ]);
+
+        // Handle photo upload - SEPARATE from validation
+        if ($request->hasFile('photo') && $request->file('photo')->isValid()) {
+            try {
+                // Delete old photo if exists
+                if ($tenant->photo_path && \Storage::disk('public')->exists($tenant->photo_path)) {
+                    \Storage::disk('public')->delete($tenant->photo_path);
+                }
+                
+                $photoPath = $request->file('photo')->store('tenants', 'public');
+                $validated['photo_path'] = $photoPath;
+            } catch (\Exception $e) {
+                // If photo upload fails, continue without updating photo
+                \Log::error('Photo update failed: ' . $e->getMessage());
+            }
+        }
 
         $tenant->update($validated);
 

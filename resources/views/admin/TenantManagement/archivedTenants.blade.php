@@ -111,7 +111,18 @@
                     <tbody id="archivedTenantsTableBody" class="bg-white divide-y divide-gray-200">
                         @forelse($tenants as $tenant)
                             <tr class="hover:bg-gray-50 transition">
-                                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{{ $tenant->name }}</td>
+                                <td class="px-6 py-4 whitespace-nowrap">
+                                    <div class="flex items-center">
+                                        @if($tenant->photo_path)
+                                            <img src="{{ asset('storage/' . $tenant->photo_path) }}" alt="{{ $tenant->name }}" class="h-10 w-10 rounded-full object-cover border border-gray-300 mr-3">
+                                        @else
+                                            <div class="h-10 w-10 rounded-full bg-red-100 flex items-center justify-center mr-3">
+                                                <span class="text-red-600 font-semibold text-sm">{{ strtoupper(substr($tenant->name, 0, 1)) }}</span>
+                                            </div>
+                                        @endif
+                                        <span class="text-sm font-medium text-gray-900">{{ $tenant->name }}</span>
+                                    </div>
+                                </td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{{ $tenant->apartment?->apartment_number ?? 'N/A' }}</td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{{ $tenant->email }}</td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{{ $tenant->move_in_date->format('M d, Y') }}</td>

@@ -120,15 +120,23 @@
                     </thead>
                     <tbody class="bg-white divide-y divide-gray-200">
                         @forelse ($tenants as $tenant)
-                            <tr class="hover:bg-gray-50 transition">
+                            <tr class="hover:bg-gray-50 transition" title="photo_path: {{ $tenant->photo_path ?? 'empty' }}">
                                 <td class="px-6 py-4 whitespace-nowrap">
                                     <div class="flex items-center">
-                                        <div class="h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center">
-                                            <span class="text-blue-600 font-semibold text-sm">{{ strtoupper(substr($tenant->name, 0, 1)) }}</span>
-                                        </div>
+                                        @if($tenant->photo_path)
+                                            <img src="{{ asset('storage/' . $tenant->photo_path) }}" alt="{{ $tenant->name }}" class="h-10 w-10 rounded-full object-cover border border-gray-300" onerror="this.style.display='none'">
+                                        @endif
+                                        @if(!$tenant->photo_path)
+                                            <div class="h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center">
+                                                <span class="text-blue-600 font-semibold text-sm">{{ strtoupper(substr($tenant->name, 0, 1)) }}</span>
+                                            </div>
+                                        @endif
                                         <div class="ml-4">
                                             <p class="font-medium text-gray-900">{{ $tenant->name }}</p>
                                             <p class="text-sm text-gray-500">{{ $tenant->user_id ? 'Linked' : 'Not Linked' }}</p>
+                                        </div>
+                                    </div>
+                                </td>
                                         </div>
                                     </div>
                                 </td>

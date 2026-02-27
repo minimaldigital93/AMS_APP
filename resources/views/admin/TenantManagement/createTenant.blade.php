@@ -16,8 +16,29 @@
 
         <!-- Form Card -->
         <div class="bg-white rounded-lg shadow-md p-6">
-            <form action="{{ route('admin.tenants.store') }}" method="POST" class="space-y-6">
+            <form action="{{ route('admin.tenants.store') }}" method="POST" enctype="multipart/form-data" class="space-y-6">
                 @csrf
+
+                <!-- Photo Upload -->
+                <div>
+                    <label for="photo" class="block text-sm font-medium text-gray-700 mb-2">Tenant Photo</label>
+                    <div class="flex items-center justify-center w-full">
+                        <label for="photo" class="flex flex-col items-center justify-center w-full h-32 border-2 border-gray-300 border-dashed rounded-lg cursor-pointer bg-gray-50 hover:bg-gray-100 transition">
+                            <div class="flex flex-col items-center justify-center pt-5 pb-6">
+                                <svg class="w-8 h-8 text-gray-400 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+                                </svg>
+                                <p class="text-sm text-gray-700"><span class="font-semibold">Click to upload</span> or drag and drop</p>
+                                <p class="text-xs text-gray-500">PNG, JPG, GIF up to 5MB</p>
+                            </div>
+                            <input id="photo" type="file" name="photo" class="hidden" accept="image/*" onchange="previewPhoto(event)">
+                        </label>
+                    </div>
+                    <div id="photoPreview" class="mt-4"></div>
+                    @error('photo')
+                        <p class="text-red-500 text-sm mt-1">{{ $message }}</p>
+                    @enderror
+                </div>
 
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <!-- Apartment -->
@@ -145,4 +166,33 @@
         </div>
     </div>
 </div>
+
+<script>
+function previewPhoto(event) {
+    const file = event.target.files[0];
+    const preview = document.getElementById('photoPreview');
+    
+    if (file) {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            preview.innerHTML = `
+                <div class="relative inline-block">
+                    <img src="${e.target.result}" alt="Preview" class="max-w-xs h-auto rounded-lg shadow-md">
+                    <button type="button" onclick="clearPhoto()" class="absolute top-0 right-0 bg-red-500 text-white rounded-full p-2 hover:bg-red-600 transition">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                        </svg>
+                    </button>
+                </div>
+            `;
+        };
+        reader.readAsDataURL(file);
+    }
+}
+
+function clearPhoto() {
+    document.getElementById('photo').value = '';
+    document.getElementById('photoPreview').innerHTML = '';
+}
+</script>
 @endsection

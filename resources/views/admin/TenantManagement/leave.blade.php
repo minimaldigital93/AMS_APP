@@ -56,7 +56,16 @@
                     @csrf
                     <!-- Step 1: Tenant Information -->
                     <div class="bg-white rounded-lg shadow-md p-6">
-                        <h2 class="text-lg font-semibold text-gray-900 mb-6">Tenant Information</h2>
+                        <div class="flex items-start justify-between mb-6">
+                            <h2 class="text-lg font-semibold text-gray-900">Tenant Information</h2>
+                            @if($tenant->photo_path)
+                                <img src="{{ asset('storage/' . $tenant->photo_path) }}" alt="{{ $tenant->name }}" class="h-16 w-16 rounded-lg object-cover border border-gray-300 shadow-md">
+                            @else
+                                <div class="h-16 w-16 rounded-lg bg-blue-100 flex items-center justify-center border border-gray-300 shadow-md">
+                                    <span class="text-xl font-bold text-blue-600">{{ strtoupper(substr($tenant->name, 0, 1)) }}</span>
+                                </div>
+                            @endif
+                        </div>
 
                         <div class="grid grid-cols-2 gap-4 mb-6">
                             <div class="col-span-2 md:col-span-1">

@@ -18,9 +18,13 @@
         <div class="bg-white rounded-lg shadow-md overflow-hidden mb-6">
             <div class="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
                 <div class="flex items-center">
-                    <div class="h-12 w-12 rounded-full bg-blue-100 flex items-center justify-center mr-4">
-                        <span class="text-blue-600 font-semibold text-lg">{{ strtoupper(substr($tenant->name, 0, 1)) }}</span>
-                    </div>
+                    @if($tenant->photo_path)
+                        <img src="{{ asset('storage/' . $tenant->photo_path) }}" alt="{{ $tenant->name }}" class="h-12 w-12 rounded-full object-cover mr-4 border border-gray-300">
+                    @else
+                        <div class="h-12 w-12 rounded-full bg-blue-100 flex items-center justify-center mr-4">
+                            <span class="text-blue-600 font-semibold text-lg">{{ strtoupper(substr($tenant->name, 0, 1)) }}</span>
+                        </div>
+                    @endif
                     <div>
                         <h2 class="text-xl font-semibold text-gray-900">{{ $tenant->name }}</h2>
                         <p class="text-sm text-gray-600">{{ $tenant->email }}</p>
@@ -32,6 +36,14 @@
             </div>
 
             <div class="p-6 space-y-6">
+                <!-- Tenant Photo (if available) -->
+                @if($tenant->photo_path)
+                    <div>
+                        <h3 class="text-sm font-medium text-gray-600 uppercase tracking-wide mb-4">Photo</h3>
+                        <img src="{{ asset('storage/' . $tenant->photo_path) }}" alt="{{ $tenant->name }}" class="max-w-sm h-auto rounded-lg shadow-md border border-gray-300">
+                    </div>
+                @endif
+
                 <!-- Personal Information -->
                 <div>
                     <h3 class="text-sm font-medium text-gray-600 uppercase tracking-wide mb-4">Personal Information</h3>
