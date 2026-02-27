@@ -53,13 +53,13 @@
                 </div>
             </div>
 
-            <!-- Overdue Payments -->
+            <!-- Monthly Expenses -->
             <div class="bg-gradient-to-br from-purple-50 to-purple-100 rounded-lg p-6 border border-purple-200 shadow-sm">
                 <div class="flex items-center justify-between">
                     <div>
-                        <p class="text-purple-600 text-sm font-semibold">Overdue Payments</p>
-                        <p class="text-4xl font-bold text-gray-900 mt-2">{{ $stats['payments']['overdue'] }}</p>
-                        <p class="text-xs text-red-600 font-medium mt-2">${{ number_format($stats['payments']['total_pending'], 2) }} pending</p>
+                        <p class="text-purple-600 text-sm font-semibold">Monthly Expenses</p>
+                        <p class="text-4xl font-bold text-gray-900 mt-2">${{ number_format($stats['expenses']['monthly_total'] ?? 0, 2) }}</p>
+                        <p class="text-xs text-gray-500 font-medium mt-2">Utilities, maintenance & other</p>
                     </div>
                     <svg class="w-12 h-12 text-purple-200" fill="currentColor" viewBox="0 0 24 24">
                         <path d="M13 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V9z"/>
