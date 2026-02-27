@@ -157,13 +157,13 @@
                             <!-- Move In Date -->
                             <div>
                                 <label class="block text-sm font-medium text-gray-700 mb-1">Move In Date</label>
-                                <p class="text-gray-700">{{ $tenant->pivot->move_in_date?->format('M d, Y') ?? 'N/A' }}</p>
+                                <p class="text-gray-700">{{ $tenant->move_in_date?->format('M d, Y') ?? 'N/A' }}</p>
                             </div>
 
                             <!-- Deposit -->
                             <div>
                                 <label class="block text-sm font-medium text-gray-700 mb-1">Deposit Amount</label>
-                                <p class="text-gray-700">${{ number_format($tenant->pivot->deposit ?? 0, 2) }}</p>
+                                <p class="text-gray-700">${{ number_format($tenant->deposit ?? 0, 2) }}</p>
                             </div>
 
                             <!-- Date of Birth -->
@@ -176,18 +176,18 @@
                         </div>
 
                         <!-- Address -->
-                        @if($tenant->pivot->address)
+                        @if($tenant->address)
                         <div class="pt-4 border-t border-gray-200">
                             <label class="block text-sm font-medium text-gray-700 mb-1">Address</label>
-                            <p class="text-gray-700 whitespace-pre-wrap">{{ $tenant->pivot->address }}</p>
+                            <p class="text-gray-700 whitespace-pre-wrap">{{ $tenant->address }}</p>
                         </div>
                         @endif
 
                         <!-- Notes -->
-                        @if($tenant->pivot->notes)
+                        @if($tenant->notes)
                         <div class="pt-4 border-t border-gray-200">
                             <label class="block text-sm font-medium text-gray-700 mb-1">Notes</label>
-                            <p class="text-gray-700 whitespace-pre-wrap">{{ $tenant->pivot->notes }}</p>
+                            <p class="text-gray-700 whitespace-pre-wrap">{{ $tenant->notes }}</p>
                         </div>
                         @endif
                     </div>
@@ -226,17 +226,40 @@
             </div>
 
             <!-- Recent Activity Card -->
-            @if($apartment->tenants->count() > 0)
+            @if($apartment->allTenants->count() > 0)
             <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
                 <h3 class="text-lg font-semibold text-gray-900 mb-4">Tenants History</h3>
-                <div class="space-y-3">
-                    @foreach($apartment->tenants->take(5) as $historicalTenant)
-                    <div class="p-3 bg-gray-50 rounded-lg border border-gray-200">
-                        <p class="font-medium text-gray-900">{{ $historicalTenant->name }}</p>
-                        <p class="text-xs text-gray-600 mt-1">From {{ $historicalTenant->pivot->move_in_date?->format('M d, Y') ?? 'Date unknown' }}</p>
+                
+                <!-- Active Tenants -->
+                @if($apartment->tenants->count() > 0)
+                <div class="mb-6">
+                    <h4 class="text-sm font-semibold text-gray-700 mb-3">Active Tenants</h4>
+                    <div class="space-y-3">
+                        @foreach($apartment->tenants->take(5) as $historicalTenant)
+                        <div class="p-3 bg-gray-50 rounded-lg border border-gray-200">
+                            <p class="font-medium text-gray-900">{{ $historicalTenant->name }}</p>
+                            <p class="text-xs text-gray-600 mt-1">From {{ $historicalTenant->move_in_date?->format('M d, Y') ?? 'Date unknown' }}</p>
+                        </div>
+                        @endforeach
                     </div>
-                    @endforeach
                 </div>
+                @endif
+                
+                <!-- Archived Tenants -->
+                @if($apartment->archivedTenants->count() > 0)
+                <div>
+                    <h4 class="text-sm font-semibold text-gray-700 mb-3">Archived Tenants</h4>
+                    <div class="space-y-3">
+                        @foreach($apartment->archivedTenants->take(5) as $archivedTenant)
+                        <div class="p-3 bg-amber-50 rounded-lg border border-amber-200">
+                            <p class="font-medium text-gray-900">{{ $archivedTenant->name }}</p>
+                            <p class="text-xs text-gray-600 mt-1">From {{ $archivedTenant->move_in_date?->format('M d, Y') ?? 'Date unknown' }} to {{ $archivedTenant->move_out_date?->format('M d, Y') ?? 'Unknown' }}</p>
+                            <p class="text-xs text-amber-600 mt-1">Archived: {{ $archivedTenant->archived_at?->format('M d, Y') ?? 'N/A' }}</p>
+                        </div>
+                        @endforeach
+                    </div>
+                </div>
+                @endif
             </div>
             @endif
         </div>

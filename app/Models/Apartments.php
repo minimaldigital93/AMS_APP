@@ -41,7 +41,17 @@ class Apartments extends Model
 
     public function tenants(): HasMany
     {
-        return $this->hasMany(Tenants::class, 'apartment_id');
+        return $this->hasMany(Tenants::class, 'apartment_id')->whereNull('deleted_at');
+    }
+
+    public function archivedTenants(): HasMany
+    {
+        return $this->hasMany(Tenants::class, 'apartment_id')->whereNotNull('archived_at')->whereNull('deleted_at');
+    }
+
+    public function allTenants(): HasMany
+    {
+        return $this->hasMany(Tenants::class, 'apartment_id')->whereNull('deleted_at');
     }
 
     public function rentals(): HasMany

@@ -134,11 +134,18 @@ class ApartmentController extends Controller
             'phone' => 'nullable|string|max:20',
             'address' => 'nullable|string',
             'date_of_birth' => 'nullable|date',
+            'id_pdf' => 'nullable|file|mimes:pdf|max:5120',
             'move_in_date' => 'required|date',
-            'move_out_date' => 'nullable|date|after:move_in_date',
+            'deposit' => 'required|numeric|min:0',
         ]);
 
         $tenant = null;
+        $documentPath = null;
+
+        // Handle PDF file upload
+        if ($request->hasFile('id_pdf')) {
+            $documentPath = $request->file('id_pdf')->store('tenants/id_documents', 'public');
+        }
 
         if ($validated['tenant_option'] === 'existing') {
             // Use existing tenant
@@ -151,18 +158,25 @@ class ApartmentController extends Controller
                 'phone' => $validated['phone'] ?? null,
                 'address' => $validated['address'] ?? null,
                 'date_of_birth' => $validated['date_of_birth'] ?? null,
+                'document_path' => $documentPath,
                 'apartment_id' => $apartment->id,
                 'status' => 'active',
             ]);
         }
         
         // Update tenant information
-        $tenant->update([
+        $updateData = [
             'apartment_id' => $apartment->id,
             'move_in_date' => $validated['move_in_date'],
-            'move_out_date' => $validated['move_out_date'],
+            'deposit' => $validated['deposit'],
             'status' => 'active',
-        ]);
+        ];
+
+        if ($documentPath) {
+            $updateData['document_path'] = $documentPath;
+        }
+
+        $tenant->update($updateData);
 
         // Update apartment status to occupied
         $apartment->update(['status' => 'occupied']);

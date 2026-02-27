@@ -197,7 +197,11 @@
                 id: {{ $tenant->id }},
                 name: '{{ addslashes($tenant->name) }}',
                 email: '{{ $tenant->email }}',
+                phone: '{{ $tenant->phone ?? "" }}',
+                date_of_birth: '{{ $tenant->date_of_birth }}',
+                notes: '{{ addslashes($tenant->notes ?? "") }}',
                 apartment: '{{ $tenant->apartment?->apartment_number ?? "N/A" }}',
+                apartment_id: {{ $tenant->apartment_id ?? "null" }},
                 move_in_date: '{{ $tenant->move_in_date }}',
                 move_out_date: '{{ $tenant->leaves->last()?->leave_date ?? $tenant->move_out_date ?? "" }}',
                 archived_at: '{{ $tenant->archived_at }}',
@@ -385,14 +389,16 @@
         });
     }
 
-    // View tenant details
-    async function viewTenantDetails(tenantId) {
+    // View tenant settlement/details
+    function viewTenantSettlement(tenantId, tenantName) {
         try {
-            // API call removed - use Blade controller instead
-            console.log('Fetching tenant:', tenantId);
-            const tenant = await response.json();
-            const t = tenant.data;
+            const tenant = allArchivedTenants.find(t => t.id == tenantId);
+            if (!tenant) {
+                alert('Tenant not found');
+                return;
+            }
 
+            const t = tenant;
             const moveInDate = new Date(t.move_in_date);
             const moveOutDate = t.move_out_date ? new Date(t.move_out_date) : new Date();
             const duration = calculateDuration(moveInDate, moveOutDate);

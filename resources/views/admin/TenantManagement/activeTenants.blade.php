@@ -83,8 +83,8 @@
                         </svg>
                     </div>
                     <div class="ml-4">
-                        <p class="text-gray-600 text-sm">Pending Tenants</p>
-                        <p id="pendingTenants" class="text-2xl font-bold text-gray-900">{{ $tenants->getCollection()->where('status', 'pending')->count() }}</p>
+                        <p class="text-gray-600 text-sm">Archived Tenants</p>
+                        <p id="archivedTenants" class="text-2xl font-bold text-gray-900">{{ $tenants->getCollection()->where('status', 'archived')->count() }}</p>
                     </div>
                 </div>
             </div>
@@ -142,7 +142,7 @@
                                     </span>
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${{ number_format($tenant->deposit ?? 0, 2) }}</td>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-3">
+                                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium flex space-x-4 mt-3">
                                     <a href="{{ route('admin.tenants.show', $tenant->id) }}" title="View Details" class="text-blue-600 hover:text-blue-900 transition">
                                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>

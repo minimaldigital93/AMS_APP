@@ -75,7 +75,7 @@
                             <td class="px-6 py-4 text-sm font-medium text-gray-900">
                                 <div class="flex items-center gap-2">
                                     @php
-                                        $tenant = $apartment->tenants()->latest()->first();
+                                        $tenant = $apartment->tenants()->whereNull('deleted_at')->latest()->first();
                                         $tenantStatus = $tenant ? $tenant->status : null;
                                     @endphp
                                     <span class="w-2 h-2 rounded-full {{ 
@@ -105,7 +105,7 @@
                             </td>
                             <td class="px-6 py-4 text-sm text-gray-600">
                                 @php
-                                    $tenant = $apartment->tenants()->latest()->first();
+                                    $tenant = $apartment->tenants()->whereNull('deleted_at')->latest()->first();
                                 @endphp
                                 @if($tenant)
                                     <div class="font-medium text-gray-900">{{ $tenant->name }}</div>
@@ -116,7 +116,7 @@
                             </td>
                             <td class="px-6 py-4 text-sm">
                                 @php
-                                    $tenant = $apartment->tenants()->latest()->first();
+                                    $tenant = $apartment->tenants()->whereNull('deleted_at')->latest()->first();
                                     if($tenant && $tenant->move_in_date && $tenant->move_out_date) {
                                         $moveInDate = \Carbon\Carbon::parse($tenant->move_in_date);
                                         $moveOutDate = \Carbon\Carbon::parse($tenant->move_out_date);
@@ -177,7 +177,7 @@
                                     @endif
                                     
                                     {{-- Assign Tenant Button --}}
-                                    @if($apartment->status === 'available' || !$apartment->tenants()->where('status', 'active')->exists())
+                                    @if(!$tenant || $tenant->status !== 'active')
                                     <button type="button" 
                                             data-apartment-id="{{ $apartment->id }}"
                                             data-apartment-number="{{ $apartment->apartment_number }}"
@@ -228,7 +228,7 @@
 <div id="assignTenantModal" class="hidden fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4 overflow-y-auto">
     <div class="bg-white rounded-lg shadow-xl max-w-lg w-full my-8">
         <div class="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
-            <h3 class="text-lg font-semibold text-gray-900">Assign Tenant to <span id="apartmentNumberDisplay"></span></h3>
+            <h3 id="modalTitle" class="text-lg font-semibold text-gray-900">Assign Tenant to <span id="apartmentNumberDisplay"></span></h3>
             <button type="button" class="close-modal text-gray-400 hover:text-gray-600">
                 <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
@@ -237,7 +237,7 @@
         </div>
 
         <!-- Tab Navigation -->
-        <div class="px-6 pt-4 border-b border-gray-200">
+        <div id="tabNavigation" class="px-6 pt-4 border-b border-gray-200 hidden">
             <div class="flex gap-4">
                 <button type="button" id="existingTenantTab" class="tab-button active px-4 py-2 font-medium text-blue-600 border-b-2 border-blue-600 hover:text-blue-700">
                     Existing Tenant
@@ -248,13 +248,13 @@
             </div>
         </div>
 
-        <form id="assignTenantForm" method="POST" class="p-6 space-y-4">
+        <form id="assignTenantForm" method="POST" enctype="multipart/form-data" class="p-6 space-y-4">
             @csrf
             <input type="hidden" id="apartmentId" name="apartment_id">
             <input type="hidden" id="tenantOption" name="tenant_option" value="existing">
 
             <!-- Existing Tenant Tab -->
-            <div id="existingTenantContent" class="tab-content space-y-4">
+            <div id="existingTenantContent" class="tab-content space-y-4 hidden">
                 <div>
                     <label for="tenant_id" class="block text-sm font-medium text-gray-700 mb-1">Select Tenant</label>
                     <select id="tenant_id" name="tenant_id" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
@@ -270,41 +270,62 @@
             </div>
 
             <!-- New Tenant Tab -->
-            <div id="newTenantContent" class="tab-content space-y-4 hidden">
-                <div class="grid grid-cols-2 gap-4">
-                    <div class="col-span-2">
-                        <label for="name" class="block text-sm font-medium text-gray-700 mb-1">Full Name</label>
-                        <input type="text" id="name" name="name" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
-                    </div>
-                    <div>
-                        <label for="email" class="block text-sm font-medium text-gray-700 mb-1">Email</label>
-                        <input type="email" id="email" name="email" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
-                    </div>
-                    <div>
-                        <label for="phone" class="block text-sm font-medium text-gray-700 mb-1">Phone</label>
-                        <input type="tel" id="phone" name="phone" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
-                    </div>
-                    <div class="col-span-2">
-                        <label for="address" class="block text-sm font-medium text-gray-700 mb-1">Address</label>
-                        <input type="text" id="address" name="address" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
-                    </div>
-                    <div>
-                        <label for="date_of_birth" class="block text-sm font-medium text-gray-700 mb-1">Date of Birth</label>
-                        <input type="date" id="date_of_birth" name="date_of_birth" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+            <div id="newTenantContent" class="tab-content space-y-6">
+                <!-- Personal Information Section -->
+                <div class="border-b pb-6">
+                    <h4 class="text-sm font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                        <svg class="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        Personal Information
+                    </h4>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div class="col-span-2">
+                            <label for="name" class="block text-sm font-medium text-gray-700 mb-1">Full Name *</label>
+                            <input type="text" id="name" name="name" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                        </div>
+                        <div>
+                            <label for="email" class="block text-sm font-medium text-gray-700 mb-1">Email *</label>
+                            <input type="email" id="email" name="email" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                        </div>
+                        <div>
+                            <label for="phone" class="block text-sm font-medium text-gray-700 mb-1">Phone *</label>
+                            <input type="tel" id="phone" name="phone" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                        </div>
+                        <div class="col-span-2">
+                            <label for="address" class="block text-sm font-medium text-gray-700 mb-1">Address</label>
+                            <input type="text" id="address" name="address" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                        </div>
+                        <div class="col-span-2">
+                            <label for="date_of_birth" class="block text-sm font-medium text-gray-700 mb-1">Date of Birth</label>
+                            <input type="date" id="date_of_birth" name="date_of_birth" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                        </div>
+                        <div class="col-span-2">
+                            <label for="id_pdf" class="block text-sm font-medium text-gray-700 mb-1">Attached ID PDF</label>
+                            <input type="file" id="id_pdf" name="id_pdf" accept=".pdf" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                            <p class="text-xs text-gray-500 mt-1">Accepted format: PDF only</p>
+                        </div>
                     </div>
                 </div>
-            </div>
 
-            <!-- Common Fields (Both Tabs) -->
-            <div class="border-t pt-4 mt-4 space-y-4">
+                <!-- Rent Information Section -->
                 <div>
-                    <label for="move_in_date" class="block text-sm font-medium text-gray-700 mb-1">Move In Date *</label>
-                    <input type="date" id="move_in_date" name="move_in_date" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
-                </div>
-
-                <div>
-                    <label for="move_out_date" class="block text-sm font-medium text-gray-700 mb-1">Move Out Date</label>
-                    <input type="date" id="move_out_date" name="move_out_date" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                    <h4 class="text-sm font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                        <svg class="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        Rent Information
+                    </h4>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label for="move_in_date" class="block text-sm font-medium text-gray-700 mb-1">Move In Date *</label>
+                            <input type="date" id="move_in_date" name="move_in_date" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                        </div>
+                        <div>
+                            <label for="deposit" class="block text-sm font-medium text-gray-700 mb-1">Deposit *</label>
+                            <input type="number" id="deposit" name="deposit" min="0" step="0.01" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" placeholder="0.00">
+                        </div>
+                    </div>
                 </div>
             </div>
 
@@ -312,7 +333,7 @@
                 <button type="button" class="close-modal flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition font-medium">
                     Cancel
                 </button>
-                <button type="submit" class="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition font-medium">
+                <button type="submit" id="submitBtn" class="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition font-medium">
                     Assign Tenant
                 </button>
             </div>
@@ -327,6 +348,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const apartmentIdInput = document.getElementById('apartmentId');
     const apartmentNumberDisplay = document.getElementById('apartmentNumberDisplay');
     const tenantOptionInput = document.getElementById('tenantOption');
+    const tabNavigation = document.getElementById('tabNavigation');
     
     // Tab switching
     const existingTenantTab = document.getElementById('existingTenantTab');
@@ -335,7 +357,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const newTenantContent = document.getElementById('newTenantContent');
     const tabButtons = document.querySelectorAll('.tab-button');
     
-    existingTenantTab.addEventListener('click', function() {
+    function switchToExistingTab() {
         tenantOptionInput.value = 'existing';
         existingTenantContent.classList.remove('hidden');
         newTenantContent.classList.add('hidden');
@@ -344,9 +366,9 @@ document.addEventListener('DOMContentLoaded', function() {
         tabButtons.forEach(btn => btn.classList.add('text-gray-600', 'border-transparent'));
         existingTenantTab.classList.add('active', 'text-blue-600', 'border-blue-600');
         existingTenantTab.classList.remove('text-gray-600', 'border-transparent');
-    });
+    }
     
-    newTenantTab.addEventListener('click', function() {
+    function switchToNewTab() {
         tenantOptionInput.value = 'new';
         existingTenantContent.classList.add('hidden');
         newTenantContent.classList.remove('hidden');
@@ -355,9 +377,12 @@ document.addEventListener('DOMContentLoaded', function() {
         tabButtons.forEach(btn => btn.classList.add('text-gray-600', 'border-transparent'));
         newTenantTab.classList.add('active', 'text-blue-600', 'border-blue-600');
         newTenantTab.classList.remove('text-gray-600', 'border-transparent');
-    });
+    }
     
-    // Open modal
+    existingTenantTab.addEventListener('click', switchToExistingTab);
+    newTenantTab.addEventListener('click', switchToNewTab);
+    
+    // Open modal for apartment tenant assignment
     document.querySelectorAll('.assign-tenant-btn').forEach(btn => {
         btn.addEventListener('click', function() {
             const apartmentId = this.dataset.apartmentId;
@@ -366,11 +391,18 @@ document.addEventListener('DOMContentLoaded', function() {
             apartmentNumberDisplay.textContent = apartmentNumber;
             form.action = `/admin/apartments/${apartmentId}/assign-tenant`;
             
+            // Update modal title and submit button for apartment assignment
+            document.getElementById('modalTitle').innerHTML = 'Assign Tenant to <span id="apartmentNumberDisplay">' + apartmentNumber + '</span>';
+            document.getElementById('submitBtn').textContent = 'Assign Tenant';
+            
+            // Hide tabs and always show new tenant form
+            tabNavigation.classList.add('hidden');
+            existingTenantContent.classList.add('hidden');
+            newTenantContent.classList.remove('hidden');
+            
             // Reset form
-            tenantOptionInput.value = 'existing';
+            tenantOptionInput.value = 'new';
             form.reset();
-            existingTenantContent.classList.remove('hidden');
-            newTenantContent.classList.add('hidden');
             
             modal.classList.remove('hidden');
         });
