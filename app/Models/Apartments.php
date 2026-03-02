@@ -58,4 +58,14 @@ class Apartments extends Model
     {
         return $this->hasMany(Rentals::class, 'apartment_id');
     }
+
+    public function fixedExpenses(): HasMany
+    {
+        return $this->hasMany(ApartmentFixedExpense::class, 'apartment_id');
+    }
+
+    public function activeFixedExpenses(): HasMany
+    {
+        return $this->hasMany(ApartmentFixedExpense::class, 'apartment_id')->where('is_active', true);
+    }
 }

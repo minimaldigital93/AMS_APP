@@ -101,6 +101,112 @@
                 @endif
             </div>
 
+            <!-- Rent Payment Progress -->
+            @if($activeRental && count($rentProgress) > 0)
+            <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6 space-y-5">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <h2 class="text-2xl font-semibold text-gray-900">Rent Payment Progress</h2>
+                        <p class="text-sm text-gray-500 mt-1">
+                            {{ $activeRental->tenant->name ?? 'Tenant' }} &middot;
+                            ${{ number_format($activeRental->rent_amount, 2) }}/mo &middot;
+                            Since {{ \Carbon\Carbon::parse($activeRental->start_date)->format('M d, Y') }}
+                        </p>
+                    </div>
+                    <div class="text-right">
+                        <p class="text-2xl font-bold {{ $overallPercent >= 100 ? 'text-green-600' : ($overallPercent > 0 ? 'text-blue-600' : 'text-gray-400') }}">{{ $overallPercent }}%</p>
+                        <p class="text-xs text-gray-500">${{ number_format($totalPaid, 2) }} / ${{ number_format($totalExpected, 2) }}</p>
+                    </div>
+                </div>
+
+                {{-- Overall Bar --}}
+                <div class="w-full bg-gray-100 rounded-full h-3">
+                    <div class="h-3 rounded-full transition-all duration-500 {{ $overallPercent >= 100 ? 'bg-green-500' : ($overallPercent > 50 ? 'bg-blue-500' : ($overallPercent > 0 ? 'bg-yellow-500' : 'bg-gray-200')) }}"
+                         style="width: {{ $overallPercent }}%"></div>
+                </div>
+
+                {{-- Monthly Breakdown --}}
+                <div class="space-y-2">
+                    @foreach($rentProgress as $rp)
+                    <div class="flex items-center gap-3 p-2.5 rounded-lg {{ $rp['is_current'] ? 'bg-blue-50 border border-blue-200' : 'hover:bg-gray-50' }}">
+                        {{-- Month Label --}}
+                        <div class="w-16 shrink-0">
+                            <p class="text-sm font-semibold {{ $rp['is_current'] ? 'text-blue-700' : 'text-gray-700' }}">{{ $rp['month'] }}</p>
+                            <p class="text-xs text-gray-400">{{ $rp['year'] }}</p>
+                        </div>
+
+                        {{-- Progress Bar --}}
+                        <div class="flex-1">
+                            <div class="w-full bg-gray-100 rounded-full h-4 relative overflow-hidden">
+                                @php
+                                    $barColor = match($rp['status']) {
+                                        'paid' => 'bg-green-500',
+                                        'partial' => 'bg-yellow-500',
+                                        'overdue' => 'bg-red-400',
+                                        'due' => 'bg-blue-200',
+                                        default => 'bg-gray-200',
+                                    };
+                                @endphp
+                                <div class="{{ $barColor }} h-full rounded-full transition-all duration-500 flex items-center justify-end pr-1"
+                                     style="width: {{ max($rp['percent'], ($rp['status'] === 'due' ? 100 : ($rp['status'] === 'upcoming' ? 100 : 0))) }}%">
+                                    @if($rp['percent'] > 15)
+                                    <span class="text-[10px] font-bold text-white">{{ $rp['percent'] }}%</span>
+                                    @endif
+                                </div>
+                            </div>
+                        </div>
+
+                        {{-- Amount --}}
+                        <div class="w-24 text-right shrink-0">
+                            <p class="text-sm font-semibold {{ $rp['status'] === 'paid' ? 'text-green-600' : ($rp['status'] === 'overdue' ? 'text-red-600' : 'text-gray-700') }}">
+                                ${{ number_format($rp['paid'], 2) }}
+                            </p>
+                            @if($rp['late_fee'] > 0)
+                            <p class="text-[10px] text-orange-500">+${{ number_format($rp['late_fee'], 2) }} fee</p>
+                            @endif
+                        </div>
+
+                        {{-- Status Badge --}}
+                        <div class="w-20 text-center shrink-0">
+                            @php
+                                $badgeClasses = match($rp['status']) {
+                                    'paid' => 'bg-green-100 text-green-700',
+                                    'partial' => 'bg-yellow-100 text-yellow-700',
+                                    'overdue' => 'bg-red-100 text-red-700',
+                                    'due' => 'bg-blue-100 text-blue-700',
+                                    default => 'bg-gray-100 text-gray-500',
+                                };
+                            @endphp
+                            <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium {{ $badgeClasses }}">
+                                {{ ucfirst($rp['status']) }}
+                            </span>
+                            @if($rp['paid_date'])
+                            <p class="text-[10px] text-gray-400 mt-0.5">{{ $rp['paid_date'] }}</p>
+                            @endif
+                        </div>
+                    </div>
+                    @endforeach
+                </div>
+
+                {{-- Legend --}}
+                <div class="flex items-center gap-4 pt-2 border-t text-xs text-gray-500">
+                    <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-full bg-green-500"></span> Paid</span>
+                    <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-full bg-yellow-500"></span> Partial</span>
+                    <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-full bg-red-400"></span> Overdue</span>
+                    <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-full bg-blue-200"></span> Due Now</span>
+                    <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-full bg-gray-200"></span> Upcoming</span>
+                </div>
+            </div>
+            @elseif(!$activeRental)
+            <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6 text-center">
+                <div class="text-gray-400 mb-2">
+                    <svg class="w-10 h-10 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                </div>
+                <h2 class="text-lg font-semibold text-gray-900">Rent Payment Progress</h2>
+                <p class="text-sm text-gray-500 mt-1">No active rental — assign a tenant to track rent.</p>
+            </div>
+            @endif
+
             <!-- Tenant Information Card -->
             <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
                 <h2 class="text-2xl font-semibold text-gray-900 mb-6">Current Tenant</h2>

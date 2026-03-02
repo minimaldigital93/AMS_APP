@@ -5,8 +5,11 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Apartments;
 use App\Models\Floors;
+use App\Models\Payments;
+use App\Models\Rentals;
 use App\Models\Tenants;
 use App\Models\User;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
 
@@ -68,7 +71,84 @@ class ApartmentController extends Controller
     public function show(Apartments $apartment): View
     {
         $apartment = $apartment->load('floor', 'supervisor');
-        return view('admin.apartments.show', compact('apartment'));
+
+        // Get active rental with payments
+        $activeRental = Rentals::where('apartment_id', $apartment->id)
+            ->where(function ($q) {
+                $q->whereNull('end_date')->orWhere('end_date', '>=', now());
+            })
+            ->with(['tenant', 'payments' => function ($q) {
+                $q->where('payment_type', 'rent')
+                    ->where('payment_status', 'paid')
+                    ->orderBy('paid_at', 'asc');
+            }])
+            ->latest('start_date')
+            ->first();
+
+        $rentProgress = [];
+
+        if ($activeRental) {
+            $startDate = Carbon::parse($activeRental->start_date)->startOfMonth();
+            $endDate = $activeRental->end_date
+                ? Carbon::parse($activeRental->end_date)->endOfMonth()
+                : now()->endOfMonth();
+            $monthlyRent = $activeRental->rent_amount;
+
+            $current = $startDate->copy();
+            while ($current->lte($endDate)) {
+                $month = $current->month;
+                $year = $current->year;
+
+                // Find payments for this month
+                $monthPayments = $activeRental->payments->filter(function ($p) use ($month, $year) {
+                    return Carbon::parse($p->paid_at)->month === $month
+                        && Carbon::parse($p->paid_at)->year === $year;
+                });
+
+                $paidAmount = $monthPayments->sum('amount');
+                $lateFees = $monthPayments->sum('late_fee');
+                $paidDate = $monthPayments->first()?->paid_at;
+                $percent = $monthlyRent > 0 ? min(round(($paidAmount / $monthlyRent) * 100, 1), 100) : 0;
+
+                $isPast = $current->copy()->endOfMonth()->lt(now());
+                $isCurrent = $current->month === now()->month && $current->year === now()->year;
+
+                $status = 'upcoming';
+                if ($percent >= 100) {
+                    $status = 'paid';
+                } elseif ($percent > 0) {
+                    $status = 'partial';
+                } elseif ($isPast) {
+                    $status = 'overdue';
+                } elseif ($isCurrent) {
+                    $status = 'due';
+                }
+
+                $rentProgress[] = [
+                    'month' => $current->format('M'),
+                    'year' => $current->format('Y'),
+                    'label' => $current->format('M Y'),
+                    'rent' => $monthlyRent,
+                    'paid' => $paidAmount,
+                    'late_fee' => $lateFees,
+                    'percent' => $percent,
+                    'paid_date' => $paidDate ? Carbon::parse($paidDate)->format('M d') : null,
+                    'status' => $status,
+                    'is_current' => $isCurrent,
+                ];
+
+                $current->addMonth();
+            }
+        }
+
+        $totalPaid = collect($rentProgress)->sum('paid');
+        $totalExpected = collect($rentProgress)->sum('rent');
+        $overallPercent = $totalExpected > 0 ? round(($totalPaid / $totalExpected) * 100, 1) : 0;
+
+        return view('admin.apartments.show', compact(
+            'apartment', 'activeRental', 'rentProgress',
+            'totalPaid', 'totalExpected', 'overallPercent'
+        ));
     }
 
     /**
@@ -181,7 +261,18 @@ class ApartmentController extends Controller
         // Update apartment status to occupied
         $apartment->update(['status' => 'occupied']);
 
-        return redirect()->route('admin.apartments.index')->with('success', 'Tenant assigned successfully');
+        // Auto-create Rental record (ongoing lease — end_date set when tenant leaves)
+        $moveInDate = Carbon::parse($validated['move_in_date']);
+        Rentals::create([
+            'apartment_id' => $apartment->id,
+            'tenant_id' => $tenant->id,
+            'start_date' => $moveInDate,
+            'end_date' => null,
+            'rent_amount' => $apartment->monthly_rent,
+            'deposit' => $validated['deposit'],
+        ]);
+
+        return redirect()->route('admin.apartments.index')->with('success', 'Tenant assigned successfully with rental created.');
     }
 
     /**

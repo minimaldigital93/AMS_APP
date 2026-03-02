@@ -53,7 +53,42 @@ class TenantController extends Controller
         $tenants = $query->orderBy('id', 'desc')->paginate(15);
         $apartments = Apartments::all();
 
-        return view('admin.tenantManagement.activeTenants', compact('tenants', 'apartments'));
+        // Build rent progress for each tenant (current month)
+        $currentMonth = now()->month;
+        $currentYear = now()->year;
+        $rentProgressMap = [];
+
+        foreach ($tenants as $tenant) {
+            $rental = Rentals::where('tenant_id', $tenant->id)
+                ->where(function ($q) {
+                    $q->whereNull('end_date')->orWhere('end_date', '>=', now());
+                })
+                ->with(['payments' => function ($q) use ($currentMonth, $currentYear) {
+                    $q->where('payment_type', 'rent')
+                      ->where('payment_status', 'paid')
+                      ->whereMonth('paid_at', $currentMonth)
+                      ->whereYear('paid_at', $currentYear);
+                }])
+                ->latest('start_date')
+                ->first();
+
+            if ($rental) {
+                $paidAmount = $rental->payments->sum('amount');
+                $monthlyRent = $rental->rent_amount;
+                $percent = $monthlyRent > 0 ? min(round(($paidAmount / $monthlyRent) * 100, 1), 100) : 0;
+                $paidDate = $rental->payments->first()?->paid_at;
+
+                $rentProgressMap[$tenant->id] = [
+                    'rent' => $monthlyRent,
+                    'paid' => $paidAmount,
+                    'percent' => $percent,
+                    'status' => $percent >= 100 ? 'paid' : ($percent > 0 ? 'partial' : 'unpaid'),
+                    'paid_date' => $paidDate ? Carbon::parse($paidDate)->format('M d') : null,
+                ];
+            }
+        }
+
+        return view('admin.tenantManagement.activeTenants', compact('tenants', 'apartments', 'rentProgressMap'));
     }
 
     /**

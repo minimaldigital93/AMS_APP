@@ -57,7 +57,7 @@ class FiscalPeriodController extends Controller
     }
 
     /**
-     * Show fiscal period details.
+     * Show fiscal period details with revenue and expense tracking.
      */
     public function show(FiscalPeriods $fiscalperiod)
     {
@@ -67,7 +67,70 @@ class FiscalPeriodController extends Controller
             ->orderBy('as_of_date', 'desc')
             ->get();
 
-        return view('admin.fiscalperiod.show', compact('fiscalperiod', 'balanceSheetItems'));
+        // Calculate Revenue from Payments (Rent Income) within this fiscal period
+        $revenue = Payments::whereHas('rental', function($query) use ($fiscalperiod) {
+            $query->whereHas('apartment', function($subQuery) use ($fiscalperiod) {
+                $subQuery->where('supervisor_id', $fiscalperiod->user_id);
+            });
+        })
+        ->where('payment_status', 'paid')
+        ->whereBetween('paid_at', [$fiscalperiod->opening_date, $fiscalperiod->closing_date])
+        ->sum('amount');
+
+        $lateFees = Payments::whereHas('rental', function($query) use ($fiscalperiod) {
+            $query->whereHas('apartment', function($subQuery) use ($fiscalperiod) {
+                $subQuery->where('supervisor_id', $fiscalperiod->user_id);
+            });
+        })
+        ->where('payment_status', 'paid')
+        ->whereBetween('paid_at', [$fiscalperiod->opening_date, $fiscalperiod->closing_date])
+        ->sum('late_fee');
+
+        $totalIncome = $revenue + $lateFees;
+
+        // Calculate Expenses from Utilities within this fiscal period
+        $utilitiesData = Utilities::whereHas('rental', function($query) use ($fiscalperiod) {
+            $query->whereHas('apartment', function($subQuery) use ($fiscalperiod) {
+                $subQuery->where('supervisor_id', $fiscalperiod->user_id);
+            });
+        })
+        ->where('paid_status', true)
+        ->whereBetween('paid_at', [$fiscalperiod->opening_date, $fiscalperiod->closing_date])
+        ->get();
+
+        $expenses = [];
+        $totalExpenses = 0;
+        foreach ($utilitiesData->groupBy('utility_type') as $type => $items) {
+            $typeTotal = $items->sum('charge_amount');
+            $expenses[$type] = $typeTotal;
+            $totalExpenses += $typeTotal;
+        }
+
+        // Net profit
+        $netProfit = $totalIncome - $totalExpenses;
+
+        // Payment count
+        $paymentCount = Payments::whereHas('rental', function($query) use ($fiscalperiod) {
+            $query->whereHas('apartment', function($subQuery) use ($fiscalperiod) {
+                $subQuery->where('supervisor_id', $fiscalperiod->user_id);
+            });
+        })
+        ->where('payment_status', 'paid')
+        ->whereBetween('paid_at', [$fiscalperiod->opening_date, $fiscalperiod->closing_date])
+        ->count();
+
+        $financialData = [
+            'revenue' => $revenue,
+            'late_fees' => $lateFees,
+            'total_income' => $totalIncome,
+            'expenses' => $expenses,
+            'total_expenses' => $totalExpenses,
+            'net_profit' => $netProfit,
+            'is_profitable' => $netProfit > 0,
+            'payment_count' => $paymentCount,
+        ];
+
+        return view('admin.fiscalperiod.show', compact('fiscalperiod', 'balanceSheetItems', 'financialData'));
     }
 
     /**

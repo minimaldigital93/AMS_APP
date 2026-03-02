@@ -105,11 +105,26 @@ Route::middleware(['auth', 'role:admin'])->group(function () {
     Route::get('/admin/fiscalperiod/{fiscalperiod}/export-pdf', [FiscalPeriodController::class, 'exportPDF'])->name('admin.fiscalperiod.exportPDF');
     Route::get('/admin/fiscalperiod/{fiscalperiod}/export-csv', [FiscalPeriodController::class, 'exportCSV'])->name('admin.fiscalperiod.exportCSV');
     
-    // Revenue & Expense Management Routes
-    Route::get('/admin/revenue-expense', [RevenueExpenseController::class, 'index'])->name('admin.revenue_expense.index');
-    Route::get('/admin/revenue-expense/break-even', [RevenueExpenseController::class, 'breakEvenPoint'])->name('admin.revenue_expense.break_even');
-    Route::get('/admin/revenue-expense/record-income', [RevenueExpenseController::class, 'recordIncome'])->name('admin.revenue_expense.record_income');
-    Route::get('/admin/revenue-expense/record-expense', [RevenueExpenseController::class, 'recordExpense'])->name('admin.revenue_expense.record_expense');
+    // Revenue & Expense Management Routes (requires active fiscal period)
+    Route::middleware(['fiscal.period'])->group(function () {
+        Route::get('/admin/revenue-expense', [RevenueExpenseController::class, 'index'])->name('admin.revenue_expense.index');
+        Route::get('/admin/revenue-expense/break-even', [RevenueExpenseController::class, 'breakEvenPoint'])->name('admin.revenue_expense.break_even');
+        Route::get('/admin/revenue-expense/record-income', [RevenueExpenseController::class, 'recordIncome'])->name('admin.revenue_expense.record_income');
+        Route::post('/admin/revenue-expense/record-income', [RevenueExpenseController::class, 'storeIncome'])->name('admin.revenue_expense.store_income');
+        Route::post('/admin/revenue-expense/record-income-bulk', [RevenueExpenseController::class, 'storeBulkIncome'])->name('admin.revenue_expense.store_income_bulk');
+        Route::get('/admin/revenue-expense/record-expense', [RevenueExpenseController::class, 'recordExpense'])->name('admin.revenue_expense.record_expense');
+        Route::post('/admin/revenue-expense/record-expense', [RevenueExpenseController::class, 'storeExpense'])->name('admin.revenue_expense.store_expense');
+
+        // Fixed Expense Management
+        Route::get('/admin/revenue-expense/fixed-expenses', [RevenueExpenseController::class, 'fixedExpenses'])->name('admin.revenue_expense.fixed_expenses');
+        Route::post('/admin/revenue-expense/fixed-expenses', [RevenueExpenseController::class, 'storeFixedExpense'])->name('admin.revenue_expense.store_fixed_expense');
+        Route::patch('/admin/revenue-expense/fixed-expenses/{fixedExpense}/toggle', [RevenueExpenseController::class, 'toggleFixedExpense'])->name('admin.revenue_expense.toggle_fixed_expense');
+        Route::delete('/admin/revenue-expense/fixed-expenses/{fixedExpense}', [RevenueExpenseController::class, 'deleteFixedExpense'])->name('admin.revenue_expense.delete_fixed_expense');
+
+        // Monthly Bill Generation
+        Route::get('/admin/revenue-expense/generate-bills', [RevenueExpenseController::class, 'generateMonthlyBills'])->name('admin.revenue_expense.generate_bills');
+        Route::post('/admin/revenue-expense/generate-bills', [RevenueExpenseController::class, 'processMonthlyBills'])->name('admin.revenue_expense.process_bills');
+    });
 });
 
 require __DIR__.'/auth.php';

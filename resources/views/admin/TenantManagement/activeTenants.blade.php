@@ -112,7 +112,7 @@
                             <th class="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Tenant Name</th>
                             <th class="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Apartment</th>
                             <th class="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Phone</th>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Move In Date</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Rent Progress</th>
                             <th class="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Status</th>
                             <th class="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Deposit</th>
                             <th class="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Actions</th>
@@ -142,7 +142,36 @@
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{ $tenant->apartment?->apartment_number ?? 'N/A' }}</td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{{ $tenant->phone }}</td>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{{ $tenant->move_in_date }}</td>
+                                <td class="px-6 py-4 whitespace-nowrap">
+                                    @php $rp = $rentProgressMap[$tenant->id] ?? null; @endphp
+                                    @if($rp)
+                                    <div class="w-36">
+                                        <div class="flex items-center justify-between mb-1">
+                                            <span class="text-xs font-semibold {{ $rp['status'] === 'paid' ? 'text-green-600' : ($rp['status'] === 'partial' ? 'text-yellow-600' : 'text-red-500') }}">
+                                                {{ $rp['percent'] }}%
+                                            </span>
+                                            <span class="text-[10px] text-gray-400">${{ number_format($rp['paid'], 2) }}/${{ number_format($rp['rent'], 2) }}</span>
+                                        </div>
+                                        <div class="w-full bg-gray-200 rounded-full h-2">
+                                            @php
+                                                $barColor = match($rp['status']) {
+                                                    'paid' => 'bg-green-500',
+                                                    'partial' => 'bg-yellow-500',
+                                                    default => 'bg-red-400',
+                                                };
+                                            @endphp
+                                            <div class="{{ $barColor }} h-2 rounded-full transition-all" style="width: {{ $rp['percent'] }}%"></div>
+                                        </div>
+                                        @if($rp['paid_date'])
+                                        <p class="text-[10px] text-gray-400 mt-0.5">Paid {{ $rp['paid_date'] }}</p>
+                                        @elseif($rp['status'] === 'unpaid')
+                                        <p class="text-[10px] text-red-400 mt-0.5">{{ now()->format('M') }} unpaid</p>
+                                        @endif
+                                    </div>
+                                    @else
+                                    <span class="text-xs text-gray-400">No rental</span>
+                                    @endif
+                                </td>
                                 <td class="px-6 py-4 whitespace-nowrap">
                                     <span class="px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full
                                         {{ $tenant->status === 'active' ? 'bg-green-100 text-green-800' : ($tenant->status === 'pending' ? 'bg-yellow-100 text-yellow-800' : 'bg-red-100 text-red-800') }}">
@@ -171,7 +200,7 @@
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="8" class="px-6 py-4 text-center text-gray-500">
+                                <td colspan="7" class="px-6 py-4 text-center text-gray-500">
                                     No tenants found
                                 </td>
                             </tr>
