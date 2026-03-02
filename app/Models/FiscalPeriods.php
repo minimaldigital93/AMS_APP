@@ -44,4 +44,28 @@ class FiscalPeriods extends Model
     {
         return $this->hasMany(BalanceSheet::class, 'fiscal_period_id');
     }
+
+    public function monthlyPeriods(): HasMany
+    {
+        return $this->hasMany(MonthlyPeriod::class, 'fiscal_period_id');
+    }
+
+    /**
+     * Get the current (first open) monthly period.
+     */
+    public function currentMonthlyPeriod()
+    {
+        return $this->monthlyPeriods()->where('status', 'open')->orderBy('start_date')->first();
+    }
+
+    /**
+     * Get the next monthly period that can be opened after closing the current one.
+     */
+    public function nextMonthlyPeriod(MonthlyPeriod $current)
+    {
+        return $this->monthlyPeriods()
+            ->where('start_date', '>', $current->end_date)
+            ->orderBy('start_date')
+            ->first();
+    }
 }

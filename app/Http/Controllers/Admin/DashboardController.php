@@ -23,7 +23,8 @@ class DashboardController extends Controller
     {
         $stats = $this->getStats();
         $fiscalData = $this->getActiveFiscalPeriodData();
-        return view('admin.dashboard', ['stats' => $stats, 'fiscalData' => $fiscalData]);
+        $monthlyChartData = $this->getMonthlyChartData();
+        return view('admin.dashboard', ['stats' => $stats, 'fiscalData' => $fiscalData, 'monthlyChartData' => $monthlyChartData]);
     }
 
     /**
@@ -214,10 +215,137 @@ class DashboardController extends Controller
     }
 
     /**
+     * Get last 6 months of revenue & expenses for dashboard charts (independent of fiscal period).
+     */
+    private function getMonthlyChartData(): array
+    {
+        $labels = [];
+        $revenue = [];
+        $expenses = [];
+        $sixMonthsAgo = now()->subMonths(5)->startOfMonth();
+
+        // Build 6-month labels
+        for ($i = 0; $i < 6; $i++) {
+            $d = $sixMonthsAgo->copy()->addMonths($i);
+            $labels[] = $d->format('M Y');
+            $revenue[$d->format('Y-m')] = 0;
+            $expenses[$d->format('Y-m')] = 0;
+        }
+
+        // Revenue from actual payments (collected)
+        $payments = Payments::where('payment_status', 'paid')
+            ->where('paid_at', '>=', $sixMonthsAgo)
+            ->selectRaw('DATE_FORMAT(paid_at, "%Y-%m") as ym, SUM(amount) as total_amount, SUM(late_fee) as total_late')
+            ->groupByRaw('DATE_FORMAT(paid_at, "%Y-%m")')
+            ->get();
+
+        foreach ($payments as $p) {
+            if (isset($revenue[$p->ym])) {
+                $revenue[$p->ym] = round($p->total_amount + $p->total_late, 2);
+            }
+        }
+
+        // Account income
+        $accountIncome = Accounts::where('user_id', Auth::id())
+            ->where('account_type', 'income')
+            ->where('transaction_date', '>=', $sixMonthsAgo)
+            ->selectRaw('DATE_FORMAT(transaction_date, "%Y-%m") as ym, SUM(amount) as total')
+            ->groupByRaw('DATE_FORMAT(transaction_date, "%Y-%m")')
+            ->get();
+
+        foreach ($accountIncome as $ai) {
+            if (isset($revenue[$ai->ym])) {
+                $revenue[$ai->ym] = round($revenue[$ai->ym] + $ai->total, 2);
+            }
+        }
+
+        // Expenses from utilities
+        $utilities = Utilities::where('paid_status', true)
+            ->where('paid_at', '>=', $sixMonthsAgo)
+            ->selectRaw('DATE_FORMAT(paid_at, "%Y-%m") as ym, SUM(charge_amount) as total')
+            ->groupByRaw('DATE_FORMAT(paid_at, "%Y-%m")')
+            ->get();
+
+        foreach ($utilities as $u) {
+            if (isset($expenses[$u->ym])) {
+                $expenses[$u->ym] = round($u->total, 2);
+            }
+        }
+
+        // Account expenses
+        $accountExpenses = Accounts::where('user_id', Auth::id())
+            ->where('account_type', 'expense')
+            ->where('transaction_date', '>=', $sixMonthsAgo)
+            ->selectRaw('DATE_FORMAT(transaction_date, "%Y-%m") as ym, SUM(amount) as total')
+            ->groupByRaw('DATE_FORMAT(transaction_date, "%Y-%m")')
+            ->get();
+
+        foreach ($accountExpenses as $ae) {
+            if (isset($expenses[$ae->ym])) {
+                $expenses[$ae->ym] = round($expenses[$ae->ym] + $ae->total, 2);
+            }
+        }
+
+        return [
+            'labels' => $labels,
+            'revenue' => array_values($revenue),
+            'expenses' => array_values($expenses),
+        ];
+    }
+
+    /**
      * Fetch all dashboard statistics from database.
      */
     private function getStats(): array
     {
+        $currentMonth = now()->month;
+        $currentYear = now()->year;
+
+        // -- Payment status counts (real data) --
+        $paidCount = Payments::where('payment_status', 'paid')
+            ->whereMonth('paid_at', $currentMonth)
+            ->whereYear('paid_at', $currentYear)
+            ->count();
+        $pendingCount = Payments::where('payment_status', 'pending')->count();
+        $overdueCount = Payments::where('due_date', '<', now())
+            ->whereNull('paid_at')
+            ->where('payment_status', '!=', 'cancelled')
+            ->count();
+
+        // -- Monthly expenses from utilities (current month) --
+        $monthlyUtilities = Utilities::where('paid_status', true)
+            ->where('billing_month', $currentMonth)
+            ->where('billing_year', $currentYear)
+            ->sum('charge_amount');
+
+        $monthlyAccountExpenses = Accounts::where('user_id', Auth::id())
+            ->where('account_type', 'expense')
+            ->whereMonth('transaction_date', $currentMonth)
+            ->whereYear('transaction_date', $currentYear)
+            ->sum('amount');
+
+        $monthlyExpensesTotal = $monthlyUtilities + $monthlyAccountExpenses;
+
+        // -- Utility breakdown (current month, real data) --
+        $utilityBreakdown = Utilities::where('paid_status', true)
+            ->where('billing_month', $currentMonth)
+            ->where('billing_year', $currentYear)
+            ->selectRaw('utility_type, SUM(charge_amount) as total')
+            ->groupBy('utility_type')
+            ->pluck('total', 'utility_type')
+            ->toArray();
+
+        // -- Occupancy by floor (real data) --
+        $floors = Floors::with(['apartments'])->orderBy('id')->get();
+        $floorLabels = [];
+        $floorOccupancy = [];
+        foreach ($floors as $floor) {
+            $total = $floor->apartments->count();
+            $occupied = $floor->apartments->where('status', 'occupied')->count();
+            $floorLabels[] = $floor->floor_name ?? 'Floor ' . $floor->id;
+            $floorOccupancy[] = $total > 0 ? round(($occupied / $total) * 100, 1) : 0;
+        }
+
         return [
             'floors_count' => Floors::count(),
             'apartments' => [
@@ -240,17 +368,29 @@ class DashboardController extends Controller
                     })->count(),
             ],
             'payments' => [
-                'pending' => Payments::where('payment_status', 'pending')->count(),
-                'overdue' => Payments::where('due_date', '<', now())
-                    ->whereNull('paid_at')
-                    ->where('payment_status', '!=', 'cancelled')
-                    ->count(),
+                'paid' => $paidCount,
+                'pending' => $pendingCount,
+                'overdue' => $overdueCount,
                 'total_collected' => Payments::where('payment_status', 'paid')->sum('amount'),
                 'total_pending' => Payments::where('payment_status', 'pending')->sum('amount'),
             ],
             'revenue' => [
                 'total_monthly_rent' => Apartments::where('status', 'occupied')->sum('monthly_rent'),
+                'collected_this_month' => Payments::where('payment_status', 'paid')
+                    ->whereMonth('paid_at', $currentMonth)
+                    ->whereYear('paid_at', $currentYear)
+                    ->sum('amount'),
+                'late_fees_this_month' => Payments::where('payment_status', 'paid')
+                    ->whereMonth('paid_at', $currentMonth)
+                    ->whereYear('paid_at', $currentYear)
+                    ->sum('late_fee'),
             ],
+            'expenses' => [
+                'monthly_total' => round($monthlyExpensesTotal, 2),
+                'utility_breakdown' => $utilityBreakdown,
+            ],
+            'floor_labels' => $floorLabels,
+            'floor_occupancy' => $floorOccupancy,
         ];
     }
 }

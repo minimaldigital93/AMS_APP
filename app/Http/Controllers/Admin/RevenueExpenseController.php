@@ -22,22 +22,59 @@ class RevenueExpenseController extends Controller
      */
     public function index()
     {
-        $activePeriod = $this->getActiveFiscalPeriod();
+        // Allow switching fiscal periods via ?period=ID
+        if (request()->has('period')) {
+            $activePeriod = FiscalPeriods::where('user_id', Auth::id())
+                ->where('id', request('period'))
+                ->first();
+        }
+        if (!isset($activePeriod) || !$activePeriod) {
+            $activePeriod = $this->getActiveFiscalPeriod();
+        }
         
         if (!$activePeriod) {
             return redirect()->route('admin.fiscalperiod.create')
                 ->with('warning', 'Please create a fiscal period first to track revenue and expenses.');
         }
 
+        // Monthly filter: ?month=3&year=2026
+        $filterMonth = request('month') ? (int) request('month') : null;
+        $filterYear = request('year') ? (int) request('year') : null;
+
+        // Determine date range for calculations
+        if ($filterMonth && $filterYear) {
+            $filterStart = Carbon::create($filterYear, $filterMonth, 1)->startOfMonth();
+            $filterEnd = $filterStart->copy()->endOfMonth();
+            // Clamp to fiscal period bounds
+            $startDate = $filterStart->lt($activePeriod->opening_date) ? $activePeriod->opening_date : $filterStart;
+            $endDate = $filterEnd->gt($activePeriod->closing_date) ? $activePeriod->closing_date : $filterEnd;
+        } else {
+            $startDate = $activePeriod->opening_date;
+            $endDate = $activePeriod->closing_date;
+        }
+
         $currentMonth = now()->month;
         $currentYear = now()->year;
 
+        // Build list of months within fiscal period for the filter dropdown
+        $periodMonths = [];
+        $mCursor = Carbon::parse($activePeriod->opening_date)->startOfMonth();
+        $mEnd = Carbon::parse($activePeriod->closing_date)->endOfMonth();
+        while ($mCursor->lte($mEnd)) {
+            $periodMonths[] = [
+                'month' => $mCursor->month,
+                'year' => $mCursor->year,
+                'label' => $mCursor->format('F Y'),
+            ];
+            $mCursor->addMonth();
+        }
+
         // ===== DASHBOARD DATA =====
-        $revenueExpenseData = $this->getRevenueExpenseData(
-            $activePeriod->opening_date,
-            $activePeriod->closing_date
-        );
+        $revenueExpenseData = $this->getRevenueExpenseData($startDate, $endDate);
         $revenueExpenseData['activePeriod'] = $activePeriod;
+        $revenueExpenseData['filterMonth'] = $filterMonth;
+        $revenueExpenseData['filterYear'] = $filterYear;
+        $revenueExpenseData['periodMonths'] = $periodMonths;
         
         $revenueExpenseData['fiscalPeriods'] = FiscalPeriods::where('user_id', Auth::id())
             ->orderBy('opening_date', 'desc')
@@ -65,7 +102,10 @@ class RevenueExpenseController extends Controller
         // ===== RECORD INCOME DATA =====
         $incomeApartments = $this->scopeApartments()
             ->with(['floor', 'rentals' => function ($q) use ($activePeriod) {
-                $q->orderBy('start_date', 'desc')
+                $q->where(function ($sq) {
+                        $sq->whereNull('end_date')->orWhere('end_date', '>=', now());
+                    })
+                    ->orderBy('start_date', 'desc')
                     ->with(['tenant', 'payments' => function ($pq) use ($activePeriod) {
                         $pq->where('payment_status', 'paid')
                             ->whereBetween('paid_at', [$activePeriod->opening_date, $activePeriod->closing_date]);
@@ -369,11 +409,8 @@ class RevenueExpenseController extends Controller
 
         $utilities = $utilitiesQuery->get();
 
-        // Calculate electricity expense (meter_reading_out - meter_reading_in) * price_per_unit
-        $electricity = $utilities->where('utility_type', 'electricity')->sum(function ($u) {
-            $consumption = ($u->meter_reading_out - $u->meter_reading_in);
-            return $consumption * ($u->charge_amount / max(($u->meter_reading_out - $u->meter_reading_in), 1));
-        });
+        // Calculate electricity expense - use charge_amount directly (consistent with per-apartment)
+        $electricity = $utilities->where('utility_type', 'electricity')->sum('charge_amount');
 
         // Calculate water expense
         $water = $utilities->where('utility_type', 'water')->sum('charge_amount');
@@ -501,7 +538,18 @@ class RevenueExpenseController extends Controller
             // Add fixed expenses to the total 
             $fixedExpTotal = $apartment->activeFixedExpenses->sum('amount');
 
+            // Get the active rental id and tenant id
+            $activeRentalId = null;
+            $activeTenantId = null;
+            foreach ($apartment->rentals as $r) {
+                $activeRentalId = $r->id;
+                $activeTenantId = $r->tenant_id;
+            }
+
             $perApartment[] = [
+                'apartment_id' => $apartment->id,
+                'rental_id' => $activeRentalId,
+                'tenant_id' => $activeTenantId,
                 'apartment_number' => $apartment->apartment_number,
                 'floor' => $apartment->floor->floor_number ?? 'N/A',
                 'tenant' => $tenantName ?: 'Vacant',
@@ -510,7 +558,9 @@ class RevenueExpenseController extends Controller
                 'income' => round($income, 2),
                 'expenses' => round($expenses, 2),
                 'fixed_expenses' => round($fixedExpTotal, 2),
-                'net' => round($income - $expenses - $fixedExpTotal, 2),
+                'tenant_net' => round($income + $expenses, 2),           // Net: Tenant → Owner (rent + utilities)
+                'owner_expenses' => round($fixedExpTotal, 2),            // Owner → Vendor
+                'net' => round($income + $expenses - $fixedExpTotal, 2),
                 'expense_breakdown' => $expenseBreakdown,
                 'status' => $apartment->status,
                 'rent_percent' => $rentPercent,
@@ -655,10 +705,13 @@ class RevenueExpenseController extends Controller
                 ->with('warning', 'Please create a fiscal period first.');
         }
 
-        // Get apartments with rentals (latest rental per apartment), eager load payments within fiscal period
+        // Get apartments with active rentals only, eager load payments within fiscal period
         $apartments = $this->scopeApartments()
             ->with(['floor', 'rentals' => function ($q) use ($activePeriod) {
-                $q->orderBy('start_date', 'desc')
+                $q->where(function ($sq) {
+                        $sq->whereNull('end_date')->orWhere('end_date', '>=', now());
+                    })
+                    ->orderBy('start_date', 'desc')
                     ->with(['tenant', 'payments' => function ($pq) use ($activePeriod) {
                         $pq->where('payment_status', 'paid')
                             ->whereBetween('paid_at', [$activePeriod->opening_date, $activePeriod->closing_date]);
@@ -1234,5 +1287,126 @@ class RevenueExpenseController extends Controller
 
         return redirect()->back()
             ->with('success', $recordedCount . ' expense(s) generated totaling $' . number_format($totalAmount, 2) . ' for tenants to pay.');
+    }
+
+    /**
+     * Monthly calendar view showing daily income and expenses.
+     */
+    public function monthlyCalendar(Request $request)
+    {
+        $activePeriod = $this->getActiveFiscalPeriod();
+
+        if (!$activePeriod) {
+            return redirect()->route('admin.fiscalperiod.create')
+                ->with('warning', 'Please create a fiscal period first.');
+        }
+
+        // Determine month/year from query or default to current
+        $month = $request->get('month', now()->month);
+        $year = $request->get('year', now()->year);
+        $startOfMonth = Carbon::create($year, $month, 1)->startOfMonth();
+        $endOfMonth = $startOfMonth->copy()->endOfMonth();
+
+        // Fetch daily income (payments)
+        $dailyIncome = Payments::whereHas('rental', function ($q) {
+                $q->whereHas('apartment', function ($q2) {
+                    $q2->where('supervisor_id', Auth::id())
+                        ->orWhereNull('supervisor_id');
+                });
+            })
+            ->where('payment_status', 'paid')
+            ->whereBetween('paid_at', [$startOfMonth, $endOfMonth])
+            ->selectRaw('DATE(paid_at) as day, SUM(amount) as total_income, SUM(late_fee) as total_late_fee, COUNT(*) as tx_count')
+            ->groupByRaw('DATE(paid_at)')
+            ->get()
+            ->keyBy('day');
+
+        // Fetch daily expenses from utilities
+        $dailyUtilities = Utilities::whereHas('rental', function ($q) {
+                $q->whereHas('apartment', function ($q2) {
+                    $q2->where('supervisor_id', Auth::id())
+                        ->orWhereNull('supervisor_id');
+                });
+            })
+            ->where('paid_status', true)
+            ->whereBetween('paid_at', [$startOfMonth, $endOfMonth])
+            ->selectRaw('DATE(paid_at) as day, SUM(charge_amount) as total_expense, COUNT(*) as tx_count')
+            ->groupByRaw('DATE(paid_at)')
+            ->get()
+            ->keyBy('day');
+
+        // Fetch daily expenses from accounts
+        $dailyAccountExpenses = Accounts::where('user_id', Auth::id())
+            ->where('account_type', 'expense')
+            ->whereBetween('transaction_date', [$startOfMonth, $endOfMonth])
+            ->selectRaw('DATE(transaction_date) as day, SUM(amount) as total_expense, COUNT(*) as tx_count')
+            ->groupByRaw('DATE(transaction_date)')
+            ->get()
+            ->keyBy('day');
+
+        // Fetch daily account income
+        $dailyAccountIncome = Accounts::where('user_id', Auth::id())
+            ->where('account_type', 'income')
+            ->whereBetween('transaction_date', [$startOfMonth, $endOfMonth])
+            ->selectRaw('DATE(transaction_date) as day, SUM(amount) as total_income, COUNT(*) as tx_count')
+            ->groupByRaw('DATE(transaction_date)')
+            ->get()
+            ->keyBy('day');
+
+        // Build calendar data
+        $daysInMonth = $startOfMonth->daysInMonth;
+        $firstDayOfWeek = $startOfMonth->dayOfWeek; // 0=Sun
+        $calendarDays = [];
+        $monthTotalIncome = 0;
+        $monthTotalExpense = 0;
+        $bestDay = null;
+        $worstDay = null;
+
+        for ($d = 1; $d <= $daysInMonth; $d++) {
+            $dateStr = $startOfMonth->copy()->day($d)->toDateString();
+            $income = ($dailyIncome[$dateStr]->total_income ?? 0)
+                    + ($dailyIncome[$dateStr]->total_late_fee ?? 0)
+                    + ($dailyAccountIncome[$dateStr]->total_income ?? 0);
+            $expense = ($dailyUtilities[$dateStr]->total_expense ?? 0)
+                     + ($dailyAccountExpenses[$dateStr]->total_expense ?? 0);
+            $net = $income - $expense;
+            $txCount = ($dailyIncome[$dateStr]->tx_count ?? 0)
+                     + ($dailyUtilities[$dateStr]->tx_count ?? 0)
+                     + ($dailyAccountExpenses[$dateStr]->tx_count ?? 0)
+                     + ($dailyAccountIncome[$dateStr]->tx_count ?? 0);
+
+            $monthTotalIncome += $income;
+            $monthTotalExpense += $expense;
+
+            $calendarDays[$d] = [
+                'date' => $dateStr,
+                'day' => $d,
+                'income' => round($income, 2),
+                'expense' => round($expense, 2),
+                'net' => round($net, 2),
+                'tx_count' => $txCount,
+                'is_today' => $dateStr === now()->toDateString(),
+                'is_future' => Carbon::parse($dateStr)->gt(now()),
+            ];
+
+            if ($txCount > 0) {
+                if ($bestDay === null || $net > $calendarDays[$bestDay]['net']) $bestDay = $d;
+                if ($worstDay === null || $net < $calendarDays[$worstDay]['net']) $worstDay = $d;
+            }
+        }
+
+        $monthNet = $monthTotalIncome - $monthTotalExpense;
+
+        // Previous / next month navigation
+        $prevMonth = $startOfMonth->copy()->subMonth();
+        $nextMonth = $startOfMonth->copy()->addMonth();
+
+        return view('admin.revenue_expense.monthly_calendar', compact(
+            'activePeriod', 'startOfMonth', 'endOfMonth', 'month', 'year',
+            'firstDayOfWeek', 'daysInMonth', 'calendarDays',
+            'monthTotalIncome', 'monthTotalExpense', 'monthNet',
+            'bestDay', 'worstDay',
+            'prevMonth', 'nextMonth'
+        ));
     }
 }

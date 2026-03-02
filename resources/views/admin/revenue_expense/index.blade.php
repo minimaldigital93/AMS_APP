@@ -9,8 +9,13 @@
             <h1 class="text-2xl font-bold text-gray-900">Revenue & Expense</h1>
             <p class="text-sm text-gray-500 mt-1">
                 {{ $activePeriod->name }} &middot;
-                {{ \Carbon\Carbon::parse($activePeriod->opening_date)->format('M d, Y') }} –
-                {{ \Carbon\Carbon::parse($activePeriod->closing_date)->format('M d, Y') }}
+                @if(isset($filterMonth) && $filterMonth)
+                    {{ \Carbon\Carbon::create($filterYear, $filterMonth, 1)->format('F Y') }}
+                    <a href="{{ route('admin.revenue_expense.index', ['period' => $activePeriod->id]) }}" class="text-blue-500 hover:underline ml-1 text-xs">(clear filter)</a>
+                @else
+                    {{ \Carbon\Carbon::parse($activePeriod->opening_date)->format('M d, Y') }} –
+                    {{ \Carbon\Carbon::parse($activePeriod->closing_date)->format('M d, Y') }}
+                @endif
             </p>
         </div>
         <div class="flex items-center gap-2">
@@ -23,9 +28,65 @@
                 </select>
             </form>
             @endif
+            {{-- Monthly Filter --}}
+            @if(isset($periodMonths) && count($periodMonths) > 0)
+            <form method="GET" action="{{ route('admin.revenue_expense.index') }}">
+                <input type="hidden" name="period" value="{{ $activePeriod->id }}">
+                <select name="month" onchange="
+                    var opt = this.options[this.selectedIndex];
+                    var y = opt.getAttribute('data-year');
+                    var yInput = this.form.querySelector('[name=year]');
+                    if (yInput) yInput.value = y;
+                    this.form.submit();
+                " class="text-sm border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500">
+                    <option value="">All Months</option>
+                    @foreach($periodMonths as $pm)
+                    <option value="{{ $pm['month'] }}" data-year="{{ $pm['year'] }}"
+                        {{ (isset($filterMonth) && $filterMonth == $pm['month'] && isset($filterYear) && $filterYear == $pm['year']) ? 'selected' : '' }}>
+                        {{ $pm['label'] }}
+                    </option>
+                    @endforeach
+                </select>
+                <input type="hidden" name="year" value="{{ $filterYear ?? '' }}">
+            </form>
+            @endif
             <button onclick="window.print()" class="p-2 text-gray-400 hover:text-gray-600 rounded-md" title="Print">
                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>
             </button>
+        </div>
+    </div>
+
+    {{-- Fiscal Period Progress Bar --}}
+    @php
+        $periodStart = \Carbon\Carbon::parse($activePeriod->opening_date);
+        $periodEnd = \Carbon\Carbon::parse($activePeriod->closing_date);
+        $today = now();
+        $totalDays = max(1, $periodStart->diffInDays($periodEnd));
+        $daysPassed = max(0, (int) $periodStart->diffInDays($today));
+        $daysLeft = max(0, (int) $today->diffInDays($periodEnd, false));
+        $periodPercent = min(100, max(0, round(($daysPassed / $totalDays) * 100, 1)));
+
+        if ($periodPercent >= 80) {
+            $barColor = 'from-red-400 to-red-500';
+            $bgColor = 'bg-red-100';
+            $textColor = 'text-red-600';
+        } elseif ($periodPercent >= 50) {
+            $barColor = 'from-orange-400 to-orange-500';
+            $bgColor = 'bg-orange-100';
+            $textColor = 'text-orange-600';
+        } else {
+            $barColor = 'from-blue-400 to-blue-500';
+            $bgColor = 'bg-blue-100';
+            $textColor = 'text-blue-600';
+        }
+    @endphp
+    <div class="bg-white rounded-lg border px-4 py-2.5">
+        <div class="flex items-center justify-between mb-1">
+            <span class="text-xs font-semibold {{ $textColor }}">{{ $periodPercent }}%</span>
+            <span class="text-xs font-medium text-gray-500">{{ $daysLeft }} days left</span>
+        </div>
+        <div class="w-full {{ $bgColor }} rounded-full h-1.5 overflow-hidden">
+            <div class="bg-gradient-to-r {{ $barColor }} h-full rounded-full transition-all duration-500" style="width: {{ $periodPercent }}%"></div>
         </div>
     </div>
 
@@ -56,13 +117,20 @@
     <div class="border-b border-gray-200 overflow-x-auto">
         <nav class="flex gap-1 -mb-px" aria-label="Tabs">
             <template x-for="t in tabs" :key="t.key">
-                <button @click="tab = t.key"
-                    :class="tab === t.key
-                        ? 'border-blue-500 text-blue-600 bg-blue-50/50'
-                        : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'"
-                    class="whitespace-nowrap px-4 py-2.5 border-b-2 text-sm font-medium transition rounded-t-md"
-                    x-text="t.label">
-                </button>
+                <template x-if="t.href">
+                    <a :href="t.href"
+                        class="whitespace-nowrap px-4 py-2.5 border-b-2 text-sm font-medium transition rounded-t-md border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+                        x-text="t.label"></a>
+                </template>
+                <template x-if="!t.href">
+                    <button @click="tab = t.key"
+                        :class="tab === t.key
+                            ? 'border-blue-500 text-blue-600 bg-blue-50/50'
+                            : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'"
+                        class="whitespace-nowrap px-4 py-2.5 border-b-2 text-sm font-medium transition rounded-t-md"
+                        x-text="t.label">
+                    </button>
+                </template>
             </template>
         </nav>
     </div>
@@ -131,6 +199,10 @@
                     <div class="flex justify-between px-5 py-2.5"><span class="text-sm text-gray-600">💧 Water</span><span class="text-sm font-semibold">${{ number_format($expenses['water'], 2) }}</span></div>
                     <div class="flex justify-between px-5 py-2.5"><span class="text-sm text-gray-600">📡 Internet</span><span class="text-sm font-semibold">${{ number_format($expenses['internet'], 2) }}</span></div>
                     <div class="flex justify-between px-5 py-2.5"><span class="text-sm text-gray-600">🚗 Parking</span><span class="text-sm font-semibold">${{ number_format($expenses['parking'], 2) }}</span></div>
+                    <div class="flex justify-between px-5 py-2.5 bg-blue-50"><span class="text-sm font-semibold text-blue-700">Utilities Subtotal</span><span class="text-sm font-bold text-blue-600">${{ number_format($expenses['electricity'] + $expenses['water'] + $expenses['internet'] + $expenses['parking'], 2) }}</span></div>
+                    @if(($expenses['other_expenses'] ?? 0) > 0)
+                    <div class="flex justify-between px-5 py-2.5"><span class="text-sm text-gray-600">🔧 Other Expenses</span><span class="text-sm font-semibold">${{ number_format($expenses['other_expenses'], 2) }}</span></div>
+                    @endif
                     <div class="flex justify-between px-5 py-2.5 bg-gray-50"><span class="text-sm font-semibold">Total</span><span class="text-sm font-bold text-red-600">${{ number_format($expenses['total_expenses'], 2) }}</span></div>
                 </div>
             </div>
@@ -138,7 +210,7 @@
 
         {{-- Per-Apartment Table --}}
         @if(isset($perApartment) && count($perApartment) > 0)
-        <div class="bg-white rounded-lg border" x-data="{ showAll: false }">
+        <div class="bg-white rounded-lg border" x-data="{ showAll: false, expenseForm: null }">
             <div class="px-5 py-3 border-b flex items-center justify-between">
                 <h2 class="text-sm font-semibold text-gray-900">Per-Apartment Summary</h2>
                 <button @click="showAll = !showAll" class="text-xs text-blue-600 hover:text-blue-800 font-medium">
@@ -154,12 +226,13 @@
                             <th class="text-right px-4 py-2 font-medium">Rent</th>
                             <th class="text-left px-4 py-2 font-medium">This Month</th>
                             <th class="text-right px-4 py-2 font-medium">Income</th>
-                            <th class="text-right px-4 py-2 font-medium">Expenses</th>
-                            <th class="text-right px-4 py-2 font-medium">Net</th>
+                            <th class="text-right px-4 py-2 font-medium">Utilities</th>
+                            <th class="text-right px-4 py-2 font-medium" title="Income + Utilities = Total tenant pays to owner">Net<br><span class="text-[9px] normal-case text-gray-400">(Tenant → Owner)</span></th>
+                            <th class="text-center px-4 py-2 font-medium">Action</th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-gray-100">
-                        @foreach($perApartment as $apt)
+                        @foreach($perApartment as $aptIdx => $apt)
                         <tr class="{{ !$apt['has_active_rental'] ? 'text-gray-300' : 'text-gray-700' }}" x-show="showAll || {{ $apt['has_active_rental'] ? 'true' : 'false' }}">
                             <td class="px-4 py-2 font-medium {{ $apt['has_active_rental'] ? 'text-gray-900' : '' }}">{{ $apt['apartment_number'] }}</td>
                             <td class="px-4 py-2">{{ $apt['has_active_rental'] ? $apt['tenant'] : 'Vacant' }}</td>
@@ -187,21 +260,134 @@
                                 @endif
                             </td>
                             <td class="px-4 py-2 text-right {{ $apt['income'] > 0 ? 'text-green-600 font-medium' : '' }}">${{ number_format($apt['income'], 2) }}</td>
-                            <td class="px-4 py-2 text-right {{ ($apt['expenses'] + ($apt['fixed_expenses'] ?? 0)) > 0 ? 'text-red-600 font-medium' : '' }}">${{ number_format($apt['expenses'] + ($apt['fixed_expenses'] ?? 0), 2) }}</td>
-                            <td class="px-4 py-2 text-right font-semibold {{ $apt['net'] >= 0 ? 'text-green-700' : 'text-red-600' }}">
-                                {{ $apt['net'] >= 0 ? '+' : '' }}${{ number_format($apt['net'], 2) }}
+                            <td class="px-4 py-2 text-right {{ $apt['expenses'] > 0 ? 'text-blue-600 font-medium' : '' }}">
+                                @if($apt['expenses'] > 0 && isset($apt['expense_breakdown']))
+                                <div x-data="{ showBreakdown: false }" class="relative inline-block">
+                                    <button type="button" @click="showBreakdown = !showBreakdown" class="underline decoration-dotted cursor-pointer hover:text-blue-800">
+                                        ${{ number_format($apt['expenses'], 2) }}
+                                    </button>
+                                    <div x-show="showBreakdown" x-cloak @click.away="showBreakdown = false"
+                                        class="absolute right-0 top-full mt-1 z-20 bg-white border border-gray-200 rounded-lg shadow-lg p-3 w-48 text-left">
+                                        <p class="text-[10px] font-semibold text-gray-500 uppercase mb-1.5">Expense Breakdown</p>
+                                        @foreach($apt['expense_breakdown'] as $type => $amount)
+                                            @if($amount > 0)
+                                            <div class="flex justify-between text-xs py-0.5">
+                                                <span class="text-gray-600">
+                                                    @switch($type)
+                                                        @case('electricity') ⚡ Electricity @break
+                                                        @case('water') 💧 Water @break
+                                                        @case('internet') 📡 Internet @break
+                                                        @case('parking') 🚗 Parking @break
+                                                        @default {{ ucfirst($type) }}
+                                                    @endswitch
+                                                </span>
+                                                <span class="font-medium text-blue-600">${{ number_format($amount, 2) }}</span>
+                                            </div>
+                                            @endif
+                                        @endforeach
+                                        <div class="border-t mt-1 pt-1 flex justify-between text-xs font-semibold">
+                                            <span>Total</span>
+                                            <span class="text-blue-700">${{ number_format($apt['expenses'], 2) }}</span>
+                                        </div>
+                                    </div>
+                                </div>
+                                @else
+                                ${{ number_format($apt['expenses'], 2) }}
+                                @endif
+                            </td>
+                            <td class="px-4 py-2 text-right font-semibold {{ ($apt['tenant_net'] ?? ($apt['income'] + $apt['expenses'])) >= 0 ? 'text-green-700' : 'text-red-600' }}">
+                                @php $tenantNet = $apt['tenant_net'] ?? ($apt['income'] + $apt['expenses']); @endphp
+                                ${{ number_format($tenantNet, 2) }}
+                            </td>
+                            <td class="px-4 py-2 text-center">
+                                @if($apt['has_active_rental'] && $apt['rental_id'])
+                                <div class="flex items-center justify-center gap-1">
+                                    <button @click="expenseForm = expenseForm === {{ $aptIdx }} ? null : {{ $aptIdx }}" title="Assign Expense"
+                                        class="p-1 rounded transition"
+                                        :class="expenseForm === {{ $aptIdx }} ? 'bg-red-100 text-red-600 hover:bg-red-200' : 'bg-orange-100 text-orange-600 hover:bg-orange-200'">
+                                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/></svg>
+                                    </button>
+                                    @if($apt['tenant_id'])
+                                    <a href="{{ route('admin.tenants.show', $apt['tenant_id']) }}" title="View Tenant"
+                                        class="p-1 rounded bg-blue-100 text-blue-600 hover:bg-blue-200 transition">
+                                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
+                                    </a>
+                                    @endif
+                                    <a href="{{ route('admin.apartments.show', $apt['apartment_id']) }}" title="View Apartment"
+                                        class="p-1 rounded bg-green-100 text-green-600 hover:bg-green-200 transition">
+                                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-4 0h4"/></svg>
+                                    </a>
+                                </div>
+                                @else
+                                <span class="text-gray-300 text-xs">—</span>
+                                @endif
                             </td>
                         </tr>
+                        {{-- Inline Expense Form Row --}}
+                        @if($apt['has_active_rental'] && $apt['rental_id'])
+                        <tr x-show="expenseForm === {{ $aptIdx }}" x-cloak x-transition.opacity>
+                            <td colspan="8" class="px-4 py-3 bg-orange-50/50">
+                                <form action="{{ route('admin.revenue_expense.store_expense') }}" method="POST" class="flex flex-wrap items-end gap-3">
+                                    @csrf
+                                    <input type="hidden" name="rental_id" value="{{ $apt['rental_id'] }}">
+                                    <div class="text-xs">
+                                        <p class="font-semibold text-gray-700 mb-1">Assign Expense — {{ $apt['apartment_number'] }} <span class="text-gray-400 font-normal">({{ $apt['tenant'] }})</span></p>
+                                    </div>
+                                    <div>
+                                        <label class="block text-[10px] font-medium text-gray-500 mb-0.5">Type</label>
+                                        <select name="utility_type" required class="px-2 py-1.5 text-xs border border-gray-300 rounded-md focus:ring-orange-500 focus:border-orange-500 w-28">
+                                            <option value="electricity">⚡ Electricity</option>
+                                            <option value="water">💧 Water</option>
+                                            <option value="internet">📡 Internet</option>
+                                            <option value="parking">🚗 Parking</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label class="block text-[10px] font-medium text-gray-500 mb-0.5">Amount ($)</label>
+                                        <input type="number" name="charge_amount" step="0.01" min="0.01" required
+                                            class="px-2 py-1.5 text-xs border border-gray-300 rounded-md focus:ring-orange-500 focus:border-orange-500 w-24">
+                                    </div>
+                                    <div>
+                                        <label class="block text-[10px] font-medium text-gray-500 mb-0.5">Date</label>
+                                        <input type="date" name="transaction_date" value="{{ date('Y-m-d') }}" required
+                                            class="px-2 py-1.5 text-xs border border-gray-300 rounded-md focus:ring-orange-500 focus:border-orange-500 w-32">
+                                    </div>
+                                    <div>
+                                        <label class="block text-[10px] font-medium text-gray-500 mb-0.5">Meter In</label>
+                                        <input type="number" name="meter_reading_in" step="0.01" min="0" placeholder="0"
+                                            class="px-2 py-1.5 text-xs border border-gray-300 rounded-md focus:ring-orange-500 focus:border-orange-500 w-20">
+                                    </div>
+                                    <div>
+                                        <label class="block text-[10px] font-medium text-gray-500 mb-0.5">Meter Out</label>
+                                        <input type="number" name="meter_reading_out" step="0.01" min="0" placeholder="0"
+                                            class="px-2 py-1.5 text-xs border border-gray-300 rounded-md focus:ring-orange-500 focus:border-orange-500 w-20">
+                                    </div>
+                                    <div>
+                                        <label class="block text-[10px] font-medium text-gray-500 mb-0.5">Note</label>
+                                        <input type="text" name="note" placeholder="Optional" maxlength="1000"
+                                            class="px-2 py-1.5 text-xs border border-gray-300 rounded-md focus:ring-orange-500 focus:border-orange-500 w-32">
+                                    </div>
+                                    <button type="submit" class="px-3 py-1.5 bg-orange-600 text-white text-xs font-medium rounded-md hover:bg-orange-700 transition">
+                                        Save Expense
+                                    </button>
+                                </form>
+                            </td>
+                        </tr>
+                        @endif
                         @endforeach
                     </tbody>
                     <tfoot>
                         <tr class="border-t-2 bg-gray-50 font-semibold text-gray-900">
                             <td class="px-4 py-2" colspan="4">Total</td>
                             <td class="px-4 py-2 text-right text-green-600">${{ number_format(collect($perApartment)->sum('income'), 2) }}</td>
-                            <td class="px-4 py-2 text-right text-red-600">${{ number_format(collect($perApartment)->sum(fn($a) => $a['expenses'] + ($a['fixed_expenses'] ?? 0)), 2) }}</td>
-                            <td class="px-4 py-2 text-right {{ collect($perApartment)->sum('net') >= 0 ? 'text-green-700' : 'text-red-600' }}">
-                                {{ collect($perApartment)->sum('net') >= 0 ? '+' : '' }}${{ number_format(collect($perApartment)->sum('net'), 2) }}
+                            <td class="px-4 py-2 text-right text-blue-600">${{ number_format(collect($perApartment)->sum('expenses'), 2) }}</td>
+                            @php
+                                $totalTenantNet = collect($perApartment)->sum(fn($a) => $a['tenant_net'] ?? ($a['income'] + $a['expenses']));
+                            @endphp
+                            <td class="px-4 py-2 text-right text-green-700">
+                                ${{ number_format($totalTenantNet, 2) }}
                             </td>
+                            <td class="px-4 py-2"></td>
                         </tr>
                     </tfoot>
                 </table>
@@ -958,6 +1144,7 @@ function revenueExpense() {
             { key: 'fixed', label: 'Fixed Costs' },
             { key: 'bills', label: 'Bills' },
             { key: 'breakeven', label: 'Break-Even' },
+            { key: 'calendar', label: '📅 Calendar', href: '{{ route("admin.revenue_expense.monthly_calendar") }}' },
         ],
         init() {
             this.$watch('tab', (val) => { window.location.hash = val; });

@@ -4,12 +4,14 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\FiscalPeriods;
+use App\Models\MonthlyPeriod;
 use App\Models\BalanceSheet;
 use App\Models\User;
 use App\Models\Payments;
 use App\Models\Utilities;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Carbon\Carbon;
 
 class FiscalPeriodController extends Controller
 {
@@ -34,7 +36,7 @@ class FiscalPeriodController extends Controller
     }
 
     /**
-     * Store a newly created fiscal period.
+     * Store a newly created fiscal period and auto-generate monthly periods.
      */
     public function store(Request $request)
     {
@@ -51,9 +53,55 @@ class FiscalPeriodController extends Controller
 
         $fiscalPeriod = FiscalPeriods::create($validated);
 
+        // Auto-generate monthly periods within the fiscal period date range
+        $this->generateMonthlyPeriods($fiscalPeriod);
+
         return redirect()
             ->route('admin.fiscalperiod.balance-sheet', $fiscalPeriod->id)
-            ->with('success', 'Fiscal period created successfully.');
+            ->with('success', 'Fiscal period created with ' . $fiscalPeriod->monthlyPeriods()->count() . ' monthly periods.');
+    }
+
+    /**
+     * Generate monthly periods for a fiscal period.
+     */
+    protected function generateMonthlyPeriods(FiscalPeriods $fiscalPeriod): void
+    {
+        $startDate = Carbon::parse($fiscalPeriod->opening_date)->startOfDay();
+        $endDate = Carbon::parse($fiscalPeriod->closing_date)->endOfDay();
+        $openingBalance = $fiscalPeriod->opening_balance;
+        $isFirst = true;
+
+        $current = $startDate->copy();
+
+        while ($current->lte($endDate)) {
+            // Month start: either the fiscal period start date or the 1st of the month
+            $monthStart = $isFirst ? $startDate->copy() : $current->copy()->startOfMonth();
+
+            // Month end: either the last day of the month or the fiscal period end date
+            $monthEnd = $current->copy()->endOfMonth();
+            if ($monthEnd->gt($endDate)) {
+                $monthEnd = $endDate->copy();
+            }
+
+            MonthlyPeriod::create([
+                'fiscal_period_id' => $fiscalPeriod->id,
+                'user_id' => $fiscalPeriod->user_id,
+                'name' => $monthStart->format('F Y'),
+                'month_number' => $monthStart->month,
+                'year' => $monthStart->year,
+                'start_date' => $monthStart->format('Y-m-d'),
+                'end_date' => $monthEnd->format('Y-m-d'),
+                'opening_balance' => $isFirst ? $openingBalance : 0,
+                'closing_balance' => 0,
+                'total_income' => 0,
+                'total_expenses' => 0,
+                'net_income' => 0,
+                'status' => $isFirst ? 'open' : 'open',
+            ]);
+
+            $isFirst = false;
+            $current->addMonth()->startOfMonth();
+        }
     }
 
     /**
@@ -214,52 +262,6 @@ class FiscalPeriodController extends Controller
     }
 
     /**
-     * Show reports and export options.
-     */
-    public function reports(FiscalPeriods $fiscalperiod)
-    {
-        $this->authorizeUser($fiscalperiod);
-
-        $balanceSheetItems = $fiscalperiod->balanceSheets()->get();
-        $summary = $this->calculateBalanceSheetSummary($fiscalperiod);
-
-        // Calculate Revenue from Payments (Rent Income)
-        $revenue = Payments::whereHas('rental', function($query) use ($fiscalperiod) {
-            $query->whereHas('apartment', function($subQuery) use ($fiscalperiod) {
-                $subQuery->where('supervisor_id', $fiscalperiod->user_id);
-            });
-        })
-        ->where('payment_status', 'paid')
-        ->whereBetween('paid_at', [$fiscalperiod->opening_date, $fiscalperiod->closing_date])
-        ->sum('amount');
-
-        // Calculate Expenses by Utility Type
-        $utilities = Utilities::whereHas('rental', function($query) use ($fiscalperiod) {
-            $query->whereHas('apartment', function($subQuery) use ($fiscalperiod) {
-                $subQuery->where('supervisor_id', $fiscalperiod->user_id);
-            });
-        })
-        ->where('paid_status', true)
-        ->whereBetween('paid_at', [$fiscalperiod->opening_date, $fiscalperiod->closing_date])
-        ->get()
-        ->groupBy('utility_type');
-
-        $expenses = [];
-        $totalExpenses = 0;
-
-        foreach ($utilities as $type => $items) {
-            $typeTotal = $items->sum('charge_amount');
-            $expenses[$type] = $typeTotal;
-            $totalExpenses += $typeTotal;
-        }
-
-        // Calculate Breakeven Point
-        $breakevenPoint = $revenue - $totalExpenses;
-
-        return view('admin.fiscalperiod.period_reports_exports', compact('fiscalperiod', 'balanceSheetItems', 'summary', 'revenue', 'expenses', 'totalExpenses', 'breakevenPoint'));
-    }
-
-    /**
      * Export balance sheet as PDF.
      */
     public function exportPDF(FiscalPeriods $fiscalperiod)
@@ -398,6 +400,504 @@ class FiscalPeriodController extends Controller
         return redirect()
             ->route('admin.fiscalperiod.index')
             ->with('success', 'Fiscal period deleted successfully.');
+    }
+
+    // ========================================
+    // MONTHLY PERIOD MANAGEMENT
+    // ========================================
+
+    /**
+     * Display monthly periods for a fiscal period.
+     */
+    public function monthlyPeriods(FiscalPeriods $fiscalperiod)
+    {
+        $this->authorizeUser($fiscalperiod);
+
+        $monthlyPeriods = $fiscalperiod->monthlyPeriods()
+            ->orderBy('start_date')
+            ->get();
+
+        // Calculate live financial data for each monthly period
+        foreach ($monthlyPeriods as $month) {
+            $monthData = $this->calculateMonthlyFinancials($fiscalperiod, $month);
+            $month->live_income = $monthData['total_income'];
+            $month->live_expenses = $monthData['total_expenses'];
+            $month->live_net = $monthData['net_income'];
+        }
+
+        return view('admin.fiscalperiod.monthly_periods', compact('fiscalperiod', 'monthlyPeriods'));
+    }
+
+    /**
+     * Show detailed view of a specific monthly period.
+     */
+    public function showMonth(FiscalPeriods $fiscalperiod, MonthlyPeriod $monthlyPeriod)
+    {
+        $this->authorizeUser($fiscalperiod);
+
+        if ($monthlyPeriod->fiscal_period_id !== $fiscalperiod->id) {
+            abort(403);
+        }
+
+        $financials = $this->calculateMonthlyFinancials($fiscalperiod, $monthlyPeriod);
+
+        // Get previous and next months for navigation
+        $previousMonth = $fiscalperiod->monthlyPeriods()
+            ->where('start_date', '<', $monthlyPeriod->start_date)
+            ->orderBy('start_date', 'desc')
+            ->first();
+
+        $nextMonth = $fiscalperiod->monthlyPeriods()
+            ->where('start_date', '>', $monthlyPeriod->start_date)
+            ->orderBy('start_date')
+            ->first();
+
+        return view('admin.fiscalperiod.monthly_period_show', compact(
+            'fiscalperiod', 'monthlyPeriod', 'financials', 'previousMonth', 'nextMonth'
+        ));
+    }
+
+    /**
+     * Close a monthly period and carry forward balance.
+     */
+    public function closeMonth(Request $request, FiscalPeriods $fiscalperiod, MonthlyPeriod $monthlyPeriod)
+    {
+        $this->authorizeUser($fiscalperiod);
+
+        if ($monthlyPeriod->fiscal_period_id !== $fiscalperiod->id) {
+            abort(403);
+        }
+
+        if (!$monthlyPeriod->canClose()) {
+            return back()->with('error', 'This monthly period cannot be closed.');
+        }
+
+        // Calculate final financials for this month
+        $financials = $this->calculateMonthlyFinancials($fiscalperiod, $monthlyPeriod);
+
+        $closingBalance = $monthlyPeriod->opening_balance + $financials['net_income'];
+
+        // Update this month
+        $monthlyPeriod->update([
+            'total_income' => $financials['total_income'],
+            'total_expenses' => $financials['total_expenses'],
+            'net_income' => $financials['net_income'],
+            'closing_balance' => $closingBalance,
+            'status' => 'closed',
+            'closed_at' => now(),
+        ]);
+
+        // Carry forward: set next month's opening balance
+        $nextMonth = $fiscalperiod->nextMonthlyPeriod($monthlyPeriod);
+        if ($nextMonth && $nextMonth->isOpen()) {
+            $nextMonth->update([
+                'opening_balance' => $closingBalance,
+            ]);
+        }
+
+        return back()->with('success', $monthlyPeriod->name . ' closed. Closing balance: $' . number_format($closingBalance, 2) . ($nextMonth ? ' carried forward to ' . $nextMonth->name : '') . '.');
+    }
+
+    /**
+     * Reopen a closed monthly period.
+     */
+    public function reopenMonth(Request $request, FiscalPeriods $fiscalperiod, MonthlyPeriod $monthlyPeriod)
+    {
+        $this->authorizeUser($fiscalperiod);
+
+        if ($monthlyPeriod->fiscal_period_id !== $fiscalperiod->id) {
+            abort(403);
+        }
+
+        if (!$monthlyPeriod->canReopen()) {
+            return back()->with('error', 'This monthly period cannot be reopened.');
+        }
+
+        // Check if next month is already closed (prevent breaking chain)
+        $nextMonth = $fiscalperiod->nextMonthlyPeriod($monthlyPeriod);
+        if ($nextMonth && $nextMonth->isClosed()) {
+            return back()->with('error', 'Cannot reopen: the next month (' . $nextMonth->name . ') is already closed. Reopen it first.');
+        }
+
+        $monthlyPeriod->update([
+            'status' => 'open',
+            'closed_at' => null,
+        ]);
+
+        return back()->with('success', $monthlyPeriod->name . ' has been reopened.');
+    }
+
+    /**
+     * Recalculate all monthly period balances (cascade carry-forward).
+     */
+    public function recalculateBalances(FiscalPeriods $fiscalperiod)
+    {
+        $this->authorizeUser($fiscalperiod);
+
+        $monthlyPeriods = $fiscalperiod->monthlyPeriods()->orderBy('start_date')->get();
+        $carryForward = $fiscalperiod->opening_balance;
+
+        foreach ($monthlyPeriods as $month) {
+            $financials = $this->calculateMonthlyFinancials($fiscalperiod, $month);
+
+            $month->update([
+                'opening_balance' => $carryForward,
+                'total_income' => $financials['total_income'],
+                'total_expenses' => $financials['total_expenses'],
+                'net_income' => $financials['net_income'],
+                'closing_balance' => $carryForward + $financials['net_income'],
+            ]);
+
+            $carryForward = $month->closing_balance;
+        }
+
+        // Update fiscal period closing balance
+        $fiscalperiod->update(['closing_balance' => $carryForward]);
+
+        return back()->with('success', 'All monthly balances recalculated. Fiscal period closing balance: $' . number_format($carryForward, 2));
+    }
+
+    // ========================================
+    // ENHANCED REPORTS
+    // ========================================
+
+    /**
+     * Show comprehensive reports with monthly breakdown.
+     */
+    public function reports(FiscalPeriods $fiscalperiod)
+    {
+        $this->authorizeUser($fiscalperiod);
+
+        $balanceSheetItems = $fiscalperiod->balanceSheets()->get();
+        $summary = $this->calculateBalanceSheetSummary($fiscalperiod);
+
+        // Monthly periods with financials
+        $monthlyPeriods = $fiscalperiod->monthlyPeriods()->orderBy('start_date')->get();
+        $monthlyData = [];
+
+        foreach ($monthlyPeriods as $month) {
+            $financials = $this->calculateMonthlyFinancials($fiscalperiod, $month);
+            $monthlyData[] = [
+                'period' => $month,
+                'financials' => $financials,
+            ];
+        }
+
+        // Overall period financials
+        $periodFinancials = $this->calculatePeriodFinancials($fiscalperiod);
+
+        // Income Statement data
+        $incomeStatement = $this->generateIncomeStatement($fiscalperiod, $monthlyPeriods);
+
+        // Cash Flow data
+        $cashFlow = $this->generateCashFlowStatement($fiscalperiod, $monthlyPeriods);
+
+        // Trial Balance data
+        $trialBalance = $this->generateTrialBalance($fiscalperiod);
+
+        return view('admin.fiscalperiod.period_reports_exports', compact(
+            'fiscalperiod', 'balanceSheetItems', 'summary',
+            'monthlyPeriods', 'monthlyData', 'periodFinancials',
+            'incomeStatement', 'cashFlow', 'trialBalance'
+        ));
+    }
+
+    // ========================================
+    // FINANCIAL CALCULATION HELPERS
+    // ========================================
+
+    /**
+     * Calculate financial data for a specific monthly period.
+     */
+    protected function calculateMonthlyFinancials(FiscalPeriods $fiscalperiod, MonthlyPeriod $month): array
+    {
+        $userId = $fiscalperiod->user_id;
+
+        // Revenue from rent payments
+        $rentIncome = Payments::whereHas('rental', function($query) use ($userId) {
+            $query->whereHas('apartment', function($subQuery) use ($userId) {
+                $subQuery->where('supervisor_id', $userId);
+            });
+        })
+        ->where('payment_status', 'paid')
+        ->whereBetween('paid_at', [$month->start_date, $month->end_date])
+        ->sum('amount');
+
+        // Late fees
+        $lateFees = Payments::whereHas('rental', function($query) use ($userId) {
+            $query->whereHas('apartment', function($subQuery) use ($userId) {
+                $subQuery->where('supervisor_id', $userId);
+            });
+        })
+        ->where('payment_status', 'paid')
+        ->whereBetween('paid_at', [$month->start_date, $month->end_date])
+        ->sum('late_fee');
+
+        // Payment count
+        $paymentCount = Payments::whereHas('rental', function($query) use ($userId) {
+            $query->whereHas('apartment', function($subQuery) use ($userId) {
+                $subQuery->where('supervisor_id', $userId);
+            });
+        })
+        ->where('payment_status', 'paid')
+        ->whereBetween('paid_at', [$month->start_date, $month->end_date])
+        ->count();
+
+        $totalIncome = $rentIncome + $lateFees;
+
+        // Expenses from utilities
+        $utilitiesData = Utilities::whereHas('rental', function($query) use ($userId) {
+            $query->whereHas('apartment', function($subQuery) use ($userId) {
+                $subQuery->where('supervisor_id', $userId);
+            });
+        })
+        ->where('paid_status', true)
+        ->whereBetween('paid_at', [$month->start_date, $month->end_date])
+        ->get();
+
+        $expenses = [];
+        $totalExpenses = 0;
+        foreach ($utilitiesData->groupBy('utility_type') as $type => $items) {
+            $typeTotal = $items->sum('charge_amount');
+            $expenses[$type] = $typeTotal;
+            $totalExpenses += $typeTotal;
+        }
+
+        // Fixed expenses from accounts table
+        $fixedExpenses = $fiscalperiod->accounts()
+            ->where('account_type', 'expense')
+            ->whereBetween('transaction_date', [$month->start_date, $month->end_date])
+            ->sum('amount');
+
+        $totalExpenses += $fixedExpenses;
+
+        // Account-based income (non-rent)
+        $otherIncome = $fiscalperiod->accounts()
+            ->where('account_type', 'income')
+            ->whereBetween('transaction_date', [$month->start_date, $month->end_date])
+            ->sum('amount');
+
+        $totalIncome += $otherIncome;
+
+        $netIncome = $totalIncome - $totalExpenses;
+
+        return [
+            'rent_income' => $rentIncome,
+            'late_fees' => $lateFees,
+            'other_income' => $otherIncome,
+            'total_income' => $totalIncome,
+            'utility_expenses' => $expenses,
+            'fixed_expenses' => $fixedExpenses,
+            'total_expenses' => $totalExpenses,
+            'net_income' => $netIncome,
+            'payment_count' => $paymentCount,
+            'is_profitable' => $netIncome >= 0,
+        ];
+    }
+
+    /**
+     * Calculate total period financials.
+     */
+    protected function calculatePeriodFinancials(FiscalPeriods $fiscalperiod): array
+    {
+        $userId = $fiscalperiod->user_id;
+
+        $rentIncome = Payments::whereHas('rental', function($query) use ($userId) {
+            $query->whereHas('apartment', function($subQuery) use ($userId) {
+                $subQuery->where('supervisor_id', $userId);
+            });
+        })
+        ->where('payment_status', 'paid')
+        ->whereBetween('paid_at', [$fiscalperiod->opening_date, $fiscalperiod->closing_date])
+        ->sum('amount');
+
+        $lateFees = Payments::whereHas('rental', function($query) use ($userId) {
+            $query->whereHas('apartment', function($subQuery) use ($userId) {
+                $subQuery->where('supervisor_id', $userId);
+            });
+        })
+        ->where('payment_status', 'paid')
+        ->whereBetween('paid_at', [$fiscalperiod->opening_date, $fiscalperiod->closing_date])
+        ->sum('late_fee');
+
+        $paymentCount = Payments::whereHas('rental', function($query) use ($userId) {
+            $query->whereHas('apartment', function($subQuery) use ($userId) {
+                $subQuery->where('supervisor_id', $userId);
+            });
+        })
+        ->where('payment_status', 'paid')
+        ->whereBetween('paid_at', [$fiscalperiod->opening_date, $fiscalperiod->closing_date])
+        ->count();
+
+        $utilExpenses = Utilities::whereHas('rental', function($query) use ($userId) {
+            $query->whereHas('apartment', function($subQuery) use ($userId) {
+                $subQuery->where('supervisor_id', $userId);
+            });
+        })
+        ->where('paid_status', true)
+        ->whereBetween('paid_at', [$fiscalperiod->opening_date, $fiscalperiod->closing_date])
+        ->get();
+
+        $expensesByType = [];
+        $totalUtilExpenses = 0;
+        foreach ($utilExpenses->groupBy('utility_type') as $type => $items) {
+            $typeTotal = $items->sum('charge_amount');
+            $expensesByType[$type] = $typeTotal;
+            $totalUtilExpenses += $typeTotal;
+        }
+
+        $fixedExpenses = $fiscalperiod->accounts()
+            ->where('account_type', 'expense')
+            ->sum('amount');
+
+        $otherIncome = $fiscalperiod->accounts()
+            ->where('account_type', 'income')
+            ->sum('amount');
+
+        $totalIncome = $rentIncome + $lateFees + $otherIncome;
+        $totalExpenses = $totalUtilExpenses + $fixedExpenses;
+        $netIncome = $totalIncome - $totalExpenses;
+
+        return [
+            'rent_income' => $rentIncome,
+            'late_fees' => $lateFees,
+            'other_income' => $otherIncome,
+            'total_income' => $totalIncome,
+            'utility_expenses' => $expensesByType,
+            'total_util_expenses' => $totalUtilExpenses,
+            'fixed_expenses' => $fixedExpenses,
+            'total_expenses' => $totalExpenses,
+            'net_income' => $netIncome,
+            'is_profitable' => $netIncome >= 0,
+            'payment_count' => $paymentCount,
+        ];
+    }
+
+    /**
+     * Generate Income Statement data.
+     */
+    protected function generateIncomeStatement(FiscalPeriods $fiscalperiod, $monthlyPeriods): array
+    {
+        $months = [];
+        $totals = [
+            'rent_income' => 0, 'late_fees' => 0, 'other_income' => 0,
+            'total_income' => 0, 'total_expenses' => 0, 'net_income' => 0,
+        ];
+
+        foreach ($monthlyPeriods as $month) {
+            $financials = $this->calculateMonthlyFinancials($fiscalperiod, $month);
+            $months[] = [
+                'name' => $month->name,
+                'short' => Carbon::parse($month->start_date)->format('M'),
+                'data' => $financials,
+            ];
+            $totals['rent_income'] += $financials['rent_income'];
+            $totals['late_fees'] += $financials['late_fees'];
+            $totals['other_income'] += $financials['other_income'];
+            $totals['total_income'] += $financials['total_income'];
+            $totals['total_expenses'] += $financials['total_expenses'];
+            $totals['net_income'] += $financials['net_income'];
+        }
+
+        return ['months' => $months, 'totals' => $totals];
+    }
+
+    /**
+     * Generate Cash Flow Statement data.
+     */
+    protected function generateCashFlowStatement(FiscalPeriods $fiscalperiod, $monthlyPeriods): array
+    {
+        $months = [];
+        $runningBalance = $fiscalperiod->opening_balance;
+
+        foreach ($monthlyPeriods as $month) {
+            $financials = $this->calculateMonthlyFinancials($fiscalperiod, $month);
+            $openBal = $runningBalance;
+            $closeBal = $openBal + $financials['net_income'];
+
+            $months[] = [
+                'name' => $month->name,
+                'short' => Carbon::parse($month->start_date)->format('M'),
+                'opening_balance' => $openBal,
+                'cash_in' => $financials['total_income'],
+                'cash_out' => $financials['total_expenses'],
+                'net_cash_flow' => $financials['net_income'],
+                'closing_balance' => $closeBal,
+            ];
+
+            $runningBalance = $closeBal;
+        }
+
+        return [
+            'months' => $months,
+            'opening_balance' => $fiscalperiod->opening_balance,
+            'closing_balance' => $runningBalance,
+            'total_cash_in' => array_sum(array_column($months, 'cash_in')),
+            'total_cash_out' => array_sum(array_column($months, 'cash_out')),
+            'net_change' => $runningBalance - $fiscalperiod->opening_balance,
+        ];
+    }
+
+    /**
+     * Generate Trial Balance data.
+     */
+    protected function generateTrialBalance(FiscalPeriods $fiscalperiod): array
+    {
+        $periodFinancials = $this->calculatePeriodFinancials($fiscalperiod);
+        $summary = $this->calculateBalanceSheetSummary($fiscalperiod);
+
+        // Debit accounts (assets + expenses)
+        $debits = [];
+        $totalDebits = 0;
+
+        // Assets from balance sheet
+        if ($summary['total_assets'] > 0) {
+            $debits[] = ['account' => 'Assets', 'amount' => $summary['total_assets']];
+            $totalDebits += $summary['total_assets'];
+        }
+
+        // Expenses
+        if ($periodFinancials['total_expenses'] > 0) {
+            $debits[] = ['account' => 'Total Expenses', 'amount' => $periodFinancials['total_expenses']];
+            $totalDebits += $periodFinancials['total_expenses'];
+        }
+
+        // Cash (opening balance)
+        if ($fiscalperiod->opening_balance > 0) {
+            $debits[] = ['account' => 'Cash (Opening Balance)', 'amount' => $fiscalperiod->opening_balance];
+            $totalDebits += $fiscalperiod->opening_balance;
+        }
+
+        // Credit accounts (liabilities + equity + revenue)
+        $credits = [];
+        $totalCredits = 0;
+
+        // Liabilities from balance sheet
+        if ($summary['total_liabilities'] > 0) {
+            $credits[] = ['account' => 'Liabilities', 'amount' => $summary['total_liabilities']];
+            $totalCredits += $summary['total_liabilities'];
+        }
+
+        // Equity from balance sheet
+        if ($summary['total_equity'] > 0) {
+            $credits[] = ['account' => 'Equity', 'amount' => $summary['total_equity']];
+            $totalCredits += $summary['total_equity'];
+        }
+
+        // Revenue
+        if ($periodFinancials['total_income'] > 0) {
+            $credits[] = ['account' => 'Total Revenue', 'amount' => $periodFinancials['total_income']];
+            $totalCredits += $periodFinancials['total_income'];
+        }
+
+        return [
+            'debits' => $debits,
+            'credits' => $credits,
+            'total_debits' => $totalDebits,
+            'total_credits' => $totalCredits,
+            'is_balanced' => abs($totalDebits - $totalCredits) < 0.01,
+            'difference' => $totalDebits - $totalCredits,
+        ];
     }
 
     /**

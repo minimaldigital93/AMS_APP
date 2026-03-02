@@ -128,37 +128,75 @@
                             <td class="px-6 py-4 text-sm">
                                 @php
                                     $tenant = $apartment->tenants()->whereNull('deleted_at')->latest()->first();
-                                    if($tenant && $tenant->move_in_date && $tenant->move_out_date) {
+                                    $hasLease = false;
+                                    $hasMonthlyPeriod = false;
+
+                                    if($tenant && $tenant->move_in_date) {
                                         $moveInDate = \Carbon\Carbon::parse($tenant->move_in_date);
-                                        $moveOutDate = \Carbon\Carbon::parse($tenant->move_out_date);
-                                        $totalDays = $moveInDate->diffInDays($moveOutDate);
-                                        $daysPassed = now()->diffInDays($moveInDate, false);
-                                        $percentagePassed = ($totalDays > 0) ? min(100, max(0, ($daysPassed / $totalDays) * 100)) : 0;
-                                        $daysRemaining = $moveOutDate->diffInDays(now(), false);
+                                        $today = now();
+                                        $stayDays = $moveInDate->diffInDays($today);
+                                        $stayMonths = $moveInDate->diffInMonths($today);
+
+                                        // Lease progress (only if move_out_date exists)
+                                        if ($tenant->move_out_date) {
+                                            $moveOutDate = \Carbon\Carbon::parse($tenant->move_out_date);
+                                            $totalDays = $moveInDate->diffInDays($moveOutDate);
+                                            $daysPassed = $moveInDate->diffInDays($today);
+                                            $percentagePassed = ($totalDays > 0) ? min(100, max(0, ($daysPassed / $totalDays) * 100)) : 0;
+                                            $daysRemaining = max(0, $today->diffInDays($moveOutDate, false));
+                                            $hasLease = true;
+                                        }
+
+                                        // Monthly rent period progress (always available with move_in_date)
+                                        $billingDay = $moveInDate->day;
+
+                                        // Calculate current billing period start
+                                        if ($today->day >= $billingDay) {
+                                            $periodStart = $today->copy()->day($billingDay)->startOfDay();
+                                        } else {
+                                            $prevMonth = $today->copy()->subMonth();
+                                            $periodStart = $prevMonth->day(min($billingDay, $prevMonth->daysInMonth))->startOfDay();
+                                        }
+
+                                        // Calculate billing period end
+                                        $periodEnd = $periodStart->copy()->addMonth()->subDay()->endOfDay();
+
+                                        // Clamp within lease if move_out_date exists
+                                        if ($periodStart->lt($moveInDate)) $periodStart = $moveInDate->copy();
+                                        if ($tenant->move_out_date && $periodEnd->gt($moveOutDate)) $periodEnd = $moveOutDate->copy()->endOfDay();
+
+                                        $periodTotalDays = max(1, $periodStart->diffInDays($periodEnd));
+                                        $periodDaysPassed = max(0, min($periodTotalDays, $periodStart->diffInDays($today)));
+                                        $periodPercent = min(100, max(0, round(($periodDaysPassed / $periodTotalDays) * 100, 1)));
+                                        $periodDaysLeft = max(0, (int)$today->diffInDays($periodEnd, false));
+
+                                        // Color based on progress
+                                        if ($periodPercent >= 80) {
+                                            $monthBarColor = 'from-red-400 to-red-600';
+                                            $monthTextColor = 'text-red-600';
+                                        } elseif ($periodPercent >= 50) {
+                                            $monthBarColor = 'from-yellow-400 to-orange-500';
+                                            $monthTextColor = 'text-orange-600';
+                                        } else {
+                                            $monthBarColor = 'from-blue-400 to-blue-600';
+                                            $monthTextColor = 'text-blue-600';
+                                        }
+
+                                        $hasMonthlyPeriod = true;
                                     }
                                 @endphp
                                 
-                                @if($tenant && $tenant->move_in_date && $tenant->move_out_date)
-                                    <div class="space-y-2">
-                                        <div class="flex justify-between text-xs text-gray-600">
-                                            <span>{{ $moveInDate->format('M d, Y') }}</span>
-                                            <span>{{ $moveOutDate->format('M d, Y') }}</span>
+                                @if($tenant && $tenant->move_in_date)
+                                    <div class="min-w-[120px]">
+                                        @if($hasMonthlyPeriod)
+                                        <div class="w-full bg-gray-200 rounded-full h-1.5 overflow-hidden" title="{{ $periodStart->format('M d') }}–{{ $periodEnd->format('M d') }} ({{ $periodPercent }}%)">
+                                            <div class="bg-gradient-to-r {{ $monthBarColor }} h-full rounded-full" style="width: {{ $periodPercent }}%"></div>
                                         </div>
-                                        <div class="w-full bg-gray-200 rounded-full h-2 overflow-hidden">
-                                            <div class="bg-gradient-to-r from-green-400 to-green-600 h-full rounded-full transition-all duration-300" style="width: {{ $percentagePassed }}%"></div>
-                                        </div>
-                                        <div class="text-xs text-gray-500">
-                                            @if($daysRemaining > 0)
-                                                <span class="text-blue-600 font-semibold">{{ $daysRemaining }} days remaining</span>
-                                            @elseif($daysRemaining == 0)
-                                                <span class="text-orange-600 font-semibold">Last day today</span>
-                                            @else
-                                                <span class="text-red-600 font-semibold">Lease ended</span>
-                                            @endif
-                                        </div>
+                                        <div class="{{ $monthTextColor }} text-[11px] mt-1 font-medium">{{ $periodDaysLeft }}d left</div>
+                                        @endif
                                     </div>
                                 @else
-                                    <span class="text-gray-400 text-xs">No lease info</span>
+                                    <span class="text-gray-400 text-xs">—</span>
                                 @endif
                             </td>
                             <td class="px-6 py-4 text-sm text-gray-600">

@@ -100,6 +100,13 @@ Route::middleware(['auth', 'role:admin'])->group(function () {
     Route::get('/admin/fiscalperiod/{fiscalperiod}/open-close-balances', [FiscalPeriodController::class, 'openCloseBalances'])->name('admin.fiscalperiod.open-close-balances');
     Route::post('/admin/fiscalperiod/{fiscalperiod}/close', [FiscalPeriodController::class, 'closeperiod'])->name('admin.fiscalperiod.closeperiod');
     
+    // Monthly Period Management Routes
+    Route::get('/admin/fiscalperiod/{fiscalperiod}/monthly-periods', [FiscalPeriodController::class, 'monthlyPeriods'])->name('admin.fiscalperiod.monthly-periods');
+    Route::get('/admin/fiscalperiod/{fiscalperiod}/monthly-period/{monthlyPeriod}', [FiscalPeriodController::class, 'showMonth'])->name('admin.fiscalperiod.monthly-period.show');
+    Route::post('/admin/fiscalperiod/{fiscalperiod}/monthly-period/{monthlyPeriod}/close', [FiscalPeriodController::class, 'closeMonth'])->name('admin.fiscalperiod.monthly-period.close');
+    Route::post('/admin/fiscalperiod/{fiscalperiod}/monthly-period/{monthlyPeriod}/reopen', [FiscalPeriodController::class, 'reopenMonth'])->name('admin.fiscalperiod.monthly-period.reopen');
+    Route::post('/admin/fiscalperiod/{fiscalperiod}/recalculate-balances', [FiscalPeriodController::class, 'recalculateBalances'])->name('admin.fiscalperiod.recalculate-balances');
+
     // Reports & Export Routes
     Route::get('/admin/fiscalperiod/{fiscalperiod}/reports', [FiscalPeriodController::class, 'reports'])->name('admin.fiscalperiod.reports');
     Route::get('/admin/fiscalperiod/{fiscalperiod}/export-pdf', [FiscalPeriodController::class, 'exportPDF'])->name('admin.fiscalperiod.exportPDF');
@@ -124,6 +131,9 @@ Route::middleware(['auth', 'role:admin'])->group(function () {
         // Monthly Bill Generation
         Route::get('/admin/revenue-expense/generate-bills', [RevenueExpenseController::class, 'generateMonthlyBills'])->name('admin.revenue_expense.generate_bills');
         Route::post('/admin/revenue-expense/generate-bills', [RevenueExpenseController::class, 'processMonthlyBills'])->name('admin.revenue_expense.process_bills');
+
+        // Monthly Calendar View
+        Route::get('/admin/revenue-expense/monthly-calendar', [RevenueExpenseController::class, 'monthlyCalendar'])->name('admin.revenue_expense.monthly_calendar');
     });
 });
 

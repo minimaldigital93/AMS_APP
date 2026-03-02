@@ -145,31 +145,17 @@
                                 <td class="px-6 py-4 whitespace-nowrap">
                                     @php $rp = $rentProgressMap[$tenant->id] ?? null; @endphp
                                     @if($rp)
-                                    <div class="w-36">
-                                        <div class="flex items-center justify-between mb-1">
-                                            <span class="text-xs font-semibold {{ $rp['status'] === 'paid' ? 'text-green-600' : ($rp['status'] === 'partial' ? 'text-yellow-600' : 'text-red-500') }}">
-                                                {{ $rp['percent'] }}%
-                                            </span>
-                                            <span class="text-[10px] text-gray-400">${{ number_format($rp['paid'], 2) }}/${{ number_format($rp['rent'], 2) }}</span>
+                                    <div class="w-28">
+                                        <div class="flex items-center justify-between mb-0.5">
+                                            <span class="text-[10px] text-gray-500">{{ intval($rp['days_stayed']) }}/{{ intval($rp['total_days']) }}d</span>
+                                            <span class="text-[10px] font-semibold {{ $rp['day_percent'] >= 100 ? 'text-green-600' : 'text-gray-600' }}">{{ intval($rp['day_percent']) }}%</span>
                                         </div>
-                                        <div class="w-full bg-gray-200 rounded-full h-2">
-                                            @php
-                                                $barColor = match($rp['status']) {
-                                                    'paid' => 'bg-green-500',
-                                                    'partial' => 'bg-yellow-500',
-                                                    default => 'bg-red-400',
-                                                };
-                                            @endphp
-                                            <div class="{{ $barColor }} h-2 rounded-full transition-all" style="width: {{ $rp['percent'] }}%"></div>
+                                        <div class="w-full bg-gray-100 rounded-full h-1.5">
+                                            <div class="bg-blue-500 h-1.5 rounded-full" style="width: {{ $rp['day_percent'] }}%"></div>
                                         </div>
-                                        @if($rp['paid_date'])
-                                        <p class="text-[10px] text-gray-400 mt-0.5">Paid {{ $rp['paid_date'] }}</p>
-                                        @elseif($rp['status'] === 'unpaid')
-                                        <p class="text-[10px] text-red-400 mt-0.5">{{ now()->format('M') }} unpaid</p>
-                                        @endif
                                     </div>
                                     @else
-                                    <span class="text-xs text-gray-400">No rental</span>
+                                    <span class="text-[10px] text-gray-300">—</span>
                                     @endif
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap">

@@ -44,8 +44,8 @@
                 <div class="flex items-center justify-between">
                     <div>
                         <p class="text-emerald-600 text-sm font-semibold">Monthly Revenue</p>
-                        <p class="text-4xl font-bold text-gray-900 mt-2">${{ number_format($stats['revenue']['total_monthly_rent'], 2) }}</p>
-                        <p class="text-xs text-gray-500 font-medium mt-2">From occupied units</p>
+                        <p class="text-4xl font-bold text-gray-900 mt-2">${{ number_format($stats['revenue']['collected_this_month'] + $stats['revenue']['late_fees_this_month'], 2) }}</p>
+                        <p class="text-xs text-gray-500 font-medium mt-2">Collected in {{ now()->format('M Y') }}</p>
                     </div>
                     <svg class="w-12 h-12 text-emerald-200" fill="currentColor" viewBox="0 0 24 24">
                         <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm3.5-9c.83 0 1.5-.67 1.5-1.5S16.33 8 15.5 8 14 8.67 14 9.5s.67 1.5 1.5 1.5zm-7 0c.83 0 1.5-.67 1.5-1.5S9.33 8 8.5 8 7 8.67 7 9.5 7.67 11 8.5 11zm3.5 6.5c2.33 0 4.31-1.46 5.11-3.5H6.89c.8 2.04 2.78 3.5 5.11 3.5z"/>
@@ -59,7 +59,7 @@
                     <div>
                         <p class="text-purple-600 text-sm font-semibold">Monthly Expenses</p>
                         <p class="text-4xl font-bold text-gray-900 mt-2">${{ number_format($stats['expenses']['monthly_total'] ?? 0, 2) }}</p>
-                        <p class="text-xs text-gray-500 font-medium mt-2">Utilities, maintenance & other</p>
+                        <p class="text-xs text-gray-500 font-medium mt-2">Spent in {{ now()->format('M Y') }}</p>
                     </div>
                     <svg class="w-12 h-12 text-purple-200" fill="currentColor" viewBox="0 0 24 24">
                         <path d="M13 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V9z"/>
@@ -68,116 +68,7 @@
             </div>
         </div>
 
-        <!-- Fiscal Period Financial Summary -->
         @if($fiscalData['has_active_period'])
-        <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-            <div class="flex items-center justify-between mb-6">
-                <div>
-                    <h2 class="text-xl font-bold text-gray-900">Active Fiscal Period</h2>
-                    <p class="text-sm text-gray-500 mt-1">
-                        {{ $fiscalData['period']->name }} 
-                        ({{ $fiscalData['period']->opening_date->format('M d, Y') }} - {{ $fiscalData['period']->closing_date->format('M d, Y') }})
-                    </p>
-                </div>
-                <div class="flex gap-2">
-                    <a href="{{ route('admin.fiscalperiod.show', $fiscalData['period']->id) }}" class="text-sm bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition">
-                        View Details
-                    </a>
-                    <a href="{{ route('admin.fiscalperiod.reports', $fiscalData['period']->id) }}" class="text-sm bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition">
-                        Reports
-                    </a>
-                </div>
-            </div>
-
-            <!-- Fiscal Period Financial Cards -->
-            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
-                <!-- Revenue -->
-                <div class="bg-green-50 rounded-lg p-4 border border-green-200">
-                    <p class="text-green-600 text-xs font-semibold uppercase">Rent Revenue</p>
-                    <p class="text-2xl font-bold text-gray-900 mt-1">${{ number_format($fiscalData['revenue'], 2) }}</p>
-                    @if($fiscalData['late_fees'] > 0)
-                        <p class="text-xs text-green-600 mt-1">+ ${{ number_format($fiscalData['late_fees'], 2) }} late fees</p>
-                    @endif
-                </div>
-
-                <!-- Total Income -->
-                <div class="bg-emerald-50 rounded-lg p-4 border border-emerald-200">
-                    <p class="text-emerald-600 text-xs font-semibold uppercase">Total Income</p>
-                    <p class="text-2xl font-bold text-gray-900 mt-1">${{ number_format($fiscalData['total_income'], 2) }}</p>
-                    <p class="text-xs text-gray-500 mt-1">Revenue + Late Fees</p>
-                </div>
-
-                <!-- Total Expenses -->
-                <div class="bg-red-50 rounded-lg p-4 border border-red-200">
-                    <p class="text-red-600 text-xs font-semibold uppercase">Total Expenses</p>
-                    <p class="text-2xl font-bold text-gray-900 mt-1">${{ number_format($fiscalData['total_expenses'], 2) }}</p>
-                    <p class="text-xs text-gray-500 mt-1">{{ count($fiscalData['expenses']) }} categories</p>
-                </div>
-
-                <!-- Net Profit/Loss -->
-                <div class="rounded-lg p-4 border {{ $fiscalData['is_profitable'] ? 'bg-blue-50 border-blue-200' : 'bg-orange-50 border-orange-200' }}">
-                    <p class="{{ $fiscalData['is_profitable'] ? 'text-blue-600' : 'text-orange-600' }} text-xs font-semibold uppercase">
-                        {{ $fiscalData['is_profitable'] ? 'Net Profit' : 'Net Loss' }}
-                    </p>
-                    <p class="text-2xl font-bold text-gray-900 mt-1">
-                        {{ $fiscalData['is_profitable'] ? '+' : '-' }}${{ number_format(abs($fiscalData['net_profit']), 2) }}
-                    </p>
-                    <p class="text-xs text-gray-500 mt-1">{{ $fiscalData['profit_margin'] }}% margin</p>
-                </div>
-
-                <!-- Current Balance -->
-                <div class="bg-indigo-50 rounded-lg p-4 border border-indigo-200">
-                    <p class="text-indigo-600 text-xs font-semibold uppercase">Current Balance</p>
-                    <p class="text-2xl font-bold text-gray-900 mt-1">${{ number_format($fiscalData['current_balance'], 2) }}</p>
-                    <p class="text-xs text-gray-500 mt-1">Opening: ${{ number_format($fiscalData['opening_balance'], 2) }}</p>
-                </div>
-            </div>
-
-            <!-- Expense Breakdown & Balance Sheet -->
-            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <!-- Expense Breakdown by Category -->
-                @if(count($fiscalData['expenses']) > 0)
-                <div class="bg-gray-50 rounded-lg p-4">
-                    <h3 class="text-sm font-semibold text-gray-700 mb-3">Expense Breakdown</h3>
-                    <div class="space-y-2">
-                        @foreach($fiscalData['expenses'] as $type => $amount)
-                        <div class="flex justify-between items-center">
-                            <span class="text-sm text-gray-600 capitalize">{{ str_replace('_', ' ', $type) }}</span>
-                            <span class="text-sm font-semibold text-gray-900">${{ number_format($amount, 2) }}</span>
-                        </div>
-                        @endforeach
-                        <div class="border-t pt-2 mt-2 flex justify-between items-center">
-                            <span class="text-sm font-bold text-gray-700">Total</span>
-                            <span class="text-sm font-bold text-red-600">${{ number_format($fiscalData['total_expenses'], 2) }}</span>
-                        </div>
-                    </div>
-                </div>
-                @endif
-
-                <!-- Balance Sheet Summary -->
-                <div class="bg-gray-50 rounded-lg p-4">
-                    <h3 class="text-sm font-semibold text-gray-700 mb-3">Balance Sheet Summary</h3>
-                    <div class="space-y-2">
-                        <div class="flex justify-between items-center">
-                            <span class="text-sm text-gray-600">Total Assets</span>
-                            <span class="text-sm font-semibold text-blue-600">${{ number_format($fiscalData['balance_sheet']['total_assets'], 2) }}</span>
-                        </div>
-                        <div class="flex justify-between items-center">
-                            <span class="text-sm text-gray-600">Total Liabilities</span>
-                            <span class="text-sm font-semibold text-red-600">${{ number_format($fiscalData['balance_sheet']['total_liabilities'], 2) }}</span>
-                        </div>
-                        <div class="flex justify-between items-center">
-                            <span class="text-sm text-gray-600">Total Equity</span>
-                            <span class="text-sm font-semibold text-green-600">${{ number_format($fiscalData['balance_sheet']['total_equity'], 2) }}</span>
-                        </div>
-                        <div class="border-t pt-2 mt-2 flex justify-between items-center">
-                            <span class="text-sm font-bold text-gray-700">Net Worth</span>
-                            <span class="text-sm font-bold text-indigo-600">${{ number_format($fiscalData['balance_sheet']['total_assets'] - $fiscalData['balance_sheet']['total_liabilities'], 2) }}</span>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
 
         @if($fiscalData['recent_periods']->count() > 0)
         <!-- Recent Closed Fiscal Periods -->
@@ -256,7 +147,7 @@
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <!-- Occupancy by Building -->
             <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-                <h2 class="text-lg font-semibold text-gray-900 mb-4">Occupancy by Building</h2>
+                <h2 class="text-lg font-semibold text-gray-900 mb-4">Occupancy by Floor</h2>
                 <canvas id="occupancyChart" class="w-full" style="max-height: 300px;"></canvas>
             </div>
 
@@ -317,16 +208,15 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script>
         document.addEventListener('DOMContentLoaded', function() {
-            // 1. Revenue Trend Chart (from fiscal period data)
+            // 1. Revenue Trend Chart (last 6 months from actual data)
             const revenueCtx = document.getElementById('revenueChart').getContext('2d');
-            @if($fiscalData['has_active_period'] && count($fiscalData['monthly_revenue']) > 0)
             new Chart(revenueCtx, {
                 type: 'line',
                 data: {
-                    labels: {!! json_encode(array_keys($fiscalData['monthly_revenue'])) !!},
+                    labels: {!! json_encode($monthlyChartData['labels']) !!},
                     datasets: [{
                         label: 'Monthly Revenue ($)',
-                        data: {!! json_encode(array_values($fiscalData['monthly_revenue'])) !!},
+                        data: {!! json_encode($monthlyChartData['revenue']) !!},
                         borderColor: '#10b981',
                         backgroundColor: 'rgba(16, 185, 129, 0.1)',
                         borderWidth: 3,
@@ -352,30 +242,6 @@
                     }
                 }
             });
-            @else
-            new Chart(revenueCtx, {
-            type: 'line',
-            data: {
-                labels: ['No Data'],
-                datasets: [{
-                    label: 'Monthly Revenue ($)',
-                    data: [0],
-                    borderColor: '#d1d5db',
-                    backgroundColor: 'rgba(209, 213, 219, 0.1)',
-                    borderWidth: 2,
-                    fill: true,
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: {
-                    legend: { display: false },
-                    title: { display: true, text: 'No fiscal period revenue data yet' }
-                }
-            }
-        });
-            @endif
 
         // 2. Payment Status Chart
         const paymentStatusCtx = document.getElementById('paymentStatusChart').getContext('2d');
@@ -384,7 +250,7 @@
             data: {
                 labels: ['Paid', 'Pending', 'Overdue'],
                 datasets: [{
-                    data: [78, 15, 7],
+                    data: [{{ $stats['payments']['paid'] }}, {{ $stats['payments']['pending'] }}, {{ $stats['payments']['overdue'] }}],
                     backgroundColor: ['#10b981', '#f59e0b', '#ef4444'],
                     borderColor: '#fff',
                     borderWidth: 3
@@ -402,16 +268,16 @@
             }
         });
 
-        // 3. Occupancy by Building
+        // 3. Occupancy by Floor
         const occupancyCtx = document.getElementById('occupancyChart').getContext('2d');
         new Chart(occupancyCtx, {
             type: 'bar',
             data: {
-                labels: ['Building A', 'Building B', 'Building C', 'Building D'],
+                labels: {!! json_encode($stats['floor_labels']) !!},
                 datasets: [{
                     label: 'Occupancy %',
-                    data: [95, 92, 96, 90],
-                    backgroundColor: ['#3b82f6', '#06b6d4', '#8b5cf6', '#ec4899'],
+                    data: {!! json_encode($stats['floor_occupancy']) !!},
+                    backgroundColor: ['#3b82f6', '#06b6d4', '#8b5cf6', '#ec4899', '#f59e0b', '#10b981'],
                     borderRadius: 8,
                     borderSkipped: false
                 }]
@@ -435,14 +301,25 @@
 
         // 4. Utility Consumption
         const utilityCtx = document.getElementById('utilityChart').getContext('2d');
+        @php
+            $uBreakdown = $stats['expenses']['utility_breakdown'] ?? [];
+            $uLabels = [];
+            $uData = [];
+            $uColors = ['#06b6d4', '#f59e0b', '#8b5cf6', '#ec4899'];
+            $typeMap = ['electricity' => 'Electricity', 'water' => 'Water', 'internet' => 'Internet', 'parking' => 'Parking'];
+            foreach ($typeMap as $key => $label) {
+                $uLabels[] = $label;
+                $uData[] = round($uBreakdown[$key] ?? 0, 2);
+            }
+        @endphp
         new Chart(utilityCtx, {
             type: 'bar',
             data: {
-                labels: ['Water', 'Electricity', 'Gas', 'Internet'],
+                labels: {!! json_encode($uLabels) !!},
                 datasets: [{
-                    label: 'Usage Cost ($)',
-                    data: [1200, 2800, 1500, 400],
-                    backgroundColor: ['#06b6d4', '#f59e0b', '#ef4444', '#8b5cf6'],
+                    label: 'Cost ($)',
+                    data: {!! json_encode($uData) !!},
+                    backgroundColor: {!! json_encode(array_slice($uColors, 0, count($uLabels))) !!},
                     borderRadius: 8,
                     borderSkipped: false
                 }]
@@ -462,31 +339,16 @@
             }
         });
 
-        // 5. Income vs Expenses (from fiscal period)
+        // 5. Income vs Expenses (last 6 months from actual data)
         const incomeExpenseCtx = document.getElementById('incomeExpenseChart').getContext('2d');
-        @if($fiscalData['has_active_period'] && (count($fiscalData['monthly_revenue']) > 0 || count($fiscalData['monthly_expenses']) > 0))
-        @php
-            // Merge all months from revenue and expenses
-            $allMonths = array_unique(array_merge(
-                array_keys($fiscalData['monthly_revenue']),
-                array_keys($fiscalData['monthly_expenses'])
-            ));
-            sort($allMonths);
-            $revenueData = [];
-            $expenseData = [];
-            foreach ($allMonths as $month) {
-                $revenueData[] = $fiscalData['monthly_revenue'][$month] ?? 0;
-                $expenseData[] = $fiscalData['monthly_expenses'][$month] ?? 0;
-            }
-        @endphp
         new Chart(incomeExpenseCtx, {
             type: 'line',
             data: {
-                labels: {!! json_encode(array_values($allMonths)) !!},
+                labels: {!! json_encode($monthlyChartData['labels']) !!},
                 datasets: [
                     {
                         label: 'Income',
-                        data: {!! json_encode($revenueData) !!},
+                        data: {!! json_encode($monthlyChartData['revenue']) !!},
                         borderColor: '#10b981',
                         backgroundColor: 'rgba(16, 185, 129, 0.05)',
                         borderWidth: 2,
@@ -496,7 +358,7 @@
                     },
                     {
                         label: 'Expenses',
-                        data: {!! json_encode($expenseData) !!},
+                        data: {!! json_encode($monthlyChartData['expenses']) !!},
                         borderColor: '#ef4444',
                         backgroundColor: 'rgba(239, 68, 68, 0.05)',
                         borderWidth: 2,
@@ -523,27 +385,6 @@
                 }
             }
         });
-        @else
-        new Chart(incomeExpenseCtx, {
-            type: 'line',
-            data: {
-                labels: ['No Data'],
-                datasets: [{
-                    label: 'Income vs Expenses',
-                    data: [0],
-                    borderColor: '#d1d5db',
-                    borderWidth: 2,
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: {
-                    title: { display: true, text: 'Create a fiscal period to see income vs expenses' }
-                }
-            }
-        });
-        @endif
         });
     </script>
     @endpush

@@ -75,15 +75,31 @@ class TenantController extends Controller
             if ($rental) {
                 $paidAmount = $rental->payments->sum('amount');
                 $monthlyRent = $rental->rent_amount;
-                $percent = $monthlyRent > 0 ? min(round(($paidAmount / $monthlyRent) * 100, 1), 100) : 0;
                 $paidDate = $rental->payments->first()?->paid_at;
+
+                // Calculate days stayed in current month
+                $monthStart = Carbon::create($currentYear, $currentMonth, 1)->startOfDay();
+                $monthEnd = $monthStart->copy()->endOfMonth();
+                $totalDaysInMonth = $monthStart->daysInMonth;
+
+                $rentalStart = Carbon::parse($rental->start_date)->startOfDay();
+                $stayStart = $rentalStart->gt($monthStart) ? $rentalStart : $monthStart;
+                $stayEnd = now()->gt($monthEnd) ? $monthEnd : now();
+                $daysStayed = max($stayStart->diffInDays($stayEnd) + 1, 0);
+                $daysStayed = min($daysStayed, $totalDaysInMonth);
+
+                $dayPercent = $totalDaysInMonth > 0 ? round(($daysStayed / $totalDaysInMonth) * 100) : 0;
+                $payPercent = $monthlyRent > 0 ? min(round(($paidAmount / $monthlyRent) * 100, 1), 100) : 0;
 
                 $rentProgressMap[$tenant->id] = [
                     'rent' => $monthlyRent,
                     'paid' => $paidAmount,
-                    'percent' => $percent,
-                    'status' => $percent >= 100 ? 'paid' : ($percent > 0 ? 'partial' : 'unpaid'),
+                    'percent' => $payPercent,
+                    'status' => $payPercent >= 100 ? 'paid' : ($payPercent > 0 ? 'partial' : 'unpaid'),
                     'paid_date' => $paidDate ? Carbon::parse($paidDate)->format('M d') : null,
+                    'days_stayed' => $daysStayed,
+                    'total_days' => $totalDaysInMonth,
+                    'day_percent' => $dayPercent,
                 ];
             }
         }
