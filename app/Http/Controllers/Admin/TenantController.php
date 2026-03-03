@@ -7,11 +7,15 @@ use App\Models\Tenants;
 use App\Models\TenantLeave;
 use App\Models\Rentals;
 use App\Models\Apartments;
+use App\Models\Payments;
+use App\Models\Accounts;
+use App\Models\FiscalPeriods;
 use App\Services\TenantLeaveCalculator;
 use Illuminate\Http\Request;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\View\View;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Facades\Auth;
 use Carbon\Carbon;
 
 class TenantController extends Controller
@@ -193,8 +197,8 @@ class TenantController extends Controller
             // Validate input
             $validated = $request->validate([
                 'leave_date' => 'required|date|after_or_equal:' . $tenant->move_in_date->format('Y-m-d'),
-                'electricity_reading' => 'nullable|numeric|min:0',
-                'water_reading' => 'nullable|numeric|min:0',
+                'electricity_charge' => 'nullable|numeric|min:0',
+                'water_charge' => 'nullable|numeric|min:0',
                 'internet_charge' => 'nullable|numeric|min:0',
                 'parking_charge' => 'nullable|numeric|min:0',
                 'notes' => 'nullable|string',
@@ -205,32 +209,14 @@ class TenantController extends Controller
             // Calculate charges
             $proRataRent = $this->leaveCalculator->calculateProRataRent($rental, $leaveDate);
 
-            $meterReadings = [];
-            if ($validated['electricity_reading']) {
-                $meterReadings['electricity_reading'] = $validated['electricity_reading'];
-            }
-            if ($validated['water_reading']) {
-                $meterReadings['water_reading'] = $validated['water_reading'];
-            }
-
-            $utilityCharges = $this->leaveCalculator->calculateUtilityCharges(
-                $rental,
-                $leaveDate,
-                $meterReadings
-            );
-
-            // Override with provided values if any
-            if (isset($validated['internet_charge'])) {
-                $utilityCharges['internet'] = $validated['internet_charge'];
-            }
-            if (isset($validated['parking_charge'])) {
-                $utilityCharges['parking'] = $validated['parking_charge'];
-            }
-
-            // Calculate settlement
-            $charges = array_merge([
+            // Use exact charge amounts entered by user
+            $charges = [
                 'pro_rata_rent' => $proRataRent,
-            ], $utilityCharges);
+                'electricity' => $validated['electricity_charge'] ?? 0,
+                'water' => $validated['water_charge'] ?? 0,
+                'internet' => $validated['internet_charge'] ?? 0,
+                'parking' => $validated['parking_charge'] ?? 0,
+            ];
 
             $settlement = $this->leaveCalculator->calculateSettlement(
                 $rental,
@@ -249,9 +235,9 @@ class TenantController extends Controller
                 'original_move_out_date' => $rental->end_date,
                 'stay_days' => $settlement['stay_days'],
                 'pro_rata_rent' => $settlement['pro_rata_rent'],
-                'electricity_reading' => $validated['electricity_reading'] ?? null,
+                'electricity_reading' => null,
                 'electricity_charge' => $settlement['electricity_charge'],
-                'water_reading' => $validated['water_reading'] ?? null,
+                'water_reading' => null,
                 'water_charge' => $settlement['water_charge'],
                 'internet_charge' => $settlement['internet_charge'],
                 'parking_charge' => $settlement['parking_charge'],
@@ -267,6 +253,93 @@ class TenantController extends Controller
                 'tenant_leave_id' => $tenantLeave->id,
                 'tenant_id' => $tenant->id,
             ]);
+
+            // Record revenue in Payments and Accounts tables
+            $activePeriod = FiscalPeriods::where('user_id', Auth::id())
+                ->where('status', 'open')
+                ->orderBy('opening_date', 'desc')
+                ->first();
+
+            if ($activePeriod && $settlement['total_amount_due'] > 0) {
+                $apartmentNumber = $tenant->apartment->apartment_number ?? 'N/A';
+
+                // 1) Record pro-rata rent payment
+                if ($settlement['pro_rata_rent'] > 0) {
+                    $rentPayment = Payments::create([
+                        'rental_id' => $rental->id,
+                        'amount' => $settlement['pro_rata_rent'],
+                        'due_date' => $leaveDate,
+                        'paid_at' => $leaveDate,
+                        'payment_method' => 'cash',
+                        'payment_status' => 'paid',
+                        'payment_type' => 'rent',
+                        'transaction_reference' => null,
+                        'late_fee' => 0,
+                        'note' => 'Tenant leave settlement - pro-rata rent (' . $settlement['stay_days'] . ' days)',
+                    ]);
+
+                    Accounts::create([
+                        'fiscal_period_id' => $activePeriod->id,
+                        'payment_id' => $rentPayment->id,
+                        'user_id' => Auth::id(),
+                        'account_type' => 'income',
+                        'category' => 'rent_income',
+                        'description' => '[Apt ' . $apartmentNumber . '] Leave settlement - pro-rata rent',
+                        'amount' => $settlement['pro_rata_rent'],
+                        'transaction_date' => $leaveDate,
+                        'reference_number' => null,
+                        'note' => 'Tenant: ' . $tenant->name . ' - ' . $settlement['stay_days'] . ' days stay',
+                    ]);
+                }
+
+                // 2) Record utility charges payment (electricity + water + internet + parking)
+                $utilityTotal = ($settlement['electricity_charge'] ?? 0)
+                    + ($settlement['water_charge'] ?? 0)
+                    + ($settlement['internet_charge'] ?? 0)
+                    + ($settlement['parking_charge'] ?? 0);
+
+                if ($utilityTotal > 0) {
+                    $utilityPayment = Payments::create([
+                        'rental_id' => $rental->id,
+                        'amount' => $utilityTotal,
+                        'due_date' => $leaveDate,
+                        'paid_at' => $leaveDate,
+                        'payment_method' => 'cash',
+                        'payment_status' => 'paid',
+                        'payment_type' => 'utilities',
+                        'transaction_reference' => null,
+                        'late_fee' => 0,
+                        'note' => 'Tenant leave settlement - utility charges',
+                    ]);
+
+                    Accounts::create([
+                        'fiscal_period_id' => $activePeriod->id,
+                        'payment_id' => $utilityPayment->id,
+                        'user_id' => Auth::id(),
+                        'account_type' => 'income',
+                        'category' => 'utility_income',
+                        'description' => '[Apt ' . $apartmentNumber . '] Leave settlement - utilities',
+                        'amount' => $utilityTotal,
+                        'transaction_date' => $leaveDate,
+                        'reference_number' => null,
+                        'note' => 'Tenant: ' . $tenant->name . ' - E:' . ($settlement['electricity_charge'] ?? 0) . ' W:' . ($settlement['water_charge'] ?? 0) . ' I:' . ($settlement['internet_charge'] ?? 0) . ' P:' . ($settlement['parking_charge'] ?? 0),
+                    ]);
+                }
+
+                \Log::info('Recorded leave settlement revenue', [
+                    'tenant_id' => $tenant->id,
+                    'fiscal_period_id' => $activePeriod->id,
+                    'pro_rata_rent' => $settlement['pro_rata_rent'],
+                    'utility_total' => $utilityTotal ?? 0,
+                    'total_amount_due' => $settlement['total_amount_due'],
+                ]);
+            } else {
+                \Log::warning('No active fiscal period found or zero amount - leave settlement revenue not recorded', [
+                    'tenant_id' => $tenant->id,
+                    'total_amount_due' => $settlement['total_amount_due'],
+                    'has_active_period' => $activePeriod ? true : false,
+                ]);
+            }
 
             // Update rental end date
             $rental->update(['end_date' => $leaveDate]);

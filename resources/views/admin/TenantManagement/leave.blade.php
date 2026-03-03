@@ -136,15 +136,15 @@
                                 <h3 class="text-sm font-semibold text-gray-900 mb-4">Utility & Additional Charges</h3>
 
                                 <div>
-                                    <label class="block text-sm font-medium text-gray-700 mb-2">Electricity Meter Reading (Units)</label>
-                                    <input type="number" name="electricity_reading" step="0.01" placeholder="e.g., 1250.50" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" value="{{ old('electricity_reading') }}">
-                                    <p class="mt-1 text-xs text-gray-500">Enter the final meter reading</p>
+                                    <label class="block text-sm font-medium text-gray-700 mb-2">Electricity Charge ($)</label>
+                                    <input type="number" name="electricity_charge" step="0.01" placeholder="0.00" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" value="{{ old('electricity_charge', '0.00') }}">
+                                    <p class="mt-1 text-xs text-gray-500">Enter the electricity charge amount</p>
                                 </div>
 
                                 <div class="mt-3">
-                                    <label class="block text-sm font-medium text-gray-700 mb-2">Water Meter Reading (Units)</label>
-                                    <input type="number" name="water_reading" step="0.01" placeholder="e.g., 450.30" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" value="{{ old('water_reading') }}">
-                                    <p class="mt-1 text-xs text-gray-500">Enter the final meter reading</p>
+                                    <label class="block text-sm font-medium text-gray-700 mb-2">Water Charge ($)</label>
+                                    <input type="number" name="water_charge" step="0.01" placeholder="0.00" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" value="{{ old('water_charge', '0.00') }}">
+                                    <p class="mt-1 text-xs text-gray-500">Enter the water charge amount</p>
                                 </div>
 
                                 <div class="mt-3">
@@ -288,8 +288,8 @@
         // Get values
         const leaveDateInput = document.getElementById('moveOutDate').value;
         const leaveDate = new Date(leaveDateInput);
-        const electricityReading = parseFloat(document.querySelector('input[name="electricity_reading"]').value) || 0;
-        const waterReading = parseFloat(document.querySelector('input[name="water_reading"]').value) || 0;
+        const electricityCharge = parseFloat(document.querySelector('input[name="electricity_charge"]').value) || 0;
+        const waterCharge = parseFloat(document.querySelector('input[name="water_charge"]').value) || 0;
         const internetCharge = parseFloat(document.querySelector('input[name="internet_charge"]').value) || 0;
         const parkingCharge = parseFloat(document.querySelector('input[name="parking_charge"]').value) || 0;
 
@@ -304,12 +304,6 @@
         // Calculate pro-rata rent (assuming 30 days per month)
         const dailyRate = monthlyRent / 30;
         const proRataRent = stayDays * dailyRate;
-
-        // Calculate electricity charge (example rates)
-        const electricityCharge = electricityReading * 2.5;
-
-        // Calculate water charge (example rates)
-        const waterCharge = waterReading * 1.8;
 
         // Calculate totals
         const totalDue = proRataRent + electricityCharge + waterCharge + internetCharge + parkingCharge;
@@ -331,8 +325,8 @@
 
     // Update calculations on input change
     document.getElementById('moveOutDate').addEventListener('change', updateCalculations);
-    document.querySelector('input[name="electricity_reading"]').addEventListener('input', updateCalculations);
-    document.querySelector('input[name="water_reading"]').addEventListener('input', updateCalculations);
+    document.querySelector('input[name="electricity_charge"]').addEventListener('input', updateCalculations);
+    document.querySelector('input[name="water_charge"]').addEventListener('input', updateCalculations);
     document.querySelector('input[name="internet_charge"]').addEventListener('input', updateCalculations);
     document.querySelector('input[name="parking_charge"]').addEventListener('input', updateCalculations);
 

@@ -361,6 +361,7 @@ class RevenueExpenseController extends Controller
      */
     public function calculateIncome($startDate = null, $endDate = null)
     {
+        // Rent payments from tenants
         $query = Payments::whereHas('rental', function ($q) {
             $q->whereHas('apartment', function ($q2) {
                 $q2->where('supervisor_id', Auth::id())
@@ -374,16 +375,67 @@ class RevenueExpenseController extends Controller
 
         $paidPayments = $query->get();
         
-        $totalIncome = $paidPayments->sum('amount');
+        $rentIncome = $paidPayments->sum('amount');
         $lateFeesIncome = $paidPayments->sum('late_fee');
-        $totalIncomeWithFees = $totalIncome + $lateFeesIncome;
+
+        // Utility/other charges from tenants (electricity, water, internet, parking)
+        $utilitiesQuery = Utilities::whereHas('rental', function ($q) {
+            $q->whereHas('apartment', function ($q2) {
+                $q2->where('supervisor_id', Auth::id())
+                    ->orWhereNull('supervisor_id');
+            });
+        });
+
+        if ($startDate && $endDate) {
+            $start = Carbon::parse($startDate);
+            $end = Carbon::parse($endDate);
+            $utilitiesQuery->where(function ($q) use ($startDate, $endDate, $start, $end) {
+                // Match by paid_at if available, otherwise fall back to billing_month/year or created_at
+                $q->whereBetween('paid_at', [$startDate, $endDate])
+                  ->orWhere(function ($q2) use ($start, $end) {
+                      $q2->whereNull('paid_at')
+                          ->where(function ($q3) use ($start, $end) {
+                              // Use billing_month/year range
+                              $q3->where(function ($q4) use ($start, $end) {
+                                  $q4->where('billing_year', '>', $start->year)
+                                      ->orWhere(function ($q5) use ($start) {
+                                          $q5->where('billing_year', $start->year)
+                                             ->where('billing_month', '>=', $start->month);
+                                      });
+                              })->where(function ($q4) use ($end) {
+                                  $q4->where('billing_year', '<', $end->year)
+                                      ->orWhere(function ($q5) use ($end) {
+                                          $q5->where('billing_year', $end->year)
+                                             ->where('billing_month', '<=', $end->month);
+                                      });
+                              });
+                          });
+                  });
+            });
+        }
+
+        $utilities = $utilitiesQuery->get();
+
+        $electricityIncome = $utilities->where('utility_type', 'electricity')->sum('charge_amount');
+        $waterIncome = $utilities->where('utility_type', 'water')->sum('charge_amount');
+        $internetIncome = $utilities->where('utility_type', 'internet')->sum('charge_amount');
+        $parkingIncome = $utilities->where('utility_type', 'parking')->sum('charge_amount');
+        $totalUtilityIncome = $electricityIncome + $waterIncome + $internetIncome + $parkingIncome;
+
+        $totalIncome = $rentIncome + $lateFeesIncome + $totalUtilityIncome;
 
         return [
-            'rent_income' => $totalIncome,
-            'late_fees' => $lateFeesIncome,
-            'total_income' => $totalIncomeWithFees,
+            'rent_income' => round($rentIncome, 2),
+            'late_fees' => round($lateFeesIncome, 2),
+            'electricity_income' => round($electricityIncome, 2),
+            'water_income' => round($waterIncome, 2),
+            'internet_income' => round($internetIncome, 2),
+            'parking_income' => round($parkingIncome, 2),
+            'total_utility_income' => round($totalUtilityIncome, 2),
+            'total_income' => round($totalIncome, 2),
             'payment_count' => $paidPayments->count(),
-            'average_payment' => $paidPayments->count() > 0 ? round($totalIncome / $paidPayments->count(), 2) : 0,
+            'utility_count' => $utilities->count(),
+            'average_payment' => $paidPayments->count() > 0 ? round($rentIncome / $paidPayments->count(), 2) : 0,
         ];
     }
 
@@ -396,53 +448,36 @@ class RevenueExpenseController extends Controller
      */
     public function calculateExpenses($startDate = null, $endDate = null)
     {
-        // Get utilities expenses
-        $utilitiesQuery = Utilities::whereHas('rental', function ($q) {
-            $q->wherehas('apartment', function ($q2) {
-                $q2->where('supervisor_id', Auth::id())
-                    ->orWhereNull('supervisor_id');
-            });
-        });
+        // Business overall expenses only (from BusinessExpense model)
+        $activePeriod = $this->getActiveFiscalPeriod();
 
-        if ($startDate && $endDate) {
-            $utilitiesQuery->whereBetween('paid_at', [$startDate, $endDate]);
+        $businessQuery = BusinessExpense::where('user_id', Auth::id());
+
+        if ($activePeriod) {
+            $businessQuery->where('fiscal_period_id', $activePeriod->id);
         }
 
-        $utilities = $utilitiesQuery->get();
-
-        // Calculate electricity expense - use charge_amount directly (consistent with per-apartment)
-        $electricity = $utilities->where('utility_type', 'electricity')->sum('charge_amount');
-
-        // Calculate water expense
-        $water = $utilities->where('utility_type', 'water')->sum('charge_amount');
-
-        // Calculate internet expense
-        $internet = $utilities->where('utility_type', 'internet')->sum('charge_amount');
-
-        // Calculate parking expense (if stored separately, otherwise included in utilities)
-        $parking = $utilities->where('utility_type', 'parking')->sum('charge_amount');
-
-        // Other maintenance expenses can be added from accounts
-        $otherExpenses = \App\Models\Accounts::where('user_id', Auth::id())
-            ->where('account_type', 'expense')
-            ->where('category', '!=', 'utilities_expense');
-
         if ($startDate && $endDate) {
-            $otherExpenses->whereBetween('transaction_date', [$startDate, $endDate]);
+            $businessQuery->whereBetween('expense_date', [$startDate, $endDate]);
         }
 
-        $otherExpensesTotal = $otherExpenses->sum('amount');
+        $businessExpenses = $businessQuery->get();
 
-        $totalExpenses = $electricity + $water + $internet + $parking + $otherExpensesTotal;
+        $fixedExpenses = $businessExpenses->where('cost_type', 'fixed')->sum('amount');
+        $variableExpenses = $businessExpenses->where('cost_type', 'variable')->sum('amount');
+        $totalExpenses = $fixedExpenses + $variableExpenses;
+
+        // Group by category for breakdown
+        $byCategory = $businessExpenses->groupBy('category')->map(function ($items) {
+            return round($items->sum('amount'), 2);
+        })->toArray();
 
         return [
-            'electricity' => round($electricity, 2),
-            'water' => round($water, 2),
-            'internet' => round($internet, 2),
-            'parking' => round($parking, 2),
-            'other_expenses' => round($otherExpensesTotal, 2),
+            'fixed_expenses' => round($fixedExpenses, 2),
+            'variable_expenses' => round($variableExpenses, 2),
+            'by_category' => $byCategory,
             'total_expenses' => round($totalExpenses, 2),
-            'expense_count' => $utilities->count(),
+            'expense_count' => $businessExpenses->count(),
         ];
     }
 
@@ -455,13 +490,15 @@ class RevenueExpenseController extends Controller
      */
     public function calculateSummary($income, $expenses)
     {
-        $netProfit = $income['total_income'] - $expenses['total_expenses'];
-        $profitMargin = $income['total_income'] > 0 
-            ? round(($netProfit / $income['total_income']) * 100, 2)
+        // Net Profit = Rent income only minus business expenses
+        $netProfit = $income['rent_income'] - $expenses['total_expenses'];
+        $profitMargin = $income['rent_income'] > 0 
+            ? round(($netProfit / $income['rent_income']) * 100, 2)
             : 0;
 
         return [
             'total_income' => $income['total_income'],
+            'rent_income' => $income['rent_income'],
             'total_expenses' => $expenses['total_expenses'],
             'net_profit' => round($netProfit, 2),
             'profit_margin' => $profitMargin,
