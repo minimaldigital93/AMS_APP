@@ -119,8 +119,23 @@ Route::middleware(['auth', 'role:admin'])->group(function () {
         Route::get('/admin/revenue-expense/record-income', [RevenueExpenseController::class, 'recordIncome'])->name('admin.revenue_expense.record_income');
         Route::post('/admin/revenue-expense/record-income', [RevenueExpenseController::class, 'storeIncome'])->name('admin.revenue_expense.store_income');
         Route::post('/admin/revenue-expense/record-income-bulk', [RevenueExpenseController::class, 'storeBulkIncome'])->name('admin.revenue_expense.store_income_bulk');
+
+        // Tenant Billing Actions
+        Route::post('/admin/revenue-expense/add-charge', [RevenueExpenseController::class, 'addTenantCharge'])->name('admin.revenue_expense.add_charge');
+        Route::delete('/admin/revenue-expense/remove-charge/{charge}', [RevenueExpenseController::class, 'removeTenantCharge'])->name('admin.revenue_expense.remove_charge');
+        Route::post('/admin/revenue-expense/checkout', [RevenueExpenseController::class, 'checkoutTenant'])->name('admin.revenue_expense.checkout');
+        Route::get('/admin/revenue-expense/print-bill/{rental}', [RevenueExpenseController::class, 'printTenantBill'])->name('admin.revenue_expense.print_bill');
+
         Route::get('/admin/revenue-expense/record-expense', [RevenueExpenseController::class, 'recordExpense'])->name('admin.revenue_expense.record_expense');
         Route::post('/admin/revenue-expense/record-expense', [RevenueExpenseController::class, 'storeExpense'])->name('admin.revenue_expense.store_expense');
+
+        // Other Expense Allocation
+        Route::post('/admin/revenue-expense/other-expense', [RevenueExpenseController::class, 'storeOtherExpense'])->name('admin.revenue_expense.store_other_expense');
+        Route::delete('/admin/revenue-expense/other-expense/{expense}', [RevenueExpenseController::class, 'deleteOtherExpense'])->name('admin.revenue_expense.delete_other_expense');
+
+        // Business Fixed & Variable Expenses
+        Route::post('/admin/revenue-expense/business-expense', [RevenueExpenseController::class, 'storeBusinessExpense'])->name('admin.revenue_expense.store_business_expense');
+        Route::delete('/admin/revenue-expense/business-expense/{businessExpense}', [RevenueExpenseController::class, 'deleteBusinessExpense'])->name('admin.revenue_expense.delete_business_expense');
 
         // Fixed Expense Management
         Route::get('/admin/revenue-expense/fixed-expenses', [RevenueExpenseController::class, 'fixedExpenses'])->name('admin.revenue_expense.fixed_expenses');

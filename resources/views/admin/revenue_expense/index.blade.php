@@ -1,60 +1,133 @@
 @extends('layouts.admin')
 
 @section('content')
-<div class="max-w-7xl mx-auto px-4 py-6 space-y-4" x-data="revenueExpense()">
+<div class="container mx-auto px-4 py-8 space-y-4" x-data="revenueExpense()">
 
     {{-- Header --}}
-    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+    <div class="mb-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-            <h1 class="text-2xl font-bold text-gray-900">Revenue & Expense</h1>
-            <p class="text-sm text-gray-500 mt-1">
-                {{ $activePeriod->name }} &middot;
+            <h1 class="text-3xl font-bold text-gray-900">Revenue & Expense</h1>
+            <p class="text-gray-600 mt-2">
                 @if(isset($filterMonth) && $filterMonth)
-                    {{ \Carbon\Carbon::create($filterYear, $filterMonth, 1)->format('F Y') }}
-                    <a href="{{ route('admin.revenue_expense.index', ['period' => $activePeriod->id]) }}" class="text-blue-500 hover:underline ml-1 text-xs">(clear filter)</a>
+                    Viewing <span class="font-semibold text-blue-600">{{ \Carbon\Carbon::create($filterYear, $filterMonth, 1)->format('F Y') }}</span>
                 @else
-                    {{ \Carbon\Carbon::parse($activePeriod->opening_date)->format('M d, Y') }} –
-                    {{ \Carbon\Carbon::parse($activePeriod->closing_date)->format('M d, Y') }}
+                    Full period overview
                 @endif
+                — Fiscal Period: <span class="font-semibold text-blue-600">{{ $activePeriod->name }}</span>
             </p>
         </div>
         <div class="flex items-center gap-2">
             @if($fiscalPeriods->count() > 1)
             <form method="GET" action="{{ route('admin.revenue_expense.index') }}">
-                <select name="period" onchange="this.form.submit()" class="text-sm border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500">
+                <select name="period" onchange="this.form.submit()" class="text-sm border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500">
                     @foreach($fiscalPeriods as $fp)
                     <option value="{{ $fp->id }}" {{ $fp->id === $activePeriod->id ? 'selected' : '' }}>{{ $fp->name }}</option>
                     @endforeach
                 </select>
             </form>
             @endif
-            {{-- Monthly Filter --}}
-            @if(isset($periodMonths) && count($periodMonths) > 0)
-            <form method="GET" action="{{ route('admin.revenue_expense.index') }}">
-                <input type="hidden" name="period" value="{{ $activePeriod->id }}">
-                <select name="month" onchange="
-                    var opt = this.options[this.selectedIndex];
-                    var y = opt.getAttribute('data-year');
-                    var yInput = this.form.querySelector('[name=year]');
-                    if (yInput) yInput.value = y;
-                    this.form.submit();
-                " class="text-sm border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500">
-                    <option value="">All Months</option>
-                    @foreach($periodMonths as $pm)
-                    <option value="{{ $pm['month'] }}" data-year="{{ $pm['year'] }}"
-                        {{ (isset($filterMonth) && $filterMonth == $pm['month'] && isset($filterYear) && $filterYear == $pm['year']) ? 'selected' : '' }}>
-                        {{ $pm['label'] }}
-                    </option>
-                    @endforeach
-                </select>
-                <input type="hidden" name="year" value="{{ $filterYear ?? '' }}">
-            </form>
-            @endif
-            <button onclick="window.print()" class="p-2 text-gray-400 hover:text-gray-600 rounded-md" title="Print">
+            <button onclick="window.print()" class="p-2 text-gray-400 hover:text-gray-600 rounded-lg" title="Print">
                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>
             </button>
         </div>
     </div>
+
+    {{-- Month Navigation --}}
+    @if(isset($periodMonths) && count($periodMonths) > 0)
+    @php
+        // Build prev/next month links
+        $currentIdx = null;
+        foreach ($periodMonths as $idx => $pm) {
+            if (isset($filterMonth) && $filterMonth == $pm['month'] && isset($filterYear) && $filterYear == $pm['year']) {
+                $currentIdx = $idx;
+                break;
+            }
+        }
+        $selectedMonth = isset($filterMonth) && $filterMonth
+            ? \Carbon\Carbon::create($filterYear, $filterMonth, 1)
+            : now();
+        $isCurrentMonth = $selectedMonth->month === now()->month && $selectedMonth->year === now()->year;
+        $isFilterActive = isset($filterMonth) && $filterMonth;
+
+        $prevMonth = ($currentIdx !== null && $currentIdx > 0) ? $periodMonths[$currentIdx - 1] : ($isFilterActive ? null : $periodMonths[count($periodMonths) - 1]);
+        $nextMonth = ($currentIdx !== null && $currentIdx < count($periodMonths) - 1) ? $periodMonths[$currentIdx + 1] : null;
+
+        // If no filter active, first entry = first month
+        if (!$isFilterActive && count($periodMonths) > 0) {
+            $prevMonth = null;
+            $nextMonth = null;
+        }
+    @endphp
+    <div class="mb-6 flex items-center justify-center">
+        <div class="inline-flex items-center bg-white rounded-xl shadow-md border border-gray-200 px-2 py-1.5 gap-1">
+            {{-- Previous Month --}}
+            @if($prevMonth)
+            <a href="{{ route('admin.revenue_expense.index', ['period' => $activePeriod->id, 'month' => $prevMonth['month'], 'year' => $prevMonth['year']]) }}"
+               class="inline-flex items-center justify-center w-10 h-10 rounded-lg text-gray-600 hover:bg-gray-100 hover:text-blue-600 transition" title="Previous Month">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
+            </a>
+            @else
+            <span class="inline-flex items-center justify-center w-10 h-10 rounded-lg text-gray-300 cursor-not-allowed">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
+            </span>
+            @endif
+
+            {{-- Current Month Display --}}
+            <div class="px-4 py-2 min-w-[220px] text-center">
+                @if($isFilterActive)
+                    <span class="text-lg font-bold text-gray-900">{{ $selectedMonth->format('F') }}</span>
+                    <span class="text-lg text-gray-500 ml-1">{{ $selectedMonth->format('Y') }}</span>
+                    @if($isCurrentMonth)
+                        <span class="ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-700">Current</span>
+                    @elseif($selectedMonth->isFuture())
+                        <span class="ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-700">Upcoming</span>
+                    @else
+                        <span class="ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600">Past</span>
+                    @endif
+                @else
+                    <span class="text-lg font-bold text-gray-900">All Months</span>
+                    <span class="ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-700">Full Period</span>
+                @endif
+            </div>
+
+            {{-- Next Month --}}
+            @if($nextMonth)
+            <a href="{{ route('admin.revenue_expense.index', ['period' => $activePeriod->id, 'month' => $nextMonth['month'], 'year' => $nextMonth['year']]) }}"
+               class="inline-flex items-center justify-center w-10 h-10 rounded-lg text-gray-600 hover:bg-gray-100 hover:text-blue-600 transition" title="Next Month">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+            </a>
+            @else
+            <span class="inline-flex items-center justify-center w-10 h-10 rounded-lg text-gray-300 cursor-not-allowed">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+            </span>
+            @endif
+
+            {{-- Quick Actions --}}
+            @if($isFilterActive)
+            <a href="{{ route('admin.revenue_expense.index', ['period' => $activePeriod->id]) }}"
+               class="ml-1 inline-flex items-center px-3 py-2 text-sm font-medium text-gray-600 bg-gray-50 rounded-lg hover:bg-gray-100 transition" title="View all months">
+                <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h16M4 18h16"/></svg>
+                All
+            </a>
+            @endif
+
+            @if(!$isCurrentMonth || !$isFilterActive)
+            @php
+                $nowMonth = now()->month;
+                $nowYear = now()->year;
+                $currentInPeriod = collect($periodMonths)->first(fn($pm) => $pm['month'] == $nowMonth && $pm['year'] == $nowYear);
+            @endphp
+            @if($currentInPeriod)
+            <a href="{{ route('admin.revenue_expense.index', ['period' => $activePeriod->id, 'month' => $nowMonth, 'year' => $nowYear]) }}"
+               class="ml-1 inline-flex items-center px-3 py-2 text-sm font-medium text-blue-600 bg-blue-50 rounded-lg hover:bg-blue-100 transition" title="Go to current month">
+                <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+                Today
+            </a>
+            @endif
+            @endif
+        </div>
+    </div>
+    @endif
 
     {{-- Fiscal Period Progress Bar --}}
     @php
@@ -80,7 +153,7 @@
             $textColor = 'text-blue-600';
         }
     @endphp
-    <div class="bg-white rounded-lg border px-4 py-2.5">
+    <div class="bg-white rounded-xl shadow-md px-4 py-2.5">
         <div class="flex items-center justify-between mb-1">
             <span class="text-xs font-semibold {{ $textColor }}">{{ $periodPercent }}%</span>
             <span class="text-xs font-medium text-gray-500">{{ $daysLeft }} days left</span>
@@ -92,19 +165,19 @@
 
     {{-- Flash Messages --}}
     @if(session('success'))
-    <div class="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-lg text-sm flex items-center gap-2">
-        <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+    <div class="mb-6 bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded-lg flex items-center gap-2">
+        <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
         {{ session('success') }}
     </div>
     @endif
     @if(session('error'))
-    <div class="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm flex items-center gap-2">
-        <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+    <div class="mb-6 bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-lg flex items-center gap-2">
+        <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
         {{ session('error') }}
     </div>
     @endif
     @if($errors->any())
-    <div class="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">
+    <div class="mb-6 bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-lg">
         <ul class="list-disc list-inside space-y-1">
             @foreach($errors->all() as $error)
                 <li>{{ $error }}</li>
@@ -114,20 +187,20 @@
     @endif
 
     {{-- Tab Navigation --}}
-    <div class="border-b border-gray-200 overflow-x-auto">
-        <nav class="flex gap-1 -mb-px" aria-label="Tabs">
+    <div class="bg-white rounded-xl shadow-md p-1 overflow-x-auto">
+        <nav class="flex gap-1" aria-label="Tabs">
             <template x-for="t in tabs" :key="t.key">
                 <template x-if="t.href">
                     <a :href="t.href"
-                        class="whitespace-nowrap px-4 py-2.5 border-b-2 text-sm font-medium transition rounded-t-md border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+                        class="whitespace-nowrap px-4 py-2.5 text-sm font-medium transition rounded-lg text-gray-500 hover:text-gray-700 hover:bg-gray-100"
                         x-text="t.label"></a>
                 </template>
                 <template x-if="!t.href">
                     <button @click="tab = t.key"
                         :class="tab === t.key
-                            ? 'border-blue-500 text-blue-600 bg-blue-50/50'
-                            : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'"
-                        class="whitespace-nowrap px-4 py-2.5 border-b-2 text-sm font-medium transition rounded-t-md"
+                            ? 'bg-blue-600 text-white shadow-sm'
+                            : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'"
+                        class="whitespace-nowrap px-4 py-2.5 text-sm font-medium transition rounded-lg"
                         x-text="t.label">
                     </button>
                 </template>
@@ -141,34 +214,62 @@
     <div x-show="tab === 'overview'" x-cloak>
 
         {{-- Summary Cards --}}
-        <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
-            <div class="bg-white rounded-lg border p-5">
-                <p class="text-xs font-medium text-gray-500 uppercase tracking-wide">Income</p>
-                <p class="text-2xl font-bold text-green-600 mt-1">${{ number_format($income['total_income'], 2) }}</p>
-                <p class="text-xs text-gray-400 mt-1">{{ $income['payment_count'] }} payment{{ $income['payment_count'] !== 1 ? 's' : '' }}</p>
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
+            <div class="bg-white rounded-xl shadow-md p-6 border-l-4 border-green-500">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-gray-500 text-sm font-medium">Income</p>
+                        <p class="text-2xl font-bold text-green-600 mt-1">${{ number_format($income['total_income'], 2) }}</p>
+                    </div>
+                    <div class="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center">
+                        <svg class="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                    </div>
+                </div>
+                <p class="text-xs text-gray-400 mt-2">{{ $income['payment_count'] }} payment{{ $income['payment_count'] !== 1 ? 's' : '' }}</p>
             </div>
-            <div class="bg-white rounded-lg border p-5">
-                <p class="text-xs font-medium text-gray-500 uppercase tracking-wide">Expenses</p>
-                <p class="text-2xl font-bold text-red-600 mt-1">${{ number_format($expenses['total_expenses'], 2) }}</p>
-                <p class="text-xs text-gray-400 mt-1">{{ $expenses['expense_count'] }} transaction{{ $expenses['expense_count'] !== 1 ? 's' : '' }}</p>
+            <div class="bg-white rounded-xl shadow-md p-6 border-l-4 border-red-500">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-gray-500 text-sm font-medium">Expenses</p>
+                        <p class="text-2xl font-bold text-red-600 mt-1">${{ number_format($expenses['total_expenses'], 2) }}</p>
+                    </div>
+                    <div class="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center">
+                        <svg class="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 17h8m0 0V9m0 8l-8-8-4 4-6-6"/></svg>
+                    </div>
+                </div>
+                <p class="text-xs text-gray-400 mt-2">{{ $expenses['expense_count'] }} transaction{{ $expenses['expense_count'] !== 1 ? 's' : '' }}</p>
             </div>
-            <div class="bg-white rounded-lg border p-5">
-                <p class="text-xs font-medium text-gray-500 uppercase tracking-wide">Net Profit</p>
-                <p class="text-2xl font-bold {{ $summary['net_profit'] >= 0 ? 'text-blue-600' : 'text-orange-600' }} mt-1">
-                    {{ $summary['net_profit'] >= 0 ? '+' : '' }}${{ number_format($summary['net_profit'], 2) }}
-                </p>
-                <p class="text-xs text-gray-400 mt-1">{{ $summary['profit_margin'] }}% margin</p>
+            <div class="bg-white rounded-xl shadow-md p-6 border-l-4 {{ $summary['net_profit'] >= 0 ? 'border-blue-500' : 'border-orange-500' }}">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-gray-500 text-sm font-medium">Net Profit</p>
+                        <p class="text-2xl font-bold {{ $summary['net_profit'] >= 0 ? 'text-blue-600' : 'text-orange-600' }} mt-1">
+                            {{ $summary['net_profit'] >= 0 ? '+' : '' }}${{ number_format($summary['net_profit'], 2) }}
+                        </p>
+                    </div>
+                    <div class="w-12 h-12 {{ $summary['net_profit'] >= 0 ? 'bg-blue-100' : 'bg-orange-100' }} rounded-full flex items-center justify-center">
+                        <svg class="w-6 h-6 {{ $summary['net_profit'] >= 0 ? 'text-blue-600' : 'text-orange-600' }}" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+                    </div>
+                </div>
+                <p class="text-xs text-gray-400 mt-2">{{ $summary['profit_margin'] }}% margin</p>
             </div>
-            <div class="bg-white rounded-lg border p-5">
-                <p class="text-xs font-medium text-gray-500 uppercase tracking-wide">Occupancy</p>
-                <p class="text-2xl font-bold text-gray-900 mt-1">{{ $occupiedCount }}/{{ $totalApartments }}</p>
-                <p class="text-xs text-gray-400 mt-1">{{ $occupancyRate }}% occupied</p>
+            <div class="bg-white rounded-xl shadow-md p-6 border-l-4 border-purple-500">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-gray-500 text-sm font-medium">Occupancy</p>
+                        <p class="text-2xl font-bold text-purple-600 mt-1">{{ $occupiedCount }}/{{ $totalApartments }}</p>
+                    </div>
+                    <div class="w-12 h-12 bg-purple-100 rounded-full flex items-center justify-center">
+                        <svg class="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/></svg>
+                    </div>
+                </div>
+                <p class="text-xs text-gray-400 mt-2">{{ $occupancyRate }}% occupied</p>
             </div>
         </div>
 
         {{-- Collection Progress --}}
         @if($expectedMonthlyRent > 0)
-        <div class="bg-white rounded-lg border p-5 mb-4">
+        <div class="bg-white rounded-xl shadow-md p-5 mb-6">
             <div class="flex items-center justify-between mb-2">
                 <p class="text-sm font-medium text-gray-700">Monthly Rent Collection</p>
                 <p class="text-sm font-semibold text-gray-900">
@@ -183,17 +284,17 @@
         @endif
 
         {{-- Income & Expense Breakdown --}}
-        <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
-            <div class="bg-white rounded-lg border">
-                <div class="px-5 py-3 border-b"><h2 class="text-sm font-semibold text-gray-900">Income Breakdown</h2></div>
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+            <div class="bg-white rounded-xl shadow-md overflow-hidden">
+                <div class="px-5 py-4 border-b bg-gray-50"><h2 class="text-sm font-semibold text-gray-900">Income Breakdown</h2></div>
                 <div class="divide-y">
                     <div class="flex justify-between px-5 py-2.5"><span class="text-sm text-gray-600">Rent</span><span class="text-sm font-semibold">${{ number_format($income['rent_income'], 2) }}</span></div>
                     <div class="flex justify-between px-5 py-2.5"><span class="text-sm text-gray-600">Late Fees</span><span class="text-sm font-semibold">${{ number_format($income['late_fees'], 2) }}</span></div>
                     <div class="flex justify-between px-5 py-2.5 bg-gray-50"><span class="text-sm font-semibold">Total</span><span class="text-sm font-bold text-green-600">${{ number_format($income['total_income'], 2) }}</span></div>
                 </div>
             </div>
-            <div class="bg-white rounded-lg border">
-                <div class="px-5 py-3 border-b"><h2 class="text-sm font-semibold text-gray-900">Expense Breakdown</h2></div>
+            <div class="bg-white rounded-xl shadow-md overflow-hidden">
+                <div class="px-5 py-4 border-b bg-gray-50"><h2 class="text-sm font-semibold text-gray-900">Expense Breakdown</h2></div>
                 <div class="divide-y">
                     <div class="flex justify-between px-5 py-2.5"><span class="text-sm text-gray-600">⚡ Electricity</span><span class="text-sm font-semibold">${{ number_format($expenses['electricity'], 2) }}</span></div>
                     <div class="flex justify-between px-5 py-2.5"><span class="text-sm text-gray-600">💧 Water</span><span class="text-sm font-semibold">${{ number_format($expenses['water'], 2) }}</span></div>
@@ -210,7 +311,7 @@
 
         {{-- Per-Apartment Table --}}
         @if(isset($perApartment) && count($perApartment) > 0)
-        <div class="bg-white rounded-lg border" x-data="{ showAll: false, expenseForm: null }">
+        <div class="bg-white rounded-xl shadow-md overflow-hidden" x-data="{ showAll: false, expenseForm: null }">
             <div class="px-5 py-3 border-b flex items-center justify-between">
                 <h2 class="text-sm font-semibold text-gray-900">Per-Apartment Summary</h2>
                 <button @click="showAll = !showAll" class="text-xs text-blue-600 hover:text-blue-800 font-medium">

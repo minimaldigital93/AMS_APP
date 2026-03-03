@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Accounts;
 use App\Models\ApartmentFixedExpense;
+use App\Models\BusinessExpense;
 use App\Models\FiscalPeriods;
 use App\Models\Payments;
 use App\Models\Utilities;
@@ -584,9 +585,12 @@ class RevenueExpenseController extends Controller
         $apartments = $this->scopeApartments()->get();
         $totalApartments = $apartments->count();
 
-        // Get average rent per apartment
+        // Get average rent per apartment (avg returns null when no records exist)
         $avgRentPerApartment = Rentals::whereIn('apartment_id', $apartments->pluck('id'))
-            ->avg('rent_amount');
+            ->where(function ($q) {
+                $q->whereNull('end_date')->orWhere('end_date', '>=', now());
+            })
+            ->avg('rent_amount') ?? 0;
 
         // Get fixed costs (monthly)
         $fixedCosts = $this->calculateFixedCosts();
@@ -640,63 +644,75 @@ class RevenueExpenseController extends Controller
 
     /**
      * Calculate fixed costs (monthly)
+     * Uses ApartmentFixedExpense for recurring monthly fixed costs (internet, parking, trash, etc.)
      * 
      * @return float
      */
     private function calculateFixedCosts()
     {
-        // Fixed costs include: internet, maintenance costs, insurance, etc.
-        // For now, we'll calculate from utilities and other fixed expenses
-        
-        $monthlyUtilities = Utilities::whereHas('rental', function ($q) {
-            $q->wherehas('apartment', function ($q2) {
-                $q2->where('supervisor_id', Auth::id())
-                    ->orWhereNull('supervisor_id');
-            });
-        })
-            ->where('utility_type', 'internet')
-            ->where('paid_status', true)
-            ->sum('charge_amount');
+        $apartmentIds = $this->scopeApartments()->pluck('id');
+
+        // Sum all active fixed expenses across supervised apartments
+        $monthlyFixedExpenses = ApartmentFixedExpense::whereIn('apartment_id', $apartmentIds)
+            ->where('is_active', true)
+            ->sum('amount');
+
+        // Also include any fixed maintenance/insurance expenses from Accounts for current month
+        $currentMonth = now()->month;
+        $currentYear = now()->year;
 
         $monthlyOtherFixed = \App\Models\Accounts::where('user_id', Auth::id())
             ->where('account_type', 'expense')
             ->where('category', 'maintenance')
+            ->whereMonth('transaction_date', $currentMonth)
+            ->whereYear('transaction_date', $currentYear)
             ->sum('amount');
 
-        return $monthlyUtilities + $monthlyOtherFixed;
+        return $monthlyFixedExpenses + $monthlyOtherFixed;
     }
 
     /**
-     * Calculate variable cost per unit
+     * Calculate variable cost per unit (monthly average)
+     * Uses current month utility charges divided by occupied apartments
      * 
      * @return float
      */
     private function calculateVariableCostPerUnit()
     {
-        // Variable costs include: electricity, water, parking per unit
-        $apartments = $this->scopeApartments()->count();
+        $apartmentIds = $this->scopeApartments()->pluck('id');
         
-        if ($apartments == 0) {
+        // Count occupied apartments (active rentals)
+        $occupiedCount = Rentals::whereIn('apartment_id', $apartmentIds)
+            ->where('start_date', '<=', now())
+            ->where(function ($q) {
+                $q->whereNull('end_date')->orWhere('end_date', '>=', now());
+            })
+            ->count();
+
+        if ($occupiedCount == 0) {
             return 0;
         }
 
-        $monthlyVariableCosts = Utilities::whereHas('rental', function ($q) {
-            $q->wherehas('apartment', function ($q2) {
-                $q2->where('supervisor_id', Auth::id())
-                    ->orWhereNull('supervisor_id');
-            });
+        $currentMonth = now()->month;
+        $currentYear = now()->year;
+
+        // Variable costs: electricity, water, parking for current month
+        $monthlyVariableCosts = Utilities::whereHas('rental', function ($q) use ($apartmentIds) {
+            $q->whereIn('apartment_id', $apartmentIds);
         })
             ->whereIn('utility_type', ['electricity', 'water', 'parking'])
-            ->where('paid_status', true)
+            ->where('billing_month', $currentMonth)
+            ->where('billing_year', $currentYear)
             ->sum('charge_amount');
 
-        return $monthlyVariableCosts / $apartments;
+        return $monthlyVariableCosts / $occupiedCount;
     }
 
     /**
-     * Show record income form — apartment-centric rent recording.
+     * Show record income form — tenant billing management.
+     * Auto-shows all tenants with due dates, charges, and payment status.
      */
-    public function recordIncome()
+    public function recordIncome(Request $request)
     {
         $activePeriod = $this->getActiveFiscalPeriod();
 
@@ -705,9 +721,38 @@ class RevenueExpenseController extends Controller
                 ->with('warning', 'Please create a fiscal period first.');
         }
 
-        // Get apartments with active rentals only, eager load payments within fiscal period
+        // Accept month/year from query params, default to current
+        $currentMonth = (int) $request->input('month', now()->month);
+        $currentYear  = (int) $request->input('year', now()->year);
+
+        // Build a Carbon date for the selected month
+        $selectedDate = Carbon::create($currentYear, $currentMonth, 1);
+
+        // Calculate previous and next month
+        $prevDate = $selectedDate->copy()->subMonth();
+        $nextDate = $selectedDate->copy()->addMonth();
+
+        // Determine if we're viewing the current (real) month, a past month, or a future month
+        $isCurrentMonth = ($currentMonth === now()->month && $currentYear === now()->year);
+        $isFutureMonth  = $selectedDate->copy()->startOfMonth()->gt(now()->copy()->startOfMonth());
+        $isPastMonth    = !$isCurrentMonth && !$isFutureMonth;
+
+        // Reference date for overdue comparison:
+        // - Current month: use now()
+        // - Past month: use end of that month
+        // - Future month: use start of that month (nothing should be overdue yet)
+        if ($isCurrentMonth) {
+            $referenceNow = now();
+        } elseif ($isPastMonth) {
+            $referenceNow = $selectedDate->copy()->endOfMonth();
+        } else {
+            // Future month — use start of month so nothing is overdue
+            $referenceNow = $selectedDate->copy()->startOfMonth();
+        }
+
+        // Get apartments with active rentals, eager load everything needed for billing
         $apartments = $this->scopeApartments()
-            ->with(['floor', 'rentals' => function ($q) use ($activePeriod) {
+            ->with(['floor', 'activeFixedExpenses', 'rentals' => function ($q) use ($activePeriod, $currentMonth, $currentYear) {
                 $q->where(function ($sq) {
                         $sq->whereNull('end_date')->orWhere('end_date', '>=', now());
                     })
@@ -715,16 +760,21 @@ class RevenueExpenseController extends Controller
                     ->with(['tenant', 'payments' => function ($pq) use ($activePeriod) {
                         $pq->where('payment_status', 'paid')
                             ->whereBetween('paid_at', [$activePeriod->opening_date, $activePeriod->closing_date]);
+                    }, 'utilities' => function ($uq) use ($currentMonth, $currentYear) {
+                        $uq->where('billing_month', $currentMonth)
+                            ->where('billing_year', $currentYear);
                     }]);
             }])
             ->get();
 
-        // Calculate per-apartment income summary
-        $apartmentSummary = [];
+        // Build tenant billing data
+        $tenantBills = [];
         $totalRentExpected = 0;
         $totalRentCollected = 0;
-        $currentMonth = now()->month;
-        $currentYear = now()->year;
+        $totalPending = 0;
+        $overdueCount = 0;
+        $paidCount = 0;
+        $pendingCount = 0;
 
         foreach ($apartments as $apartment) {
             foreach ($apartment->rentals as $rental) {
@@ -741,18 +791,73 @@ class RevenueExpenseController extends Controller
                             && Carbon::parse($p->paid_at)->year === $currentYear;
                     })->isNotEmpty();
 
-                $apartmentSummary[] = [
+                // Calculate due date: use the day from rental start_date each month
+                $dueDay = $rental->start_date ? $rental->start_date->day : 1;
+                $dueDay = min($dueDay, Carbon::create($currentYear, $currentMonth)->daysInMonth);
+                $dueDate = Carbon::create($currentYear, $currentMonth, $dueDay);
+
+                // Determine status
+                if ($paidThisMonth) {
+                    $status = 'paid';
+                    $paidCount++;
+                } elseif ($referenceNow->gt($dueDate)) {
+                    $status = 'overdue';
+                    $overdueCount++;
+                } else {
+                    $status = 'pending';
+                    $pendingCount++;
+                }
+
+                // Calculate extra charges (utilities for current month)
+                $utilityCharges = $rental->utilities ?? collect();
+                $totalUtilities = $utilityCharges->sum('charge_amount');
+
+                // Fixed expenses for the apartment
+                $fixedExpenses = $apartment->activeFixedExpenses ?? collect();
+                $totalFixed = $fixedExpenses->sum('amount');
+
+                // Total bill = rent + utilities + fixed expenses + late fee
+                $lateFeeAmount = (!$paidThisMonth && $referenceNow->gt($dueDate)) ? ($rental->payments->isEmpty() ? 0 : $lateFees) : 0;
+                $totalBill = $rental->rent_amount + $totalUtilities + $totalFixed;
+
+                if (!$paidThisMonth) {
+                    $totalPending += $totalBill;
+                }
+
+                $tenantBills[] = [
                     'apartment' => $apartment,
                     'rental' => $rental,
+                    'tenant' => $rental->tenant,
                     'monthly_rent' => $rental->rent_amount,
+                    'due_date' => $dueDate,
+                    'due_day' => $dueDay,
+                    'status' => $status,
+                    'paid_this_month' => $paidThisMonth,
+                    'utilities' => $utilityCharges,
+                    'total_utilities' => $totalUtilities,
+                    'fixed_expenses' => $fixedExpenses,
+                    'total_fixed' => $totalFixed,
+                    'total_bill' => $totalBill,
                     'collected' => $collected,
                     'late_fees' => $lateFees,
                     'total_collected' => $collected + $lateFees,
                     'payment_count' => $rental->payments->count(),
-                    'paid_this_month' => $paidThisMonth,
                 ];
             }
         }
+
+        // Sort: by floor number, then apartment number within each floor
+        usort($tenantBills, function ($a, $b) {
+            $floorA = $a['apartment']->floor->floor_number ?? 0;
+            $floorB = $b['apartment']->floor->floor_number ?? 0;
+            if ($floorA !== $floorB) {
+                return $floorA <=> $floorB;
+            }
+            return ($a['apartment']->apartment_number ?? '') <=> ($b['apartment']->apartment_number ?? '');
+        });
+
+        // Also keep the old $apartmentSummary for backward compat
+        $apartmentSummary = $tenantBills;
 
         // Recent income records for this fiscal period
         $recentIncome = Accounts::where('user_id', Auth::id())
@@ -763,9 +868,256 @@ class RevenueExpenseController extends Controller
             ->get();
 
         return view('admin.revenue_expense.record_income', compact(
-            'activePeriod', 'apartments', 'apartmentSummary', 'recentIncome',
-            'totalRentExpected', 'totalRentCollected'
+            'activePeriod', 'apartments', 'apartmentSummary', 'tenantBills', 'recentIncome',
+            'totalRentExpected', 'totalRentCollected', 'totalPending',
+            'overdueCount', 'paidCount', 'pendingCount',
+            'selectedDate', 'prevDate', 'nextDate',
+            'isCurrentMonth', 'isFutureMonth', 'isPastMonth',
+            'currentMonth', 'currentYear'
         ));
+    }
+
+    /**
+     * Add a charge (utility/expense) to a tenant's current month bill.
+     */
+    public function addTenantCharge(Request $request)
+    {
+        $validated = $request->validate([
+            'rental_id' => 'required|exists:rentals,id',
+            'charge_type' => 'required|in:electricity,water,internet,parking,cleaning,other',
+            'charge_amount' => 'required|numeric|min:0.01',
+            'meter_reading_in' => 'nullable|numeric|min:0',
+            'meter_reading_out' => 'nullable|numeric|min:0',
+            'note' => 'nullable|string|max:500',
+        ]);
+
+        $rental = Rentals::with('tenant')->findOrFail($validated['rental_id']);
+
+        Utilities::create([
+            'tenant_id' => $rental->tenant_id,
+            'rental_id' => $rental->id,
+            'utility_type' => $validated['charge_type'],
+            'meter_number' => null,
+            'meter_reading_in' => $validated['meter_reading_in'] ?? 0,
+            'meter_reading_out' => $validated['meter_reading_out'] ?? 0,
+            'charge_amount' => $validated['charge_amount'],
+            'billing_month' => now()->month,
+            'billing_year' => now()->year,
+            'paid_status' => false,
+            'paid_at' => null,
+        ]);
+
+        return redirect()->back()
+            ->with('success', ucfirst($validated['charge_type']) . ' charge of $' . number_format($validated['charge_amount'], 2) . ' added for ' . ($rental->tenant->name ?? 'tenant') . '.');
+    }
+
+    /**
+     * Remove a charge from a tenant's bill.
+     */
+    public function removeTenantCharge($chargeId)
+    {
+        $charge = Utilities::findOrFail($chargeId);
+
+        // Only allow removing unpaid charges
+        if ($charge->paid_status) {
+            return redirect()->back()->with('error', 'Cannot remove a charge that has already been paid.');
+        }
+
+        $charge->delete();
+
+        return redirect()->back()->with('success', 'Charge removed successfully.');
+    }
+
+    /**
+     * Checkout / Pay a tenant's full bill (rent + all charges).
+     */
+    public function checkoutTenant(Request $request)
+    {
+        $activePeriod = $this->getActiveFiscalPeriod();
+
+        if (!$activePeriod) {
+            return redirect()->route('admin.fiscalperiod.create')
+                ->with('warning', 'Please create a fiscal period first.');
+        }
+
+        $validated = $request->validate([
+            'rental_id' => 'required|exists:rentals,id',
+            'payment_method' => 'required|in:cash,bank',
+            'payment_date' => 'required|date',
+            'rent_amount' => 'required|numeric|min:0',
+            'late_fee' => 'nullable|numeric|min:0',
+            'pay_rent' => 'nullable|boolean',
+            'pay_utilities' => 'nullable|boolean',
+            'transaction_reference' => 'nullable|string|max:255',
+            'note' => 'nullable|string|max:1000',
+        ]);
+
+        $rental = Rentals::with(['apartment', 'tenant'])->findOrFail($validated['rental_id']);
+        $paymentDate = $validated['payment_date'];
+        $paymentMethod = $validated['payment_method'];
+        $lateFee = $validated['late_fee'] ?? 0;
+        $totalPaid = 0;
+        $items = [];
+
+        // Pay rent if selected
+        if (!empty($validated['pay_rent'])) {
+            $rentAmount = $validated['rent_amount'];
+
+            $payment = Payments::create([
+                'rental_id' => $rental->id,
+                'amount' => $rentAmount,
+                'due_date' => $paymentDate,
+                'paid_at' => $paymentDate,
+                'payment_method' => $paymentMethod,
+                'payment_status' => 'paid',
+                'payment_type' => 'rent',
+                'transaction_reference' => $validated['transaction_reference'] ?? null,
+                'late_fee' => $lateFee,
+                'note' => $validated['note'] ?? 'Monthly rent payment',
+            ]);
+
+            Accounts::create([
+                'fiscal_period_id' => $activePeriod->id,
+                'payment_id' => $payment->id,
+                'user_id' => Auth::id(),
+                'account_type' => 'income',
+                'category' => 'rent_income',
+                'description' => '[Apt ' . $rental->apartment->apartment_number . '] Monthly rent',
+                'amount' => $rentAmount + $lateFee,
+                'transaction_date' => $paymentDate,
+                'reference_number' => $validated['transaction_reference'] ?? null,
+                'note' => $validated['note'] ?? null,
+            ]);
+
+            $totalPaid += $rentAmount + $lateFee;
+            $items[] = 'Rent: $' . number_format($rentAmount, 2);
+        }
+
+        // Pay utilities if selected
+        if (!empty($validated['pay_utilities'])) {
+            $unpaidUtilities = Utilities::where('rental_id', $rental->id)
+                ->where('billing_month', now()->month)
+                ->where('billing_year', now()->year)
+                ->where('paid_status', false)
+                ->get();
+
+            if ($unpaidUtilities->isNotEmpty()) {
+                $utilityTotal = $unpaidUtilities->sum('charge_amount');
+
+                $payment = Payments::create([
+                    'rental_id' => $rental->id,
+                    'amount' => $utilityTotal,
+                    'due_date' => $paymentDate,
+                    'paid_at' => $paymentDate,
+                    'payment_method' => $paymentMethod,
+                    'payment_status' => 'paid',
+                    'payment_type' => 'utilities',
+                    'transaction_reference' => $validated['transaction_reference'] ?? null,
+                    'late_fee' => 0,
+                    'note' => 'Utility charges: ' . $unpaidUtilities->pluck('utility_type')->implode(', '),
+                ]);
+
+                Accounts::create([
+                    'fiscal_period_id' => $activePeriod->id,
+                    'payment_id' => $payment->id,
+                    'user_id' => Auth::id(),
+                    'account_type' => 'income',
+                    'category' => 'utility_income',
+                    'description' => '[Apt ' . $rental->apartment->apartment_number . '] Utility charges',
+                    'amount' => $utilityTotal,
+                    'transaction_date' => $paymentDate,
+                    'reference_number' => $validated['transaction_reference'] ?? null,
+                    'note' => 'Utilities: ' . $unpaidUtilities->pluck('utility_type')->implode(', '),
+                ]);
+
+                // Mark utilities as paid
+                foreach ($unpaidUtilities as $utility) {
+                    $utility->update([
+                        'paid_status' => true,
+                        'paid_at' => now(),
+                    ]);
+                }
+
+                $totalPaid += $utilityTotal;
+                $items[] = 'Utilities: $' . number_format($utilityTotal, 2);
+            }
+        }
+
+        if ($totalPaid === 0) {
+            return redirect()->back()->with('error', 'No items selected for payment.');
+        }
+
+        $tenantName = $rental->tenant->name ?? 'Tenant';
+        $aptNumber = $rental->apartment->apartment_number;
+
+        return redirect()->back()
+            ->with('success', "Payment of \${$totalPaid} recorded for {$tenantName} (Apt {$aptNumber}). Items: " . implode(', ', $items));
+    }
+
+    /**
+     * Print a tenant's bill for the current month.
+     */
+    public function printTenantBill($rentalId)
+    {
+        $activePeriod = $this->getActiveFiscalPeriod();
+        $currentMonth = now()->month;
+        $currentYear = now()->year;
+
+        $rental = Rentals::with(['apartment.floor', 'apartment.activeFixedExpenses', 'tenant'])
+            ->findOrFail($rentalId);
+
+        // Get utilities for current month
+        $utilities = Utilities::where('rental_id', $rental->id)
+            ->where('billing_month', $currentMonth)
+            ->where('billing_year', $currentYear)
+            ->get();
+
+        // Get payments for current month
+        $payments = Payments::where('rental_id', $rental->id)
+            ->where('payment_status', 'paid')
+            ->whereMonth('paid_at', $currentMonth)
+            ->whereYear('paid_at', $currentYear)
+            ->get();
+
+        $paidThisMonth = $payments->where('payment_type', 'rent')->isNotEmpty();
+
+        // Due date
+        $dueDay = $rental->start_date ? $rental->start_date->day : 1;
+        $dueDay = min($dueDay, Carbon::create($currentYear, $currentMonth)->daysInMonth);
+        $dueDate = Carbon::create($currentYear, $currentMonth, $dueDay);
+
+        // Fixed expenses
+        $fixedExpenses = $rental->apartment->activeFixedExpenses ?? collect();
+
+        // Calculate totals
+        $totalUtilities = $utilities->sum('charge_amount');
+        $totalFixed = $fixedExpenses->sum('amount');
+        $totalBill = $rental->rent_amount + $totalUtilities + $totalFixed;
+        $totalPaid = $payments->sum('amount') + $payments->sum('late_fee');
+        $balance = $totalBill - $totalPaid;
+
+        // Bill data
+        $billData = [
+            'rental' => $rental,
+            'apartment' => $rental->apartment,
+            'tenant' => $rental->tenant,
+            'floor' => $rental->apartment->floor,
+            'dueDate' => $dueDate,
+            'monthYear' => now()->format('F Y'),
+            'rent_amount' => $rental->rent_amount,
+            'utilities' => $utilities,
+            'totalUtilities' => $totalUtilities,
+            'fixedExpenses' => $fixedExpenses,
+            'totalFixed' => $totalFixed,
+            'totalBill' => $totalBill,
+            'totalPaid' => $totalPaid,
+            'balance' => $balance,
+            'paidThisMonth' => $paidThisMonth,
+            'payments' => $payments,
+            'activePeriod' => $activePeriod,
+        ];
+
+        return view('admin.revenue_expense.tenant_bill_print', $billData);
     }
 
     /**
@@ -912,7 +1264,8 @@ class RevenueExpenseController extends Controller
     }
 
     /**
-     * Show record expense form — apartment-centric utility expense recording.
+     * Show record expense form — apartment-centric utility expense recording
+     * with monthly breakdown, other expense allocation, and business expenses.
      */
     public function recordExpense()
     {
@@ -923,17 +1276,49 @@ class RevenueExpenseController extends Controller
                 ->with('warning', 'Please create a fiscal period first.');
         }
 
-        // Get all apartments with rentals and their utilities within fiscal period
+        // Monthly filter: ?month=3&year=2026
+        $filterMonth = request('month') ? (int) request('month') : null;
+        $filterYear = request('year') ? (int) request('year') : null;
+
+        // If no month filter, default to the current month
+        if (!$filterMonth || !$filterYear) {
+            $filterMonth = now()->month;
+            $filterYear = now()->year;
+        }
+
+        // Determine date range for the selected month, clamped to fiscal period
+        $filterStart = Carbon::create($filterYear, $filterMonth, 1)->startOfMonth();
+        $filterEnd = $filterStart->copy()->endOfMonth();
+        $startDate = $filterStart->lt(Carbon::parse($activePeriod->opening_date)) ? Carbon::parse($activePeriod->opening_date) : $filterStart;
+        $endDate = $filterEnd->gt(Carbon::parse($activePeriod->closing_date)) ? Carbon::parse($activePeriod->closing_date) : $filterEnd;
+
+        $currentMonth = now()->month;
+        $currentYear = now()->year;
+
+        // Build list of months within fiscal period for navigation
+        $periodMonths = [];
+        $mCursor = Carbon::parse($activePeriod->opening_date)->startOfMonth();
+        $mEnd = Carbon::parse($activePeriod->closing_date)->endOfMonth();
+        while ($mCursor->lte($mEnd)) {
+            $periodMonths[] = [
+                'month' => $mCursor->month,
+                'year' => $mCursor->year,
+                'label' => $mCursor->format('F Y'),
+            ];
+            $mCursor->addMonth();
+        }
+
+        // Get all apartments with rentals and their utilities for the selected month
         $apartments = $this->scopeApartments()
-            ->with(['floor', 'rentals' => function ($q) use ($activePeriod) {
+            ->with(['floor', 'activeFixedExpenses', 'rentals' => function ($q) use ($startDate, $endDate) {
                 $q->orderBy('start_date', 'desc')
-                    ->with(['tenant', 'utilities' => function ($uq) use ($activePeriod) {
-                        $uq->whereBetween('paid_at', [$activePeriod->opening_date, $activePeriod->closing_date]);
+                    ->with(['tenant', 'utilities' => function ($uq) use ($startDate, $endDate) {
+                        $uq->whereBetween('paid_at', [$startDate, $endDate]);
                     }]);
             }])
             ->get();
 
-        // Calculate per-apartment expense totals
+        // Calculate per-apartment expense totals (utilities for selected month)
         $apartmentExpenses = [];
         $totalExpenses = 0;
 
@@ -944,6 +1329,8 @@ class RevenueExpenseController extends Controller
                 'water' => 0,
                 'internet' => 0,
                 'parking' => 0,
+                'fixed_total' => $apartment->activeFixedExpenses->sum('amount'),
+                'fixed_items' => $apartment->activeFixedExpenses,
                 'total' => 0,
                 'has_active_rental' => $apartment->rentals->isNotEmpty(),
             ];
@@ -958,14 +1345,16 @@ class RevenueExpenseController extends Controller
                 }
             }
 
-            $totalExpenses += $aptExpense['total'];
+            $aptExpense['grand_total'] = $aptExpense['total'] + $aptExpense['fixed_total'];
+            $totalExpenses += $aptExpense['grand_total'];
             $apartmentExpenses[] = $aptExpense;
         }
 
-        // Recent expense records
+        // Recent expense records from Accounts for the selected month
         $recentExpenses = Accounts::where('user_id', Auth::id())
             ->where('fiscal_period_id', $activePeriod->id)
             ->where('account_type', 'expense')
+            ->whereBetween('transaction_date', [$startDate, $endDate])
             ->orderBy('transaction_date', 'desc')
             ->take(10)
             ->get();
@@ -977,9 +1366,77 @@ class RevenueExpenseController extends Controller
             'parking' => 'Parking',
         ];
 
+        // Other expense categories (non-utility)
+        $otherExpenseCategories = [
+            'maintenance' => 'Maintenance & Repairs',
+            'insurance' => 'Insurance',
+            'property_tax' => 'Property Tax',
+            'management' => 'Property Management',
+            'cleaning' => 'Cleaning Services',
+            'security' => 'Security',
+            'landscaping' => 'Landscaping',
+            'supplies' => 'Supplies & Materials',
+            'marketing' => 'Marketing & Advertising',
+            'legal' => 'Legal & Professional Fees',
+            'miscellaneous' => 'Miscellaneous',
+        ];
+
+        // Other (non-utility) expenses for the selected month
+        $otherExpenses = Accounts::where('user_id', Auth::id())
+            ->where('fiscal_period_id', $activePeriod->id)
+            ->where('account_type', 'expense')
+            ->where('category', '!=', 'utilities_expense')
+            ->where('category', '!=', 'business_fixed')
+            ->where('category', '!=', 'business_variable')
+            ->whereBetween('transaction_date', [$startDate, $endDate])
+            ->orderBy('transaction_date', 'desc')
+            ->get();
+
+        $totalOtherExpenses = $otherExpenses->sum('amount');
+
+        // Business expenses (fixed & variable) for the selected month
+        $businessExpenses = BusinessExpense::where('user_id', Auth::id())
+            ->where('fiscal_period_id', $activePeriod->id)
+            ->where('billing_month', $filterMonth)
+            ->where('billing_year', $filterYear)
+            ->orderBy('expense_date', 'desc')
+            ->get();
+
+        $businessFixedTotal = $businessExpenses->where('cost_type', 'fixed')->sum('amount');
+        $businessVariableTotal = $businessExpenses->where('cost_type', 'variable')->sum('amount');
+        $businessTotal = $businessFixedTotal + $businessVariableTotal;
+
+        // Business expense categories
+        $businessCategories = [
+            'building_maintenance' => 'Building Maintenance',
+            'insurance' => 'Insurance Premium',
+            'property_tax' => 'Property Tax',
+            'mortgage' => 'Mortgage / Loan Payment',
+            'management_fee' => 'Management Fee',
+            'security' => 'Security Service',
+            'cleaning' => 'Common Area Cleaning',
+            'landscaping' => 'Landscaping / Grounds',
+            'elevator' => 'Elevator Maintenance',
+            'pest_control' => 'Pest Control',
+            'accounting' => 'Accounting / Bookkeeping',
+            'legal' => 'Legal Fees',
+            'marketing' => 'Marketing / Advertising',
+            'supplies' => 'Office / Building Supplies',
+            'license' => 'License & Permits',
+            'depreciation' => 'Depreciation',
+            'other' => 'Other',
+        ];
+
+        // Grand total of all expenses for the selected month
+        $grandTotalExpenses = $totalExpenses + $totalOtherExpenses + $businessTotal;
+
         return view('admin.revenue_expense.record_expense', compact(
             'activePeriod', 'apartments', 'apartmentExpenses', 'recentExpenses',
-            'utilityTypes', 'totalExpenses'
+            'utilityTypes', 'totalExpenses', 'otherExpenseCategories', 'otherExpenses',
+            'totalOtherExpenses', 'businessExpenses', 'businessFixedTotal',
+            'businessVariableTotal', 'businessTotal', 'businessCategories',
+            'grandTotalExpenses', 'currentMonth', 'currentYear',
+            'filterMonth', 'filterYear', 'periodMonths'
         ));
     }
 
@@ -1037,6 +1494,122 @@ class RevenueExpenseController extends Controller
 
         return redirect()->back()
             ->with('success', ucfirst($validated['utility_type']) . ' expense of $' . number_format($validated['charge_amount'], 2) . ' recorded for apartment ' . $rental->apartment->apartment_number . '.');
+    }
+
+    /**
+     * Store an "other" expense (non-utility, non-business) — saves to Accounts.
+     */
+    public function storeOtherExpense(Request $request)
+    {
+        $activePeriod = $this->getActiveFiscalPeriod();
+
+        if (!$activePeriod) {
+            return redirect()->route('admin.fiscalperiod.create')
+                ->with('warning', 'Please create a fiscal period first.');
+        }
+
+        $validated = $request->validate([
+            'category' => 'required|string|max:100',
+            'description' => 'required|string|max:500',
+            'amount' => 'required|numeric|min:0.01',
+            'transaction_date' => 'required|date',
+            'note' => 'nullable|string|max:1000',
+        ]);
+
+        Accounts::create([
+            'fiscal_period_id' => $activePeriod->id,
+            'payment_id' => null,
+            'user_id' => Auth::id(),
+            'account_type' => 'expense',
+            'category' => $validated['category'],
+            'description' => $validated['description'],
+            'amount' => $validated['amount'],
+            'transaction_date' => $validated['transaction_date'],
+            'note' => $validated['note'] ?? null,
+        ]);
+
+        return redirect()->back()
+            ->with('success', 'Other expense of $' . number_format($validated['amount'], 2) . ' recorded (' . $validated['description'] . ').');
+    }
+
+    /**
+     * Delete an other expense record from Accounts.
+     */
+    public function deleteOtherExpense(Accounts $expense)
+    {
+        $desc = $expense->description;
+        $expense->delete();
+
+        return redirect()->back()
+            ->with('success', 'Expense "' . $desc . '" has been removed.');
+    }
+
+    /**
+     * Store a business-level fixed or variable expense.
+     */
+    public function storeBusinessExpense(Request $request)
+    {
+        $activePeriod = $this->getActiveFiscalPeriod();
+
+        if (!$activePeriod) {
+            return redirect()->route('admin.fiscalperiod.create')
+                ->with('warning', 'Please create a fiscal period first.');
+        }
+
+        $validated = $request->validate([
+            'expense_name' => 'required|string|max:255',
+            'cost_type' => 'required|in:fixed,variable',
+            'category' => 'required|string|max:100',
+            'amount' => 'required|numeric|min:0.01',
+            'expense_date' => 'required|date',
+            'is_recurring' => 'nullable|boolean',
+            'note' => 'nullable|string|max:1000',
+        ]);
+
+        $expenseDate = Carbon::parse($validated['expense_date']);
+
+        BusinessExpense::create([
+            'user_id' => Auth::id(),
+            'fiscal_period_id' => $activePeriod->id,
+            'expense_name' => $validated['expense_name'],
+            'cost_type' => $validated['cost_type'],
+            'category' => $validated['category'],
+            'amount' => $validated['amount'],
+            'expense_date' => $validated['expense_date'],
+            'billing_month' => $expenseDate->month,
+            'billing_year' => $expenseDate->year,
+            'is_recurring' => $request->boolean('is_recurring'),
+            'note' => $validated['note'] ?? null,
+        ]);
+
+        // Also record in Accounts for fiscal period tracking
+        $costLabel = $validated['cost_type'] === 'fixed' ? 'Fixed' : 'Variable';
+        Accounts::create([
+            'fiscal_period_id' => $activePeriod->id,
+            'payment_id' => null,
+            'user_id' => Auth::id(),
+            'account_type' => 'expense',
+            'category' => 'business_' . $validated['cost_type'],
+            'description' => '[Business ' . $costLabel . '] ' . $validated['expense_name'],
+            'amount' => $validated['amount'],
+            'transaction_date' => $validated['expense_date'],
+            'note' => $validated['note'] ?? null,
+        ]);
+
+        return redirect()->back()
+            ->with('success', $costLabel . ' business expense "' . $validated['expense_name'] . '" ($' . number_format($validated['amount'], 2) . ') recorded.');
+    }
+
+    /**
+     * Delete a business expense record.
+     */
+    public function deleteBusinessExpense(BusinessExpense $businessExpense)
+    {
+        $name = $businessExpense->expense_name;
+        $businessExpense->delete();
+
+        return redirect()->back()
+            ->with('success', 'Business expense "' . $name . '" has been removed.');
     }
 
     // ===========================================================================

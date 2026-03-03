@@ -11,6 +11,7 @@ use App\Models\Rentals;
 use App\Models\Tenants;
 use App\Models\Utilities;
 use App\Models\Accounts;
+use Carbon\Carbon;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\View\View;
 
@@ -301,19 +302,57 @@ class DashboardController extends Controller
         $currentMonth = now()->month;
         $currentYear = now()->year;
 
-        // -- Payment status counts (real data) --
-        $paidCount = Payments::where('payment_status', 'paid')
-            ->whereMonth('paid_at', $currentMonth)
-            ->whereYear('paid_at', $currentYear)
-            ->count();
-        $pendingCount = Payments::where('payment_status', 'pending')->count();
-        $overdueCount = Payments::where('due_date', '<', now())
-            ->whereNull('paid_at')
-            ->where('payment_status', '!=', 'cancelled')
-            ->count();
+        // -- Payment status counts (from active rentals, same logic as record_income) --
+        $paidCount = 0;
+        $pendingCount = 0;
+        $overdueCount = 0;
+        $totalPendingAmount = 0;
+
+        $activeRentals = Rentals::with(['payments' => function ($pq) {
+                $pq->where('payment_status', 'paid');
+            }, 'apartment'])
+            ->where(function ($q) {
+                $q->whereNull('end_date')->orWhere('end_date', '>=', now());
+            })
+            ->whereHas('apartment', function ($q) {
+                $q->where('supervisor_id', Auth::id())
+                  ->orWhereNull('supervisor_id');
+            })
+            ->get();
+
+        foreach ($activeRentals as $rental) {
+            // Check if rent was paid this month
+            $paidThisMonth = $rental->payments
+                ->filter(function ($p) use ($currentMonth, $currentYear) {
+                    return $p->payment_type === 'rent'
+                        && Carbon::parse($p->paid_at)->month === $currentMonth
+                        && Carbon::parse($p->paid_at)->year === $currentYear;
+                })->isNotEmpty();
+
+            // Calculate due date from rental start_date
+            $dueDay = $rental->start_date ? Carbon::parse($rental->start_date)->day : 1;
+            $dueDay = min($dueDay, Carbon::create($currentYear, $currentMonth)->daysInMonth);
+            $dueDate = Carbon::create($currentYear, $currentMonth, $dueDay);
+
+            if ($paidThisMonth) {
+                $paidCount++;
+            } elseif (now()->gt($dueDate)) {
+                $overdueCount++;
+                $totalPendingAmount += $rental->rent_amount;
+            } else {
+                $pendingCount++;
+                $totalPendingAmount += $rental->rent_amount;
+            }
+        }
 
         // -- Monthly expenses from utilities (current month) --
-        $monthlyUtilities = Utilities::where('paid_status', true)
+        $monthlyUtilities = Utilities::whereHas('rental', function ($query) {
+                $query->whereHas('apartment', function ($subQuery) {
+                    $subQuery->where('supervisor_id', Auth::id())
+                             ->orWhereNull('supervisor_id');
+                });
+            })
+            ->where('paid_status', true)
             ->where('billing_month', $currentMonth)
             ->where('billing_year', $currentYear)
             ->sum('charge_amount');
@@ -326,8 +365,13 @@ class DashboardController extends Controller
 
         $monthlyExpensesTotal = $monthlyUtilities + $monthlyAccountExpenses;
 
-        // -- Utility breakdown (current month, real data) --
-        $utilityBreakdown = Utilities::where('paid_status', true)
+        // -- Utility breakdown (current month, all consumption regardless of payment status) --
+        $utilityBreakdown = Utilities::whereHas('rental', function ($query) {
+                $query->whereHas('apartment', function ($subQuery) {
+                    $subQuery->where('supervisor_id', Auth::id())
+                             ->orWhereNull('supervisor_id');
+                });
+            })
             ->where('billing_month', $currentMonth)
             ->where('billing_year', $currentYear)
             ->selectRaw('utility_type, SUM(charge_amount) as total')
@@ -371,8 +415,11 @@ class DashboardController extends Controller
                 'paid' => $paidCount,
                 'pending' => $pendingCount,
                 'overdue' => $overdueCount,
-                'total_collected' => Payments::where('payment_status', 'paid')->sum('amount'),
-                'total_pending' => Payments::where('payment_status', 'pending')->sum('amount'),
+                'total_collected' => Payments::where('payment_status', 'paid')
+                    ->whereMonth('paid_at', $currentMonth)
+                    ->whereYear('paid_at', $currentYear)
+                    ->sum('amount'),
+                'total_pending' => $totalPendingAmount,
             ],
             'revenue' => [
                 'total_monthly_rent' => Apartments::where('status', 'occupied')->sum('monthly_rent'),

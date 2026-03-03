@@ -1,0 +1,61 @@
+<?php
+
+namespace App\Models;
+
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+
+class BusinessExpense extends Model
+{
+    protected $fillable = [
+        'user_id',
+        'fiscal_period_id',
+        'expense_name',
+        'cost_type',
+        'category',
+        'amount',
+        'expense_date',
+        'billing_month',
+        'billing_year',
+        'is_recurring',
+        'note',
+    ];
+
+    protected function casts(): array
+    {
+        return [
+            'amount' => 'float',
+            'expense_date' => 'date',
+            'is_recurring' => 'boolean',
+        ];
+    }
+
+    // Relationships
+
+    public function user(): BelongsTo
+    {
+        return $this->belongsTo(User::class);
+    }
+
+    public function fiscalPeriod(): BelongsTo
+    {
+        return $this->belongsTo(FiscalPeriods::class, 'fiscal_period_id');
+    }
+
+    // Scopes
+
+    public function scopeFixed($query)
+    {
+        return $query->where('cost_type', 'fixed');
+    }
+
+    public function scopeVariable($query)
+    {
+        return $query->where('cost_type', 'variable');
+    }
+
+    public function scopeForMonth($query, $month, $year)
+    {
+        return $query->where('billing_month', $month)->where('billing_year', $year);
+    }
+}

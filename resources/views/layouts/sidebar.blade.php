@@ -505,6 +505,15 @@
                 </span>
                 <span class="nav-text truncate sidebar-label">Record Expense</span>
             </a>
+            {{--Calendar View --}}
+            <a href="{{ route('admin.revenue_expense.monthly_calendar') }}" class="submenu-item nav-link flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm {{ request()->routeIs('admin.revenue_expense.monthly_calendar') ? 'text-blue-700 active' : 'text-gray-700 hover:text-blue-700' }} transition-all sidebar-transition">
+                <span class="nav-icon sidebar-transition">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                    </svg>
+                </span>
+                <span class="nav-text truncate sidebar-label">Calendar View</span>
+            </a>
 
             {{-- Break-even Analysis --}}
             <a href="{{ route('admin.revenue_expense.break_even') }}" class="submenu-item nav-link flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm {{ request()->routeIs('admin.revenue_expense.break_even') ? 'text-blue-700 active' : 'text-gray-700 hover:text-blue-700' }} transition-all sidebar-transition">

@@ -210,9 +210,12 @@
                             <span class="text-sm font-bold text-gray-900">${{ number_format($current_revenue, 2) }}</span>
                         </div>
                         <div class="w-full bg-gray-200 rounded-lg h-8 overflow-hidden">
+                            @php
+                                $revenuePercent = $break_even_revenue > 0 ? min(($current_revenue / $break_even_revenue) * 100, 100) : ($current_revenue > 0 ? 100 : 0);
+                            @endphp
                             <div class="bg-green-500 h-full flex items-center pl-2 text-white font-bold text-sm" 
-                                 style="width: {{ $break_even_revenue > 0 ? min((($current_revenue / $break_even_revenue) * 100), 100) : 0 }}%">
-                                {{ number_format((($current_revenue / $break_even_revenue) * 100), 1) }}%
+                                 style="width: {{ $revenuePercent }}%">
+                                {{ number_format($revenuePercent, 1) }}%
                             </div>
                         </div>
                     </div>
