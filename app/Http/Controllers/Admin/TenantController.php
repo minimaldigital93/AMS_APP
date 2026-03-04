@@ -16,6 +16,8 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\View\View;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
 use Carbon\Carbon;
 
 class TenantController extends Controller
@@ -185,7 +187,7 @@ class TenantController extends Controller
                     'end_date' => null,
                 ]);
                 
-                \Log::info('Created rental record for tenant', [
+                Log::info('Created rental record for tenant', [
                     'tenant_id' => $tenant->id,
                     'rental_id' => $rental->id,
                     'apartment_id' => $tenant->apartment_id,
@@ -249,7 +251,7 @@ class TenantController extends Controller
                 'notes' => $validated['notes'] ?? null,
             ]);
 
-            \Log::info('Created tenant leave record', [
+            Log::info('Created tenant leave record', [
                 'tenant_leave_id' => $tenantLeave->id,
                 'tenant_id' => $tenant->id,
             ]);
@@ -326,7 +328,7 @@ class TenantController extends Controller
                     ]);
                 }
 
-                \Log::info('Recorded leave settlement revenue', [
+                Log::info('Recorded leave settlement revenue', [
                     'tenant_id' => $tenant->id,
                     'fiscal_period_id' => $activePeriod->id,
                     'pro_rata_rent' => $settlement['pro_rata_rent'],
@@ -334,7 +336,7 @@ class TenantController extends Controller
                     'total_amount_due' => $settlement['total_amount_due'],
                 ]);
             } else {
-                \Log::warning('No active fiscal period found or zero amount - leave settlement revenue not recorded', [
+                Log::warning('No active fiscal period found or zero amount - leave settlement revenue not recorded', [
                     'tenant_id' => $tenant->id,
                     'total_amount_due' => $settlement['total_amount_due'],
                     'has_active_period' => $activePeriod ? true : false,
@@ -344,7 +346,7 @@ class TenantController extends Controller
             // Update rental end date
             $rental->update(['end_date' => $leaveDate]);
 
-            \Log::info('Updated rental end date', [
+            Log::info('Updated rental end date', [
                 'rental_id' => $rental->id,
                 'end_date' => $leaveDate,
             ]);
@@ -352,21 +354,21 @@ class TenantController extends Controller
             // Save apartment reference before clearing tenant
             $apartment = $tenant->apartment;
 
-            \Log::info('Starting tenant archival process', [
+            Log::info('Starting tenant archival process', [
                 'tenant_id' => $tenant->id,
                 'apartment_id' => $apartment?->id,
             ]);
 
             // Archive tenant (set status to moved_out and archived_at)
             $archiveResult = $this->leaveCalculator->archiveTenant($tenant, now());
-            \Log::info('Archived tenant', [
+            Log::info('Archived tenant', [
                 'tenant_id' => $tenant->id,
                 'result' => $archiveResult,
             ]);
 
             // Clear tenant from apartment (remove apartment assignment)
             $clearResult = $this->leaveCalculator->clearTenantFromApartment($tenant);
-            \Log::info('Cleared tenant from apartment', [
+            Log::info('Cleared tenant from apartment', [
                 'tenant_id' => $tenant->id,
                 'result' => $clearResult,
             ]);
@@ -374,7 +376,7 @@ class TenantController extends Controller
             // Mark apartment as available (using saved reference)
             if ($apartment) {
                 $apartmentResult = $this->leaveCalculator->markApartmentAvailable($apartment);
-                \Log::info('Marked apartment as available', [
+                Log::info('Marked apartment as available', [
                     'apartment_id' => $apartment->id,
                     'result' => $apartmentResult,
                 ]);
@@ -382,7 +384,7 @@ class TenantController extends Controller
 
             // Soft delete the tenant record (will be preserved in tenant_leaves history)
             $deleteResult = $tenant->delete();
-            \Log::info('Soft deleted tenant', [
+            Log::info('Soft deleted tenant', [
                 'tenant_id' => $tenant->id,
                 'result' => $deleteResult,
             ]);
@@ -392,7 +394,7 @@ class TenantController extends Controller
                 ->with('success', 'Tenant leave processed successfully. Settlement created.');
 
         } catch (\Exception $e) {
-            \Log::error('Error processing tenant leave: ' . $e->getMessage(), [
+            Log::error('Error processing tenant leave: ' . $e->getMessage(), [
                 'tenant_id' => $tenant->id,
                 'exception' => $e,
                 'trace' => $e->getTraceAsString()
@@ -437,7 +439,7 @@ class TenantController extends Controller
                 $validated['photo_path'] = $photoPath;
             } catch (\Exception $e) {
                 // If photo upload fails, continue without it
-                \Log::error('Photo upload failed: ' . $e->getMessage());
+                Log::error('Photo upload failed: ' . $e->getMessage());
             }
         }
 
@@ -453,7 +455,7 @@ class TenantController extends Controller
     public function show(Tenants $tenant): View
     {
         $tenant->load(['apartment', 'rentals', 'utilities']);
-        \Log::info('Show tenant details', [
+        Log::info('Show tenant details', [
             'tenant_id' => $tenant->id,
             'name' => $tenant->name,
             'photo_path' => $tenant->photo_path,
@@ -494,15 +496,15 @@ class TenantController extends Controller
         if ($request->hasFile('photo') && $request->file('photo')->isValid()) {
             try {
                 // Delete old photo if exists
-                if ($tenant->photo_path && \Storage::disk('public')->exists($tenant->photo_path)) {
-                    \Storage::disk('public')->delete($tenant->photo_path);
+                if ($tenant->photo_path && Storage::disk('public')->exists($tenant->photo_path)) {
+                    Storage::disk('public')->delete($tenant->photo_path);
                 }
                 
                 $photoPath = $request->file('photo')->store('tenants', 'public');
                 $validated['photo_path'] = $photoPath;
             } catch (\Exception $e) {
                 // If photo upload fails, continue without updating photo
-                \Log::error('Photo update failed: ' . $e->getMessage());
+                Log::error('Photo update failed: ' . $e->getMessage());
             }
         }
 

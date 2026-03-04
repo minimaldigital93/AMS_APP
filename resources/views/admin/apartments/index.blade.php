@@ -8,7 +8,6 @@
     <div class="flex items-center justify-between">
         <div>
             <h1 class="text-3xl font-bold text-gray-900">Apartment Management</h1>
-            <p class="text-gray-600 mt-1">Manage apartment details, pricing, and tenant assignments</p>
         </div>
         <a href="{{ route('admin.apartments.create') }}" class="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-lg transition duration-200 flex items-center gap-2">
             <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">

@@ -51,7 +51,7 @@ class ApartmentController extends Controller
         $availableTenants = Tenants::where('status', 'active')->whereNull('apartment_id')->get();
 
         return view('admin.apartments.index', compact('apartmentsByFloor', 'floors', 'floorsWithApartments', 'statuses', 'supervisors', 'availableTenants'));
-    }
+    }   
 
     /**
      * Show the form for creating a new apartment.

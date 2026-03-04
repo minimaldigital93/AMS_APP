@@ -7,6 +7,7 @@ use App\Models\Floors;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
 use Illuminate\Validation\Rule;
+use Illuminate\Support\Facades\Log;
 
 class FloorController extends Controller
 {
@@ -121,7 +122,7 @@ class FloorController extends Controller
                     ]);
                     $apartmentsCreated++;
                 } catch (\Exception $e) {
-                    \Log::error('Error creating apartment for floor ' . $floor->id . ': ' . $e->getMessage());
+                    Log::error('Error creating apartment for floor ' . $floor->id . ': ' . $e->getMessage());
                 }
             }
         }
@@ -143,7 +144,7 @@ class FloorController extends Controller
      */
     public function update(Request $request, Floors $floor)
     {
-        \Log::info('=== FLOOR UPDATE METHOD CALLED ===', [
+        Log::info('=== FLOOR UPDATE METHOD CALLED ===', [
             'method' => $request->method(),
             'path' => $request->path(),
             'action' => $request->input('action', 'update_floor'),
@@ -179,7 +180,7 @@ class FloorController extends Controller
                 return redirect()->route('admin.floors.edit', $floor)
                     ->with('success', 'Unit added successfully!');
             } catch (\Exception $e) {
-                \Log::error('Error creating apartment for floor ' . $floor->id . ': ' . $e->getMessage());
+                Log::error('Error creating apartment for floor ' . $floor->id . ': ' . $e->getMessage());
                 return redirect()->route('admin.floors.edit', $floor)
                     ->withErrors(['apartment_number' => 'Error adding apartment']);
             }
@@ -197,13 +198,13 @@ class FloorController extends Controller
                 'description' => $validated['description'] ?? null,
             ]);
 
-            \Log::info('Floor updated successfully, redirecting to index', ['floor_id' => $floor->id]);
+            Log::info('Floor updated successfully, redirecting to index', ['floor_id' => $floor->id]);
 
             return redirect()
                 ->route('admin.floors.index')
                 ->with('success', 'Floor updated successfully');
         } catch (\Exception $e) {
-            \Log::error('Error updating floor ' . $floor->id . ': ' . $e->getMessage());
+            Log::error('Error updating floor ' . $floor->id . ': ' . $e->getMessage());
             return redirect()
                 ->route('admin.floors.edit', $floor)
                 ->withErrors(['error' => 'Error updating floor']);
@@ -215,7 +216,7 @@ class FloorController extends Controller
      */
     public function destroy(Floors $floor)
     {
-        \Log::warning('!!! FLOOR DESTROY METHOD CALLED !!!', [
+        Log::warning('!!! FLOOR DESTROY METHOD CALLED !!!', [
             'floor_id' => $floor->id,
             'floor_name' => $floor->floor_name,
         ]);
