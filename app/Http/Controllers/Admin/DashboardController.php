@@ -17,20 +17,15 @@ use Illuminate\View\View;
 
 class DashboardController extends Controller
 {
-    /**
-     * Display admin dashboard with statistics.
-     */
+
     public function index(): View
     {
         $stats = $this->getStats();
         $fiscalData = $this->getActiveFiscalPeriodData();
         $monthlyChartData = $this->getMonthlyChartData();
-        return view('admin.dashboard', ['stats' => $stats, 'fiscalData' => $fiscalData, 'monthlyChartData' => $monthlyChartData]);
+        return view('admin.dashboard', compact('stats', 'fiscalData', 'monthlyChartData'));
     }
 
-    /**
-     * Get active fiscal period financial data for dashboard.
-     */
     private function getActiveFiscalPeriodData(): array
     {
         $activePeriod = FiscalPeriods::where('user_id', Auth::id())

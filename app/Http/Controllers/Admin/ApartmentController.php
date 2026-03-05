@@ -15,9 +15,7 @@ use Illuminate\View\View;
 
 class ApartmentController extends Controller
 {
-    /**
-     * Display a listing of apartments.
-     */
+
     public function index(Request $request): View
     {
         $query = Apartments::with(['floor', 'tenants', 'supervisor']);
@@ -46,28 +44,22 @@ class ApartmentController extends Controller
         
         $floorsWithApartments = Floors::with('apartments')->orderBy('id', 'asc')->get();
         $floors = Floors::orderBy('id', 'asc')->get();
-        $statuses = ['available', 'occupied', 'maintenance'];
+        $statuses = Apartments::getStatuses();
         $supervisors = User::role('supervisor')->get();
         $availableTenants = Tenants::where('status', 'active')->whereNull('apartment_id')->get();
 
         return view('admin.apartments.index', compact('apartmentsByFloor', 'floors', 'floorsWithApartments', 'statuses', 'supervisors', 'availableTenants'));
     }   
 
-    /**
-     * Show the form for creating a new apartment.
-     */
     public function create(): View
     {
         $floors = Floors::all();
         $supervisors = User::role('supervisor')->get();
-        $statuses = ['available', 'occupied', 'maintenance'];
+        $statuses = Apartments::getStatuses();
 
         return view('admin.apartments.create', compact('floors', 'supervisors', 'statuses'));
     }
 
-    /**
-     * Show the apartment details.
-     */
     public function show(Apartments $apartment): View
     {
         $apartment = $apartment->load('floor', 'supervisor');
@@ -151,29 +143,23 @@ class ApartmentController extends Controller
         ));
     }
 
-    /**
-     * Show the form for editing an apartment.
-     */
     public function edit(Apartments $apartment): View
     {
         $apartment = $apartment->load('floor', 'supervisor');
         $floors = Floors::all();
         $supervisors = User::role('supervisor')->get();
-        $statuses = ['available', 'occupied', 'maintenance'];
+        $statuses = Apartments::getStatuses();
 
         return view('admin.apartments.edit', compact('apartment', 'floors', 'supervisors', 'statuses'));
     }
 
-    /**
-     * Store a newly created apartment.
-     */
     public function store(Request $request)
     {
         $validated = $request->validate([
             'apartment_number' => 'required|string|unique:apartments',
             'floor_id' => 'required|exists:floors,id',
             'monthly_rent' => 'required|numeric|min:0',
-            'status' => 'required|in:available,occupied,maintenance',
+            'status' => Apartments::getStatusValidationRule(),
             'supervisor_id' => 'nullable|exists:users,id',
             'description' => 'nullable|string',
         ]);
@@ -183,15 +169,12 @@ class ApartmentController extends Controller
         return redirect()->route('admin.apartments.index')->with('success', 'Apartment created successfully');
     }
 
-    /**
-     * Update the specified apartment.
-     */
     public function update(Request $request, Apartments $apartment)
     {
         $validated = $request->validate([
             'apartment_number' => 'required|string|unique:apartments,apartment_number,' . $apartment->id,
             'monthly_rent' => 'required|numeric|min:0',
-            'status' => 'required|in:available,occupied,maintenance',
+            'status' => Apartments::getStatusValidationRule(),
             'supervisor_id' => 'nullable|exists:users,id',
             'description' => 'nullable|string',
         ]);
@@ -201,9 +184,7 @@ class ApartmentController extends Controller
         return redirect()->route('admin.apartments.index')->with('success', 'Apartment updated successfully');
     }
 
-    /**
-     * Assign a tenant to an apartment
-     */
+
     public function assignTenant(Request $request, Apartments $apartment)
     {
         $validated = $request->validate([
@@ -275,9 +256,7 @@ class ApartmentController extends Controller
         return redirect()->route('admin.apartments.index')->with('success', 'Tenant assigned successfully with rental created.');
     }
 
-    /**
-     * Delete the specified apartment.
-     */
+
     public function destroy(Apartments $apartment)
     {
         $floor = $apartment->floor;

@@ -27,17 +27,11 @@ class FiscalPeriodController extends Controller
         return view('admin.fiscalperiod.index', compact('fiscalPeriods'));
     }
 
-    /**
-     * Show the form for creating a new fiscal period.
-     */
     public function create()
     {
         return view('admin.fiscalperiod.open_close_periods');
     }
 
-    /**
-     * Store a newly created fiscal period and auto-generate monthly periods.
-     */
     public function store(Request $request)
     {
         $validated = $request->validate([

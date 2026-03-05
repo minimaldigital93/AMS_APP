@@ -13,9 +13,7 @@ use Spatie\Permission\Models\Role;
 
 class UserController extends Controller
 {
-    /**
-     * Display a listing of users.
-     */
+
     public function index(Request $request): View
     {
         $query = User::with('roles', 'permissions');
@@ -43,27 +41,20 @@ class UserController extends Controller
         return view('admin.users.index', compact('users', 'roles'));
     }
 
-    /**
-     * Show the form for creating a new user.
-     */
+
     public function create(): View
     {
         $roles = Role::all();
         return view('admin.users.create', compact('roles'));
     }
 
-    /**
-     * Show the form for editing a user.
-     */
+
     public function edit(User $user): View
     {
         $roles = Role::all();
         return view('admin.users.edit', compact('user', 'roles'));
     }
 
-    /**
-     * Store a newly created user.
-     */
     public function store(Request $request)
     {
         $validated = $request->validate([
@@ -84,9 +75,6 @@ class UserController extends Controller
         return redirect()->route('admin.users.index')->with('success', 'User created successfully');
     }
 
-    /**
-     * Update the specified user.
-     */
     public function update(Request $request, User $user)
     {
         $validated = $request->validate([
@@ -112,18 +100,13 @@ class UserController extends Controller
         return redirect()->route('admin.users.index')->with('success', 'User updated successfully');
     }
 
-    /**
-     * Delete the specified user.
-     */
     public function destroy(User $user)
     {
         $user->delete();
         return redirect()->route('admin.users.index')->with('success', 'User deleted successfully');
     }
 
-    /**
-     * Update user role.
-     */
+
     public function updateRole(Request $request, User $user)
     {
         $validated = $request->validate([
@@ -136,9 +119,7 @@ class UserController extends Controller
         return redirect()->route('admin.users.index')->with('success', 'User role updated successfully');
     }
 
-    /**
-     * Assign permissions to a user.
-     */
+  
     public function assignPermissions(Request $request, User $user)
     {
         $validated = $request->validate([

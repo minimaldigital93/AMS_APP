@@ -29,9 +29,6 @@ class TenantController extends Controller
         $this->leaveCalculator = $leaveCalculator;
     }
 
-    /**
-     * Display active tenants
-     */
     public function index(Request $request): View
     {
         $query = Tenants::whereIn('status', ['active', 'pending'])

@@ -11,27 +11,6 @@ use Illuminate\Support\Facades\Log;
 
 class FloorController extends Controller
 {
-    /**
-     * Show the form for creating a new floor.
-     */
-    public function create(): View
-    {
-        $tempApartments = session('temp_apartments', []);
-        return view('admin.floors.create', compact('tempApartments'));
-    }
-
-    /**
-     * Show the form for editing the specified floor.
-     */
-    public function edit(Floors $floor): View
-    {
-        $floor->load('apartments');
-        return view('admin.floors.edit', compact('floor'));
-    }
-
-    /**
-     * Display a listing of floors.
-     */
     public function index(Request $request): View
     {
         $query = Floors::query();
@@ -50,14 +29,28 @@ class FloorController extends Controller
         return view('admin.floors.index', compact('floors'));
     }
 
-    /**
-     * Store a newly created floor.
-     */
+    public function create(): View
+    {
+        $tempApartments = session('temp_apartments', []);
+        return view('admin.floors.create', compact('tempApartments'));
+    }
+
+    public function edit(Floors $floor): View
+    {
+        $floor->load('apartments');
+        return view('admin.floors.edit', compact('floor'));
+    }
+
+    public function getApartments(Floors $floor): View
+    {
+        $apartments = $floor->apartments()->paginate(10);
+        return view('admin.apartments.index', compact('floor', 'apartments'));
+    }
+
     public function store(Request $request)
     {
         $action = $request->input('action', 'create_floor');
         
-        // If adding an apartment to the list
         if ($action === 'add_apartment') {
             $validated = $request->validate([
                 'floor_name' => 'required|string|max:255',
@@ -95,7 +88,8 @@ class FloorController extends Controller
                 ->withInput($request->only('floor_name', 'description'));
         }
         
-        // Creating the floor
+        // ACTION: Create Floor with Apartments
+
         $validated = $request->validate([
             'floor_name' => 'required|string|max:255',
             'description' => 'nullable|string',
@@ -139,9 +133,7 @@ class FloorController extends Controller
         return redirect()->route('admin.floors.index')->with('success', $message);
     }
 
-    /**
-     * Update the specified floor.
-     */
+
     public function update(Request $request, Floors $floor)
     {
         Log::info('=== FLOOR UPDATE METHOD CALLED ===', [
@@ -155,7 +147,7 @@ class FloorController extends Controller
         
         $action = $request->input('action', 'update_floor');
         
-        // If adding a new apartment
+        // ACTION: Add New Apartment to Existing Floor
         if ($action === 'add_apartment') {
             $validated = $request->validate([
                 'apartment_number' => [
@@ -186,7 +178,8 @@ class FloorController extends Controller
             }
         }
 
-        // Update floor information only (default action: update_floor)
+
+        // ACTION: Update Floor Information
         $validated = $request->validate([
             'floor_name' => 'required|string|max:255',
             'description' => 'nullable|string',
@@ -211,9 +204,6 @@ class FloorController extends Controller
         }
     }
 
-    /**
-     * Delete the specified floor.
-     */
     public function destroy(Floors $floor)
     {
         Log::warning('!!! FLOOR DESTROY METHOD CALLED !!!', [
@@ -222,14 +212,5 @@ class FloorController extends Controller
         ]);
         $floor->delete();
         return redirect()->route('admin.floors.index')->with('success', 'Floor deleted successfully');
-    }
-
-    /**
-     * Get apartments for a specific floor.
-     */
-    public function getApartments(Floors $floor): View
-    {
-        $apartments = $floor->apartments()->paginate(10);
-        return view('admin.apartments.index', compact('floor', 'apartments'));
     }
 }

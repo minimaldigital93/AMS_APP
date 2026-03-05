@@ -11,6 +11,11 @@ class Apartments extends Model
 {
     use SoftDeletes;
 
+    // Status constants
+    public const STATUS_AVAILABLE = 'available';
+    public const STATUS_OCCUPIED = 'occupied';
+    public const STATUS_MAINTENANCE = 'maintenance';
+
     protected $fillable = [
         'floor_id',
         'supervisor_id',
@@ -25,6 +30,26 @@ class Apartments extends Model
         return [
             'monthly_rent' => 'float',
         ];
+    }
+
+    /**
+     * Get all available statuses
+     */
+    public static function getStatuses(): array
+    {
+        return [
+            self::STATUS_AVAILABLE,
+            self::STATUS_OCCUPIED,
+            self::STATUS_MAINTENANCE,
+        ];
+    }
+
+    /**
+     * Get validation rule for status
+     */
+    public static function getStatusValidationRule(): string
+    {
+        return 'required|in:' . implode(',', self::getStatuses());
     }
 
     // Relationships

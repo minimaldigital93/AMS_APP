@@ -17,10 +17,7 @@ use Carbon\Carbon;
 
 class RevenueExpenseController extends Controller
 {
-    /**
-     * Display revenue and expense analysis scoped to active fiscal period.
-     * All sub-pages (income, expense, fixed costs, bills, break-even) are consolidated here.
-     */
+  
     public function index()
     {
         // Allow switching fiscal periods via ?period=ID
