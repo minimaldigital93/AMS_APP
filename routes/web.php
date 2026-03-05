@@ -8,6 +8,7 @@ use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\Admin\TenantController;
 use App\Http\Controllers\Admin\FiscalPeriodController;
 use App\Http\Controllers\Admin\RevenueExpenseController;
+use App\Http\Controllers\Admin\SettingsController;
 use App\Http\Controllers\Supervisor\DashboardController as SupervisorDashboardController;
 use App\Http\Controllers\Tenant\DashboardController as TenantDashboardController;
 use Illuminate\Support\Facades\Route;
@@ -111,6 +112,14 @@ Route::middleware(['auth', 'role:admin'])->group(function () {
     Route::get('/admin/fiscalperiod/{fiscalperiod}/reports', [FiscalPeriodController::class, 'reports'])->name('admin.fiscalperiod.reports');
     Route::get('/admin/fiscalperiod/{fiscalperiod}/export-pdf', [FiscalPeriodController::class, 'exportPDF'])->name('admin.fiscalperiod.exportPDF');
     Route::get('/admin/fiscalperiod/{fiscalperiod}/export-csv', [FiscalPeriodController::class, 'exportCSV'])->name('admin.fiscalperiod.exportCSV');
+    
+    // System Settings Routes
+    Route::get('/admin/settings', [SettingsController::class, 'index'])->name('admin.settings.index');
+    Route::put('/admin/settings/batch', [SettingsController::class, 'updateBatch'])->name('admin.settings.updateBatch');
+    Route::put('/admin/settings', [SettingsController::class, 'update'])->name('admin.settings.update');
+    Route::delete('/admin/settings/reset', [SettingsController::class, 'reset'])->name('admin.settings.reset');
+    Route::delete('/admin/settings', [SettingsController::class, 'destroy'])->name('admin.settings.destroy');
+    Route::get('/admin/settings/{key}', [SettingsController::class, 'get'])->name('admin.settings.get');
     
     // Revenue & Expense Management Routes (requires active fiscal period)
     Route::middleware(['fiscal.period'])->group(function () {
