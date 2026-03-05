@@ -23,7 +23,8 @@ class DashboardController extends Controller
         $stats = $this->getStats();
         $fiscalData = $this->getActiveFiscalPeriodData();
         $monthlyChartData = $this->getMonthlyChartData();
-        return view('admin.dashboard', compact('stats', 'fiscalData', 'monthlyChartData'));
+        $calendarData = $this->getCalendarData();
+        return view('admin.dashboard', compact('stats', 'fiscalData', 'monthlyChartData', 'calendarData'));
     }
 
     private function getActiveFiscalPeriodData(): array
@@ -385,6 +386,17 @@ class DashboardController extends Controller
             $floorOccupancy[] = $total > 0 ? round(($occupied / $total) * 100, 1) : 0;
         }
 
+        // -- Rentals expiring soon (next 30 days) --
+        $expiringSoon = Rentals::with(['tenant', 'apartment'])
+            ->whereNotNull('end_date')
+            ->whereBetween('end_date', [now(), now()->addDays(30)])
+            ->whereHas('apartment', function ($q) {
+                $q->where('supervisor_id', Auth::id())
+                  ->orWhereNull('supervisor_id');
+            })
+            ->orderBy('end_date')
+            ->get();
+
         return [
             'floors_count' => Floors::count(),
             'apartments' => [
@@ -405,6 +417,9 @@ class DashboardController extends Controller
                     ->where(function ($q) {
                         $q->whereNull('end_date')->orWhere('end_date', '>=', now());
                     })->count(),
+            ],
+            'leases' => [
+                'expiring_soon' => $expiringSoon,
             ],
             'payments' => [
                 'paid' => $paidCount,
@@ -433,6 +448,114 @@ class DashboardController extends Controller
             ],
             'floor_labels' => $floorLabels,
             'floor_occupancy' => $floorOccupancy,
+        ];
+    }
+
+    /**
+     * Get calendar data for current month (revenue & expense).
+     */
+    private function getCalendarData(): array
+    {
+        $startOfMonth = now()->startOfMonth();
+        $endOfMonth = now()->endOfMonth();
+
+        // Fetch daily income (payments)
+        $dailyIncome = Payments::whereHas('rental', function ($q) {
+                $q->whereHas('apartment', function ($q2) {
+                    $q2->where('supervisor_id', Auth::id())
+                        ->orWhereNull('supervisor_id');
+                });
+            })
+            ->where('payment_status', 'paid')
+            ->whereBetween('paid_at', [$startOfMonth, $endOfMonth])
+            ->selectRaw('DATE(paid_at) as day, SUM(amount) as total_income, SUM(late_fee) as total_late_fee, COUNT(*) as tx_count')
+            ->groupByRaw('DATE(paid_at)')
+            ->get()
+            ->keyBy('day');
+
+        // Fetch daily expenses from utilities
+        $dailyUtilities = Utilities::whereHas('rental', function ($q) {
+                $q->whereHas('apartment', function ($q2) {
+                    $q2->where('supervisor_id', Auth::id())
+                        ->orWhereNull('supervisor_id');
+                });
+            })
+            ->where('paid_status', true)
+            ->whereBetween('paid_at', [$startOfMonth, $endOfMonth])
+            ->selectRaw('DATE(paid_at) as day, SUM(charge_amount) as total_expense, COUNT(*) as tx_count')
+            ->groupByRaw('DATE(paid_at)')
+            ->get()
+            ->keyBy('day');
+
+        // Fetch daily expenses from accounts
+        $dailyAccountExpenses = Accounts::where('user_id', Auth::id())
+            ->where('account_type', 'expense')
+            ->whereBetween('transaction_date', [$startOfMonth, $endOfMonth])
+            ->selectRaw('DATE(transaction_date) as day, SUM(amount) as total_expense, COUNT(*) as tx_count')
+            ->groupByRaw('DATE(transaction_date)')
+            ->get()
+            ->keyBy('day');
+
+        // Fetch daily account income
+        $dailyAccountIncome = Accounts::where('user_id', Auth::id())
+            ->where('account_type', 'income')
+            ->whereBetween('transaction_date', [$startOfMonth, $endOfMonth])
+            ->selectRaw('DATE(transaction_date) as day, SUM(amount) as total_income, COUNT(*) as tx_count')
+            ->groupByRaw('DATE(transaction_date)')
+            ->get()
+            ->keyBy('day');
+
+        // Build calendar data
+        $daysInMonth = $startOfMonth->daysInMonth;
+        $firstDayOfWeek = $startOfMonth->dayOfWeek; // 0=Sun
+        $calendarDays = [];
+        $monthTotalIncome = 0;
+        $monthTotalExpense = 0;
+        $bestDay = null;
+
+        for ($d = 1; $d <= $daysInMonth; $d++) {
+            $dateStr = $startOfMonth->copy()->day($d)->toDateString();
+            $income = ($dailyIncome[$dateStr]->total_income ?? 0)
+                    + ($dailyIncome[$dateStr]->total_late_fee ?? 0)
+                    + ($dailyAccountIncome[$dateStr]->total_income ?? 0);
+            $expense = ($dailyUtilities[$dateStr]->total_expense ?? 0)
+                     + ($dailyAccountExpenses[$dateStr]->total_expense ?? 0);
+            $net = $income - $expense;
+            $txCount = ($dailyIncome[$dateStr]->tx_count ?? 0)
+                     + ($dailyUtilities[$dateStr]->tx_count ?? 0)
+                     + ($dailyAccountExpenses[$dateStr]->tx_count ?? 0)
+                     + ($dailyAccountIncome[$dateStr]->tx_count ?? 0);
+
+            $monthTotalIncome += $income;
+            $monthTotalExpense += $expense;
+
+            $calendarDays[$d] = [
+                'date' => $dateStr,
+                'day' => $d,
+                'income' => round($income, 2),
+                'expense' => round($expense, 2),
+                'net' => round($net, 2),
+                'tx_count' => $txCount,
+                'is_today' => $dateStr === now()->toDateString(),
+                'is_future' => Carbon::parse($dateStr)->gt(now()),
+            ];
+
+            if ($txCount > 0) {
+                if ($bestDay === null || $net > $calendarDays[$bestDay]['net']) $bestDay = $d;
+            }
+        }
+
+        $monthNet = $monthTotalIncome - $monthTotalExpense;
+
+        return [
+            'startOfMonth' => $startOfMonth,
+            'firstDayOfWeek' => $firstDayOfWeek,
+            'daysInMonth' => $daysInMonth,
+            'calendarDays' => $calendarDays,
+            'monthTotalIncome' => $monthTotalIncome,
+            'monthTotalExpense' => $monthTotalExpense,
+            'monthNet' => $monthNet,
+            'bestDay' => $bestDay,
         ];
     }
 }

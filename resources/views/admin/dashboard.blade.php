@@ -68,6 +68,8 @@
             </div>
         </div>
 
+      
+
         @if($fiscalData['has_active_period'])
 
         @if($fiscalData['recent_periods']->count() > 0)
@@ -202,7 +204,149 @@
                 </div>
             </div>
         </div>
-    </div>
+
+        <!-- Revenue & Expense Calendar -->
+        <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+            <div class="flex items-center justify-between mb-4">
+                <div>
+                    <h2 class="text-xl font-bold text-gray-900">Revenue & Expense Calendar</h2>
+                    <p class="text-sm text-gray-500 mt-1">{{ $calendarData['startOfMonth']->format('F Y') }}</p>
+                </div>
+                <a href="{{ route('admin.revenue_expense.monthly_calendar') }}" 
+                   class="inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-indigo-600 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 rounded-lg transition-colors">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+                    </svg>
+                    Full View
+                </a>
+            </div>
+
+            <!-- Summary Cards -->
+            <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
+                <div class="bg-gradient-to-br from-green-50 to-green-100 rounded-lg border border-green-200 p-3">
+                    <p class="text-xs text-green-600 uppercase tracking-wide font-semibold">Total Income</p>
+                    <p class="text-xl font-bold text-green-700 mt-1">${{ number_format($calendarData['monthTotalIncome'], 2) }}</p>
+                </div>
+                <div class="bg-gradient-to-br from-red-50 to-red-100 rounded-lg border border-red-200 p-3">
+                    <p class="text-xs text-red-600 uppercase tracking-wide font-semibold">Total Expenses</p>
+                    <p class="text-xl font-bold text-red-700 mt-1">${{ number_format($calendarData['monthTotalExpense'], 2) }}</p>
+                </div>
+                <div class="bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg border border-blue-200 p-3">
+                    <p class="text-xs text-blue-600 uppercase tracking-wide font-semibold">Net Profit/Loss</p>
+                    <p class="text-xl font-bold {{ $calendarData['monthNet'] >= 0 ? 'text-green-700' : 'text-red-700' }} mt-1">
+                        {{ $calendarData['monthNet'] >= 0 ? '+' : '' }}${{ number_format($calendarData['monthNet'], 2) }}
+                    </p>
+                </div>
+                <div class="bg-gradient-to-br from-purple-50 to-purple-100 rounded-lg border border-purple-200 p-3">
+                    <p class="text-xs text-purple-600 uppercase tracking-wide font-semibold">Best Day</p>
+                    @if($calendarData['bestDay'])
+                        <p class="text-xl font-bold text-purple-700 mt-1">{{ $calendarData['startOfMonth']->copy()->day($calendarData['bestDay'])->format('M d') }}</p>
+                        <p class="text-xs text-green-600">+${{ number_format($calendarData['calendarDays'][$calendarData['bestDay']]['net'], 2) }}</p>
+                    @else
+                        <p class="text-sm text-gray-400 mt-1">No data</p>
+                    @endif
+                </div>
+            </div>
+
+            <!-- Legend -->
+            <div class="flex items-center gap-4 text-xs text-gray-500 mb-4">
+                <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 bg-green-500 rounded-full inline-block"></span> Income</span>
+                <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 bg-red-500 rounded-full inline-block"></span> Expense</span>
+                <span class="flex items-center gap-1"><span class="w-3 h-3 border-2 border-blue-500 rounded inline-block"></span> Today</span>
+            </div>
+
+            <!-- Calendar Grid -->
+            <div class="bg-white rounded-lg border overflow-hidden">
+                <!-- Day Headers -->
+                <div class="grid grid-cols-7 bg-gray-50 border-b">
+                    @foreach(['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'] as $dayName)
+                        <div class="text-center text-xs font-semibold text-gray-500 py-2 uppercase tracking-wider">{{ $dayName }}</div>
+                    @endforeach
+                </div>
+
+                <!-- Calendar Days -->
+                <div class="grid grid-cols-7">
+                    {{-- Empty cells for offset --}}
+                    @for($i = 0; $i < $calendarData['firstDayOfWeek']; $i++)
+                        <div class="border-b border-r min-h-[90px] bg-gray-50/50"></div>
+                    @endfor
+
+                    {{-- Actual days --}}
+                    @for($d = 1; $d <= $calendarData['daysInMonth']; $d++)
+                        @php
+                            $dayData = $calendarData['calendarDays'][$d];
+                            $hasData = $dayData['tx_count'] > 0;
+                            $isToday = $dayData['is_today'];
+                            $isFuture = $dayData['is_future'];
+                            $cellClasses = 'border-b border-r min-h-[90px] p-1.5 transition';
+                            if ($isToday) $cellClasses .= ' ring-2 ring-blue-500 ring-inset bg-blue-50/30';
+                            elseif ($isFuture) $cellClasses .= ' bg-gray-50/30';
+                            elseif ($hasData) $cellClasses .= ' hover:bg-gray-50';
+                        @endphp
+                        <div class="{{ $cellClasses }}">
+                            {{-- Day number --}}
+                            <div class="flex items-center justify-between mb-1">
+                                <span class="text-xs font-semibold {{ $isToday ? 'bg-blue-500 text-white w-5 h-5 rounded-full flex items-center justify-center' : ($isFuture ? 'text-gray-300' : 'text-gray-600') }}">
+                                    {{ $d }}
+                                </span>
+                                @if($hasData)
+                                    <span class="text-[10px] text-gray-400">{{ $dayData['tx_count'] }}</span>
+                                @endif
+                            </div>
+
+                            @if($hasData)
+                                {{-- Income --}}
+                                @if($dayData['income'] > 0)
+                                    <div class="flex items-center gap-1 mb-0.5">
+                                        <span class="w-1.5 h-1.5 rounded-full bg-green-500 flex-shrink-0"></span>
+                                        <span class="text-[11px] font-medium text-green-700 truncate">+${{ number_format($dayData['income'], 0) }}</span>
+                                    </div>
+                                @endif
+
+                                {{-- Expense --}}
+                                @if($dayData['expense'] > 0)
+                                    <div class="flex items-center gap-1 mb-0.5">
+                                        <span class="w-1.5 h-1.5 rounded-full bg-red-500 flex-shrink-0"></span>
+                                        <span class="text-[11px] font-medium text-red-700 truncate">-${{ number_format($dayData['expense'], 0) }}</span>
+                                    </div>
+                                @endif
+
+                                {{-- Net indicator bar --}}
+                                @php
+                                    $maxDay = max(array_column($calendarData['calendarDays'], 'income') ?: [1]);
+                                    $maxExp = max(array_column($calendarData['calendarDays'], 'expense') ?: [1]);
+                                    $maxVal = max($maxDay, $maxExp, 1);
+                                    $incWidth = min(($dayData['income'] / $maxVal) * 100, 100);
+                                    $expWidth = min(($dayData['expense'] / $maxVal) * 100, 100);
+                                @endphp
+                                <div class="mt-1 space-y-0.5">
+                                    @if($dayData['income'] > 0)
+                                        <div class="h-1 rounded-full bg-green-200 overflow-hidden">
+                                            <div class="h-full bg-green-500 rounded-full" style="width: {{ $incWidth }}%"></div>
+                                        </div>
+                                    @endif
+                                    @if($dayData['expense'] > 0)
+                                        <div class="h-1 rounded-full bg-red-200 overflow-hidden">
+                                            <div class="h-full bg-red-500 rounded-full" style="width: {{ $expWidth }}%"></div>
+                                        </div>
+                                    @endif
+                                </div>
+                            @elseif(!$isFuture)
+                                <p class="text-[10px] text-gray-300 mt-2 text-center">—</p>
+                            @endif
+                        </div>
+                    @endfor
+
+                    {{-- Trailing empty cells --}}
+                    @php $trailing = (7 - (($calendarData['firstDayOfWeek'] + $calendarData['daysInMonth']) % 7)) % 7; @endphp
+                    @for($i = 0; $i < $trailing; $i++)
+                        <div class="border-b border-r min-h-[90px] bg-gray-50/50"></div>
+                    @endfor
+                </div>
+            </div>
+        </div>
+         
 
     @push('scripts')
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
