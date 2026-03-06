@@ -18,6 +18,16 @@ Route::get('/', function () {
     return view('auth.login');
 });
 
+// Language Switch Route
+Route::post('/language/switch', function (\Illuminate\Http\Request $request) {
+    $locale = $request->input('locale');
+    if (in_array($locale, ['en', 'km'])) {
+        session(['locale' => $locale]);
+        \App\Models\Settings::set('app_locale', $locale);
+    }
+    return redirect()->back()->with('success', __('messages.language_changed'));
+})->name('language.switch')->middleware('auth');
+
 //Route for dashboard and role-based access control
 Route::get('/dashboard', [DashboardController::class, 'index'])
     ->middleware(['auth', 'verified'])

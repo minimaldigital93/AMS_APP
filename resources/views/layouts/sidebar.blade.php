@@ -359,7 +359,7 @@
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7m-9 2v8m4-8v8m5-12l2 2m-2-2v12a1 1 0 01-1 1h-4m-6 0H4a1 1 0 01-1-1V10m0 0l2-2" />
             </svg>
         </span>
-        <span class="nav-text truncate sidebar-label">Dashboard</span>
+        <span class="nav-text truncate sidebar-label">{{ __('messages.dashboard') }}</span>
     </a>
 
     {{-- User Management --}}
@@ -369,7 +369,7 @@
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 8.646 4 4 0 010-8.646M3 20.394A9.963 9.963 0 0112 21c4.304 0 8.196-1.702 11-4.504" />
             </svg>
         </span>
-        <span class="nav-text truncate sidebar-label">User Management</span>
+        <span class="nav-text truncate sidebar-label">{{ __('messages.user_management') }}</span>
     </a>
 
     <!-- Section Separator -->
@@ -379,7 +379,7 @@
     <div class="mt-4">
         <button @click="expandedSections['Property'] = !expandedSections['Property']" 
                 class="section-header flex items-center justify-between w-full transition sidebar-transition">
-            <span class="section-title sidebar-label">📍 Property Management</span>
+            <span class="section-title sidebar-label">📍 {{ __('messages.property_management') }}</span>
             <svg class="chevron h-5 w-5 transition-transform flex-shrink-0" :class="expandedSections['Property'] ? 'rotate-90' : ''" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7" />
             </svg>
@@ -400,7 +400,7 @@
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z" />
                     </svg>
                 </span>
-                <span class="nav-text truncate sidebar-label">Floors</span>
+                <span class="nav-text truncate sidebar-label">{{ __('messages.floors') }}</span>
             </a>
 
             {{-- Apartments --}}
@@ -410,7 +410,7 @@
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 6l3-3h12l3 3M3 6v12a3 3 0 003 3h12a3 3 0 003-3V6M9 9h6m-6 4h6" />
                     </svg>
                 </span>
-                <span class="nav-text truncate sidebar-label">Apartments</span>
+                <span class="nav-text truncate sidebar-label">{{ __('messages.apartments') }}</span>
             </a>
         </div>
     </div>
@@ -419,7 +419,7 @@
     <div class="mt-4">
         <button @click="expandedSections['Tenant'] = !expandedSections['Tenant']" 
                 class="section-header flex items-center justify-between w-full transition sidebar-transition">
-            <span class="section-title sidebar-label">👥 Tenant Management</span>
+            <span class="section-title sidebar-label">👥 {{ __('messages.tenant_management') }}</span>
             <svg class="chevron h-5 w-5 transition-transform flex-shrink-0" :class="expandedSections['Tenant'] ? 'rotate-90' : ''" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7" />
             </svg>
@@ -440,7 +440,7 @@
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2m-10 2H2v-2a3 3 0 015.356-1.857M7 20v-2m5-4a4 4 0 100-8 4 4 0 000 8z" />
                     </svg>
                 </span>
-                <span class="nav-text truncate sidebar-label">Active Tenants</span>
+                <span class="nav-text truncate sidebar-label">{{ __('messages.active_tenants') }}</span>
             </a>
 
             {{-- Archived Tenants --}}
@@ -450,7 +450,7 @@
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" />
                     </svg>
                 </span>
-                <span class="nav-text truncate sidebar-label">Archived Tenants</span>
+                <span class="nav-text truncate sidebar-label">{{ __('messages.archived_tenants') }}</span>
             </a>
         </div>
     </div>
@@ -462,7 +462,7 @@
     <div class="mt-4">
         <button @click="expandedSections['Revenue'] = !expandedSections['Revenue']" 
                 class="section-header flex items-center justify-between w-full transition sidebar-transition">
-            <span class="section-title sidebar-label">💰 Revenue & Expense</span>
+            <span class="section-title sidebar-label">💰 {{ __('messages.revenue_expense') }}</span>
             <svg class="chevron h-5 w-5 transition-transform flex-shrink-0" :class="expandedSections['Revenue'] ? 'rotate-90' : ''" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7" />
             </svg>
@@ -483,7 +483,7 @@
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7m-9 2v8m4-8v8m5-12l2 2m-2-2v12a1 1 0 01-1 1h-4m-6 0H4a1 1 0 01-1-1V10m0 0l2-2" />
                     </svg>
                 </span>
-                <span class="nav-text truncate sidebar-label">Dashboard</span>
+                <span class="nav-text truncate sidebar-label">{{ __('messages.dashboard') }}</span>
             </a>
 
             {{-- Income Records --}}
@@ -493,7 +493,7 @@
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V6m0 12v-2m0-14a9 9 0 11-9 9 9 9 0 019-9z" />
                     </svg>
                 </span>
-                <span class="nav-text truncate sidebar-label">Record Income</span>
+                <span class="nav-text truncate sidebar-label">{{ __('messages.record_income') }}</span>
             </a>
 
             {{-- Expense Records --}}
@@ -503,7 +503,7 @@
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
                     </svg>
                 </span>
-                <span class="nav-text truncate sidebar-label">Record Expense</span>
+                <span class="nav-text truncate sidebar-label">{{ __('messages.record_expense') }}</span>
             </a>
             {{--Calendar View --}}
             <a href="{{ route('admin.revenue_expense.monthly_calendar') }}" class="submenu-item nav-link flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm {{ request()->routeIs('admin.revenue_expense.monthly_calendar') ? 'text-blue-700 active' : 'text-gray-700 hover:text-blue-700' }} transition-all sidebar-transition">
@@ -512,7 +512,7 @@
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                     </svg>
                 </span>
-                <span class="nav-text truncate sidebar-label">Calendar View</span>
+                <span class="nav-text truncate sidebar-label">{{ __('messages.monthly_calendar') }}</span>
             </a>
 
             {{-- Break-even Analysis --}}
@@ -522,7 +522,7 @@
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
                     </svg>
                 </span>
-                <span class="nav-text truncate sidebar-label">Break-Even Analysis</span>
+                <span class="nav-text truncate sidebar-label">{{ __('messages.break_even') }}</span>
             </a>
         </div>
     </div>
@@ -531,7 +531,7 @@
     <div class="mt-4">
         <a href="{{ route('admin.fiscalperiod.index') }}" 
            class="section-header flex items-center justify-between w-full transition sidebar-transition {{ request()->routeIs('admin.fiscalperiod.*') ? 'text-blue-700' : '' }}">
-            <span class="section-title sidebar-label">📅 Fiscal Period</span>
+            <span class="section-title sidebar-label">📅 {{ __('messages.fiscal_period') }}</span>
             <svg class="chevron h-5 w-5 transition-transform flex-shrink-0" :class="expandedSections['FiscalPeriod'] ? 'rotate-90' : ''" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7" />
             </svg>
@@ -552,7 +552,7 @@
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
                     </svg>
                 </span>
-                <span class="nav-text truncate sidebar-label">All Periods</span>
+                <span class="nav-text truncate sidebar-label">{{ __('messages.all_periods') }}</span>
             </a>
 
             {{-- Create Period --}}
@@ -562,7 +562,7 @@
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
                     </svg>
                 </span>
-                <span class="nav-text truncate sidebar-label">Create Period</span>
+                <span class="nav-text truncate sidebar-label">{{ __('messages.create_period') }}</span>
             </a>
 
             {{-- Balance Sheet Items --}}
@@ -591,7 +591,7 @@
     <div class="mt-4">
         <button @click="expandedSections['Settings'] = !expandedSections['Settings']" 
                 class="section-header flex items-center justify-between w-full transition sidebar-transition">
-            <span class="section-title sidebar-label">⚙️ System Settings</span>
+            <span class="section-title sidebar-label">⚙️ {{ __('messages.system_settings') }}</span>
             <svg class="chevron h-5 w-5 transition-transform flex-shrink-0" :class="expandedSections['Settings'] ? 'rotate-90' : ''" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7" />
             </svg>
@@ -613,7 +613,7 @@
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
                     </svg>
                 </span>
-                <span class="nav-text truncate sidebar-label">All Settings</span>
+                <span class="nav-text truncate sidebar-label">{{ __('messages.general_settings') }}</span>
             </a>
         </div>
     </div>

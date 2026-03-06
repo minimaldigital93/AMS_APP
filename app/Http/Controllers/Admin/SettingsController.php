@@ -69,7 +69,7 @@ class SettingsController extends Controller
         Settings::set($request->key, $request->value);
 
         return redirect()->route('admin.settings.index')
-            ->with('success', 'Setting updated successfully.');
+            ->with('success', __('messages.setting_updated'));
     }
 
     /**
@@ -87,7 +87,7 @@ class SettingsController extends Controller
         }
 
         return redirect()->route('admin.settings.index')
-            ->with('success', 'Settings updated successfully.');
+            ->with('success', __('messages.settings_updated'));
     }
 
     /**
@@ -102,7 +102,7 @@ class SettingsController extends Controller
         Settings::where('key', $request->key)->delete();
 
         return redirect()->route('admin.settings.index')
-            ->with('success', 'Setting deleted successfully.');
+            ->with('success', __('messages.setting_deleted'));
     }
 
     /**
@@ -113,7 +113,7 @@ class SettingsController extends Controller
         Settings::truncate();
 
         return redirect()->route('admin.settings.index')
-            ->with('success', 'All settings have been reset to default.');
+            ->with('success', __('messages.settings_reset'));
     }
 
     /**

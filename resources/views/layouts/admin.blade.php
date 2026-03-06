@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="{{ app()->getLocale() }}">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -152,7 +152,7 @@
                 <!-- Collapse Toggle -->
                 <div class="p-4 border-b border-gray-200 flex items-center justify-between">
                     <h2 class="font-bold text-xl text-gray-800 sidebar-label" :class="{'hidden': isCollapsed}">
-                        AMS
+                        {{ __('messages.ams') }}
                     </h2>
                     <button 
                         @click="toggleSidebar()"
@@ -184,7 +184,7 @@
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
                             </svg>
                         </span>
-                        <span class="sidebar-label">Logout</span>
+                        <span class="sidebar-label">{{ __('messages.logout') }}</span>
                     </button>
                 </div>
             </div>
