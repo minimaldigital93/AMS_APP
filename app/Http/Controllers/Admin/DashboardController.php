@@ -230,7 +230,13 @@ class DashboardController extends Controller
         }
 
         // Revenue from actual payments (collected)
-        $payments = Payments::where('payment_status', 'paid')
+        $payments = Payments::whereHas('rental', function ($query) {
+                $query->whereHas('apartment', function ($subQuery) {
+                    $subQuery->where('supervisor_id', Auth::id())
+                             ->orWhereNull('supervisor_id');
+                });
+            })
+            ->where('payment_status', 'paid')
             ->where('paid_at', '>=', $sixMonthsAgo)
             ->selectRaw('DATE_FORMAT(paid_at, "%Y-%m") as ym, SUM(amount) as total_amount, SUM(late_fee) as total_late')
             ->groupByRaw('DATE_FORMAT(paid_at, "%Y-%m")')
@@ -257,7 +263,13 @@ class DashboardController extends Controller
         }
 
         // Expenses from utilities
-        $utilities = Utilities::where('paid_status', true)
+        $utilities = Utilities::whereHas('rental', function ($query) {
+                $query->whereHas('apartment', function ($subQuery) {
+                    $subQuery->where('supervisor_id', Auth::id())
+                             ->orWhereNull('supervisor_id');
+                });
+            })
+            ->where('paid_status', true)
             ->where('paid_at', '>=', $sixMonthsAgo)
             ->selectRaw('DATE_FORMAT(paid_at, "%Y-%m") as ym, SUM(charge_amount) as total')
             ->groupByRaw('DATE_FORMAT(paid_at, "%Y-%m")')

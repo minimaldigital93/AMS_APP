@@ -135,13 +135,17 @@
             <!-- Monthly Revenue Trend -->
             <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
                 <h2 class="text-lg font-semibold text-gray-900 mb-4">Revenue Trend (6 Months)</h2>
-                <canvas id="revenueChart" class="w-full" style="max-height: 300px;"></canvas>
+                <div style="position: relative; height: 300px;">
+                    <canvas id="revenueChart"></canvas>
+                </div>
             </div>
 
             <!-- Payment Status Distribution -->
             <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
                 <h2 class="text-lg font-semibold text-gray-900 mb-4">Payment Status</h2>
-                <canvas id="paymentStatusChart" class="w-full" style="max-height: 300px;"></canvas>
+                <div style="position: relative; height: 300px;">
+                    <canvas id="paymentStatusChart"></canvas>
+                </div>
             </div>
         </div>
 
@@ -150,13 +154,17 @@
             <!-- Occupancy by Building -->
             <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
                 <h2 class="text-lg font-semibold text-gray-900 mb-4">Occupancy by Floor</h2>
-                <canvas id="occupancyChart" class="w-full" style="max-height: 300px;"></canvas>
+                <div style="position: relative; height: 300px;">
+                    <canvas id="occupancyChart"></canvas>
+                </div>
             </div>
 
             <!-- Utility Usage -->
             <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
                 <h2 class="text-lg font-semibold text-gray-900 mb-4">Utility Consumption (Monthly)</h2>
-                <canvas id="utilityChart" class="w-full" style="max-height: 300px;"></canvas>
+                <div style="position: relative; height: 300px;">
+                    <canvas id="utilityChart"></canvas>
+                </div>
             </div>
         </div>
 
@@ -165,7 +173,9 @@
             <!-- Rental Income vs Expenses -->
             <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
                 <h2 class="text-lg font-semibold text-gray-900 mb-4">Income vs Expenses</h2>
-                <canvas id="incomeExpenseChart" class="w-full" style="max-height: 300px;"></canvas>
+                <div style="position: relative; height: 300px;">
+                    <canvas id="incomeExpenseChart"></canvas>
+                </div>
             </div>
 
             <!-- Pending Actions -->
