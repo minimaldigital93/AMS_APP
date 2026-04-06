@@ -8,6 +8,7 @@ use App\Models\ApartmentFixedExpense;
 use App\Models\BusinessExpense;
 use App\Models\FiscalPeriods;
 use App\Models\Payments;
+use App\Models\TenantLeave;
 use App\Models\Utilities;
 use App\Models\Rentals;
 use App\Models\Apartments;
@@ -106,7 +107,9 @@ class RevenueExpenseController extends Controller
                     ->orderBy('start_date', 'desc')
                     ->with(['tenant', 'payments' => function ($pq) use ($activePeriod) {
                         $pq->where('payment_status', 'paid')
-                            ->whereBetween('paid_at', [$activePeriod->opening_date, $activePeriod->closing_date]);
+                            ->whereHas('accounts', function ($aq) use ($activePeriod) {
+                                $aq->where('fiscal_period_id', $activePeriod->id);
+                            });
                     }]);
             }])
             ->get();
@@ -160,7 +163,16 @@ class RevenueExpenseController extends Controller
             ->with(['floor', 'rentals' => function ($q) use ($activePeriod) {
                 $q->orderBy('start_date', 'desc')
                     ->with(['tenant', 'utilities' => function ($uq) use ($activePeriod) {
-                        $uq->whereBetween('paid_at', [$activePeriod->opening_date, $activePeriod->closing_date]);
+                        // Filter utilities by billing period within the fiscal year
+                        $start = Carbon::parse($activePeriod->opening_date);
+                        $end = Carbon::parse($activePeriod->closing_date);
+                        $uq->where(function ($q) use ($start, $end) {
+                            $q->whereBetween('paid_at', [$start->startOfDay(), $end->copy()->endOfDay()])
+                              ->orWhere(function ($q2) use ($start, $end) {
+                                  $q2->where('billing_year', '>=', $start->year)
+                                      ->where('billing_year', '<=', $end->year);
+                              });
+                        });
                     }]);
             }])
             ->get();
@@ -350,7 +362,7 @@ class RevenueExpenseController extends Controller
     }
 
     /**
-     * Calculate total income from tenant payments
+     * Calculate total income using Accounts table (linked to fiscal period).
      * 
      * @param string|null $startDate
      * @param string|null $endDate
@@ -358,86 +370,60 @@ class RevenueExpenseController extends Controller
      */
     public function calculateIncome($startDate = null, $endDate = null)
     {
-        // Rent payments from tenants
-        $query = Payments::whereHas('rental', function ($q) {
-            $q->whereHas('apartment', function ($q2) {
-                $q2->where('supervisor_id', Auth::id())
-                    ->orWhereNull('supervisor_id');
-            });
-        })->where('payment_status', 'paid');
+        $activePeriod = $this->getActiveFiscalPeriod();
 
-        if ($startDate && $endDate) {
-            $query->whereBetween('paid_at', [$startDate, $endDate]);
+        // Use Accounts table as source of truth (properly linked to fiscal period)
+        $query = Accounts::where('account_type', 'income')
+            ->where('user_id', Auth::id());
+
+        if ($activePeriod) {
+            $query->where('fiscal_period_id', $activePeriod->id);
         }
 
-        $paidPayments = $query->get();
-        
-        $rentIncome = $paidPayments->sum('amount');
-        $lateFeesIncome = $paidPayments->sum('late_fee');
-
-        // Utility/other charges from tenants (electricity, water, internet, parking)
-        $utilitiesQuery = Utilities::whereHas('rental', function ($q) {
-            $q->whereHas('apartment', function ($q2) {
-                $q2->where('supervisor_id', Auth::id())
-                    ->orWhereNull('supervisor_id');
-            });
-        });
-
         if ($startDate && $endDate) {
-            $start = Carbon::parse($startDate);
-            $end = Carbon::parse($endDate);
-            $utilitiesQuery->where(function ($q) use ($startDate, $endDate, $start, $end) {
-                // Match by paid_at if available, otherwise fall back to billing_month/year or created_at
-                $q->whereBetween('paid_at', [$startDate, $endDate])
-                  ->orWhere(function ($q2) use ($start, $end) {
-                      $q2->whereNull('paid_at')
-                          ->where(function ($q3) use ($start, $end) {
-                              // Use billing_month/year range
-                              $q3->where(function ($q4) use ($start, $end) {
-                                  $q4->where('billing_year', '>', $start->year)
-                                      ->orWhere(function ($q5) use ($start) {
-                                          $q5->where('billing_year', $start->year)
-                                             ->where('billing_month', '>=', $start->month);
-                                      });
-                              })->where(function ($q4) use ($end) {
-                                  $q4->where('billing_year', '<', $end->year)
-                                      ->orWhere(function ($q5) use ($end) {
-                                          $q5->where('billing_year', $end->year)
-                                             ->where('billing_month', '<=', $end->month);
-                                      });
-                              });
-                          });
-                  });
-            });
+            $query->whereBetween('transaction_date', [
+                Carbon::parse($startDate)->startOfDay(),
+                Carbon::parse($endDate)->endOfDay(),
+            ]);
         }
 
-        $utilities = $utilitiesQuery->get();
+        $incomeRecords = $query->get();
 
-        $electricityIncome = $utilities->where('utility_type', 'electricity')->sum('charge_amount');
-        $waterIncome = $utilities->where('utility_type', 'water')->sum('charge_amount');
-        $internetIncome = $utilities->where('utility_type', 'internet')->sum('charge_amount');
-        $parkingIncome = $utilities->where('utility_type', 'parking')->sum('charge_amount');
-        $totalUtilityIncome = $electricityIncome + $waterIncome + $internetIncome + $parkingIncome;
+        $rentIncome = $incomeRecords->where('category', 'rent_income')->sum('amount');
+        $utilityIncome = $incomeRecords->where('category', 'utility_income')->sum('amount');
+        $depositIncome = $incomeRecords->where('category', 'deposit_income')->sum('amount');
+        $otherIncome = $incomeRecords->where('category', 'other_income')->sum('amount');
+        $totalIncome = $rentIncome + $utilityIncome + $depositIncome + $otherIncome;
 
-        $totalIncome = $rentIncome + $lateFeesIncome + $totalUtilityIncome;
+        // Get linked payments for late fees and count
+        $paymentIds = $incomeRecords->pluck('payment_id')->filter()->unique();
+        $payments = $paymentIds->isNotEmpty()
+            ? Payments::whereIn('id', $paymentIds)->get()
+            : collect();
+        $lateFeesIncome = $payments->sum('late_fee');
+        $totalIncome += $lateFeesIncome;
+        $paymentCount = $incomeRecords->count();
 
         return [
             'rent_income' => round($rentIncome, 2),
             'late_fees' => round($lateFeesIncome, 2),
-            'electricity_income' => round($electricityIncome, 2),
-            'water_income' => round($waterIncome, 2),
-            'internet_income' => round($internetIncome, 2),
-            'parking_income' => round($parkingIncome, 2),
-            'total_utility_income' => round($totalUtilityIncome, 2),
+            'electricity_income' => 0,
+            'water_income' => 0,
+            'internet_income' => 0,
+            'parking_income' => 0,
+            'total_utility_income' => round($utilityIncome, 2),
+            'deposit_income' => round($depositIncome, 2),
+            'other_income' => round($otherIncome, 2),
             'total_income' => round($totalIncome, 2),
-            'payment_count' => $paidPayments->count(),
-            'utility_count' => $utilities->count(),
-            'average_payment' => $paidPayments->count() > 0 ? round($rentIncome / $paidPayments->count(), 2) : 0,
+            'payment_count' => $paymentCount,
+            'utility_count' => 0,
+            'average_payment' => $paymentCount > 0 ? round($rentIncome / $paymentCount, 2) : 0,
         ];
     }
 
     /**
-     * Calculate all expenses including utilities and other costs
+     * Calculate all expenses using Accounts table (linked to fiscal period).
+     * Includes business expenses, utility expenses, and other expenses.
      * 
      * @param string|null $startDate
      * @param string|null $endDate
@@ -445,36 +431,46 @@ class RevenueExpenseController extends Controller
      */
     public function calculateExpenses($startDate = null, $endDate = null)
     {
-        // Business overall expenses only (from BusinessExpense model)
         $activePeriod = $this->getActiveFiscalPeriod();
 
-        $businessQuery = BusinessExpense::where('user_id', Auth::id());
+        // Use Accounts table as source of truth (properly linked to fiscal period)
+        $query = Accounts::where('account_type', 'expense')
+            ->where('user_id', Auth::id());
 
         if ($activePeriod) {
-            $businessQuery->where('fiscal_period_id', $activePeriod->id);
+            $query->where('fiscal_period_id', $activePeriod->id);
         }
 
         if ($startDate && $endDate) {
-            $businessQuery->whereBetween('expense_date', [$startDate, $endDate]);
+            $query->whereBetween('transaction_date', [
+                Carbon::parse($startDate)->startOfDay(),
+                Carbon::parse($endDate)->endOfDay(),
+            ]);
         }
 
-        $businessExpenses = $businessQuery->get();
+        $expenseRecords = $query->get();
 
-        $fixedExpenses = $businessExpenses->where('cost_type', 'fixed')->sum('amount');
-        $variableExpenses = $businessExpenses->where('cost_type', 'variable')->sum('amount');
-        $totalExpenses = $fixedExpenses + $variableExpenses;
+        $fixedExpenses = $expenseRecords->where('category', 'business_fixed')->sum('amount');
+        $variableExpenses = $expenseRecords->where('category', 'business_variable')->sum('amount');
+        $utilityExpenses = $expenseRecords->where('category', 'utilities_expense')->sum('amount');
+        $otherExpenses = $expenseRecords->whereNotIn('category', [
+            'business_fixed', 'business_variable', 'utilities_expense',
+        ])->sum('amount');
+        $totalExpenses = $fixedExpenses + $variableExpenses + $utilityExpenses + $otherExpenses;
 
         // Group by category for breakdown
-        $byCategory = $businessExpenses->groupBy('category')->map(function ($items) {
+        $byCategory = $expenseRecords->groupBy('category')->map(function ($items) {
             return round($items->sum('amount'), 2);
         })->toArray();
 
         return [
             'fixed_expenses' => round($fixedExpenses, 2),
             'variable_expenses' => round($variableExpenses, 2),
+            'utility_expenses' => round($utilityExpenses, 2),
+            'other_expenses' => round($otherExpenses, 2),
             'by_category' => $byCategory,
             'total_expenses' => round($totalExpenses, 2),
-            'expense_count' => $businessExpenses->count(),
+            'expense_count' => $expenseRecords->count(),
         ];
     }
 
@@ -487,10 +483,9 @@ class RevenueExpenseController extends Controller
      */
     public function calculateSummary($income, $expenses)
     {
-        // Net Profit = Rent income only minus business expenses
-        $netProfit = $income['rent_income'] - $expenses['total_expenses'];
-        $profitMargin = $income['rent_income'] > 0 
-            ? round(($netProfit / $income['rent_income']) * 100, 2)
+        $netProfit = $income['total_income'] - $expenses['total_expenses'];
+        $profitMargin = $income['total_income'] > 0 
+            ? round(($netProfit / $income['total_income']) * 100, 2)
             : 0;
 
         return [
@@ -505,26 +500,46 @@ class RevenueExpenseController extends Controller
 
     /**
      * Calculate per-apartment revenue and expense breakdown.
+     * Uses Accounts linkage for fiscal period filtering.
      */
     private function calculatePerApartmentData($startDate = null, $endDate = null)
     {
         $currentMonth = now()->month;
         $currentYear = now()->year;
+        $activePeriod = $this->getActiveFiscalPeriod();
 
         $apartments = $this->scopeApartments()
-            ->with(['floor', 'activeFixedExpenses', 'rentals' => function ($q) use ($startDate, $endDate) {
-                $q->whereHas('tenant') // Only rentals with non-deleted tenants
-                    ->with([
+            ->with(['floor', 'activeFixedExpenses', 'rentals' => function ($q) use ($activePeriod, $startDate, $endDate) {
+                $q->with([
                     'tenant',
-                    'payments' => function ($pq) use ($startDate, $endDate) {
+                    'payments' => function ($pq) use ($activePeriod, $startDate, $endDate) {
                         $pq->where('payment_status', 'paid');
-                        if ($startDate && $endDate) {
-                            $pq->whereBetween('paid_at', [$startDate, $endDate]);
+                        // Filter by fiscal period via Accounts linkage
+                        if ($activePeriod) {
+                            $pq->whereHas('accounts', function ($aq) use ($activePeriod, $startDate, $endDate) {
+                                $aq->where('fiscal_period_id', $activePeriod->id);
+                                if ($startDate && $endDate) {
+                                    $aq->whereBetween('transaction_date', [
+                                        Carbon::parse($startDate)->startOfDay(),
+                                        Carbon::parse($endDate)->endOfDay(),
+                                    ]);
+                                }
+                            });
                         }
                     },
                     'utilities' => function ($uq) use ($startDate, $endDate) {
                         if ($startDate && $endDate) {
-                            $uq->whereBetween('paid_at', [$startDate, $endDate]);
+                            $start = Carbon::parse($startDate);
+                            $end = Carbon::parse($endDate);
+                            $uq->where(function ($q) use ($start, $end) {
+                                $q->whereBetween('paid_at', [$start->startOfDay(), $end->copy()->endOfDay()])
+                                  ->orWhere(function ($q2) use ($start, $end) {
+                                      $q2->where('billing_year', '>=', $start->year)
+                                          ->where('billing_year', '<=', $end->year)
+                                          ->where('billing_month', '>=', $start->month)
+                                          ->where('billing_month', '<=', $end->month);
+                                  });
+                            });
                         }
                     }
                 ]);
@@ -2014,6 +2029,252 @@ class RevenueExpenseController extends Controller
             'monthTotalIncome', 'monthTotalExpense', 'monthNet',
             'bestDay', 'worstDay',
             'prevMonth', 'nextMonth'
+        ));
+    }
+
+    // ===========================================================================
+    // INCOME STATEMENT
+    // ===========================================================================
+
+    /**
+     * Display a simple Income Statement showing:
+     *   Revenue: Monthly Rent, Early Leave, Parking, Late Fees
+     *   Gross Revenue (pass-through): Electricity, Water, Internet collected
+     *   Expenses: Security, Electricity/Water/Internet paid to vendors, Tax, etc.
+     *   Net Income = Revenue - Expenses
+     */
+    public function incomeStatement(Request $request)
+    {
+        // Allow switching fiscal periods
+        if ($request->has('period')) {
+            $activePeriod = FiscalPeriods::where('user_id', Auth::id())
+                ->where('id', $request->input('period'))
+                ->first();
+        }
+        if (!isset($activePeriod) || !$activePeriod) {
+            $activePeriod = $this->getActiveFiscalPeriod();
+        }
+
+        if (!$activePeriod) {
+            return redirect()->route('admin.fiscalperiod.create')
+                ->with('warning', 'Please create a fiscal period first.');
+        }
+
+        // Monthly filter
+        $filterMonth = $request->integer('month') ?: null;
+        $filterYear = $request->integer('year') ?: null;
+
+        if ($filterMonth && $filterYear) {
+            $filterStart = Carbon::create($filterYear, $filterMonth, 1)->startOfMonth();
+            $filterEnd = $filterStart->copy()->endOfMonth();
+            $startDate = $filterStart->lt(Carbon::parse($activePeriod->opening_date))
+                ? Carbon::parse($activePeriod->opening_date)
+                : $filterStart;
+            $endDate = $filterEnd->gt(Carbon::parse($activePeriod->closing_date))
+                ? Carbon::parse($activePeriod->closing_date)
+                : $filterEnd;
+        } else {
+            $startDate = $activePeriod->opening_date;
+            $endDate = $activePeriod->closing_date;
+        }
+
+        // Build month navigation list
+        $periodMonths = [];
+        $mCursor = Carbon::parse($activePeriod->opening_date)->startOfMonth();
+        $mEnd = Carbon::parse($activePeriod->closing_date)->endOfMonth();
+        while ($mCursor->lte($mEnd)) {
+            $periodMonths[] = [
+                'month' => $mCursor->month,
+                'year' => $mCursor->year,
+                'label' => $mCursor->format('F Y'),
+            ];
+            $mCursor->addMonth();
+        }
+
+        $apartmentIds = $this->scopeApartments()->pluck('id');
+
+        // ================================================
+        // REVENUE (Owner's actual income)
+        // ================================================
+
+        // 1. Monthly Rent
+        $rentPayments = Payments::whereHas('rental', function ($q) use ($apartmentIds) {
+                $q->whereIn('apartment_id', $apartmentIds);
+            })
+            ->where('payment_status', 'paid')
+            ->where('payment_type', 'rent')
+            ->whereBetween('paid_at', [$startDate, $endDate])
+            ->get();
+
+        $rentIncome = round($rentPayments->sum('amount'), 2);
+        $lateFees = round($rentPayments->sum('late_fee'), 2);
+
+        // 2. Early Leave Fees (balance_due from completed tenant checkouts)
+        $earlyLeaveIncome = round(
+            TenantLeave::whereIn('apartment_id', $apartmentIds)
+                ->where('status', 'completed')
+                ->whereBetween('leave_date', [$startDate, $endDate])
+                ->sum('balance_due'),
+            2
+        );
+
+        // 3. Parking Revenue (collected from tenants)
+        $parkingRevenue = round(
+            Utilities::whereHas('rental', function ($q) use ($apartmentIds) {
+                $q->whereIn('apartment_id', $apartmentIds);
+            })
+            ->where('utility_type', 'parking')
+            ->where('paid_status', true)
+            ->whereBetween('paid_at', [$startDate, $endDate])
+            ->sum('charge_amount'),
+            2
+        );
+
+        $totalRevenue = $rentIncome + $lateFees + $earlyLeaveIncome + $parkingRevenue;
+
+        // ================================================
+        // GROSS REVENUE (Collected from tenants → paid to vendors)
+        // These are pass-through: NOT owner's profit
+        // ================================================
+
+        $utilityCollected = Utilities::whereHas('rental', function ($q) use ($apartmentIds) {
+                $q->whereIn('apartment_id', $apartmentIds);
+            })
+            ->where('paid_status', true)
+            ->whereBetween('paid_at', [$startDate, $endDate])
+            ->get();
+
+        $electricityCollected = round($utilityCollected->where('utility_type', 'electricity')->sum('charge_amount'), 2);
+        $waterCollected = round($utilityCollected->where('utility_type', 'water')->sum('charge_amount'), 2);
+        $internetCollected = round($utilityCollected->where('utility_type', 'internet')->sum('charge_amount'), 2);
+        $totalGrossRevenue = $electricityCollected + $waterCollected + $internetCollected;
+
+        $totalAllCollected = $totalRevenue + $totalGrossRevenue;
+
+        // ================================================
+        // EXPENSES (Owner pays out)
+        // ================================================
+
+        $businessExpenses = BusinessExpense::where('user_id', Auth::id())
+            ->where('fiscal_period_id', $activePeriod->id)
+            ->whereBetween('expense_date', [$startDate, $endDate])
+            ->get();
+
+        // Security expense
+        $securityExpense = round($businessExpenses->where('category', 'security')->sum('amount'), 2);
+
+        // Vendor payments (electricity, water, internet paid to providers)
+        $electricityExpense = round(
+            $businessExpenses->filter(function ($e) {
+                return in_array($e->category, ['electricity', 'utilities_electricity']);
+            })->sum('amount')
+            + Accounts::where('user_id', Auth::id())
+                ->where('fiscal_period_id', $activePeriod->id)
+                ->where('account_type', 'expense')
+                ->where('category', 'utilities_expense')
+                ->where('description', 'like', '%lectricit%')
+                ->whereBetween('transaction_date', [$startDate, $endDate])
+                ->sum('amount'),
+            2
+        );
+
+        $waterExpense = round(
+            $businessExpenses->filter(function ($e) {
+                return in_array($e->category, ['water', 'utilities_water']);
+            })->sum('amount')
+            + Accounts::where('user_id', Auth::id())
+                ->where('fiscal_period_id', $activePeriod->id)
+                ->where('account_type', 'expense')
+                ->where('category', 'utilities_expense')
+                ->where('description', 'like', '%ater%')
+                ->whereBetween('transaction_date', [$startDate, $endDate])
+                ->sum('amount'),
+            2
+        );
+
+        $internetExpense = round(
+            $businessExpenses->filter(function ($e) {
+                return in_array($e->category, ['internet', 'utilities_internet']);
+            })->sum('amount')
+            + Accounts::where('user_id', Auth::id())
+                ->where('fiscal_period_id', $activePeriod->id)
+                ->where('account_type', 'expense')
+                ->where('category', 'utilities_expense')
+                ->where('description', 'like', '%nternet%')
+                ->whereBetween('transaction_date', [$startDate, $endDate])
+                ->sum('amount'),
+            2
+        );
+
+        // Tax expense
+        $taxExpense = round(
+            $businessExpenses->filter(function ($e) {
+                return in_array($e->category, ['property_tax', 'tax']);
+            })->sum('amount')
+            + Accounts::where('user_id', Auth::id())
+                ->where('fiscal_period_id', $activePeriod->id)
+                ->where('account_type', 'expense')
+                ->whereIn('category', ['property_tax', 'taxes'])
+                ->whereBetween('transaction_date', [$startDate, $endDate])
+                ->sum('amount'),
+            2
+        );
+
+        // Other expenses (everything not already counted above)
+        $countedBusinessIds = $businessExpenses->filter(function ($e) {
+            return in_array($e->category, [
+                'security', 'electricity', 'utilities_electricity',
+                'water', 'utilities_water', 'internet', 'utilities_internet',
+                'property_tax', 'tax',
+            ]);
+        })->pluck('id');
+
+        $otherBusinessExpense = round(
+            $businessExpenses->whereNotIn('id', $countedBusinessIds)->sum('amount'),
+            2
+        );
+
+        // Other account expenses not already matched
+        $otherAccountExpense = round(
+            Accounts::where('user_id', Auth::id())
+                ->where('fiscal_period_id', $activePeriod->id)
+                ->where('account_type', 'expense')
+                ->whereNotIn('category', ['utilities_expense', 'business_fixed', 'business_variable', 'property_tax', 'taxes'])
+                ->whereBetween('transaction_date', [$startDate, $endDate])
+                ->sum('amount'),
+            2
+        );
+
+        $otherExpense = $otherBusinessExpense + $otherAccountExpense;
+
+        $totalExpenses = $securityExpense + $electricityExpense + $waterExpense
+            + $internetExpense + $taxExpense + $otherExpense;
+
+        // ================================================
+        // NET INCOME
+        // ================================================
+        $netIncome = round($totalRevenue - $totalExpenses, 2);
+
+        // Vendor balance (collected from tenants minus paid to vendors)
+        $vendorBalance = round($totalGrossRevenue - ($electricityExpense + $waterExpense + $internetExpense), 2);
+
+        // All fiscal periods for switcher
+        $fiscalPeriods = FiscalPeriods::where('user_id', Auth::id())
+            ->orderBy('opening_date', 'desc')
+            ->get();
+
+        return view('admin.revenue_expense.income_statement', compact(
+            'activePeriod', 'fiscalPeriods', 'filterMonth', 'filterYear', 'periodMonths',
+            // Revenue
+            'rentIncome', 'lateFees', 'earlyLeaveIncome', 'parkingRevenue', 'totalRevenue',
+            // Gross Revenue (pass-through)
+            'electricityCollected', 'waterCollected', 'internetCollected',
+            'totalGrossRevenue', 'totalAllCollected',
+            // Expenses
+            'securityExpense', 'electricityExpense', 'waterExpense',
+            'internetExpense', 'taxExpense', 'otherExpense', 'totalExpenses',
+            // Net Income
+            'netIncome', 'vendorBalance'
         ));
     }
 }

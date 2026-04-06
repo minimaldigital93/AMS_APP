@@ -48,6 +48,7 @@ return [
     'active_tenants' => 'អ្នកជួលសកម្ម',
     'archived_tenants' => 'អ្នកជួលទុកក្នុងប័ណ្ណសារ',
     'revenue_expense' => 'ចំណូល និងចំណាយ',
+    'income_statement' => 'របាយការណ៍ចំណូល',
     'record_income' => 'កត់ត្រាចំណូល',
     'record_expense' => 'កត់ត្រាចំណាយ',
     'fixed_expenses' => 'ចំណាយថេរ',

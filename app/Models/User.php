@@ -83,9 +83,4 @@ class User extends Authenticatable
     {
         return $this->hasMany(BalanceSheet::class);
     }
-
-    public function activityLogs(): HasMany
-    {
-        return $this->hasMany(ActivityLogs::class);
-    }
 }

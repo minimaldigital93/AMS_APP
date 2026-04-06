@@ -242,7 +242,7 @@
             <div class="bg-white rounded-xl shadow-md p-6 border-l-4 {{ $summary['net_profit'] >= 0 ? 'border-blue-500' : 'border-orange-500' }}">
                 <div class="flex items-center justify-between">
                     <div>
-                        <p class="text-gray-500 text-sm font-medium">Net Profit <span class="text-xs text-gray-400">(Rent Only)</span></p>
+                        <p class="text-gray-500 text-sm font-medium">Net Profit</p>
                         <p class="text-2xl font-bold {{ $summary['net_profit'] >= 0 ? 'text-blue-600' : 'text-orange-600' }} mt-1">
                             {{ $summary['net_profit'] >= 0 ? '+' : '' }}${{ number_format($summary['net_profit'], 2) }}
                         </p>
@@ -289,35 +289,44 @@
                 <div class="px-5 py-4 border-b bg-gray-50"><h2 class="text-sm font-semibold text-gray-900">Income Breakdown <span class="text-xs font-normal text-gray-400">(Rent + Tenant Charges)</span></h2></div>
                 <div class="divide-y">
                     <div class="flex justify-between px-5 py-2.5"><span class="text-sm text-gray-600">🏠 Rent</span><span class="text-sm font-semibold">${{ number_format($income['rent_income'], 2) }}</span></div>
+                    @if(($income['late_fees'] ?? 0) > 0)
                     <div class="flex justify-between px-5 py-2.5"><span class="text-sm text-gray-600">⏰ Late Fees</span><span class="text-sm font-semibold">${{ number_format($income['late_fees'], 2) }}</span></div>
-                    @if(($income['electricity_income'] ?? 0) > 0)
-                    <div class="flex justify-between px-5 py-2.5"><span class="text-sm text-gray-600">⚡ Electricity</span><span class="text-sm font-semibold">${{ number_format($income['electricity_income'], 2) }}</span></div>
-                    @endif
-                    @if(($income['water_income'] ?? 0) > 0)
-                    <div class="flex justify-between px-5 py-2.5"><span class="text-sm text-gray-600">💧 Water</span><span class="text-sm font-semibold">${{ number_format($income['water_income'], 2) }}</span></div>
-                    @endif
-                    @if(($income['internet_income'] ?? 0) > 0)
-                    <div class="flex justify-between px-5 py-2.5"><span class="text-sm text-gray-600">📡 Internet</span><span class="text-sm font-semibold">${{ number_format($income['internet_income'], 2) }}</span></div>
-                    @endif
-                    @if(($income['parking_income'] ?? 0) > 0)
-                    <div class="flex justify-between px-5 py-2.5"><span class="text-sm text-gray-600">🚗 Parking</span><span class="text-sm font-semibold">${{ number_format($income['parking_income'], 2) }}</span></div>
                     @endif
                     @if(($income['total_utility_income'] ?? 0) > 0)
-                    <div class="flex justify-between px-5 py-2.5 bg-blue-50"><span class="text-sm font-semibold text-blue-700">Tenant Charges Subtotal</span><span class="text-sm font-bold text-blue-600">${{ number_format($income['total_utility_income'], 2) }}</span></div>
+                    <div class="flex justify-between px-5 py-2.5"><span class="text-sm text-gray-600">🔌 Utility Charges</span><span class="text-sm font-semibold">${{ number_format($income['total_utility_income'], 2) }}</span></div>
+                    @endif
+                    @if(($income['deposit_income'] ?? 0) > 0)
+                    <div class="flex justify-between px-5 py-2.5"><span class="text-sm text-gray-600">🔑 Deposits</span><span class="text-sm font-semibold">${{ number_format($income['deposit_income'], 2) }}</span></div>
+                    @endif
+                    @if(($income['other_income'] ?? 0) > 0)
+                    <div class="flex justify-between px-5 py-2.5"><span class="text-sm text-gray-600">📋 Other</span><span class="text-sm font-semibold">${{ number_format($income['other_income'], 2) }}</span></div>
                     @endif
                     <div class="flex justify-between px-5 py-2.5 bg-gray-50"><span class="text-sm font-semibold">Total Income</span><span class="text-sm font-bold text-green-600">${{ number_format($income['total_income'], 2) }}</span></div>
                 </div>
             </div>
             <div class="bg-white rounded-xl shadow-md overflow-hidden">
-                <div class="px-5 py-4 border-b bg-gray-50"><h2 class="text-sm font-semibold text-gray-900">Expense Breakdown <span class="text-xs font-normal text-gray-400">(Business Expenses)</span></h2></div>
+                <div class="px-5 py-4 border-b bg-gray-50"><h2 class="text-sm font-semibold text-gray-900">Expense Breakdown <span class="text-xs font-normal text-gray-400">(All Expenses)</span></h2></div>
                 <div class="divide-y">
-                    <div class="flex justify-between px-5 py-2.5"><span class="text-sm text-gray-600">📌 Fixed Expenses</span><span class="text-sm font-semibold">${{ number_format($expenses['fixed_expenses'], 2) }}</span></div>
-                    <div class="flex justify-between px-5 py-2.5"><span class="text-sm text-gray-600">📊 Variable Expenses</span><span class="text-sm font-semibold">${{ number_format($expenses['variable_expenses'], 2) }}</span></div>
+                    @if(($expenses['fixed_expenses'] ?? 0) > 0)
+                    <div class="flex justify-between px-5 py-2.5"><span class="text-sm text-gray-600">📌 Business Fixed</span><span class="text-sm font-semibold">${{ number_format($expenses['fixed_expenses'], 2) }}</span></div>
+                    @endif
+                    @if(($expenses['variable_expenses'] ?? 0) > 0)
+                    <div class="flex justify-between px-5 py-2.5"><span class="text-sm text-gray-600">📊 Business Variable</span><span class="text-sm font-semibold">${{ number_format($expenses['variable_expenses'], 2) }}</span></div>
+                    @endif
+                    @if(($expenses['utility_expenses'] ?? 0) > 0)
+                    <div class="flex justify-between px-5 py-2.5"><span class="text-sm text-gray-600">🔌 Utility Expenses</span><span class="text-sm font-semibold">${{ number_format($expenses['utility_expenses'], 2) }}</span></div>
+                    @endif
+                    @if(($expenses['other_expenses'] ?? 0) > 0)
+                    <div class="flex justify-between px-5 py-2.5"><span class="text-sm text-gray-600">📋 Other Expenses</span><span class="text-sm font-semibold">${{ number_format($expenses['other_expenses'], 2) }}</span></div>
+                    @endif
                     @if(!empty($expenses['by_category']))
                     <div class="px-5 py-2.5">
                         <p class="text-xs font-semibold text-gray-500 uppercase mb-1.5">By Category</p>
                         @php
                             $categoryLabels = [
+                                'business_fixed' => 'Business Fixed',
+                                'business_variable' => 'Business Variable',
+                                'utilities_expense' => 'Utility Costs',
                                 'building_maintenance' => 'Building Maintenance',
                                 'insurance' => 'Insurance',
                                 'property_tax' => 'Property Tax',
@@ -334,6 +343,8 @@
                                 'supplies' => 'Supplies',
                                 'license' => 'License & Permits',
                                 'depreciation' => 'Depreciation',
+                                'maintenance' => 'Maintenance & Repairs',
+                                'miscellaneous' => 'Miscellaneous',
                                 'other' => 'Other',
                             ];
                         @endphp
@@ -345,7 +356,7 @@
                         @endforeach
                     </div>
                     @endif
-                    <div class="flex justify-between px-5 py-2.5 bg-gray-50"><span class="text-sm font-semibold">Total Business Expenses</span><span class="text-sm font-bold text-red-600">${{ number_format($expenses['total_expenses'], 2) }}</span></div>
+                    <div class="flex justify-between px-5 py-2.5 bg-gray-50"><span class="text-sm font-semibold">Total Expenses</span><span class="text-sm font-bold text-red-600">${{ number_format($expenses['total_expenses'], 2) }}</span></div>
                 </div>
             </div>
         </div>

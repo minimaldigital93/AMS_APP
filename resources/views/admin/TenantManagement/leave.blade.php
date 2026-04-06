@@ -3,334 +3,170 @@
 @section('title', 'Process Tenant Leave')
 
 @section('content')
-<div class="space-y-6">
-    <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-        <!-- Header -->
-        <div class="mb-8">
-            <a href="/admin/tenants" class="inline-flex items-center text-blue-600 hover:text-blue-800 mb-4">
-                <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
-                </svg>
-                Back to Tenants
-            </a>
-            <h1 class="text-3xl font-bold text-gray-900">Tenant Leave Processing</h1>
-        </div>
-
-        <!-- Progress Steps -->
-        <div class="bg-white rounded-lg shadow-md mb-8 p-6">
-            <div class="flex items-center justify-between">
-                <div class="flex-1">
-                    <div class="flex items-center">
-                        <div class="flex items-center justify-center h-10 w-10 rounded-full bg-blue-600 text-white">
-                            <span class="text-lg font-semibold">1</span>
-                        </div>
-                        <p class="ml-4 text-sm font-medium text-gray-900">Tenant Information</p>
-                    </div>
-                </div>
-                <div class="flex-auto border-t-2 border-gray-300 mx-4"></div>
-                <div class="flex-1">
-                    <div class="flex items-center">
-                        <div class="flex items-center justify-center h-10 w-10 rounded-full bg-gray-300 text-gray-600">
-                            <span class="text-lg font-semibold">2</span>
-                        </div>
-                        <p class="ml-4 text-sm font-medium text-gray-600">Leave Details</p>
-                    </div>
-                </div>
-                <div class="flex-auto border-t-2 border-gray-300 mx-4"></div>
-                <div class="flex-1">
-                    <div class="flex items-center">
-                        <div class="flex items-center justify-center h-10 w-10 rounded-full bg-gray-300 text-gray-600">
-                            <span class="text-lg font-semibold">3</span>
-                        </div>
-                        <p class="ml-4 text-sm font-medium text-gray-600">Confirmation</p>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Main Content -->
-        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
-            <!-- Form Section -->
-            <div class="lg:col-span-2">
-                <form action="{{ route('admin.tenants.processLeave', $tenant->id) }}" method="POST" class="space-y-6">
-                    @csrf
-                    <!-- Step 1: Tenant Information -->
-                    <div class="bg-white rounded-lg shadow-md p-6">
-                        <div class="flex items-start justify-between mb-6">
-                            <h2 class="text-lg font-semibold text-gray-900">Tenant Information</h2>
-                            @if($tenant->photo_path)
-                                <img src="{{ asset('storage/' . $tenant->photo_path) }}" alt="{{ $tenant->name }}" class="h-16 w-16 rounded-lg object-cover border border-gray-300 shadow-md">
-                            @else
-                                <div class="h-16 w-16 rounded-lg bg-blue-100 flex items-center justify-center border border-gray-300 shadow-md">
-                                    <span class="text-xl font-bold text-blue-600">{{ strtoupper(substr($tenant->name, 0, 1)) }}</span>
-                                </div>
-                            @endif
-                        </div>
-
-                        <div class="grid grid-cols-2 gap-4 mb-6">
-                            <div class="col-span-2 md:col-span-1">
-                                <label class="block text-sm font-medium text-gray-700 mb-2">Tenant Name</label>
-                                <input type="text" id="tenantName" readonly class="w-full px-4 py-2 border border-gray-300 rounded-lg bg-gray-50 text-gray-600 font-semibold">
-                                <input type="hidden" id="tenantId">
-                            </div>
-                            <div class="col-span-2 md:col-span-1">
-                                <label class="block text-sm font-medium text-gray-700 mb-2">Email</label>
-                                <input type="email" id="tenantEmail" readonly class="w-full px-4 py-2 border border-gray-300 rounded-lg bg-gray-50 text-gray-600">
-                            </div>
-                            <div class="col-span-2 md:col-span-1">
-                                <label class="block text-sm font-medium text-gray-700 mb-2">Phone</label>
-                                <input type="tel" id="tenantPhone" readonly class="w-full px-4 py-2 border border-gray-300 rounded-lg bg-gray-50 text-gray-600">
-                            </div>
-                            <div class="col-span-2 md:col-span-1">
-                                <label class="block text-sm font-medium text-gray-700 mb-2">Apartment</label>
-                                <input type="text" id="apartmentNumber" readonly class="w-full px-4 py-2 border border-gray-300 rounded-lg bg-gray-50 text-gray-600 font-semibold">
-                            </div>
-                            <div class="col-span-2 md:col-span-1">
-                                <label class="block text-sm font-medium text-gray-700 mb-2">Move In Date</label>
-                                <input type="date" id="moveInDate" readonly class="w-full px-4 py-2 border border-blue-300 rounded-lg bg-blue-50 text-gray-800 font-semibold">
-                                <p class="mt-1 text-xs text-blue-600 font-medium">Move in</p>
-                            </div>
-                            <div class="col-span-2 md:col-span-1">
-                                <label class="block text-sm font-medium text-gray-700 mb-2">Current Status</label>
-                                <div class="relative">
-                                    <select id="currentStatus" readonly class="w-full px-4 py-2 border border-gray-300 rounded-lg bg-gray-50 text-gray-600 appearance-none cursor-not-allowed">
-                                        <option>Active</option>
-                                        <option>Pending</option>
-                                        <option>Inactive</option>
-                                    </select>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Step 2: Leave Details -->
-                    <div class="bg-white rounded-lg shadow-md p-6">
-                        <h2 class="text-lg font-semibold text-gray-900 mb-6">Leave Details & Calculations</h2>
-
-                        <!-- Date Selection & Calculation Summary -->
-                        <div class="mb-6 p-4 bg-green-50 border border-green-200 rounded-lg">
-                            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                                <div>
-                                    <p class="text-xs text-gray-600 font-medium">Move In Date</p>
-                                    <p class="text-lg font-semibold text-gray-900" id="displayMoveInDate">--</p>
-                                </div>
-                                <div>
-                                    <p class="text-xs text-gray-600 font-medium">Move Out Date</p>
-                                    <p class="text-lg font-semibold text-gray-900" id="displayMoveOutDate">--</p>
-                                </div>
-                                <div class="bg-blue-100 rounded p-3">
-                                    <p class="text-xs text-gray-700 font-medium">Total Stay Days</p>
-                                    <p class="text-2xl font-bold text-blue-600" id="stayDaysDisplay">0</p>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="space-y-4">
-                            <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-2">Move Out / Leave Date *</label>
-                                <input type="date" name="leave_date" id="moveOutDate" value="{{ old('leave_date', today()->format('Y-m-d')) }}" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-lg font-semibold">
-                                <p class="mt-1 text-xs text-gray-500">Select the actual move-out date for the tenant</p>
-                            </div>
-
-                            <div class="border-t border-gray-200 pt-4">
-                                <h3 class="text-sm font-semibold text-gray-900 mb-4">Utility & Additional Charges</h3>
-
-                                <div>
-                                    <label class="block text-sm font-medium text-gray-700 mb-2">Electricity Charge ($)</label>
-                                    <input type="number" name="electricity_charge" step="0.01" placeholder="0.00" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" value="{{ old('electricity_charge', '0.00') }}">
-                                    <p class="mt-1 text-xs text-gray-500">Enter the electricity charge amount</p>
-                                </div>
-
-                                <div class="mt-3">
-                                    <label class="block text-sm font-medium text-gray-700 mb-2">Water Charge ($)</label>
-                                    <input type="number" name="water_charge" step="0.01" placeholder="0.00" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" value="{{ old('water_charge', '0.00') }}">
-                                    <p class="mt-1 text-xs text-gray-500">Enter the water charge amount</p>
-                                </div>
-
-                                <div class="mt-3">
-                                    <label class="block text-sm font-medium text-gray-700 mb-2">Internet Charge ($)</label>
-                                    <input type="number" name="internet_charge" step="0.01" placeholder="0.00" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" value="{{ old('internet_charge', '0.00') }}">
-                                    <p class="mt-1 text-xs text-gray-500">Pro-rata internet cost for the stay period</p>
-                                </div>
-
-                                <div class="mt-3">
-                                    <label class="block text-sm font-medium text-gray-700 mb-2">Parking Charge ($)</label>
-                                    <input type="number" name="parking_charge" step="0.01" placeholder="0.00" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" value="{{ old('parking_charge', '0.00') }}">
-                                    <p class="mt-1 text-xs text-gray-500">Pro-rata parking cost for the stay period</p>
-                                </div>
-
-                                <div class="mt-4">
-                                    <label class="block text-sm font-medium text-gray-700 mb-2">Additional Notes</label>
-                                    <textarea name="notes" rows="3" placeholder="Any additional information about the tenant's departure" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">{{ old('notes') }}</textarea>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Settlement Summary -->
-                    <div class="bg-white rounded-lg shadow-md p-6">
-                        <h2 class="text-lg font-semibold text-gray-900 mb-6">Settlement Summary & Rate Calculation</h2>
-
-                        <!-- Rental Rate Info -->
-                        <div class="mb-6 p-4 bg-amber-50 border border-amber-200 rounded-lg">
-                            <h3 class="text-sm font-semibold text-gray-900 mb-3">Rental Rate Information</h3>
-                            <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
-                                <div>
-                                    <p class="text-xs text-gray-600">Monthly Rent</p>
-                                    <p class="text-lg font-bold text-amber-700">${{ number_format($rental->rent_amount ?? 0, 2) }}</p>
-                                </div>
-                                <div>
-                                    <p class="text-xs text-gray-600">Daily Rate</p>
-                                    <p class="text-lg font-bold text-amber-700" id="dailyRate">${{ number_format(($rental->rent_amount ?? 0) / 30, 2) }}</p>
-                                </div>
-                                <div>
-                                    <p class="text-xs text-gray-600">Deposit</p>
-                                    <p class="text-lg font-bold text-amber-700">${{ number_format($tenant->deposit ?? 0, 2) }}</p>
-                                </div>
-                                <div>
-                                    <p class="text-xs text-gray-600">Calculation</p>
-                                    <p class="text-lg font-bold text-amber-700">Days × Rate</p>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 space-y-3">
-                            <div class="flex justify-between items-center">
-                                <span class="text-gray-700">Pro-rata Rent:</span>
-                                <span class="text-lg font-semibold text-gray-900" id="pro_rata_rent">$0.00</span>
-                            </div>
-                            <div class="flex justify-between items-center">
-                                <span class="text-gray-700">Electricity:</span>
-                                <span class="text-lg font-semibold text-gray-900" id="summary_electricity">$0.00</span>
-                            </div>
-                            <div class="flex justify-between items-center">
-                                <span class="text-gray-700">Water:</span>
-                                <span class="text-lg font-semibold text-gray-900" id="summary_water">$0.00</span>
-                            </div>
-                            <div class="flex justify-between items-center">
-                                <span class="text-gray-700">Internet:</span>
-                                <span class="text-lg font-semibold text-gray-900" id="summary_internet">$0.00</span>
-                            </div>
-                            <div class="flex justify-between items-center">
-                                <span class="text-gray-700">Parking:</span>
-                                <span class="text-lg font-semibold text-gray-900" id="summary_parking">$0.00</span>
-                            </div>
-
-                            <div class="border-t border-gray-300 my-3 pt-3">
-                                <div class="flex justify-between items-center">
-                                    <span class="text-gray-700 font-semibold">Total Amount Due:</span>
-                                    <span class="text-xl font-bold text-gray-900" id="total_due">$0.00</span>
-                                </div>
-                            </div>
-
-                            <div class="border-t border-gray-300 my-3 pt-3">
-                                <div class="flex justify-between items-center">
-                                    <span class="text-gray-700">Deposit Applied:</span>
-                                    <span class="text-lg font-semibold text-green-600" id="deposit_applied">$0.00</span>
-                                </div>
-                                <div class="flex justify-between items-center mt-2">
-                                    <span class="text-gray-700">Balance Due:</span>
-                                    <span class="text-lg font-semibold text-red-600" id="balance_due">$0.00</span>
-                                </div>
-                                <div class="flex justify-between items-center mt-2">
-                                    <span class="text-gray-700">Refund Amount:</span>
-                                    <span class="text-lg font-semibold text-green-600" id="refund_amount">$0.00</span>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Form Actions -->
-                    <div class="flex gap-3">
-                        <button type="submit" class="flex-1 px-6 py-3 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 transition flex items-center justify-center">
-                            <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
-                            </svg>
-                            Process Tenant Leave & Archive
-                        </button>
-                        <a href="{{ route('admin.tenants.index') }}" class="flex-1 px-6 py-3 border border-gray-300 text-gray-700 font-semibold rounded-lg hover:bg-gray-50 transition flex items-center justify-center">
-                            <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-                            </svg>
-                            Cancel
-                        </a>
-                    </div>
-                </form>
-            </div>
-        </div>
-
+<div class="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
+    <!-- Header -->
+    <div>
+        <a href="{{ route('admin.tenants.index') }}" class="inline-flex items-center text-blue-600 hover:text-blue-800 text-sm mb-3">
+            <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path></svg>
+            Back to Tenants
+        </a>
+        <h1 class="text-2xl font-bold text-gray-900">Process Tenant Leave</h1>
     </div>
+
+    @if(session('error'))
+    <div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-lg text-sm">{{ session('error') }}</div>
+    @endif
+    @if($errors->any())
+    <div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-lg text-sm">
+        <ul class="list-disc list-inside">@foreach($errors->all() as $error)<li>{{ $error }}</li>@endforeach</ul>
+    </div>
+    @endif
+
+    <!-- Tenant Info Card -->
+    <div class="bg-white rounded-xl shadow-sm border p-5">
+        <div class="flex items-center gap-4 mb-4">
+            @if($tenant->photo_path)
+                <img src="{{ asset('storage/' . $tenant->photo_path) }}" alt="{{ $tenant->name }}" class="h-14 w-14 rounded-lg object-cover border">
+            @else
+                <div class="h-14 w-14 rounded-lg bg-blue-100 flex items-center justify-center border">
+                    <span class="text-xl font-bold text-blue-600">{{ strtoupper(substr($tenant->name, 0, 1)) }}</span>
+                </div>
+            @endif
+            <div>
+                <h2 class="text-lg font-semibold text-gray-900">{{ $tenant->name }}</h2>
+                <p class="text-sm text-gray-500">Apt {{ $tenant->apartment?->apartment_number ?? 'N/A' }} &middot; {{ $tenant->phone ?? '' }}</p>
+            </div>
+        </div>
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm">
+            <div class="bg-gray-50 rounded-lg p-3">
+                <p class="text-xs text-gray-500">Move In</p>
+                <p class="font-semibold text-gray-800">{{ $tenant->move_in_date?->format('M d, Y') ?? 'N/A' }}</p>
+            </div>
+            <div class="bg-gray-50 rounded-lg p-3">
+                <p class="text-xs text-gray-500">Monthly Rent</p>
+                <p class="font-semibold text-gray-800">${{ number_format($rental->rent_amount ?? 0, 2) }}</p>
+            </div>
+            <div class="bg-gray-50 rounded-lg p-3">
+                <p class="text-xs text-gray-500">Deposit</p>
+                <p class="font-semibold text-gray-800">${{ number_format($tenant->deposit ?? 0, 2) }}</p>
+            </div>
+            <div class="bg-blue-50 rounded-lg p-3">
+                <p class="text-xs text-gray-500">Stay Days</p>
+                <p class="font-semibold text-blue-700" id="stayDaysDisplay">0</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Leave Form -->
+    <form action="{{ route('admin.tenants.processLeave', $tenant->id) }}" method="POST">
+        @csrf
+
+        <div class="bg-white rounded-xl shadow-sm border p-5 space-y-4">
+            <h3 class="text-base font-semibold text-gray-900">Leave Details</h3>
+
+            <!-- Leave Date -->
+            <div>
+                <label for="moveOutDate" class="block text-sm font-medium text-gray-700 mb-1">Move Out Date *</label>
+                <input type="date" name="leave_date" id="moveOutDate" value="{{ old('leave_date', today()->format('Y-m-d')) }}" required
+                    class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm">
+            </div>
+
+            <!-- Utility Charges -->
+            <div>
+                <p class="text-sm font-medium text-gray-700 mb-2">Utility Charges (optional)</p>
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs text-gray-500 mb-1">Electricity ($)</label>
+                        <input type="number" name="electricity_charge" step="0.01" value="{{ old('electricity_charge', '0.00') }}"
+                            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm">
+                    </div>
+                    <div>
+                        <label class="block text-xs text-gray-500 mb-1">Water ($)</label>
+                        <input type="number" name="water_charge" step="0.01" value="{{ old('water_charge', '0.00') }}"
+                            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm">
+                    </div>
+                    <div>
+                        <label class="block text-xs text-gray-500 mb-1">Internet ($)</label>
+                        <input type="number" name="internet_charge" step="0.01" value="{{ old('internet_charge', '0.00') }}"
+                            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm">
+                    </div>
+                    <div>
+                        <label class="block text-xs text-gray-500 mb-1">Parking ($)</label>
+                        <input type="number" name="parking_charge" step="0.01" value="{{ old('parking_charge', '0.00') }}"
+                            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Notes -->
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Notes</label>
+                <textarea name="notes" rows="2" placeholder="Optional notes about the departure"
+                    class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm">{{ old('notes') }}</textarea>
+            </div>
+        </div>
+
+        <!-- Settlement Summary -->
+        <div class="bg-white rounded-xl shadow-sm border p-5 mt-4">
+            <h3 class="text-base font-semibold text-gray-900 mb-3">Settlement Summary</h3>
+            <div class="space-y-2 text-sm">
+                <div class="flex justify-between"><span class="text-gray-600">Pro-rata Rent</span><span class="font-semibold" id="pro_rata_rent">$0.00</span></div>
+                <div class="flex justify-between"><span class="text-gray-600">Electricity</span><span class="font-semibold" id="summary_electricity">$0.00</span></div>
+                <div class="flex justify-between"><span class="text-gray-600">Water</span><span class="font-semibold" id="summary_water">$0.00</span></div>
+                <div class="flex justify-between"><span class="text-gray-600">Internet</span><span class="font-semibold" id="summary_internet">$0.00</span></div>
+                <div class="flex justify-between"><span class="text-gray-600">Parking</span><span class="font-semibold" id="summary_parking">$0.00</span></div>
+                <div class="border-t pt-2 mt-2 flex justify-between"><span class="font-semibold text-gray-800">Total Due</span><span class="font-bold text-lg text-gray-900" id="total_due">$0.00</span></div>
+                <div class="flex justify-between"><span class="text-gray-600">Deposit Applied</span><span class="font-semibold text-green-600" id="deposit_applied">$0.00</span></div>
+                <div class="flex justify-between"><span class="text-gray-600">Balance Due</span><span class="font-semibold text-red-600" id="balance_due">$0.00</span></div>
+                <div class="flex justify-between"><span class="text-gray-600">Refund</span><span class="font-semibold text-green-600" id="refund_amount">$0.00</span></div>
+            </div>
+        </div>
+
+        <!-- Actions -->
+        <div class="flex gap-3 mt-4">
+            <button type="submit" class="flex-1 px-5 py-2.5 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 transition text-sm">
+                Process Leave & Archive
+            </button>
+            <a href="{{ route('admin.tenants.index') }}" class="flex-1 px-5 py-2.5 border border-gray-300 text-gray-700 font-semibold rounded-lg hover:bg-gray-50 transition text-center text-sm">
+                Cancel
+            </a>
+        </div>
+    </form>
 </div>
 
-<!-- JavaScript for calculations -->
 <script>
-    // Populate tenant information
-    document.addEventListener('DOMContentLoaded', function() {
-        document.getElementById('tenantName').value = '{{ $tenant->name ?? "N/A" }}';
-        document.getElementById('tenantEmail').value = '{{ $tenant->email ?? "N/A" }}';
-        document.getElementById('tenantPhone').value = '{{ $tenant->phone ?? "N/A" }}';
-        document.getElementById('apartmentNumber').value = '{{ $tenant->apartment?->apartment_number ?? "N/A" }}';
-        document.getElementById('moveInDate').value = '{{ $tenant->move_in_date?->format("Y-m-d") ?? "" }}';
-        document.getElementById('currentStatus').value = '{{ ucfirst($tenant->status) ?? "N/A" }}';
-    });
-
     const monthlyRent = {{ $rental->rent_amount ?? 0 }};
     const deposit = {{ $tenant->deposit ?? 0 }};
     const moveInDate = new Date('{{ $tenant->move_in_date?->format("Y-m-d") ?? now()->format("Y-m-d") }}');
 
-    // Format date for display
-    function formatDateDisplay(date) {
-        const options = { year: 'numeric', month: 'long', day: 'numeric' };
-        return date.toLocaleDateString('en-US', options);
-    }
-
     function updateCalculations() {
-        // Get values
-        const leaveDateInput = document.getElementById('moveOutDate').value;
-        const leaveDate = new Date(leaveDateInput);
-        const electricityCharge = parseFloat(document.querySelector('input[name="electricity_charge"]').value) || 0;
-        const waterCharge = parseFloat(document.querySelector('input[name="water_charge"]').value) || 0;
-        const internetCharge = parseFloat(document.querySelector('input[name="internet_charge"]').value) || 0;
-        const parkingCharge = parseFloat(document.querySelector('input[name="parking_charge"]').value) || 0;
+        const leaveDate = new Date(document.getElementById('moveOutDate').value);
+        const electricity = parseFloat(document.querySelector('input[name="electricity_charge"]').value) || 0;
+        const water = parseFloat(document.querySelector('input[name="water_charge"]').value) || 0;
+        const internet = parseFloat(document.querySelector('input[name="internet_charge"]').value) || 0;
+        const parking = parseFloat(document.querySelector('input[name="parking_charge"]').value) || 0;
 
-        // Update date displays
-        document.getElementById('displayMoveInDate').textContent = formatDateDisplay(moveInDate);
-        document.getElementById('displayMoveOutDate').textContent = formatDateDisplay(leaveDate);
-
-        // Calculate stay days (including both start and end date)
         const stayDays = Math.ceil((leaveDate - moveInDate) / (1000 * 60 * 60 * 24)) + 1;
-        document.getElementById('stayDaysDisplay').textContent = stayDays;
+        const proRata = stayDays * (monthlyRent / 30);
+        const totalDue = proRata + electricity + water + internet + parking;
+        const depApplied = Math.min(deposit, totalDue);
+        const balance = Math.max(0, totalDue - depApplied);
+        const refund = deposit - depApplied;
 
-        // Calculate pro-rata rent (assuming 30 days per month)
-        const dailyRate = monthlyRent / 30;
-        const proRataRent = stayDays * dailyRate;
-
-        // Calculate totals
-        const totalDue = proRataRent + electricityCharge + waterCharge + internetCharge + parkingCharge;
-        const depositApplied = Math.min(deposit, totalDue);
-        const balanceDue = Math.max(0, totalDue - depositApplied);
-        const refundAmount = deposit - depositApplied;
-
-        // Update display
-        document.getElementById('pro_rata_rent').textContent = '$' + proRataRent.toFixed(2);
-        document.getElementById('summary_electricity').textContent = '$' + electricityCharge.toFixed(2);
-        document.getElementById('summary_water').textContent = '$' + waterCharge.toFixed(2);
-        document.getElementById('summary_internet').textContent = '$' + internetCharge.toFixed(2);
-        document.getElementById('summary_parking').textContent = '$' + parkingCharge.toFixed(2);
+        document.getElementById('stayDaysDisplay').textContent = stayDays + ' days';
+        document.getElementById('pro_rata_rent').textContent = '$' + proRata.toFixed(2);
+        document.getElementById('summary_electricity').textContent = '$' + electricity.toFixed(2);
+        document.getElementById('summary_water').textContent = '$' + water.toFixed(2);
+        document.getElementById('summary_internet').textContent = '$' + internet.toFixed(2);
+        document.getElementById('summary_parking').textContent = '$' + parking.toFixed(2);
         document.getElementById('total_due').textContent = '$' + totalDue.toFixed(2);
-        document.getElementById('deposit_applied').textContent = '$' + depositApplied.toFixed(2);
-        document.getElementById('balance_due').textContent = '$' + balanceDue.toFixed(2);
-        document.getElementById('refund_amount').textContent = '$' + refundAmount.toFixed(2);
+        document.getElementById('deposit_applied').textContent = '$' + depApplied.toFixed(2);
+        document.getElementById('balance_due').textContent = '$' + balance.toFixed(2);
+        document.getElementById('refund_amount').textContent = '$' + refund.toFixed(2);
     }
 
-    // Update calculations on input change
     document.getElementById('moveOutDate').addEventListener('change', updateCalculations);
-    document.querySelector('input[name="electricity_charge"]').addEventListener('input', updateCalculations);
-    document.querySelector('input[name="water_charge"]').addEventListener('input', updateCalculations);
-    document.querySelector('input[name="internet_charge"]').addEventListener('input', updateCalculations);
-    document.querySelector('input[name="parking_charge"]').addEventListener('input', updateCalculations);
-
-    // Initial calculation
+    document.querySelectorAll('input[type="number"]').forEach(el => el.addEventListener('input', updateCalculations));
     updateCalculations();
 </script>
 @endsection

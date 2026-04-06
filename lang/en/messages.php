@@ -48,6 +48,7 @@ return [
     'active_tenants' => 'Active Tenants',
     'archived_tenants' => 'Archived Tenants',
     'revenue_expense' => 'Revenue & Expense',
+    'income_statement' => 'Income Statement',
     'record_income' => 'Record Income',
     'record_expense' => 'Record Expense',
     'fixed_expenses' => 'Fixed Expenses',
