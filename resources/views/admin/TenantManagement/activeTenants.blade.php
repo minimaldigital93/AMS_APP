@@ -109,6 +109,7 @@
                 <table class="min-w-full divide-y divide-gray-200">
                     <thead class="bg-gray-50">
                         <tr>
+                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">No</th>
                             <th class="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Tenant Name</th>
                             <th class="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Apartment</th>
                             <th class="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Phone</th>
@@ -121,12 +122,18 @@
                     <tbody class="bg-white divide-y divide-gray-200">
                         @forelse ($tenants as $tenant)
                             <tr class="hover:bg-gray-50 transition" title="photo_path: {{ $tenant->photo_path ?? 'empty' }}">
+                                <td class="px-4 py-4 whitespace-nowrap text-sm text-gray-600">
+                                    {{ $tenants->firstItem() ? $tenants->firstItem() + $loop->index : $loop->iteration }}
+                                </td>
                                 <td class="px-6 py-4 whitespace-nowrap">
                                     <div class="flex items-center">
-                                        @if($tenant->photo_path)
+                                        @if($tenant->photo_path && !str_ends_with($tenant->photo_path, '.pdf'))
                                             <img src="{{ asset('storage/' . $tenant->photo_path) }}" alt="{{ $tenant->name }}" class="h-10 w-10 rounded-full object-cover border border-gray-300" onerror="this.style.display='none'">
-                                        @endif
-                                        @if(!$tenant->photo_path)
+                                        @elseif($tenant->photo_path && str_ends_with($tenant->photo_path, '.pdf'))
+                                            <a href="{{ asset('storage/' . $tenant->photo_path) }}" target="_blank" class="h-10 w-10 rounded-full bg-red-100 flex items-center justify-center text-xs font-semibold text-red-600 border border-red-300" title="View PDF">
+                                                <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M4 2h7l5 5v11a2 2 0 01-2 2H4a2 2 0 01-2-2V4a2 2 0 012-2z" clip-rule="evenodd"/></svg>
+                                            </a>
+                                        @else
                                             <div class="h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center">
                                                 <span class="text-blue-600 font-semibold text-sm">{{ strtoupper(substr($tenant->name, 0, 1)) }}</span>
                                             </div>
@@ -182,6 +189,13 @@
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path>
                                         </svg>
                                     </a>
+                                    @if($tenant->document_path)
+                                        <a href="{{ asset('storage/' . $tenant->document_path) }}" target="_blank" title="View Document" class="text-gray-600 hover:text-gray-900 transition">
+                                            <svg class="w-5 h-5 text-red-600" fill="currentColor" viewBox="0 0 20 20">
+                                                <path d="M4 2h7l5 5v11a2 2 0 01-2 2H4a2 2 0 01-2-2V4a2 2 0 012-2z" />
+                                            </svg>
+                                        </a>
+                                    @endif
                                 </td>
                             </tr>
                         @empty

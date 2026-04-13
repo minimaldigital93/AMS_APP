@@ -98,6 +98,7 @@
                 <table class="min-w-full divide-y divide-gray-200">
                     <thead class="bg-gray-50">
                         <tr>
+                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">No</th>
                             <th class="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Tenant Name</th>
                             <th class="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Apartment</th>
                             <th class="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Email</th>
@@ -111,6 +112,9 @@
                     <tbody id="archivedTenantsTableBody" class="bg-white divide-y divide-gray-200">
                         @forelse($tenants as $tenant)
                             <tr class="hover:bg-gray-50 transition">
+                                <td class="px-4 py-4 whitespace-nowrap text-sm text-gray-600">
+                                    {{ $tenants->firstItem() ? $tenants->firstItem() + $loop->index : $loop->iteration }}
+                                </td>
                                 <td class="px-6 py-4 whitespace-nowrap">
                                     <div class="flex items-center">
                                         @if($tenant->photo_path)
@@ -148,6 +152,13 @@
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
                                         </svg>
                                     </button>
+                                    @if($tenant->document_path)
+                                        <a href="{{ asset('storage/' . $tenant->document_path) }}" target="_blank" title="View Document" class="text-gray-600 hover:text-gray-900 ml-2">
+                                            <svg class="w-5 h-5 text-red-600" fill="currentColor" viewBox="0 0 20 20">
+                                                <path d="M4 2h7l5 5v11a2 2 0 01-2 2H4a2 2 0 01-2-2V4a2 2 0 012-2z" />
+                                            </svg>
+                                        </a>
+                                    @endif
                                 </td>
                             </tr>
                         @empty
@@ -217,7 +228,9 @@
                 move_out_date: '{{ $tenant->leaves->last()?->leave_date ?? $tenant->move_out_date ?? "" }}',
                 archived_at: '{{ $tenant->archived_at }}',
                 deposit: {{ $tenant->deposit ?? 0 }},
-                stay_days: {{ $tenant->leaves->last()?->stay_days ?? 0 }}
+                stay_days: {{ $tenant->leaves->last()?->stay_days ?? 0 }},
+                photo_path: '{{ $tenant->photo_path ?? "" }}',
+                document_path: '{{ $tenant->document_path ?? "" }}'
             },
         @endforeach
     ];
@@ -282,25 +295,34 @@
         }
 
         noTenantsMsg.classList.add('hidden');
-        tbody.innerHTML = tenants.map(tenant => {
+        tbody.innerHTML = tenants.map((tenant, idx) => {
             const moveInDate = new Date(tenant.move_in_date);
             const moveOutDate = tenant.move_out_date ? new Date(tenant.move_out_date) : new Date();
             const duration = calculateDuration(moveInDate, moveOutDate);
+            const photoCell = tenant.photo_path ?
+                `<img src="${tenant.photo_path.startsWith('/') ? tenant.photo_path : ('/storage/' + tenant.photo_path)}" alt="${tenant.name}" class="h-10 w-10 rounded-full object-cover border border-gray-300 mr-3">` :
+                `<div class="h-10 w-10 rounded-full bg-red-100 flex items-center justify-center mr-3"><span class="text-red-600 font-semibold text-sm">${tenant.name.charAt(0).toUpperCase()}</span></div>`;
+
+            const documentButton = tenant.document_path ?
+                `<a href="${tenant.document_path.startsWith('/') ? tenant.document_path : ('/storage/' + tenant.document_path)}" target="_blank" class="text-gray-600 hover:text-gray-900 ml-2" title="View Document"><svg class="w-5 h-5 text-red-600" fill="currentColor" viewBox="0 0 20 20"><path d="M4 2h7l5 5v11a2 2 0 01-2 2H4a2 2 0 01-2-2V4a2 2 0 012-2z"/></svg></a>` : '';
+
+            const rowIndex = idx + 1;
 
             return `
                 <tr class="hover:bg-gray-50 transition">
+                    <td class="px-4 py-4 whitespace-nowrap text-sm text-gray-600">
+                        ${rowIndex}
+                    </td>
                     <td class="px-6 py-4 whitespace-nowrap">
                         <div class="flex items-center">
-                            <div class="h-10 w-10 rounded-full bg-gray-100 flex items-center justify-center">
-                                <span class="text-gray-600 font-semibold text-sm">${tenant.name.charAt(0).toUpperCase()}</span>
-                            </div>
+                            ${photoCell}
                             <div class="ml-4">
                                 <p class="font-medium text-gray-900">${tenant.name}</p>
                                 <span class="inline-block px-2 py-1 text-xs rounded-full bg-red-100 text-red-800 mt-1">Archived</span>
                             </div>
                         </div>
                     </td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${tenant.apartment?.apartment_number || 'N/A'}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${tenant.apartment || 'N/A'}</td>
                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">${tenant.email}</td>
                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">${tenant.move_in_date}</td>
                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">${tenant.move_out_date || 'N/A'}</td>
@@ -308,6 +330,7 @@
                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">${duration}</td>
                     <td class="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-2">
                         <button onclick="viewTenantDetails(${tenant.id})" class="text-blue-600 hover:text-blue-900">View Details</button>
+                        ${documentButton}
                     </td>
                 </tr>
             `;
@@ -420,17 +443,16 @@
                         <div>
                             <h3 class="text-sm font-medium text-gray-600 mb-4">Personal Information</h3>
                             <div class="space-y-3">
-                                <div>
-                                    <p class="text-xs text-gray-500">Full Name</p>
-                                    <p class="text-sm font-medium text-gray-900">${t.name}</p>
-                                </div>
-                                <div>
-                                    <p class="text-xs text-gray-500">Email</p>
-                                    <p class="text-sm font-medium text-gray-900">${t.email}</p>
-                                </div>
-                                <div>
-                                    <p class="text-xs text-gray-500">Phone</p>
-                                    <p class="text-sm font-medium text-gray-900">${t.phone}</p>
+                                <div class="flex items-center gap-4">
+                                    ${t.photo_path ? `<img src="${t.photo_path.startsWith('/') ? t.photo_path : ('/storage/' + t.photo_path)}" alt="${t.name}" class="h-20 w-20 rounded-lg object-cover border border-gray-300">` : `<div class="h-20 w-20 rounded-lg bg-red-50 flex items-center justify-center text-xl font-semibold text-red-600">${t.name.charAt(0).toUpperCase()}</div>`}
+                                    <div>
+                                        <p class="text-xs text-gray-500">Full Name</p>
+                                        <p class="text-sm font-medium text-gray-900">${t.name}</p>
+                                        <p class="text-xs text-gray-500 mt-2">Email</p>
+                                        <p class="text-sm font-medium text-gray-900">${t.email}</p>
+                                        <p class="text-xs text-gray-500 mt-2">Phone</p>
+                                        <p class="text-sm font-medium text-gray-900">${t.phone}</p>
+                                    </div>
                                 </div>
                                 <div>
                                     <p class="text-xs text-gray-500">Date of Birth</p>
@@ -479,8 +501,9 @@
                         <p class="text-sm font-medium text-gray-600">Additional Notes</p>
                         <p class="mt-2 text-sm text-gray-700">${t.notes}</p>
                     </div>` : ''}
+                    ${t.document_path ? `<div class="mt-4"><a href="${t.document_path.startsWith('/') ? t.document_path : ('/storage/' + t.document_path)}" target="_blank" class="inline-flex items-center px-3 py-2 bg-gray-50 text-gray-700 rounded-lg border border-gray-200 hover:bg-gray-100"><svg class="w-4 h-4 mr-2 text-red-600" fill="currentColor" viewBox="0 0 20 20"><path d="M4 2h7l5 5v11a2 2 0 01-2 2H4a2 2 0 01-2-2V4a2 2 0 012-2z"/></svg>View Document</a></div>` : '' }
 
-                    <div class="bg-blue-50 rounded-lg border border-blue-200 p-4">
+                    <div class="bg-blue-50 rounded-lg border border-blue-200 p-4 mt-4">
                         <p class="text-xs text-gray-600">
                             <svg class="w-4 h-4 inline mr-2" fill="currentColor" viewBox="0 0 20 20">
                                 <path fill-rule="evenodd" d="M18 5v8a2 2 0 01-2 2h-5l-5 4v-4H4a2 2 0 01-2-2V5a2 2 0 012-2h12a2 2 0 012 2z" clip-rule="evenodd"></path>

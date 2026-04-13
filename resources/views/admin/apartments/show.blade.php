@@ -218,11 +218,35 @@
                 @if($tenant)
                     <div class="space-y-4">
                         <!-- Tenant Photo -->
-                        @if($tenant->photo_path)
+                        @if($tenant->photo_path && !str_ends_with($tenant->photo_path, '.pdf'))
                             <div class="mb-6">
                                 <img src="{{ asset('storage/' . $tenant->photo_path) }}" alt="{{ $tenant->name }}" class="h-40 w-40 rounded-lg object-cover shadow-md border border-gray-300">
                             </div>
+                        @elseif($tenant->photo_path && str_ends_with($tenant->photo_path, '.pdf'))
+                            <div class="mb-6">
+                                <a href="{{ asset('storage/' . $tenant->photo_path) }}" target="_blank" class="inline-flex items-center px-3 py-2 bg-red-50 text-red-600 rounded-lg border border-red-200">
+                                    <svg class="w-6 h-6 mr-2" fill="currentColor" viewBox="0 0 20 20"><path d="M4 2h7l5 5v11a2 2 0 01-2 2H4a2 2 0 01-2-2V4a2 2 0 012-2z"/></svg>
+                                    View Photo (PDF)
+                                </a>
+                            </div>
                         @endif
+
+                        {{-- Action buttons for tenant attachments --}}
+                        <div class="mb-4 flex items-center gap-3">
+                            @if($tenant && $tenant->photo_path)
+                                <a href="{{ asset('storage/' . $tenant->photo_path) }}" target="_blank" class="inline-flex items-center px-3 py-2 bg-gray-50 text-gray-700 rounded-lg border border-gray-200 hover:bg-gray-100">
+                                    <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+                                    View Photo
+                                </a>
+                            @endif
+
+                            @if($tenant && $tenant->document_path)
+                                <a href="{{ asset('storage/' . $tenant->document_path) }}" target="_blank" class="inline-flex items-center px-3 py-2 bg-gray-50 text-gray-700 rounded-lg border border-gray-200 hover:bg-gray-100">
+                                    <svg class="w-4 h-4 mr-2 text-red-600" fill="currentColor" viewBox="0 0 20 20"><path d="M4 2h7l5 5v11a2 2 0 01-2 2H4a2 2 0 01-2-2V4a2 2 0 012-2z" /></svg>
+                                    View Document
+                                </a>
+                            @endif
+                        </div>
 
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                             <!-- Tenant Name -->
@@ -350,8 +374,12 @@
                     <div class="space-y-3">
                         @foreach($apartment->tenants->take(5) as $historicalTenant)
                         <div class="p-3 bg-gray-50 rounded-lg border border-gray-200 flex items-center gap-3">
-                            @if($historicalTenant->photo_path)
+                            @if($historicalTenant->photo_path && !str_ends_with($historicalTenant->photo_path, '.pdf'))
                                 <img src="{{ asset('storage/' . $historicalTenant->photo_path) }}" alt="{{ $historicalTenant->name }}" class="h-10 w-10 rounded-full object-cover border border-gray-300">
+                            @elseif($historicalTenant->photo_path && str_ends_with($historicalTenant->photo_path, '.pdf'))
+                                <a href="{{ asset('storage/' . $historicalTenant->photo_path) }}" target="_blank" class="h-10 w-10 rounded-full bg-red-100 flex items-center justify-center text-xs font-semibold text-red-600 border border-red-300" title="View PDF">
+                                    <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M4 2h7l5 5v11a2 2 0 01-2 2H4a2 2 0 01-2-2V4a2 2 0 012-2z" clip-rule="evenodd"/></svg>
+                                </a>
                             @else
                                 <div class="h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center text-xs font-semibold text-blue-600">
                                     {{ strtoupper(substr($historicalTenant->name, 0, 1)) }}
@@ -360,6 +388,14 @@
                             <div>
                                 <p class="font-medium text-gray-900">{{ $historicalTenant->name }}</p>
                                 <p class="text-xs text-gray-600 mt-1">From {{ $historicalTenant->move_in_date?->format('M d, Y') ?? 'Date unknown' }}</p>
+                                @if($historicalTenant->document_path)
+                                    <div class="mt-2">
+                                        <a href="{{ asset('storage/' . $historicalTenant->document_path) }}" target="_blank" class="inline-flex items-center px-2 py-1 bg-gray-50 text-gray-700 rounded-lg border border-gray-200 hover:bg-gray-100 text-xs">
+                                            <svg class="w-4 h-4 mr-1 text-red-600" fill="currentColor" viewBox="0 0 20 20"><path d="M4 2h7l5 5v11a2 2 0 01-2 2H4a2 2 0 01-2-2V4a2 2 0 012-2z"/></svg>
+                                            View Document
+                                        </a>
+                                    </div>
+                                @endif
                             </div>
                         </div>
                         @endforeach
@@ -374,8 +410,12 @@
                     <div class="space-y-3">
                         @foreach($apartment->archivedTenants->take(5) as $archivedTenant)
                         <div class="p-3 bg-amber-50 rounded-lg border border-amber-200 flex items-center gap-3">
-                            @if($archivedTenant->photo_path)
+                            @if($archivedTenant->photo_path && !str_ends_with($archivedTenant->photo_path, '.pdf'))
                                 <img src="{{ asset('storage/' . $archivedTenant->photo_path) }}" alt="{{ $archivedTenant->name }}" class="h-10 w-10 rounded-full object-cover border border-gray-300">
+                            @elseif($archivedTenant->photo_path && str_ends_with($archivedTenant->photo_path, '.pdf'))
+                                <a href="{{ asset('storage/' . $archivedTenant->photo_path) }}" target="_blank" class="h-10 w-10 rounded-full bg-red-100 flex items-center justify-center text-xs font-semibold text-red-600 border border-red-300" title="View PDF">
+                                    <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M4 2h7l5 5v11a2 2 0 01-2 2H4a2 2 0 01-2-2V4a2 2 0 012-2z" clip-rule="evenodd"/></svg>
+                                </a>
                             @else
                                 <div class="h-10 w-10 rounded-full bg-amber-100 flex items-center justify-center text-xs font-semibold text-amber-600">
                                     {{ strtoupper(substr($archivedTenant->name, 0, 1)) }}
@@ -385,6 +425,14 @@
                                 <p class="font-medium text-gray-900">{{ $archivedTenant->name }}</p>
                                 <p class="text-xs text-gray-600 mt-1">From {{ $archivedTenant->move_in_date?->format('M d, Y') ?? 'Date unknown' }} to {{ $archivedTenant->move_out_date?->format('M d, Y') ?? 'Unknown' }}</p>
                                 <p class="text-xs text-amber-600 mt-1">Archived: {{ $archivedTenant->archived_at?->format('M d, Y') ?? 'N/A' }}</p>
+                                @if($archivedTenant->document_path)
+                                    <div class="mt-2">
+                                        <a href="{{ asset('storage/' . $archivedTenant->document_path) }}" target="_blank" class="inline-flex items-center px-2 py-1 bg-amber-50 text-amber-700 rounded-lg border border-amber-200 hover:bg-amber-100 text-xs">
+                                            <svg class="w-4 h-4 mr-1 text-red-600" fill="currentColor" viewBox="0 0 20 20"><path d="M4 2h7l5 5v11a2 2 0 01-2 2H4a2 2 0 01-2-2V4a2 2 0 012-2z"/></svg>
+                                            View Document
+                                        </a>
+                                    </div>
+                                @endif
                             </div>
                         </div>
                         @endforeach

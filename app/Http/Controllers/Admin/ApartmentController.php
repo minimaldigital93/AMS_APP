@@ -195,13 +195,20 @@ class ApartmentController extends Controller
             'phone' => 'nullable|string|max:20',
             'address' => 'nullable|string',
             'date_of_birth' => 'nullable|date',
-            'id_pdf' => 'nullable|file|mimes:pdf|max:5120',
+            'attached_photo' => 'nullable|file|mimes:jpeg,jpg,png,gif,pdf|max:5120',
+            'id_pdf' => 'nullable|file|mimes:pdf,jpeg,jpg,png,gif|max:5120',
             'move_in_date' => 'required|date',
             'deposit' => 'required|numeric|min:0',
         ]);
 
         $tenant = null;
         $documentPath = null;
+        $photoPath = null;
+
+        // Handle attached photo upload
+        if ($request->hasFile('attached_photo')) {
+            $photoPath = $request->file('attached_photo')->store('tenants', 'public');
+        }
 
         // Handle PDF file upload
         if ($request->hasFile('id_pdf')) {
@@ -219,6 +226,7 @@ class ApartmentController extends Controller
                 'phone' => $validated['phone'] ?? null,
                 'address' => $validated['address'] ?? null,
                 'date_of_birth' => $validated['date_of_birth'] ?? null,
+                'photo_path' => $photoPath,
                 'document_path' => $documentPath,
                 'apartment_id' => $apartment->id,
                 'status' => 'active',
@@ -232,6 +240,10 @@ class ApartmentController extends Controller
             'deposit' => $validated['deposit'],
             'status' => 'active',
         ];
+
+        if ($photoPath) {
+            $updateData['photo_path'] = $photoPath;
+        }
 
         if ($documentPath) {
             $updateData['document_path'] = $documentPath;

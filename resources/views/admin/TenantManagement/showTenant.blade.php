@@ -18,8 +18,12 @@
         <div class="bg-white rounded-lg shadow-md overflow-hidden mb-6">
             <div class="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
                 <div class="flex items-center">
-                    @if($tenant->photo_path)
+                    @if($tenant->photo_path && !str_ends_with($tenant->photo_path, '.pdf'))
                         <img src="{{ asset('storage/' . $tenant->photo_path) }}" alt="{{ $tenant->name }}" class="h-12 w-12 rounded-full object-cover mr-4 border border-gray-300">
+                    @elseif($tenant->photo_path && str_ends_with($tenant->photo_path, '.pdf'))
+                        <a href="{{ asset('storage/' . $tenant->photo_path) }}" target="_blank" class="h-12 w-12 rounded-full bg-red-100 flex items-center justify-center mr-4 text-red-600 border border-red-200" title="View PDF">
+                            <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 20 20"><path d="M4 2h7l5 5v11a2 2 0 01-2 2H4a2 2 0 01-2-2V4a2 2 0 012-2z"/></svg>
+                        </a>
                     @else
                         <div class="h-12 w-12 rounded-full bg-blue-100 flex items-center justify-center mr-4">
                             <span class="text-blue-600 font-semibold text-lg">{{ strtoupper(substr($tenant->name, 0, 1)) }}</span>
@@ -29,6 +33,15 @@
                         <h2 class="text-xl font-semibold text-gray-900">{{ $tenant->name }}</h2>
                         <p class="text-sm text-gray-600">{{ $tenant->email }}</p>
                     </div>
+                    {{-- View document button in header --}}
+                    @if($tenant->document_path)
+                        <div>
+                            <a href="{{ asset('storage/' . $tenant->document_path) }}" target="_blank" class="inline-flex items-center px-3 py-2 bg-gray-50 text-gray-700 rounded-lg border border-gray-200 hover:bg-gray-100">
+                                <svg class="w-4 h-4 mr-2 text-red-600" fill="currentColor" viewBox="0 0 20 20"><path d="M4 2h7l5 5v11a2 2 0 01-2 2H4a2 2 0 01-2-2V4a2 2 0 012-2z" /></svg>
+                                View Document
+                            </a>
+                        </div>
+                    @endif
                 </div>
                 <span class="px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full {{ $tenant->status === 'active' ? 'bg-green-100 text-green-800' : ($tenant->status === 'pending' ? 'bg-yellow-100 text-yellow-800' : 'bg-red-100 text-red-800') }}">
                     {{ ucfirst($tenant->status) }}
@@ -37,10 +50,18 @@
 
             <div class="p-6 space-y-6">
                 <!-- Tenant Photo (if available) -->
-                @if($tenant->photo_path)
+                @if($tenant->photo_path && !str_ends_with($tenant->photo_path, '.pdf'))
                     <div>
                         <h3 class="text-sm font-medium text-gray-600 uppercase tracking-wide mb-4">Photo</h3>
                         <img src="{{ asset('storage/' . $tenant->photo_path) }}" alt="{{ $tenant->name }}" class="max-w-sm h-auto rounded-lg shadow-md border border-gray-300">
+                    </div>
+                @elseif($tenant->photo_path && str_ends_with($tenant->photo_path, '.pdf'))
+                    <div>
+                        <h3 class="text-sm font-medium text-gray-600 uppercase tracking-wide mb-4">Document</h3>
+                        <a href="{{ asset('storage/' . $tenant->photo_path) }}" target="_blank" class="inline-flex items-center px-3 py-2 bg-red-50 text-red-600 rounded-lg border border-red-200">
+                            <svg class="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20"><path d="M4 2h7l5 5v11a2 2 0 01-2 2H4a2 2 0 01-2-2V4a2 2 0 012-2z"/></svg>
+                            View ID (PDF)
+                        </a>
                     </div>
                 @endif
 

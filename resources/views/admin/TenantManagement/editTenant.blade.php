@@ -25,9 +25,23 @@
                     <label for="photo" class="block text-sm font-medium text-gray-700 mb-2">Tenant Photo</label>
                     <div class="flex items-start gap-6">
                         <!-- Current Photo -->
-                        @if($tenant->photo_path)
+                        @if($tenant->photo_path && !str_ends_with($tenant->photo_path, '.pdf'))
                             <div class="flex-shrink-0">
                                 <img src="{{ asset('storage/' . $tenant->photo_path) }}" alt="{{ $tenant->name }}" class="h-32 w-32 object-cover rounded-lg shadow-md">
+                            </div>
+                        @elseif($tenant->photo_path && str_ends_with($tenant->photo_path, '.pdf'))
+                            <div class="flex-shrink-0">
+                                <a href="{{ asset('storage/' . $tenant->photo_path) }}" target="_blank" class="h-32 w-32 rounded-lg bg-red-50 flex items-center justify-center text-red-600 border border-red-200">
+                                    <svg class="w-8 h-8" fill="currentColor" viewBox="0 0 20 20"><path d="M4 2h7l5 5v11a2 2 0 01-2 2H4a2 2 0 01-2-2V4a2 2 0 012-2z"/></svg>
+                                </a>
+                            </div>
+                        @endif
+                        @if($tenant->document_path)
+                            <div class="flex-shrink-0">
+                                <a href="{{ asset('storage/' . $tenant->document_path) }}" target="_blank" class="inline-flex items-center px-3 py-2 bg-gray-50 text-gray-700 rounded-lg border border-gray-200 hover:bg-gray-100">
+                                    <svg class="w-4 h-4 mr-2 text-red-600" fill="currentColor" viewBox="0 0 20 20"><path d="M4 2h7l5 5v11a2 2 0 01-2 2H4a2 2 0 01-2-2V4a2 2 0 012-2z" /></svg>
+                                    View Document
+                                </a>
                             </div>
                         @endif
                         

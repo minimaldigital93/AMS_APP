@@ -108,8 +108,12 @@
                                 @endphp
                                 @if($tenant)
                                     <div class="flex items-center gap-3">
-                                        @if($tenant->photo_path)
+                                        @if($tenant->photo_path && !str_ends_with($tenant->photo_path, '.pdf'))
                                             <img src="{{ asset('storage/' . $tenant->photo_path) }}" alt="{{ $tenant->name }}" class="h-8 w-8 rounded-full object-cover border border-gray-300">
+                                        @elseif($tenant->photo_path && str_ends_with($tenant->photo_path, '.pdf'))
+                                            <a href="{{ asset('storage/' . $tenant->photo_path) }}" target="_blank" class="h-8 w-8 rounded-full bg-red-100 flex items-center justify-center text-xs font-semibold text-red-600 border border-red-300" title="View PDF">
+                                                <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4z" clip-rule="evenodd"/></svg>
+                                            </a>
                                         @else
                                             <div class="h-8 w-8 rounded-full bg-blue-100 flex items-center justify-center text-xs font-semibold text-blue-600">
                                                 {{ strtoupper(substr($tenant->name, 0, 1)) }}
@@ -214,6 +218,14 @@
                                     
                                     {{-- Leave Tenant Button --}}
                                     @if($tenant && $tenant->status === 'active')
+                                    {{-- View Tenant Document Button --}}
+                                    @if($tenant && $tenant->document_path)
+                                        <a href="{{ asset('storage/' . $tenant->document_path) }}" target="_blank" title="View Tenant Document" class="inline-flex items-center justify-center w-9 h-9 rounded-lg text-gray-600 hover:bg-gray-100 transition">
+                                            <svg class="w-5 h-5 text-red-600" fill="currentColor" viewBox="0 0 20 20">
+                                                <path d="M4 2h7l5 5v11a2 2 0 01-2 2H4a2 2 0 01-2-2V4a2 2 0 012-2z" />
+                                            </svg>
+                                        </a>
+                                    @endif
                                     <button type="button" 
                                             onclick="processLeaveClick(event, {{ $tenant->id }}, '{{ $tenant->name }}')"
                                             title="Process tenant leave"
@@ -350,13 +362,13 @@
                         </div>
                         <div class= "col-span-2">
                             <label for="attached_photo" class="block text-sm font-medium text-gray-700 mb-1">Attached Photo</label>
-                            <input type="file" id="attached_photo" name="attached_photo" accept="image/*" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
-                            <p class="text-xs text-gray-500 mt-1">Accepted formats: JPG, PNG, GIF</p>
+                            <input type="file" id="attached_photo" name="attached_photo" accept="image/*,.pdf" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                            <p class="text-xs text-gray-500 mt-1">Accepted formats: JPG, PNG, GIF, PDF</p>
                         </div>
                         <div class="col-span-2">
                             <label for="id_pdf" class="block text-sm font-medium text-gray-700 mb-1">Attached ID PDF</label>
-                            <input type="file" id="id_pdf" name="id_pdf" accept=".pdf" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
-                            <p class="text-xs text-gray-500 mt-1">Accepted format: PDF only</p>
+                            <input type="file" id="id_pdf" name="id_pdf" accept=".pdf,image/*" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                            <p class="text-xs text-gray-500 mt-1">Accepted formats: PDF, JPG, PNG, GIF</p>
                         </div>
                     </div>
                 </div>
