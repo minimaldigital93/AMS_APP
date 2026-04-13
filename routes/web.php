@@ -37,6 +37,14 @@ Route::get('/admin/dashboard', [DashboardController::class, 'index'])
     ->middleware(['auth', 'verified', 'role:admin'])
     ->name('admin.dashboard');
 
+Route::post('/admin/dashboard/quick-revenue', [DashboardController::class, 'storeQuickRevenue'])
+    ->middleware(['auth', 'verified', 'role:admin'])
+    ->name('admin.dashboard.quick_revenue');
+
+Route::post('/admin/dashboard/quick-expense', [DashboardController::class, 'storeQuickExpense'])
+    ->middleware(['auth', 'verified', 'role:admin'])
+    ->name('admin.dashboard.quick_expense');
+
 Route::get('/supervisor/dashboard', [SupervisorDashboardController::class, 'index'])
     ->middleware(['auth', 'verified', 'role:supervisor'])
     ->name('supervisor.dashboard');

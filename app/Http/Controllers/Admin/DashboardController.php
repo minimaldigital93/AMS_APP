@@ -13,6 +13,7 @@ use App\Models\Utilities;
 use App\Models\Accounts;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Http\Request;
 use Illuminate\View\View;
 
 class DashboardController extends Controller
@@ -22,9 +23,126 @@ class DashboardController extends Controller
     {
         $stats = $this->getStats();
         $fiscalData = $this->getActiveFiscalPeriodData();
-        $monthlyChartData = $this->getMonthlyChartData();
         $calendarData = $this->getCalendarData();
-        return view('admin.dashboard', compact('stats', 'fiscalData', 'monthlyChartData', 'calendarData'));
+
+        // Active fiscal period for quick recording
+        $activePeriod = FiscalPeriods::where('user_id', Auth::id())
+            ->where('status', 'open')
+            ->orderBy('opening_date', 'desc')
+            ->first();
+
+        // Apartments with active rentals for revenue modal
+        $apartmentsWithRentals = Apartments::with(['rentals' => function ($q) {
+                $q->where(function ($q2) {
+                    $q2->whereNull('end_date')->orWhere('end_date', '>=', now());
+                })->with('tenant');
+            }])
+            ->where(function ($q) {
+                $q->where('supervisor_id', Auth::id())->orWhereNull('supervisor_id');
+            })
+            ->where('status', 'occupied')
+            ->orderBy('apartment_number')
+            ->get();
+
+        // Recent transactions
+        $recentTransactions = Accounts::where('user_id', Auth::id())
+            ->orderBy('transaction_date', 'desc')
+            ->orderBy('created_at', 'desc')
+            ->take(15)
+            ->get();
+
+        return view('admin.dashboard', compact(
+            'stats', 'fiscalData', 'calendarData',
+            'activePeriod', 'apartmentsWithRentals', 'recentTransactions'
+        ));
+    }
+
+    public function storeQuickRevenue(Request $request)
+    {
+        $request->validate([
+            'rental_id' => 'required|exists:rentals,id',
+            'amount' => 'required|numeric|min:0.01',
+            'transaction_date' => 'required|date',
+            'payment_type' => 'required|in:rent,deposit,late_fee,other',
+            'payment_method' => 'required|in:cash,bank_transfer,mobile_payment',
+            'note' => 'nullable|string|max:500',
+        ]);
+
+        $activePeriod = FiscalPeriods::where('user_id', Auth::id())
+            ->where('status', 'open')->first();
+
+        if (!$activePeriod) {
+            return back()->with('error', 'No active fiscal period.');
+        }
+
+        $rental = Rentals::with('tenant', 'apartment')->findOrFail($request->rental_id);
+
+        // Create payment record
+        $payment = Payments::create([
+            'rental_id' => $rental->id,
+            'amount' => $request->amount,
+            'late_fee' => 0,
+            'payment_type' => $request->payment_type,
+            'payment_method' => $request->payment_method,
+            'payment_status' => 'paid',
+            'paid_at' => $request->transaction_date,
+            'note' => $request->note,
+        ]);
+
+        // Create accounts record
+        $category = $request->payment_type === 'rent' ? Accounts::CAT_RENT_INCOME
+            : ($request->payment_type === 'late_fee' ? Accounts::CAT_LATE_FEE_INCOME : Accounts::CAT_OTHER_INCOME);
+
+        Accounts::create([
+            'user_id' => Auth::id(),
+            'fiscal_period_id' => $activePeriod->id,
+            'account_type' => Accounts::TYPE_INCOME,
+            'category' => $category,
+            'amount' => $request->amount,
+            'description' => ucfirst($request->payment_type) . ' - ' . ($rental->apartment->apartment_number ?? 'N/A') . ' (' . ($rental->tenant->name ?? 'N/A') . ')',
+            'transaction_date' => $request->transaction_date,
+            'reference_type' => 'payment',
+            'reference_id' => $payment->id,
+        ]);
+
+        return back()->with('success', 'Revenue of $' . number_format($request->amount, 2) . ' recorded.');
+    }
+
+    public function storeQuickExpense(Request $request)
+    {
+        $request->validate([
+            'category' => 'required|in:' . implode(',', [
+                Accounts::CAT_UTILITIES_EXPENSE,
+                Accounts::CAT_MAINTENANCE_EXPENSE,
+                Accounts::CAT_BUSINESS_FIXED,
+                Accounts::CAT_BUSINESS_VARIABLE,
+                Accounts::CAT_OTHER_EXPENSE,
+            ]),
+            'description' => 'required|string|max:500',
+            'amount' => 'required|numeric|min:0.01',
+            'transaction_date' => 'required|date',
+            'note' => 'nullable|string|max:500',
+        ]);
+
+        $activePeriod = FiscalPeriods::where('user_id', Auth::id())
+            ->where('status', 'open')->first();
+
+        if (!$activePeriod) {
+            return back()->with('error', 'No active fiscal period.');
+        }
+
+        Accounts::create([
+            'user_id' => Auth::id(),
+            'fiscal_period_id' => $activePeriod->id,
+            'account_type' => Accounts::TYPE_EXPENSE,
+            'category' => $request->category,
+            'amount' => $request->amount,
+            'description' => $request->description,
+            'transaction_date' => $request->transaction_date,
+            'note' => $request->note,
+        ]);
+
+        return back()->with('success', 'Expense of $' . number_format($request->amount, 2) . ' recorded.');
     }
 
     private function getActiveFiscalPeriodData(): array
