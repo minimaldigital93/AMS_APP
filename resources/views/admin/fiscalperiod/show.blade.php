@@ -1,244 +1,257 @@
 @extends('layouts.admin')
 
 @section('content')
-<div class="container mx-auto py-8">
-    <div class="mb-8">
-        <div class="flex items-center justify-between">
-            <div>
-                <h1 class="text-3xl font-bold mb-2">{{ $fiscalperiod->name }}</h1>
-                <p class="text-gray-600">
-                    {{ $fiscalperiod->opening_date->format('F d, Y') }} - {{ $fiscalperiod->closing_date->format('F d, Y') }}
-                </p>
+<div class="container mx-auto py-8 max-w-5xl">
+    {{-- Header --}}
+    <div class="flex items-center justify-between mb-6">
+        <div>
+            <div class="flex items-center gap-3">
+                <h1 class="text-2xl font-bold">{{ $fiscalperiod->name }}</h1>
+                <span class="px-2.5 py-1 rounded-full text-xs font-semibold {{ $fiscalperiod->status === 'open' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600' }}">
+                    {{ ucfirst($fiscalperiod->status) }}
+                </span>
             </div>
-            <span class="px-4 py-2 rounded-full text-lg font-semibold {{ $fiscalperiod->status === 'open' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800' }}">
-                {{ ucfirst($fiscalperiod->status) }}
-            </span>
+            <p class="text-sm text-gray-500 mt-1">
+                {{ $fiscalperiod->opening_date->format('M d, Y') }} — {{ $fiscalperiod->closing_date->format('M d, Y') }}
+                ({{ $fiscalperiod->opening_date->diffInDays($fiscalperiod->closing_date) }} days)
+            </p>
+        </div>
+        <div class="flex gap-2">
+            @if($fiscalperiod->status === 'open')
+                <a href="{{ route('admin.fiscalperiod.edit', $fiscalperiod->id) }}" class="text-sm bg-gray-100 text-gray-700 px-3 py-2 rounded-lg hover:bg-gray-200">Edit</a>
+                <a href="{{ route('admin.fiscalperiod.balance-sheet', $fiscalperiod->id) }}" class="text-sm bg-blue-600 text-white px-3 py-2 rounded-lg hover:bg-blue-700">Balance Sheet</a>
+            @endif
+            <a href="{{ route('admin.fiscalperiod.index') }}" class="text-sm bg-gray-100 text-gray-700 px-3 py-2 rounded-lg hover:bg-gray-200">← Back</a>
         </div>
     </div>
 
     @if(session('success'))
-        <div class="bg-green-50 border border-green-200 rounded-lg p-4 mb-6">
-            <p class="text-green-800">{{ session('success') }}</p>
+        <div class="bg-green-50 border border-green-200 rounded-lg p-3 mb-4">
+            <p class="text-green-800 text-sm">{{ session('success') }}</p>
+        </div>
+    @endif
+    @if(session('error'))
+        <div class="bg-red-50 border border-red-200 rounded-lg p-3 mb-4">
+            <p class="text-red-800 text-sm">{{ session('error') }}</p>
         </div>
     @endif
 
-    <!-- Period Overview -->
-    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-        <div class="bg-white rounded-lg shadow p-6">
-            <h2 class="text-xl font-semibold mb-4">Period Information</h2>
-            <div class="space-y-3">
-                <div>
-                    <p class="text-gray-600 text-sm">Opening Balance</p>
-                    <p class="text-2xl font-bold text-green-600">${{ number_format($fiscalperiod->opening_balance, 2) }}</p>
-                </div>
-                <div>
-                    <p class="text-gray-600 text-sm">Closing Balance</p>
-                    <p class="text-2xl font-bold text-blue-600">${{ number_format($fiscalperiod->closing_balance, 2) }}</p>
-                </div>
-                <div class="border-t pt-3">
-                    <p class="text-gray-600 text-sm">Change in Balance</p>
-                    <p class="text-lg font-semibold {{ $fiscalperiod->closing_balance >= $fiscalperiod->opening_balance ? 'text-green-600' : 'text-red-600' }}">
-                        {{ $fiscalperiod->closing_balance >= $fiscalperiod->opening_balance ? '+' : '' }}${{ number_format($fiscalperiod->closing_balance - $fiscalperiod->opening_balance, 2) }}
-                    </p>
-                </div>
-                <div class="border-t pt-3">
-                    <p class="text-gray-600 text-sm">Period Duration</p>
-                    <p class="text-lg font-semibold text-gray-700">{{ $fiscalperiod->opening_date->diffInDays($fiscalperiod->closing_date) }} days</p>
-                </div>
+    {{-- Financial Summary Cards --}}
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+        <div class="bg-white rounded-lg shadow p-4">
+            <p class="text-xs text-gray-500 uppercase">Total Income</p>
+            <p class="text-xl font-bold text-green-600 mt-1">${{ number_format($financialData['total_income'], 2) }}</p>
+        </div>
+        <div class="bg-white rounded-lg shadow p-4">
+            <p class="text-xs text-gray-500 uppercase">Total Expenses</p>
+            <p class="text-xl font-bold text-red-600 mt-1">${{ number_format($financialData['total_expenses'], 2) }}</p>
+        </div>
+        <div class="bg-white rounded-lg shadow p-4">
+            <p class="text-xs text-gray-500 uppercase">Net {{ $financialData['is_profitable'] ? 'Profit' : 'Loss' }}</p>
+            <p class="text-xl font-bold {{ $financialData['is_profitable'] ? 'text-green-600' : 'text-red-600' }} mt-1">
+                ${{ number_format(abs($financialData['net_income']), 2) }}
+            </p>
+        </div>
+        <div class="bg-white rounded-lg shadow p-4">
+            <p class="text-xs text-gray-500 uppercase">Opening Balance</p>
+            <p class="text-xl font-bold mt-1">${{ number_format($fiscalperiod->opening_balance, 2) }}</p>
+        </div>
+    </div>
+
+    {{-- Income & Expense Breakdown --}}
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+        <div class="bg-white rounded-lg shadow p-5">
+            <h3 class="font-semibold text-sm text-gray-700 mb-3">Income</h3>
+            <div class="space-y-2 text-sm">
+                <div class="flex justify-between"><span class="text-gray-600">Rent</span><span class="font-medium text-green-600">${{ number_format($financialData['rent_income'], 2) }}</span></div>
+                <div class="flex justify-between"><span class="text-gray-600">Late Fees</span><span class="font-medium text-green-600">${{ number_format($financialData['late_fees'], 2) }}</span></div>
+                @if($financialData['other_income'] > 0)
+                    <div class="flex justify-between"><span class="text-gray-600">Other</span><span class="font-medium text-green-600">${{ number_format($financialData['other_income'], 2) }}</span></div>
+                @endif
+                <div class="flex justify-between border-t pt-2 font-semibold"><span>Total</span><span class="text-green-700">${{ number_format($financialData['total_income'], 2) }}</span></div>
             </div>
         </div>
-
-        <div class="bg-white rounded-lg shadow p-6">
-            <h2 class="text-xl font-semibold mb-4">Actions</h2>
-            <div class="space-y-2">
-                @if($fiscalperiod->status === 'open')
-                    <a href="{{ route('admin.fiscalperiod.balance-sheet', $fiscalperiod->id) }}" 
-                        class="w-full flex items-center gap-3 bg-purple-600 text-white px-4 py-2.5 rounded-lg hover:bg-purple-700 transition">
-                        <svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z"/></svg>
-                        <span>Manage Balance Sheet</span>
-                    </a>
-                    <a href="{{ route('admin.fiscalperiod.open-close-balances', $fiscalperiod->id) }}" 
-                        class="w-full flex items-center gap-3 bg-indigo-600 text-white px-4 py-2.5 rounded-lg hover:bg-indigo-700 transition">
-                        <svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
-                        <span>Set Closing Balance</span>
-                    </a>
-                    <a href="{{ route('admin.fiscalperiod.edit', $fiscalperiod->id) }}" 
-                        class="w-full flex items-center gap-3 bg-blue-600 text-white px-4 py-2.5 rounded-lg hover:bg-blue-700 transition">
-                        <svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
-                        <span>Edit Period</span>
-                    </a>
+        <div class="bg-white rounded-lg shadow p-5">
+            <h3 class="font-semibold text-sm text-gray-700 mb-3">Expenses</h3>
+            <div class="space-y-2 text-sm">
+                @forelse($financialData['utility_expenses'] as $type => $amount)
+                    <div class="flex justify-between"><span class="text-gray-600 capitalize">{{ str_replace('_', ' ', $type) }}</span><span class="font-medium text-red-600">${{ number_format($amount, 2) }}</span></div>
+                @empty
+                    <p class="text-gray-400 text-xs">No utility expenses</p>
+                @endforelse
+                @if($financialData['fixed_expenses'] > 0)
+                    <div class="flex justify-between"><span class="text-gray-600">Fixed/Other</span><span class="font-medium text-red-600">${{ number_format($financialData['fixed_expenses'], 2) }}</span></div>
                 @endif
-                <a href="{{ route('admin.fiscalperiod.monthly-periods', $fiscalperiod->id) }}" 
-                    class="w-full flex items-center gap-3 bg-amber-600 text-white px-4 py-2.5 rounded-lg hover:bg-amber-700 transition">
-                    <svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
-                    <span>Monthly Periods</span>
-                </a>
-                <a href="{{ route('admin.fiscalperiod.reports', $fiscalperiod->id) }}" 
-                    class="w-full flex items-center gap-3 bg-green-600 text-white px-4 py-2.5 rounded-lg hover:bg-green-700 transition">
-                    <svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
-                    <span>View Reports & Export</span>
-                </a>
-                <a href="{{ route('admin.fiscalperiod.index') }}" 
-                    class="w-full flex items-center gap-3 bg-gray-400 text-white px-4 py-2.5 rounded-lg hover:bg-gray-500 transition">
-                    <svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/></svg>
-                    <span>Back to List</span>
-                </a>
+                <div class="flex justify-between border-t pt-2 font-semibold"><span>Total</span><span class="text-red-700">${{ number_format($financialData['total_expenses'], 2) }}</span></div>
             </div>
         </div>
     </div>
 
-    <!-- Revenue & Expense Tracking Summary -->
-    <div class="bg-white rounded-lg shadow p-8 mb-8">
-        <h2 class="text-2xl font-semibold mb-6">Revenue & Expense Tracking</h2>
-        <p class="text-gray-600 text-sm mb-6">All transactions recorded within this fiscal period ({{ $fiscalperiod->opening_date->format('M d, Y') }} - {{ $fiscalperiod->closing_date->format('M d, Y') }})</p>
-
-        <!-- Financial Summary Cards -->
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-            <!-- Revenue from Rent -->
-            <div class="bg-green-50 rounded-lg p-4 border border-green-200">
-                <p class="text-green-600 text-xs font-semibold uppercase">Rent Revenue</p>
-                <p class="text-2xl font-bold text-gray-900 mt-1">${{ number_format($financialData['revenue'], 2) }}</p>
-                <p class="text-xs text-gray-500 mt-1">{{ $financialData['payment_count'] }} payments collected</p>
-            </div>
-
-            <!-- Late Fees -->
-            <div class="bg-yellow-50 rounded-lg p-4 border border-yellow-200">
-                <p class="text-yellow-600 text-xs font-semibold uppercase">Late Fees</p>
-                <p class="text-2xl font-bold text-gray-900 mt-1">${{ number_format($financialData['late_fees'], 2) }}</p>
-                <p class="text-xs text-gray-500 mt-1">Additional income</p>
-            </div>
-
-            <!-- Total Expenses -->
-            <div class="bg-red-50 rounded-lg p-4 border border-red-200">
-                <p class="text-red-600 text-xs font-semibold uppercase">Total Expenses</p>
-                <p class="text-2xl font-bold text-gray-900 mt-1">${{ number_format($financialData['total_expenses'], 2) }}</p>
-                <p class="text-xs text-gray-500 mt-1">{{ count($financialData['expenses']) }} expense categories</p>
-            </div>
-
-            <!-- Net Profit/Loss -->
-            <div class="rounded-lg p-4 border {{ $financialData['is_profitable'] ? 'bg-blue-50 border-blue-200' : 'bg-orange-50 border-orange-200' }}">
-                <p class="{{ $financialData['is_profitable'] ? 'text-blue-600' : 'text-orange-600' }} text-xs font-semibold uppercase">
-                    {{ $financialData['is_profitable'] ? 'Net Profit' : 'Net Loss' }}
-                </p>
-                <p class="text-2xl font-bold text-gray-900 mt-1">
-                    {{ $financialData['is_profitable'] ? '+' : '-' }}${{ number_format(abs($financialData['net_profit']), 2) }}
-                </p>
-                <p class="text-xs text-gray-500 mt-1">Income - Expenses</p>
-            </div>
+    {{-- Monthly Periods --}}
+    <div class="bg-white rounded-lg shadow mb-6">
+        <div class="flex items-center justify-between px-5 py-3 border-b">
+            <h3 class="font-semibold">Monthly Periods</h3>
+            @if($fiscalperiod->status === 'open')
+                <form method="POST" action="{{ route('admin.fiscalperiod.recalculate-balances', $fiscalperiod->id) }}" onsubmit="return confirm('Recalculate all balances?')">
+                    @csrf
+                    <button type="submit" class="text-xs bg-amber-100 text-amber-700 px-3 py-1 rounded hover:bg-amber-200">Recalculate</button>
+                </form>
+            @endif
         </div>
-
-        <!-- Income & Expense Details Side by Side -->
-        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <!-- Income Breakdown -->
-            <div class="bg-gray-50 rounded-lg p-5">
-                <h3 class="font-semibold text-gray-700 mb-4">Income Summary</h3>
-                <div class="space-y-3">
-                    <div class="flex justify-between items-center p-3 bg-green-50 rounded">
-                        <span class="text-sm text-gray-700">Rent Payments</span>
-                        <span class="text-sm font-bold text-green-600">${{ number_format($financialData['revenue'], 2) }}</span>
-                    </div>
-                    <div class="flex justify-between items-center p-3 bg-yellow-50 rounded">
-                        <span class="text-sm text-gray-700">Late Fees</span>
-                        <span class="text-sm font-bold text-yellow-600">${{ number_format($financialData['late_fees'], 2) }}</span>
-                    </div>
-                    <div class="flex justify-between items-center p-3 bg-white rounded border-2 border-green-500">
-                        <span class="text-sm font-bold text-gray-900">Total Income</span>
-                        <span class="text-sm font-bold text-green-600">${{ number_format($financialData['total_income'], 2) }}</span>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Expense Breakdown by Category -->
-            <div class="bg-gray-50 rounded-lg p-5">
-                <h3 class="font-semibold text-gray-700 mb-4">Expense Breakdown</h3>
-                @if(count($financialData['expenses']) > 0)
-                <div class="space-y-3">
-                    @foreach($financialData['expenses'] as $type => $amount)
-                    <div class="flex justify-between items-center p-3 bg-red-50 rounded">
-                        <span class="text-sm text-gray-700 capitalize">{{ str_replace('_', ' ', $type) }}</span>
-                        <span class="text-sm font-bold text-red-600">${{ number_format($amount, 2) }}</span>
-                    </div>
-                    @endforeach
-                    <div class="flex justify-between items-center p-3 bg-white rounded border-2 border-red-500">
-                        <span class="text-sm font-bold text-gray-900">Total Expenses</span>
-                        <span class="text-sm font-bold text-red-600">${{ number_format($financialData['total_expenses'], 2) }}</span>
-                    </div>
-                </div>
-                @else
-                <p class="text-gray-500 text-sm text-center py-4">No expenses recorded in this period yet.</p>
-                @endif
-            </div>
-        </div>
-    </div>
-
-    <!-- Balance Sheet Summary -->
-    <div class="bg-white rounded-lg shadow p-8 mb-8">
-        <h2 class="text-2xl font-semibold mb-6">Balance Sheet Items</h2>
-        
-        @php
-            $balanceSheetItems = $fiscalperiod->balanceSheets()->get()->groupBy('item_type');
-            $totalAssets = $balanceSheetItems->get('asset', collect())->sum('amount');
-            $totalLiabilities = $balanceSheetItems->get('liability', collect())->sum('amount');
-            $totalEquity = $balanceSheetItems->get('equity', collect())->sum('amount');
-        @endphp
-
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-            <!-- Assets -->
-            <div class="border-l-4 border-blue-600 pl-4">
-                <h3 class="text-lg font-semibold text-blue-900 mb-3">Assets</h3>
-                <p class="text-3xl font-bold text-blue-600">${{ number_format($totalAssets, 2) }}</p>
-                <p class="text-sm text-gray-600 mt-1">{{ $balanceSheetItems->get('asset', collect())->count() }} items</p>
-            </div>
-
-            <!-- Liabilities -->
-            <div class="border-l-4 border-red-600 pl-4">
-                <h3 class="text-lg font-semibold text-red-900 mb-3">Liabilities</h3>
-                <p class="text-3xl font-bold text-red-600">${{ number_format($totalLiabilities, 2) }}</p>
-                <p class="text-sm text-gray-600 mt-1">{{ $balanceSheetItems->get('liability', collect())->count() }} items</p>
-            </div>
-
-            <!-- Equity -->
-            <div class="border-l-4 border-green-600 pl-4">
-                <h3 class="text-lg font-semibold text-green-900 mb-3">Equity</h3>
-                <p class="text-3xl font-bold text-green-600">${{ number_format($totalEquity, 2) }}</p>
-                <p class="text-sm text-gray-600 mt-1">{{ $balanceSheetItems->get('equity', collect())->count() }} items</p>
-            </div>
-        </div>
-
-        @if($balanceSheetItems->count() > 0)
+        @if($monthlyPeriods->count())
             <div class="overflow-x-auto">
-                <table class="w-full border-collapse">
+                <table class="w-full text-sm">
                     <thead>
-                        <tr class="bg-gray-100 border-b">
-                            <th class="px-4 py-3 text-left text-sm font-semibold">Type</th>
-                            <th class="px-4 py-3 text-left text-sm font-semibold">Name</th>
-                            <th class="px-4 py-3 text-left text-sm font-semibold">Amount</th>
-                            <th class="px-4 py-3 text-left text-sm font-semibold">Date</th>
-                            <th class="px-4 py-3 text-left text-sm font-semibold">Reference</th>
+                        <tr class="bg-gray-50 border-b text-xs text-gray-500 uppercase">
+                            <th class="px-4 py-2 text-left">Month</th>
+                            <th class="px-4 py-2 text-right">Opening</th>
+                            <th class="px-4 py-2 text-right">Income</th>
+                            <th class="px-4 py-2 text-right">Expenses</th>
+                            <th class="px-4 py-2 text-right">Net</th>
+                            <th class="px-4 py-2 text-right">Closing</th>
+                            <th class="px-4 py-2 text-center">Status</th>
+                            <th class="px-4 py-2 text-center">Actions</th>
                         </tr>
                     </thead>
-                    <tbody>
-                        @foreach($balanceSheetItems as $type => $items)
-                            @foreach($items as $item)
-                                <tr class="border-b hover:bg-gray-50">
-                                    <td class="px-4 py-3 text-sm">
-                                        <span class="px-2 py-1 rounded text-xs font-semibold {{ $type === 'asset' ? 'bg-blue-100 text-blue-800' : ($type === 'liability' ? 'bg-red-100 text-red-800' : 'bg-green-100 text-green-800') }}">
-                                            {{ ucfirst($type) }}
-                                        </span>
-                                    </td>
-                                    <td class="px-4 py-3 text-sm font-medium">{{ $item->name }}</td>
-                                    <td class="px-4 py-3 text-sm font-semibold">${{ number_format($item->amount, 2) }}</td>
-                                    <td class="px-4 py-3 text-sm">{{ $item->as_of_date->format('Y-m-d') }}</td>
-                                    <td class="px-4 py-3 text-sm">{{ $item->reference_number ?? '-' }}</td>
-                                </tr>
-                            @endforeach
+                    <tbody class="divide-y">
+                        @foreach($monthlyPeriods as $month)
+                            <tr class="hover:bg-gray-50">
+                                <td class="px-4 py-2.5 font-medium">{{ $month->name }}</td>
+                                <td class="px-4 py-2.5 text-right">${{ number_format($month->opening_balance, 2) }}</td>
+                                <td class="px-4 py-2.5 text-right text-green-600">+${{ number_format($month->live_income, 2) }}</td>
+                                <td class="px-4 py-2.5 text-right text-red-600">-${{ number_format($month->live_expenses, 2) }}</td>
+                                <td class="px-4 py-2.5 text-right font-semibold {{ $month->live_net >= 0 ? 'text-green-700' : 'text-red-700' }}">
+                                    {{ $month->live_net >= 0 ? '+' : '' }}${{ number_format($month->live_net, 2) }}
+                                </td>
+                                <td class="px-4 py-2.5 text-right">
+                                    @if($month->isClosed())
+                                        ${{ number_format($month->closing_balance, 2) }}
+                                    @else
+                                        <span class="text-gray-400">${{ number_format($month->opening_balance + $month->live_net, 2) }}</span>
+                                    @endif
+                                </td>
+                                <td class="px-4 py-2.5 text-center">
+                                    <span class="px-2 py-0.5 rounded-full text-xs font-semibold {{ $month->status === 'open' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600' }}">
+                                        {{ ucfirst($month->status) }}
+                                    </span>
+                                </td>
+                                <td class="px-4 py-2.5 text-center">
+                                    <div class="flex items-center justify-center gap-1">
+                                        <a href="{{ route('admin.fiscalperiod.monthly-period.show', [$fiscalperiod->id, $month->id]) }}" class="text-blue-600 hover:underline text-xs">View</a>
+                                        @if($month->canClose())
+                                            <form method="POST" action="{{ route('admin.fiscalperiod.monthly-period.close', [$fiscalperiod->id, $month->id]) }}" onsubmit="return confirm('Close {{ $month->name }}?')" class="inline">
+                                                @csrf
+                                                <button class="text-amber-600 hover:underline text-xs ml-1">Close</button>
+                                            </form>
+                                        @endif
+                                        @if($month->canReopen())
+                                            <form method="POST" action="{{ route('admin.fiscalperiod.monthly-period.reopen', [$fiscalperiod->id, $month->id]) }}" onsubmit="return confirm('Reopen {{ $month->name }}?')" class="inline">
+                                                @csrf
+                                                <button class="text-green-600 hover:underline text-xs ml-1">Reopen</button>
+                                            </form>
+                                        @endif
+                                    </div>
+                                </td>
+                            </tr>
                         @endforeach
                     </tbody>
                 </table>
             </div>
         @else
-            <p class="text-gray-600 text-center py-8">No balance sheet items added yet. <a href="{{ route('admin.fiscalperiod.balance-sheet', $fiscalperiod->id) }}" class="text-blue-600 font-semibold">Add items now</a></p>
+            <p class="p-5 text-sm text-gray-400 text-center">No monthly periods.</p>
         @endif
     </div>
+
+    {{-- Balance Sheet Summary --}}
+    <div class="bg-white rounded-lg shadow p-5 mb-6">
+        <div class="flex items-center justify-between mb-4">
+            <h3 class="font-semibold">Balance Sheet</h3>
+            @if($fiscalperiod->status === 'open')
+                <a href="{{ route('admin.fiscalperiod.balance-sheet', $fiscalperiod->id) }}" class="text-xs text-blue-600 hover:underline">Manage Items →</a>
+            @endif
+        </div>
+        <div class="grid grid-cols-3 gap-4 text-center">
+            <div>
+                <p class="text-xs text-gray-500 uppercase">Assets</p>
+                <p class="text-lg font-bold text-blue-600">${{ number_format($balanceSummary['total_assets'], 2) }}</p>
+            </div>
+            <div>
+                <p class="text-xs text-gray-500 uppercase">Liabilities</p>
+                <p class="text-lg font-bold text-red-600">${{ number_format($balanceSummary['total_liabilities'], 2) }}</p>
+            </div>
+            <div>
+                <p class="text-xs text-gray-500 uppercase">Equity</p>
+                <p class="text-lg font-bold text-green-600">${{ number_format($balanceSummary['total_equity'], 2) }}</p>
+            </div>
+        </div>
+
+        {{-- Retained Earnings & Operating Performance --}}
+        <div class="mt-4 pt-4 border-t border-gray-100">
+            <h4 class="text-xs text-gray-500 uppercase font-semibold mb-2">Operating Performance (This Period)</h4>
+            <div class="grid grid-cols-4 gap-3 text-center text-sm">
+                <div>
+                    <p class="text-xs text-gray-400">Revenue</p>
+                    <p class="font-semibold text-green-600">${{ number_format($balanceSummary['total_income'], 2) }}</p>
+                </div>
+                <div>
+                    <p class="text-xs text-gray-400">Expenses</p>
+                    <p class="font-semibold text-red-600">${{ number_format($balanceSummary['total_expenses'], 2) }}</p>
+                </div>
+                <div>
+                    <p class="text-xs text-gray-400">Retained Earnings</p>
+                    <p class="font-semibold {{ $balanceSummary['retained_earnings'] >= 0 ? 'text-green-600' : 'text-red-600' }}">
+                        ${{ number_format($balanceSummary['retained_earnings'], 2) }}
+                    </p>
+                </div>
+                <div>
+                    <p class="text-xs text-gray-400">Adjusted Equity</p>
+                    <p class="font-semibold text-purple-600">${{ number_format($balanceSummary['adjusted_equity'], 2) }}</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="mt-3 text-center">
+            <span class="text-xs {{ $balanceSummary['balance_check'] ? 'text-green-600' : 'text-red-600' }}">
+                {{ $balanceSummary['balance_check'] ? '✓ Balanced (Assets = Liabilities + Adjusted Equity)' : '✗ Unbalanced — Assets ≠ Liabilities + Adjusted Equity' }}
+            </span>
+        </div>
+    </div>
+
+    {{-- Close Period Section (only if open) --}}
+    @if($fiscalperiod->status === 'open')
+        <div class="bg-white rounded-lg shadow p-5 mb-6">
+            <h3 class="font-semibold mb-3">Close This Period</h3>
+            <p class="text-sm text-gray-500 mb-4">Set the closing balance and mark the period as closed. You won't be able to edit after closing.</p>
+            <form method="POST" action="{{ route('admin.fiscalperiod.closeperiod', $fiscalperiod->id) }}" onsubmit="return confirm('Close this fiscal period? This cannot be undone.')">
+                @csrf
+                <div class="flex items-end gap-3">
+                    <div class="flex-1">
+                        <label class="block text-xs text-gray-500 mb-1">Closing Balance</label>
+                        <div class="relative">
+                            <span class="absolute left-3 top-2 text-gray-500">$</span>
+                            <input type="number" name="closing_balance" step="0.01" required
+                                value="{{ $balanceSummary['total_assets'] - $balanceSummary['total_liabilities'] }}"
+                                class="w-full pl-7 pr-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none">
+                        </div>
+                        <p class="text-xs text-gray-400 mt-1">Suggested: ${{ number_format($balanceSummary['total_assets'] - $balanceSummary['total_liabilities'], 2) }} (Assets − Liabilities)</p>
+                    </div>
+                    <button type="submit" class="bg-orange-600 text-white px-5 py-2 rounded-lg hover:bg-orange-700 text-sm font-semibold whitespace-nowrap">
+                        Close Period
+                    </button>
+                </div>
+            </form>
+        </div>
+    @endif
+
+    {{-- Delete (only if open) --}}
+    @if($fiscalperiod->status !== 'closed')
+        <div class="text-center">
+            <form method="POST" action="{{ route('admin.fiscalperiod.destroy', $fiscalperiod->id) }}" onsubmit="return confirm('Delete this fiscal period? This cannot be undone.')">
+                @csrf
+                @method('DELETE')
+                <button type="submit" class="text-sm text-red-500 hover:text-red-700 hover:underline">Delete this period</button>
+            </form>
+        </div>
+    @endif
 </div>
 @endsection

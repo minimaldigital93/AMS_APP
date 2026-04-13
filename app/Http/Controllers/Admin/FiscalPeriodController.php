@@ -100,80 +100,30 @@ class FiscalPeriodController extends Controller
     }
 
     /**
-     * Show fiscal period details with revenue and expense tracking.
+     * Show fiscal period dashboard — all key info in one page.
      */
     public function show(FiscalPeriods $fiscalperiod)
     {
         $this->authorizeUser($fiscalperiod);
-        
-        $balanceSheetItems = $fiscalperiod->balanceSheets()
-            ->orderBy('as_of_date', 'desc')
-            ->get();
 
-        // Calculate Revenue from Payments (Rent Income) within this fiscal period
-        $revenue = Payments::whereHas('rental', function($query) use ($fiscalperiod) {
-            $query->whereHas('apartment', function($subQuery) use ($fiscalperiod) {
-                $subQuery->where('supervisor_id', $fiscalperiod->user_id);
-            });
-        })
-        ->where('payment_status', 'paid')
-        ->whereBetween('paid_at', [$fiscalperiod->opening_date, $fiscalperiod->closing_date])
-        ->sum('amount');
+        // Financial summary for the whole period
+        $financialData = $this->calculatePeriodFinancials($fiscalperiod);
 
-        $lateFees = Payments::whereHas('rental', function($query) use ($fiscalperiod) {
-            $query->whereHas('apartment', function($subQuery) use ($fiscalperiod) {
-                $subQuery->where('supervisor_id', $fiscalperiod->user_id);
-            });
-        })
-        ->where('payment_status', 'paid')
-        ->whereBetween('paid_at', [$fiscalperiod->opening_date, $fiscalperiod->closing_date])
-        ->sum('late_fee');
-
-        $totalIncome = $revenue + $lateFees;
-
-        // Calculate Expenses from Utilities within this fiscal period
-        $utilitiesData = Utilities::whereHas('rental', function($query) use ($fiscalperiod) {
-            $query->whereHas('apartment', function($subQuery) use ($fiscalperiod) {
-                $subQuery->where('supervisor_id', $fiscalperiod->user_id);
-            });
-        })
-        ->where('paid_status', true)
-        ->whereBetween('paid_at', [$fiscalperiod->opening_date, $fiscalperiod->closing_date])
-        ->get();
-
-        $expenses = [];
-        $totalExpenses = 0;
-        foreach ($utilitiesData->groupBy('utility_type') as $type => $items) {
-            $typeTotal = $items->sum('charge_amount');
-            $expenses[$type] = $typeTotal;
-            $totalExpenses += $typeTotal;
+        // Monthly periods with live financials
+        $monthlyPeriods = $fiscalperiod->monthlyPeriods()->orderBy('start_date')->get();
+        foreach ($monthlyPeriods as $month) {
+            $monthData = $this->calculateMonthlyFinancials($fiscalperiod, $month);
+            $month->live_income = $monthData['total_income'];
+            $month->live_expenses = $monthData['total_expenses'];
+            $month->live_net = $monthData['net_income'];
         }
 
-        // Net profit
-        $netProfit = $totalIncome - $totalExpenses;
+        // Balance sheet summary
+        $balanceSummary = $this->calculateBalanceSheetSummary($fiscalperiod);
 
-        // Payment count
-        $paymentCount = Payments::whereHas('rental', function($query) use ($fiscalperiod) {
-            $query->whereHas('apartment', function($subQuery) use ($fiscalperiod) {
-                $subQuery->where('supervisor_id', $fiscalperiod->user_id);
-            });
-        })
-        ->where('payment_status', 'paid')
-        ->whereBetween('paid_at', [$fiscalperiod->opening_date, $fiscalperiod->closing_date])
-        ->count();
-
-        $financialData = [
-            'revenue' => $revenue,
-            'late_fees' => $lateFees,
-            'total_income' => $totalIncome,
-            'expenses' => $expenses,
-            'total_expenses' => $totalExpenses,
-            'net_profit' => $netProfit,
-            'is_profitable' => $netProfit > 0,
-            'payment_count' => $paymentCount,
-        ];
-
-        return view('admin.fiscalperiod.show', compact('fiscalperiod', 'balanceSheetItems', 'financialData'));
+        return view('admin.fiscalperiod.show', compact(
+            'fiscalperiod', 'financialData', 'monthlyPeriods', 'balanceSummary'
+        ));
     }
 
     /**
@@ -386,8 +336,13 @@ class FiscalPeriodController extends Controller
     {
         $this->authorizeUser($fiscalperiod);
 
-        if ($fiscalperiod->status === 'closed') {
-            return back()->with('error', 'Cannot delete a closed fiscal period.');
+        // Delete related resources first to avoid orphaned records
+        if (method_exists($fiscalperiod, 'balanceSheets')) {
+            $fiscalperiod->balanceSheets()->delete();
+        }
+
+        if (method_exists($fiscalperiod, 'monthlyPeriods')) {
+            $fiscalperiod->monthlyPeriods()->delete();
         }
 
         $fiscalperiod->delete();
@@ -896,7 +851,12 @@ class FiscalPeriodController extends Controller
     }
 
     /**
-     * Calculate balance sheet summary.
+     * Calculate balance sheet summary, including operational financial data.
+     *
+     * The balance sheet now includes:
+     *  - Manual items (assets, liabilities, equity)
+     *  - Retained earnings from operations (total income - total expenses)
+     *  - Total revenue and expense summaries for full financial picture
      */
     protected function calculateBalanceSheetSummary(FiscalPeriods $fiscalperiod): array
     {
@@ -912,12 +872,55 @@ class FiscalPeriodController extends Controller
             ->where('item_type', 'equity')
             ->sum('amount');
 
+        // Calculate retained earnings from actual operations (Accounts ledger)
+        $totalIncome = $fiscalperiod->accounts()
+            ->where('account_type', Accounts::TYPE_INCOME)
+            ->sum('amount');
+
+        $totalExpenses = $fiscalperiod->accounts()
+            ->where('account_type', Accounts::TYPE_EXPENSE)
+            ->sum('amount');
+
+        $retainedEarnings = $totalIncome - $totalExpenses;
+
+        // Income breakdown by category
+        $incomeByCategory = $fiscalperiod->accounts()
+            ->where('account_type', Accounts::TYPE_INCOME)
+            ->selectRaw('category, SUM(amount) as total')
+            ->groupBy('category')
+            ->pluck('total', 'category')
+            ->toArray();
+
+        // Expense breakdown by category
+        $expenseByCategory = $fiscalperiod->accounts()
+            ->where('account_type', Accounts::TYPE_EXPENSE)
+            ->selectRaw('category, SUM(amount) as total')
+            ->groupBy('category')
+            ->pluck('total', 'category')
+            ->toArray();
+
+        // Adjusted equity includes retained earnings from operations
+        $adjustedEquity = $equity + $retainedEarnings;
+
+        // Cash position = opening balance + net income from operations
+        $cashFromOperations = $fiscalperiod->opening_balance + $retainedEarnings;
+
         return [
             'total_assets' => $assets,
             'total_liabilities' => $liabilities,
             'total_equity' => $equity,
+            'retained_earnings' => round($retainedEarnings, 2),
+            'adjusted_equity' => round($adjustedEquity, 2),
             'net_worth' => $assets - $liabilities,
-            'balance_check' => ($liabilities + $equity) == $assets ? true : false,
+            'balance_check' => abs(($liabilities + $adjustedEquity) - $assets) < 0.01,
+            // Revenue & Expense data for the balance sheet
+            'total_income' => round($totalIncome, 2),
+            'total_expenses' => round($totalExpenses, 2),
+            'net_income' => round($retainedEarnings, 2),
+            'income_by_category' => $incomeByCategory,
+            'expense_by_category' => $expenseByCategory,
+            'cash_from_operations' => round($cashFromOperations, 2),
+            'opening_balance' => round($fiscalperiod->opening_balance, 2),
         ];
     }
 

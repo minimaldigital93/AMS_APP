@@ -666,9 +666,9 @@ class RevenueExpenseController extends Controller
                 'income' => round($income, 2),
                 'expenses' => round($expenses, 2),
                 'fixed_expenses' => round($fixedExpTotal, 2),
-                'tenant_net' => round($income + $expenses, 2),           // Net: Tenant → Owner (rent + utilities)
+                'tenant_net' => round($income - $expenses, 2),           // Net: Income minus utility costs
                 'owner_expenses' => round($fixedExpTotal, 2),            // Owner → Vendor
-                'net' => round($income + $expenses - $fixedExpTotal, 2),
+                'net' => round($income - $expenses - $fixedExpTotal, 2),
                 'expense_breakdown' => $expenseBreakdown,
                 'status' => $apartment->status,
                 'rent_percent' => $rentPercent,
@@ -682,12 +682,17 @@ class RevenueExpenseController extends Controller
     }
 
     /**
-     * Calculate break-even point
+     * Calculate break-even point with full financial context.
+     *
+     * Connects break-even analysis to the balance sheet and overall
+     * financial health of the business. Uses ALL cost sources.
      * 
      * @return array
      */
     public function calculateBreakEvenPoint()
     {
+        $activePeriod = $this->getActiveFiscalPeriod();
+
         // Get all apartments supervised by current user
         $apartments = $this->scopeApartments()->get();
         $totalApartments = $apartments->count();
@@ -697,11 +702,11 @@ class RevenueExpenseController extends Controller
             ->active()
             ->avg('rent_amount') ?? 0;
 
-        // Get fixed costs (monthly)
-        $fixedCosts = $this->calculateFixedCosts();
+        // Get fixed costs for the fiscal period — include all fixed cost sources
+        $fixedCosts = $this->calculateFixedCosts($activePeriod);
 
-        // Get variable costs per apartment/unit
-        $variableCostPerUnit = $this->calculateVariableCostPerUnit();
+        // Get variable costs per apartment/unit for the fiscal period
+        $variableCostPerUnit = $this->calculateVariableCostPerUnit($activePeriod);
 
         // Calculate break-even quantity
         // Break-even point (units) = Fixed Costs / (Price per Unit - Variable Cost per Unit)
@@ -728,6 +733,14 @@ class RevenueExpenseController extends Controller
             ? round(($safetyMargin / $currentRevenue) * 100, 2)
             : 0;
 
+        // Amount still needed to reach break-even (0 if already above)
+        $amountNeeded = max(0, $breakEvenRevenue - $currentRevenue);
+        $unitsNeeded = max(0, ceil($breakEvenUnits) - $currentOccupancy);
+
+        // Expense breakdown for detailed cost analysis
+        $fixedCostBreakdown = $this->getFixedCostBreakdown();
+        $variableCostBreakdown = $this->getVariableCostBreakdown();
+
         return [
             'total_apartments' => $totalApartments,
             'avg_rent_per_apartment' => round($avgRentPerApartment, 2),
@@ -740,65 +753,281 @@ class RevenueExpenseController extends Controller
             'current_revenue' => round($currentRevenue, 2),
             'safety_margin' => round($safetyMargin, 2),
             'safety_margin_percent' => $safetyMarginPercent,
-            'is_above_break_even' => $currentRevenue > $breakEvenRevenue,
+            'is_above_break_even' => $currentRevenue >= $breakEvenRevenue,
+            'amount_needed' => round($amountNeeded, 2),
+            'units_needed' => $unitsNeeded,
+            // Cost breakdowns
+            'fixed_cost_breakdown' => $fixedCostBreakdown,
+            'variable_cost_breakdown' => $variableCostBreakdown,
         ];
+    }
+
+    /**
+     * Get detailed breakdown of fixed costs by source.
+     */
+    private function getFixedCostBreakdown(): array
+    {
+        $apartmentIds = $this->scopeApartments()->pluck('id');
+        $activePeriod = $this->getActiveFiscalPeriod();
+
+        $breakdown = [];
+
+        // Apartment-level fixed expenses
+        $aptFixed = ApartmentFixedExpense::whereIn('apartment_id', $apartmentIds)
+            ->where('is_active', true)
+            ->sum('amount');
+        if ($aptFixed > 0) {
+            $breakdown[] = ['label' => 'Apartment Fixed Expenses', 'amount' => round($aptFixed, 2)];
+        }
+
+        // Business fixed expenses from BusinessExpense table
+        if ($activePeriod) {
+            // Business fixed expenses across the fiscal period
+            $bizFixed = BusinessExpense::where('user_id', Auth::id())
+                ->where('fiscal_period_id', $activePeriod->id)
+                ->where('cost_type', 'fixed')
+                ->whereBetween('expense_date', [$activePeriod->opening_date, $activePeriod->closing_date])
+                ->get();
+
+            foreach ($bizFixed as $expense) {
+                $breakdown[] = ['label' => $expense->expense_name ?? 'Business Fixed', 'amount' => round($expense->amount, 2)];
+            }
+        }
+
+        // Accounts-based fixed expenses by category
+        $fixedCategories = [
+            Accounts::CAT_MAINTENANCE => 'Maintenance & Repairs',
+            Accounts::CAT_INSURANCE => 'Insurance',
+            Accounts::CAT_PROPERTY_TAX => 'Property Tax',
+            Accounts::CAT_MANAGEMENT => 'Property Management',
+        ];
+
+        foreach ($fixedCategories as $cat => $label) {
+            $query = Accounts::expense()
+                ->forUser(Auth::id())
+                ->category($cat)
+                ->whereBetween('transaction_date', [$activePeriod->opening_date, $activePeriod->closing_date]);
+
+            if ($activePeriod) {
+                $query->forPeriod($activePeriod->id);
+            }
+
+            $amount = $query->sum('amount');
+            if ($amount > 0) {
+                $breakdown[] = ['label' => $label, 'amount' => round($amount, 2)];
+            }
+        }
+
+        return $breakdown;
+    }
+
+    /**
+     * Get detailed breakdown of variable costs by source.
+     */
+    private function getVariableCostBreakdown(): array
+    {
+        $apartmentIds = $this->scopeApartments()->pluck('id');
+        $activePeriod = $this->getActiveFiscalPeriod();
+        $breakdown = [];
+
+        // Utility costs by type
+        $utilityTypes = ['electricity', 'water', 'parking'];
+        foreach ($utilityTypes as $type) {
+            $amount = Utilities::whereHas('rental', function ($q) use ($apartmentIds) {
+                    $q->whereIn('apartment_id', $apartmentIds);
+                })
+                ->where('utility_type', $type)
+                ->where(function ($q) use ($activePeriod) {
+                    $q->whereBetween('paid_at', [$activePeriod->opening_date, $activePeriod->closing_date])
+                      ->orWhere(function ($q2) use ($activePeriod) {
+                          $q2->whereBetween('billing_year', [$activePeriod->opening_date->year, $activePeriod->closing_date->year]);
+                      });
+                })
+                ->sum('charge_amount');
+
+            if ($amount > 0) {
+                $breakdown[] = ['label' => ucfirst($type), 'amount' => round($amount, 2)];
+            }
+        }
+
+        // Business variable expenses from BusinessExpense table
+        if ($activePeriod) {
+            $bizVariable = BusinessExpense::where('user_id', Auth::id())
+                ->where('fiscal_period_id', $activePeriod->id)
+                ->where('cost_type', 'variable')
+                ->where('billing_month', now()->month)
+                ->where('billing_year', now()->year)
+                ->get();
+
+            foreach ($bizVariable as $expense) {
+                $breakdown[] = ['label' => $expense->expense_name ?? 'Business Variable', 'amount' => round($expense->amount, 2)];
+            }
+        }
+
+        // Variable account expenses
+        $varCategories = [
+            Accounts::CAT_OTHER_EXPENSE => 'Other Variable Expenses',
+        ];
+
+        foreach ($varCategories as $cat => $label) {
+            $query = Accounts::expense()
+                ->forUser(Auth::id())
+                ->category($cat)
+                ->whereMonth('transaction_date', now()->month)
+                ->whereYear('transaction_date', now()->year);
+
+            if ($activePeriod) {
+                $query->forPeriod($activePeriod->id);
+            }
+
+            $amount = $query->sum('amount');
+            if ($amount > 0) {
+                $breakdown[] = ['label' => $label, 'amount' => round($amount, 2)];
+            }
+        }
+
+        return $breakdown;
     }
 
     /**
      * Calculate total monthly fixed costs (for break-even analysis).
      *
      * Fixed costs = apartment-level recurring expenses (parking, internet, trash)
-     *             + any maintenance expenses this month
+     *             + business fixed expenses (insurance, property tax, management, etc.)
+     *             + maintenance, insurance, property_tax, management from Accounts
+     *
+     * Scoped to the active fiscal period for accuracy.
      */
-    private function calculateFixedCosts()
+    private function calculateFixedCosts(?FiscalPeriods $period = null)
     {
         $apartmentIds = $this->scopeApartments()->pluck('id');
+        $activePeriod = $period ?? $this->getActiveFiscalPeriod();
 
-        // Active fixed expenses across all supervised apartments
+        // Number of months in period (default to 1 if no period)
+        $months = 1;
+        if ($activePeriod) {
+            $months = Carbon::parse($activePeriod->opening_date)->diffInMonths(Carbon::parse($activePeriod->closing_date)) + 1;
+        }
+
+        // 1. Active fixed expenses across all supervised apartments (monthly recurring)
+        // Multiply by number of months in the period to get the period total
         $monthlyFixedExpenses = ApartmentFixedExpense::whereIn('apartment_id', $apartmentIds)
             ->where('is_active', true)
             ->sum('amount');
+        $periodFixedFromApts = $monthlyFixedExpenses * $months;
 
-        // Also include maintenance costs for the current month
-        $monthlyMaintenance = Accounts::expense()
+        // 2. Business fixed expenses across the fiscal period from BusinessExpense table
+        $businessFixedExpenses = 0;
+        if ($activePeriod) {
+            $businessFixedExpenses = BusinessExpense::where('user_id', Auth::id())
+                ->where('fiscal_period_id', $activePeriod->id)
+                ->where('cost_type', 'fixed')
+                ->whereBetween('expense_date', [$activePeriod->opening_date, $activePeriod->closing_date])
+                ->sum('amount');
+        }
+
+        // 3. Fixed-nature expenses from Accounts (maintenance, insurance, property_tax, management)
+        $fixedCategories = [
+            Accounts::CAT_MAINTENANCE,
+            Accounts::CAT_INSURANCE,
+            Accounts::CAT_PROPERTY_TAX,
+            Accounts::CAT_MANAGEMENT,
+        ];
+
+        $accountFixedExpenses = Accounts::expense()
             ->forUser(Auth::id())
-            ->category(Accounts::CAT_MAINTENANCE)
-            ->whereMonth('transaction_date', now()->month)
-            ->whereYear('transaction_date', now()->year)
-            ->sum('amount');
+            ->whereIn('category', $fixedCategories);
 
-        return $monthlyFixedExpenses + $monthlyMaintenance;
+        if ($activePeriod) {
+            $accountFixedExpenses->whereBetween('transaction_date', [$activePeriod->opening_date, $activePeriod->closing_date]);
+        } else {
+            $accountFixedExpenses->whereMonth('transaction_date', now()->month)->whereYear('transaction_date', now()->year);
+        }
+
+        $accountFixedTotal = $accountFixedExpenses->sum('amount');
+
+        // Sum: apartment fixed (period) + business fixed (period) + accounts-based fixed categories
+        $fixedTotal = $periodFixedFromApts + $businessFixedExpenses + $accountFixedTotal;
+
+        return $fixedTotal;
     }
 
     /**
      * Calculate variable cost per occupied unit this month.
      *
      * Variable costs = electricity + water + parking charges for the current month,
+     *                + business variable expenses (supplies, marketing, etc.)
+     *                + other variable expenses from Accounts
      * divided by the number of occupied apartments.
      */
-    private function calculateVariableCostPerUnit()
+    private function calculateVariableCostPerUnit(?FiscalPeriods $period = null)
     {
         $apartmentIds = $this->scopeApartments()->pluck('id');
-        
-        // Count apartments with active rentals
-        $occupiedCount = Rentals::whereIn('apartment_id', $apartmentIds)
-            ->active()
-            ->where('start_date', '<=', now())
-            ->count();
+        $activePeriod = $period ?? $this->getActiveFiscalPeriod();
+
+        // Count apartments with active rentals during the period (or currently if no period)
+        $rentalQuery = Rentals::whereIn('apartment_id', $apartmentIds);
+        if ($activePeriod) {
+            $rentalQuery->where('start_date', '<=', $activePeriod->closing_date)
+                ->where(function ($q) use ($activePeriod) {
+                    $q->whereNull('end_date')->orWhere('end_date', '>=', $activePeriod->opening_date);
+                });
+        } else {
+            $rentalQuery->active()->where('start_date', '<=', now());
+        }
+
+        $occupiedCount = $rentalQuery->count();
 
         if ($occupiedCount === 0) {
             return 0;
         }
 
-        // Variable utility costs for the current month
-        $monthlyVariableCosts = Utilities::whereHas('rental', function ($q) use ($apartmentIds) {
+        // 1. Variable utility costs across the period
+        $monthlyUtilityCostsQuery = Utilities::whereHas('rental', function ($q) use ($apartmentIds) {
                 $q->whereIn('apartment_id', $apartmentIds);
-            })
-            ->whereIn('utility_type', ['electricity', 'water', 'parking'])
-            ->forMonth(now()->month, now()->year)
-            ->sum('charge_amount');
+            })->whereIn('utility_type', ['electricity', 'water', 'parking']);
 
-        return $monthlyVariableCosts / $occupiedCount;
+        if ($activePeriod) {
+            $monthlyUtilityCostsQuery->where(function ($q) use ($activePeriod) {
+                $q->whereBetween('paid_at', [$activePeriod->opening_date, $activePeriod->closing_date])
+                  ->orWhere(function ($q2) use ($activePeriod) {
+                      $q2->whereBetween('billing_year', [$activePeriod->opening_date->year, $activePeriod->closing_date->year]);
+                  });
+            });
+        } else {
+            $monthlyUtilityCostsQuery->forMonth(now()->month, now()->year);
+        }
+
+        $monthlyUtilityCosts = $monthlyUtilityCostsQuery->sum('charge_amount');
+
+        // 2. Business variable expenses for the period
+        $businessVariableCosts = 0;
+        if ($activePeriod) {
+            $businessVariableCosts = BusinessExpense::where('user_id', Auth::id())
+                ->where('fiscal_period_id', $activePeriod->id)
+                ->where('cost_type', 'variable')
+                ->whereBetween('expense_date', [$activePeriod->opening_date, $activePeriod->closing_date])
+                ->sum('amount');
+        }
+
+        // 3. Variable-nature expenses from Accounts (other_expense only)
+        $variableAccountCosts = Accounts::expense()
+            ->forUser(Auth::id())
+            ->whereIn('category', [
+                Accounts::CAT_OTHER_EXPENSE,
+            ]);
+
+        if ($activePeriod) {
+            $variableAccountCosts->whereBetween('transaction_date', [$activePeriod->opening_date, $activePeriod->closing_date]);
+        } else {
+            $variableAccountCosts->whereMonth('transaction_date', now()->month)->whereYear('transaction_date', now()->year);
+        }
+
+        $variableAccountTotal = $variableAccountCosts->sum('amount');
+
+        $totalVariableCosts = $monthlyUtilityCosts + $businessVariableCosts + $variableAccountTotal;
+
+        return $totalVariableCosts / $occupiedCount;
     }
 
     /**
@@ -1579,8 +1808,14 @@ class RevenueExpenseController extends Controller
                 ->with('warning', 'Please create a fiscal period first.');
         }
 
+        $allowedCategories = [
+            'maintenance', 'repairs', 'insurance', 'property_tax', 'management',
+            'cleaning', 'security', 'landscaping', 'supplies', 'marketing',
+            'legal', 'miscellaneous', 'salaries', 'taxes', 'other_expense',
+        ];
+
         $validated = $request->validate([
-            'category' => 'required|string|max:100',
+            'category' => 'required|string|in:' . implode(',', $allowedCategories),
             'description' => 'required|string|max:500',
             'amount' => 'required|numeric|min:0.01',
             'transaction_date' => 'required|date',
@@ -1608,6 +1843,11 @@ class RevenueExpenseController extends Controller
      */
     public function deleteOtherExpense(Accounts $expense)
     {
+        // Verify ownership
+        if ($expense->user_id !== Auth::id()) {
+            abort(403);
+        }
+
         $desc = $expense->description;
         $expense->delete();
 
@@ -1681,6 +1921,18 @@ class RevenueExpenseController extends Controller
     public function deleteBusinessExpense(BusinessExpense $businessExpense)
     {
         $name = $businessExpense->expense_name;
+
+        // Also remove the corresponding Accounts record that was created alongside it
+        Accounts::where('user_id', Auth::id())
+            ->where('fiscal_period_id', $businessExpense->fiscal_period_id)
+            ->where('account_type', Accounts::TYPE_EXPENSE)
+            ->whereIn('category', [Accounts::CAT_BUSINESS_FIXED, Accounts::CAT_BUSINESS_VARIABLE])
+            ->where('amount', $businessExpense->amount)
+            ->where('transaction_date', $businessExpense->expense_date)
+            ->where('description', 'like', '%' . $businessExpense->expense_name . '%')
+            ->limit(1)
+            ->delete();
+
         $businessExpense->delete();
 
         return redirect()->back()

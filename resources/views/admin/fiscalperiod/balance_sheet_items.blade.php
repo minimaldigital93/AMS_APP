@@ -1,256 +1,224 @@
 @extends('layouts.admin')
 
 @section('content')
-<div class="container mx-auto py-8">
-    <div class="mb-8">
-        <h1 class="text-3xl font-bold mb-2">Balance Sheet Items</h1>
-        <p class="text-gray-600">{{ $fiscalperiod->name }} ({{ $fiscalperiod->opening_date->format('Y-m-d') }} - {{ $fiscalperiod->closing_date->format('Y-m-d') }})</p>
+<div class="container mx-auto py-8 max-w-3xl">
+    <div class="flex items-center justify-between mb-6">
+        <div>
+            <h1 class="text-2xl font-bold">Balance Sheet</h1>
+            <p class="text-sm text-gray-500">{{ $fiscalperiod->name }}</p>
+        </div>
+        <a href="{{ route('admin.fiscalperiod.show', $fiscalperiod->id) }}" class="text-sm bg-gray-100 text-gray-700 px-3 py-2 rounded-lg hover:bg-gray-200">← Back</a>
     </div>
 
     @if(session('success'))
-        <div class="bg-green-50 border border-green-200 rounded-lg p-4 mb-6">
-            <p class="text-green-800">{{ session('success') }}</p>
+        <div class="bg-green-50 border border-green-200 rounded-lg p-3 mb-4">
+            <p class="text-green-800 text-sm">{{ session('success') }}</p>
         </div>
     @endif
-
     @if($errors->any())
-        <div class="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
-            <h3 class="font-semibold text-red-900 mb-2">Validation Errors:</h3>
-            <ul class="text-red-700 space-y-1">
-                @foreach($errors->all() as $error)
-                    <li>• {{ $error }}</li>
-                @endforeach
+        <div class="bg-red-50 border border-red-200 rounded-lg p-3 mb-4">
+            <ul class="text-red-700 text-sm space-y-1">
+                @foreach($errors->all() as $error)<li>{{ $error }}</li>@endforeach
             </ul>
         </div>
     @endif
 
-    <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        <!-- Summary Panel -->
-        <div>
-            <div class="bg-white rounded-lg shadow p-6 sticky top-4">
-                <h2 class="text-xl font-semibold mb-6">Summary</h2>
-                <div class="space-y-4">
-                    <div class="border-l-4 border-blue-600 pl-4">
-                        <p class="text-sm text-gray-600">Total Assets</p>
-                        <p class="text-2xl font-bold text-blue-600">${{ number_format($summary['total_assets'], 2) }}</p>
+    {{-- Summary --}}
+    <div class="grid grid-cols-3 gap-4 mb-6">
+        <div class="bg-white rounded-lg shadow p-4 text-center">
+            <p class="text-xs text-gray-500 uppercase">Assets</p>
+            <p class="text-lg font-bold text-blue-600">${{ number_format($summary['total_assets'], 2) }}</p>
+        </div>
+        <div class="bg-white rounded-lg shadow p-4 text-center">
+            <p class="text-xs text-gray-500 uppercase">Liabilities</p>
+            <p class="text-lg font-bold text-red-600">${{ number_format($summary['total_liabilities'], 2) }}</p>
+        </div>
+        <div class="bg-white rounded-lg shadow p-4 text-center">
+            <p class="text-xs text-gray-500 uppercase">Equity</p>
+            <p class="text-lg font-bold text-green-600">${{ number_format($summary['total_equity'], 2) }}</p>
+        </div>
+    </div>
+
+    {{-- Operating Performance & Retained Earnings --}}
+    <div class="bg-white rounded-lg shadow p-5 mb-6">
+        <h3 class="font-semibold text-sm text-gray-700 mb-3">Operating Performance (Revenue & Expenses)</h3>
+        <div class="grid grid-cols-2 gap-4 mb-4">
+            <div>
+                <h4 class="text-xs text-gray-500 uppercase font-semibold mb-2">Revenue</h4>
+                <div class="space-y-1 text-sm">
+                    @php $categoryLabels = [
+                        'rent_income' => 'Rent Income',
+                        'utility_income' => 'Utility Income',
+                        'deposit_income' => 'Deposit Income',
+                        'other_income' => 'Other Income',
+                    ]; @endphp
+                    @forelse($summary['income_by_category'] ?? [] as $cat => $amount)
+                        <div class="flex justify-between">
+                            <span class="text-gray-600">{{ $categoryLabels[$cat] ?? ucfirst(str_replace('_', ' ', $cat)) }}</span>
+                            <span class="font-medium text-green-600">${{ number_format($amount, 2) }}</span>
+                        </div>
+                    @empty
+                        <p class="text-gray-400 text-xs">No revenue recorded yet</p>
+                    @endforelse
+                    <div class="flex justify-between border-t pt-1 font-semibold">
+                        <span>Total Revenue</span>
+                        <span class="text-green-700">${{ number_format($summary['total_income'], 2) }}</span>
                     </div>
-                    <div class="border-l-4 border-red-600 pl-4">
-                        <p class="text-sm text-gray-600">Total Liabilities</p>
-                        <p class="text-2xl font-bold text-red-600">${{ number_format($summary['total_liabilities'], 2) }}</p>
-                    </div>
-                    <div class="border-l-4 border-green-600 pl-4">
-                        <p class="text-sm text-gray-600">Total Equity</p>
-                        <p class="text-2xl font-bold text-green-600">${{ number_format($summary['total_equity'], 2) }}</p>
-                    </div>
-                    <div class="bg-yellow-50 border border-yellow-200 rounded p-3 mt-4">
-                        <p class="text-xs text-yellow-900 font-semibold">Balance Check</p>
-                        <p class="text-sm {{ $summary['balance_check'] ? 'text-green-700' : 'text-red-700' }}">
-                            {{ $summary['balance_check'] ? '✓ Balanced' : '✗ Unbalanced' }}
-                        </p>
+                </div>
+            </div>
+            <div>
+                <h4 class="text-xs text-gray-500 uppercase font-semibold mb-2">Expenses</h4>
+                <div class="space-y-1 text-sm">
+                    @php $expLabels = [
+                        'utilities_expense' => 'Utilities',
+                        'business_fixed' => 'Business Fixed',
+                        'business_variable' => 'Business Variable',
+                        'maintenance' => 'Maintenance',
+                        'insurance' => 'Insurance',
+                        'property_tax' => 'Property Tax',
+                        'management' => 'Management',
+                        'other_expense' => 'Other',
+                    ]; @endphp
+                    @forelse($summary['expense_by_category'] ?? [] as $cat => $amount)
+                        <div class="flex justify-between">
+                            <span class="text-gray-600">{{ $expLabels[$cat] ?? ucfirst(str_replace('_', ' ', $cat)) }}</span>
+                            <span class="font-medium text-red-600">${{ number_format($amount, 2) }}</span>
+                        </div>
+                    @empty
+                        <p class="text-gray-400 text-xs">No expenses recorded yet</p>
+                    @endforelse
+                    <div class="flex justify-between border-t pt-1 font-semibold">
+                        <span>Total Expenses</span>
+                        <span class="text-red-700">${{ number_format($summary['total_expenses'], 2) }}</span>
                     </div>
                 </div>
             </div>
         </div>
-
-        <!-- Main Content -->
-        <div class="lg:col-span-2">
-            <!-- Add New Item Form -->
-            <div class="bg-white rounded-lg shadow p-6 mb-8">
-                <h2 class="text-xl font-semibold mb-6">Add Balance Sheet Item</h2>
-                <form method="POST" action="{{ route('admin.fiscalperiod.storeBalanceItem', $fiscalperiod->id) }}" class="space-y-4">
-                    @csrf
-
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div>
-                            <label for="item_type" class="block text-sm font-semibold text-gray-700 mb-2">Item Type</label>
-                            <select id="item_type" name="item_type" required onchange="updateSubTypes()"
-                                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
-                                <option value="">Select Type...</option>
-                                <option value="asset" {{ old('item_type') === 'asset' ? 'selected' : '' }}>Asset</option>
-                                <option value="liability" {{ old('item_type') === 'liability' ? 'selected' : '' }}>Liability</option>
-                                <option value="equity" {{ old('item_type') === 'equity' ? 'selected' : '' }}>Equity</option>
-                            </select>
-                            @error('item_type')
-                                <p class="text-red-500 text-sm mt-1">{{ $message }}</p>
-                            @enderror
-                        </div>
-
-                        <div>
-                            <label for="sub_type" class="block text-sm font-semibold text-gray-700 mb-2">Sub Type</label>
-                            <select id="sub_type" name="sub_type" required
-                                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
-                                <option value="">Select Sub Type...</option>
-                                <!-- Options will be populated dynamically -->
-                            </select>
-                            @error('sub_type')
-                                <p class="text-red-500 text-sm mt-1">{{ $message }}</p>
-                            @enderror
-                        </div>
-                    </div>
-
-                    <div>
-                        <label for="name" class="block text-sm font-semibold text-gray-700 mb-2">Item Name</label>
-                        <input type="text" id="name" name="name" value="{{ old('name') }}" required
-                            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                            placeholder="e.g., Cash in Bank, Equipment">
-                        @error('name')
-                            <p class="text-red-500 text-sm mt-1">{{ $message }}</p>
-                        @enderror
-                    </div>
-
-                    <div>
-                        <label for="description" class="block text-sm font-semibold text-gray-700 mb-2">Description (Optional)</label>
-                        <textarea id="description" name="description" rows="2"
-                            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                            placeholder="Add any notes about this item"></textarea>
-                    </div>
-
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div>
-                            <label for="amount" class="block text-sm font-semibold text-gray-700 mb-2">Amount</label>
-                            <div class="relative">
-                                <span class="absolute left-4 top-2 text-gray-600">$</span>
-                                <input type="number" id="amount" name="amount" value="{{ old('amount') }}" 
-                                    required step="0.01" min="0"
-                                    class="w-full pl-8 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
-                            </div>
-                            @error('amount')
-                                <p class="text-red-500 text-sm mt-1">{{ $message }}</p>
-                            @enderror
-                        </div>
-
-                        <div>
-                            <label for="as_of_date" class="block text-sm font-semibold text-gray-700 mb-2">As Of Date</label>
-                            <input type="date" id="as_of_date" name="as_of_date" value="{{ old('as_of_date') }}" required
-                                min="{{ $fiscalperiod->opening_date->format('Y-m-d') }}"
-                                max="{{ $fiscalperiod->closing_date->format('Y-m-d') }}"
-                                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
-                            @error('as_of_date')
-                                <p class="text-red-500 text-sm mt-1">{{ $message }}</p>
-                            @enderror
-                        </div>
-                    </div>
-
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div>
-                            <label for="reference_number" class="block text-sm font-semibold text-gray-700 mb-2">Reference Number (Optional)</label>
-                            <input type="text" id="reference_number" name="reference_number" value="{{ old('reference_number') }}"
-                                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                placeholder="e.g., INV-001">
-                        </div>
-                    </div>
-
-                    <div>
-                        <label for="notes" class="block text-sm font-semibold text-gray-700 mb-2">Notes (Optional)</label>
-                        <textarea id="notes" name="notes" rows="2"
-                            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                            placeholder="Additional notes"></textarea>
-                    </div>
-
-                    <button type="submit" class="w-full bg-blue-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-blue-700 transition">
-                        Add Item
-                    </button>
-                </form>
+        <div class="grid grid-cols-3 gap-3 pt-3 border-t text-center">
+            <div>
+                <p class="text-xs text-gray-400">Retained Earnings</p>
+                <p class="font-bold text-sm {{ ($summary['retained_earnings'] ?? 0) >= 0 ? 'text-green-600' : 'text-red-600' }}">
+                    ${{ number_format($summary['retained_earnings'] ?? 0, 2) }}
+                </p>
             </div>
-
-            <!-- Balance Sheet Items List -->
-            <div class="bg-white rounded-lg shadow p-6">
-                <h2 class="text-xl font-semibold mb-6">Current Items</h2>
-
-                @php
-                    // Group items by type
-                    $assets = $balanceSheetItems->get('asset', collect());
-                    $liabilities = $balanceSheetItems->get('liability', collect());
-                    $equity = $balanceSheetItems->get('equity', collect());
-                @endphp
-
-                @if($assets->count() > 0)
-                    <div class="mb-8">
-                        <h3 class="text-lg font-semibold text-blue-900 mb-4 pb-2 border-b-2 border-blue-300">Assets</h3>
-                        <div class="space-y-2">
-                            @foreach($assets as $item)
-                                <div class="flex justify-between items-center p-3 bg-gray-50 rounded">
-                                    <div>
-                                        <p class="font-medium">{{ $item->name }}</p>
-                                        <p class="text-sm text-gray-600">{{ $item->sub_type ?? '-' }} • {{ $item->as_of_date->format('Y-m-d') }}</p>
-                                    </div>
-                                    <div class="flex items-center gap-4">
-                                        <p class="text-lg font-bold text-blue-600">${{ number_format($item->amount, 2) }}</p>
-                                        <form method="POST" action="{{ route('admin.fiscalperiod.deleteBalanceItem', [$fiscalperiod->id, $item->id]) }}" style="display:inline;">
-                                            @csrf
-                                            @method('DELETE')
-                                            <button type="submit" class="text-red-600 hover:text-red-800 font-medium" onclick="return confirm('Delete this item?')">Delete</button>
-                                        </form>
-                                    </div>
-                                </div>
-                            @endforeach
-                        </div>
-                    </div>
-                @endif
-
-                @if($liabilities->count() > 0)
-                    <div class="mb-8">
-                        <h3 class="text-lg font-semibold text-red-900 mb-4 pb-2 border-b-2 border-red-300">Liabilities</h3>
-                        <div class="space-y-2">
-                            @foreach($liabilities as $item)
-                                <div class="flex justify-between items-center p-3 bg-gray-50 rounded">
-                                    <div>
-                                        <p class="font-medium">{{ $item->name }}</p>
-                                        <p class="text-sm text-gray-600">{{ $item->sub_type ?? '-' }} • {{ $item->as_of_date->format('Y-m-d') }}</p>
-                                    </div>
-                                    <div class="flex items-center gap-4">
-                                        <p class="text-lg font-bold text-red-600">${{ number_format($item->amount, 2) }}</p>
-                                        <form method="POST" action="{{ route('admin.fiscalperiod.deleteBalanceItem', [$fiscalperiod->id, $item->id]) }}" style="display:inline;">
-                                            @csrf
-                                            @method('DELETE')
-                                            <button type="submit" class="text-red-600 hover:text-red-800 font-medium" onclick="return confirm('Delete this item?')">Delete</button>
-                                        </form>
-                                    </div>
-                                </div>
-                            @endforeach
-                        </div>
-                    </div>
-                @endif
-
-                @if($equity->count() > 0)
-                    <div class="mb-8">
-                        <h3 class="text-lg font-semibold text-green-900 mb-4 pb-2 border-b-2 border-green-300">Equity</h3>
-                        <div class="space-y-2">
-                            @foreach($equity as $item)
-                                <div class="flex justify-between items-center p-3 bg-gray-50 rounded">
-                                    <div>
-                                        <p class="font-medium">{{ $item->name }}</p>
-                                        <p class="text-sm text-gray-600">{{ $item->sub_type ?? '-' }} • {{ $item->as_of_date->format('Y-m-d') }}</p>
-                                    </div>
-                                    <div class="flex items-center gap-4">
-                                        <p class="text-lg font-bold text-green-600">${{ number_format($item->amount, 2) }}</p>
-                                        <form method="POST" action="{{ route('admin.fiscalperiod.deleteBalanceItem', [$fiscalperiod->id, $item->id]) }}" style="display:inline;">
-                                            @csrf
-                                            @method('DELETE')
-                                            <button type="submit" class="text-red-600 hover:text-red-800 font-medium" onclick="return confirm('Delete this item?')">Delete</button>
-                                        </form>
-                                    </div>
-                                </div>
-                            @endforeach
-                        </div>
-                    </div>
-                @endif
-
-                @if($balanceSheetItems->isEmpty())
-                    <p class="text-gray-600 text-center py-8">No balance sheet items added yet. Use the form above.</p>
-                @endif
-
-                <div class="mt-8 flex gap-4">
-                    <a href="{{ route('admin.fiscalperiod.open-close-balances', $fiscalperiod->id) }}" class="flex-1 text-center bg-green-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-green-700 transition">
-                        Set Closing Balance
-                    </a>
-                    <a href="{{ route('admin.fiscalperiod.show', $fiscalperiod->id) }}" class="flex-1 text-center bg-gray-400 text-white px-6 py-3 rounded-lg font-semibold hover:bg-gray-500 transition">
-                        Back
-                    </a>
-                </div>
+            <div>
+                <p class="text-xs text-gray-400">Adjusted Equity</p>
+                <p class="font-bold text-sm text-purple-600">${{ number_format($summary['adjusted_equity'] ?? $summary['total_equity'], 2) }}</p>
+            </div>
+            <div>
+                <p class="text-xs text-gray-400">Cash from Operations</p>
+                <p class="font-bold text-sm text-blue-600">${{ number_format($summary['cash_from_operations'] ?? 0, 2) }}</p>
             </div>
         </div>
     </div>
+
+    {{-- Add Item Form --}}
+    <div class="bg-white rounded-lg shadow p-5 mb-6">
+        <h3 class="font-semibold mb-4">Add Item</h3>
+        <form method="POST" action="{{ route('admin.fiscalperiod.storeBalanceItem', $fiscalperiod->id) }}" class="space-y-4">
+            @csrf
+            <div class="grid grid-cols-2 gap-3">
+                <div>
+                    <label class="block text-xs text-gray-500 mb-1">Type</label>
+                    <select id="item_type" name="item_type" required onchange="updateSubTypes()"
+                        class="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none">
+                        <option value="">Select...</option>
+                        <option value="asset" {{ old('item_type') === 'asset' ? 'selected' : '' }}>Asset</option>
+                        <option value="liability" {{ old('item_type') === 'liability' ? 'selected' : '' }}>Liability</option>
+                        <option value="equity" {{ old('item_type') === 'equity' ? 'selected' : '' }}>Equity</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-xs text-gray-500 mb-1">Sub Type</label>
+                    <select id="sub_type" name="sub_type" required
+                        class="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none">
+                        <option value="">Select...</option>
+                    </select>
+                </div>
+            </div>
+            <div class="grid grid-cols-2 gap-3">
+                <div>
+                    <label class="block text-xs text-gray-500 mb-1">Name</label>
+                    <input type="text" name="name" value="{{ old('name') }}" required placeholder="e.g., Cash in Bank"
+                        class="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none">
+                </div>
+                <div>
+                    <label class="block text-xs text-gray-500 mb-1">Amount</label>
+                    <div class="relative">
+                        <span class="absolute left-3 top-2 text-gray-500 text-sm">$</span>
+                        <input type="number" name="amount" value="{{ old('amount') }}" required step="0.01" min="0"
+                            class="w-full pl-7 pr-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none">
+                    </div>
+                </div>
+            </div>
+            <div class="grid grid-cols-2 gap-3">
+                <div>
+                    <label class="block text-xs text-gray-500 mb-1">Date</label>
+                    <input type="date" name="as_of_date" value="{{ old('as_of_date') }}" required
+                        min="{{ $fiscalperiod->opening_date->format('Y-m-d') }}" max="{{ $fiscalperiod->closing_date->format('Y-m-d') }}"
+                        class="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none">
+                </div>
+                <div>
+                    <label class="block text-xs text-gray-500 mb-1">Reference (optional)</label>
+                    <input type="text" name="reference_number" value="{{ old('reference_number') }}" placeholder="e.g., INV-001"
+                        class="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none">
+                </div>
+            </div>
+            <div>
+                <label class="block text-xs text-gray-500 mb-1">Notes (optional)</label>
+                <input type="text" name="notes" value="{{ old('notes') }}" placeholder="Any additional notes"
+                    class="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none">
+            </div>
+            <button type="submit" class="w-full bg-blue-600 text-white py-2 rounded-lg font-semibold hover:bg-blue-700 text-sm">
+                Add Item
+            </button>
+        </form>
+    </div>
+
+    {{-- Items List --}}
+    @php
+        $assets = $balanceSheetItems->get('asset', collect());
+        $liabilities = $balanceSheetItems->get('liability', collect());
+        $equity = $balanceSheetItems->get('equity', collect());
+        $groups = [
+            ['label' => 'Assets', 'items' => $assets, 'color' => 'blue'],
+            ['label' => 'Liabilities', 'items' => $liabilities, 'color' => 'red'],
+            ['label' => 'Equity', 'items' => $equity, 'color' => 'green'],
+        ];
+    @endphp
+
+    @foreach($groups as $group)
+        @if($group['items']->count())
+            <div class="bg-white rounded-lg shadow mb-4">
+                <div class="px-5 py-3 border-b">
+                    <h3 class="font-semibold text-{{ $group['color'] }}-700 text-sm">{{ $group['label'] }}</h3>
+                </div>
+                <div class="divide-y">
+                    @foreach($group['items'] as $item)
+                        <div class="flex items-center justify-between px-5 py-3">
+                            <div>
+                                <p class="font-medium text-sm">{{ $item->name }}</p>
+                                <p class="text-xs text-gray-500">{{ $item->as_of_date->format('M d, Y') }}{{ $item->reference_number ? ' · ' . $item->reference_number : '' }}</p>
+                            </div>
+                            <div class="flex items-center gap-3">
+                                <span class="font-bold text-sm text-{{ $group['color'] }}-600">${{ number_format($item->amount, 2) }}</span>
+                                <form method="POST" action="{{ route('admin.fiscalperiod.deleteBalanceItem', [$fiscalperiod->id, $item->id]) }}" class="inline">
+                                    @csrf @method('DELETE')
+                                    <button onclick="return confirm('Delete this item?')" class="text-red-400 hover:text-red-600 text-xs">Delete</button>
+                                </form>
+                            </div>
+                        </div>
+                    @endforeach
+                </div>
+            </div>
+        @endif
+    @endforeach
+
+    @if($balanceSheetItems->isEmpty())
+        <div class="bg-white rounded-lg shadow p-6 text-center">
+            <p class="text-sm text-gray-400">No items yet. Use the form above to add balance sheet items.</p>
+        </div>
+    @endif
 </div>
 
 <script>
@@ -259,25 +227,19 @@ const subtypes = {
     'liability': ['Accounts Payable', 'Loans', 'Deposits Held', 'Other Liability'],
     'equity': ['Retained Earnings', 'Capital', 'Other Equity']
 };
-
 function updateSubTypes() {
-    const itemType = document.getElementById('item_type').value;
-    const subTypeSelect = document.getElementById('sub_type');
-    subTypeSelect.innerHTML = '<option value="">Select Sub Type...</option>';
-
-    if (itemType && subtypes[itemType]) {
-        subtypes[itemType].forEach(subtype => {
-            const option = document.createElement('option');
-            option.value = subtype.toLowerCase().replace(/ /g, '_');
-            option.textContent = subtype;
-            subTypeSelect.appendChild(option);
+    const type = document.getElementById('item_type').value;
+    const sel = document.getElementById('sub_type');
+    sel.innerHTML = '<option value="">Select...</option>';
+    if (type && subtypes[type]) {
+        subtypes[type].forEach(s => {
+            const o = document.createElement('option');
+            o.value = s.toLowerCase().replace(/ /g, '_');
+            o.textContent = s;
+            sel.appendChild(o);
         });
     }
 }
-
-// Initialize on page load
-document.addEventListener('DOMContentLoaded', function() {
-    updateSubTypes();
-});
+document.addEventListener('DOMContentLoaded', updateSubTypes);
 </script>
 @endsection

@@ -176,6 +176,9 @@ Route::middleware(['auth', 'role:admin'])->group(function () {
 
         // Monthly Calendar View
         Route::get('/admin/revenue-expense/monthly-calendar', [RevenueExpenseController::class, 'monthlyCalendar'])->name('admin.revenue_expense.monthly_calendar');
+
+        // Income Statement (P&L Report)
+        Route::get('/admin/revenue-expense/income-statement', [RevenueExpenseController::class, 'incomeStatement'])->name('admin.revenue_expense.income_statement');
     });
 });
 
