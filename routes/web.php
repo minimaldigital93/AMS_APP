@@ -10,6 +10,9 @@ use App\Http\Controllers\Admin\FiscalPeriodController;
 use App\Http\Controllers\Admin\RevenueExpenseController;
 use App\Http\Controllers\Admin\SettingsController;
 use App\Http\Controllers\Supervisor\DashboardController as SupervisorDashboardController;
+use App\Http\Controllers\Supervisor\TenantController as SupervisorTenantController;
+use App\Http\Controllers\Supervisor\ApartmentController as SupervisorApartmentController;
+use App\Http\Controllers\Supervisor\PaymentController as SupervisorPaymentController;
 use App\Http\Controllers\Tenant\DashboardController as TenantDashboardController;
 use Illuminate\Support\Facades\Route;
   
@@ -180,6 +183,32 @@ Route::middleware(['auth', 'role:admin'])->group(function () {
         // Income Statement (P&L Report)
         Route::get('/admin/revenue-expense/income-statement', [RevenueExpenseController::class, 'incomeStatement'])->name('admin.revenue_expense.income_statement');
     });
+});
+
+// Supervisor Management Routes
+Route::middleware(['auth', 'role:supervisor'])->prefix('supervisor')->group(function () {
+    // Tenant Management
+    Route::get('/tenants', [SupervisorTenantController::class, 'index'])->name('supervisor.tenants.index');
+    Route::get('/tenants/create', [SupervisorTenantController::class, 'create'])->name('supervisor.tenants.create');
+    Route::post('/tenants', [SupervisorTenantController::class, 'store'])->name('supervisor.tenants.store');
+    Route::get('/tenants/archived', [SupervisorTenantController::class, 'archived'])->name('supervisor.tenants.archived');
+    Route::get('/tenants/{tenant}/edit', [SupervisorTenantController::class, 'edit'])->name('supervisor.tenants.edit');
+    Route::put('/tenants/{tenant}', [SupervisorTenantController::class, 'update'])->name('supervisor.tenants.update');
+    Route::delete('/tenants/{tenant}', [SupervisorTenantController::class, 'destroy'])->name('supervisor.tenants.destroy');
+    Route::get('/tenants/{tenant}/leave', [SupervisorTenantController::class, 'leave'])->name('supervisor.tenants.leave');
+    Route::post('/tenants/{tenant}/process-leave', [SupervisorTenantController::class, 'processLeave'])->name('supervisor.tenants.processLeave');
+    Route::get('/tenants/{tenant}', [SupervisorTenantController::class, 'show'])->name('supervisor.tenants.show');
+
+    // Apartment Management
+    Route::get('/apartments', [SupervisorApartmentController::class, 'index'])->name('supervisor.apartments.index');
+    Route::get('/apartments/{apartment}', [SupervisorApartmentController::class, 'show'])->name('supervisor.apartments.show');
+    Route::post('/apartments/{apartment}/assign-tenant', [SupervisorApartmentController::class, 'assignTenant'])->name('supervisor.apartments.assignTenant');
+
+    // Payment Management
+    Route::get('/payments', [SupervisorPaymentController::class, 'index'])->name('supervisor.payments.index');
+    Route::get('/payments/create', [SupervisorPaymentController::class, 'create'])->name('supervisor.payments.create');
+    Route::post('/payments', [SupervisorPaymentController::class, 'store'])->name('supervisor.payments.store');
+    Route::get('/payments/{payment}', [SupervisorPaymentController::class, 'show'])->name('supervisor.payments.show');
 });
 
 require __DIR__.'/auth.php';
