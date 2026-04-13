@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\Accounts;
 use App\Models\FiscalPeriods;
 use App\Models\MonthlyPeriod;
 use App\Models\BalanceSheet;
@@ -659,7 +660,7 @@ class FiscalPeriodController extends Controller
 
         // Fixed expenses from accounts table
         $fixedExpenses = $fiscalperiod->accounts()
-            ->where('account_type', 'expense')
+            ->where('account_type', Accounts::TYPE_EXPENSE)
             ->whereBetween('transaction_date', [$month->start_date, $month->end_date])
             ->sum('amount');
 
@@ -667,7 +668,7 @@ class FiscalPeriodController extends Controller
 
         // Account-based income (non-rent)
         $otherIncome = $fiscalperiod->accounts()
-            ->where('account_type', 'income')
+            ->where('account_type', Accounts::TYPE_INCOME)
             ->whereBetween('transaction_date', [$month->start_date, $month->end_date])
             ->sum('amount');
 
@@ -741,11 +742,11 @@ class FiscalPeriodController extends Controller
         }
 
         $fixedExpenses = $fiscalperiod->accounts()
-            ->where('account_type', 'expense')
+            ->where('account_type', Accounts::TYPE_EXPENSE)
             ->sum('amount');
 
         $otherIncome = $fiscalperiod->accounts()
-            ->where('account_type', 'income')
+            ->where('account_type', Accounts::TYPE_INCOME)
             ->sum('amount');
 
         $totalIncome = $rentIncome + $lateFees + $otherIncome;

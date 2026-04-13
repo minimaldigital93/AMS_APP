@@ -51,4 +51,16 @@ class Rentals extends Model
     {
         return $this->hasMany(Utilities::class, 'rental_id');
     }
+
+    // Scopes
+
+    /**
+     * Only rentals that are currently active (no end_date, or end_date is in the future).
+     */
+    public function scopeActive($query)
+    {
+        return $query->where(function ($q) {
+            $q->whereNull('end_date')->orWhere('end_date', '>=', now());
+        });
+    }
 }

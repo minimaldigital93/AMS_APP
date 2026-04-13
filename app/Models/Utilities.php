@@ -43,4 +43,21 @@ class Utilities extends Model
     {
         return $this->belongsTo(Rentals::class, 'rental_id');
     }
+
+    // Scopes
+
+    public function scopeForMonth($query, int $month, int $year)
+    {
+        return $query->where('billing_month', $month)->where('billing_year', $year);
+    }
+
+    public function scopePaid($query)
+    {
+        return $query->where('paid_status', true);
+    }
+
+    public function scopeUnpaid($query)
+    {
+        return $query->where('paid_status', false);
+    }
 }
