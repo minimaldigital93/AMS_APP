@@ -27,19 +27,22 @@ class AuthenticatedSessionController extends Controller
         $request->authenticate();
 
         $request->session()->regenerate();
-        
-           /** @var User $user */
+
+        // Clear any previously stored intended URL to prevent cross-role redirects
+        $request->session()->forget('url.intended');
+
+        /** @var \App\Models\User $user */
         $user = Auth::user();
-        
+
         if ($user->hasRole('admin')) {
-            return redirect()->intended(route('admin.dashboard', absolute: false));
+            return redirect()->route('admin.dashboard');
         } elseif ($user->hasRole('supervisor')) {
-            return redirect()->intended(route('supervisor.dashboard', absolute: false));
+            return redirect()->route('supervisor.dashboard');
         } elseif ($user->hasRole('tenant')) {
-            return redirect()->intended(route('tenant.dashboard', absolute: false));
+            return redirect()->route('tenant.dashboard');
         }
 
-        return redirect()->intended(route('dashboard', absolute: false));
+        return redirect()->route('dashboard');
     }
 
     /**

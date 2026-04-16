@@ -14,6 +14,7 @@ use App\Http\Controllers\Supervisor\TenantController as SupervisorTenantControll
 use App\Http\Controllers\Supervisor\ApartmentController as SupervisorApartmentController;
 use App\Http\Controllers\Supervisor\PaymentController as SupervisorPaymentController;
 use App\Http\Controllers\Tenant\DashboardController as TenantDashboardController;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
   
 
@@ -31,10 +32,18 @@ Route::post('/language/switch', function (\Illuminate\Http\Request $request) {
     return redirect()->back()->with('success', __('messages.language_changed'));
 })->name('language.switch')->middleware('auth');
 
-//Route for dashboard and role-based access control
-Route::get('/dashboard', [DashboardController::class, 'index'])
-    ->middleware(['auth', 'verified'])
-    ->name('dashboard');
+//Route for dashboard - redirects to role-appropriate dashboard
+Route::get('/dashboard', function () {
+    $user = Auth::user();
+    if ($user->hasRole('admin')) {
+        return redirect()->route('admin.dashboard');
+    } elseif ($user->hasRole('supervisor')) {
+        return redirect()->route('supervisor.dashboard');
+    } elseif ($user->hasRole('tenant')) {
+        return redirect()->route('tenant.dashboard');
+    }
+    return redirect('/');
+})->middleware(['auth', 'verified'])->name('dashboard');
 
 Route::get('/admin/dashboard', [DashboardController::class, 'index'])
     ->middleware(['auth', 'verified', 'role:admin'])

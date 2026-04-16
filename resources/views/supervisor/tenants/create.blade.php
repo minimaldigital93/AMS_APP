@@ -35,20 +35,39 @@
             <div class="bg-white rounded-lg shadow-md p-6">
                 <h2 class="text-lg font-bold text-gray-900 mb-4">Apartment Assignment</h2>
                 <div>
-                    <label for="apartment_id" class="block text-sm font-medium text-gray-700 mb-2">Available Apartment <span class="text-red-500">*</span></label>
-                    @if($apartments->count() > 0)
-                    <select name="apartment_id" id="apartment_id" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent">
-                        <option value="">Select an apartment...</option>
-                        @foreach($apartments as $apt)
-                            <option value="{{ $apt->id }}" {{ old('apartment_id') == $apt->id ? 'selected' : '' }}>
-                                {{ $apt->apartment_number }} — ${{ number_format($apt->monthly_rent, 2) }}/mo
-                            </option>
-                        @endforeach
-                    </select>
+                    @php
+                        $selectedApt = null;
+                        if(request()->has('apartment_id')) {
+                            $selectedApt = $apartments->firstWhere('id', request('apartment_id'));
+                        }
+                    @endphp
+
+                    <label for="apartment_id" class="block text-sm font-medium text-gray-700 mb-2">Assigned Apartment <span class="text-red-500">*</span></label>
+
+                    @if($selectedApt)
+                        <div class="flex items-center justify-between gap-4 p-3 border border-gray-200 rounded-lg bg-gray-50">
+                            <div>
+                                <div class="text-sm font-medium text-gray-900">{{ $selectedApt->apartment_number }}</div>
+                                <div class="text-xs text-gray-500">${{ number_format($selectedApt->monthly_rent, 2) }} / mo</div>
+                            </div>
+                            <div class="text-sm text-gray-600">Room ID: {{ $selectedApt->id }}</div>
+                        </div>
+                        <input type="hidden" name="apartment_id" value="{{ $selectedApt->id }}">
                     @else
-                    <div class="bg-yellow-50 border border-yellow-200 px-4 py-3 rounded-lg text-yellow-800 text-sm">
-                        No available apartments. All your assigned apartments are currently occupied or under maintenance.
-                    </div>
+                        @if($apartments->count() > 0)
+                            <select name="apartment_id" id="apartment_id" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent">
+                                <option value="">Select an apartment...</option>
+                                @foreach($apartments as $apt)
+                                    <option value="{{ $apt->id }}" {{ old('apartment_id') == $apt->id ? 'selected' : '' }}>
+                                        {{ $apt->apartment_number }} — ${{ number_format($apt->monthly_rent, 2) }}/mo
+                                    </option>
+                                @endforeach
+                            </select>
+                        @else
+                            <div class="bg-yellow-50 border border-yellow-200 px-4 py-3 rounded-lg text-yellow-800 text-sm">
+                                No available apartments. All your assigned apartments are currently occupied or under maintenance.
+                            </div>
+                        @endif
                     @endif
                 </div>
             </div>
