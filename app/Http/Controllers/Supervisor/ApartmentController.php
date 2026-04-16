@@ -17,7 +17,7 @@ use Illuminate\View\View;
 class ApartmentController extends Controller
 {
     /**
-     * Display apartments assigned to the supervisor, grouped by floor.
+     * Display all apartments grouped by floor.
      */
     public function index(Request $request): View
     {
@@ -197,6 +197,7 @@ class ApartmentController extends Controller
                 'document_path' => $documentPath,
                 'apartment_id' => $apartment->id,
                 'status' => 'active',
+                'managed_by' => Auth::id(),
             ]);
         }
 
@@ -205,6 +206,7 @@ class ApartmentController extends Controller
             'move_in_date' => $validated['move_in_date'],
             'deposit' => $validated['deposit'],
             'status' => 'active',
+            'managed_by' => Auth::id(),
         ];
 
         if ($photoPath) $updateData['photo_path'] = $photoPath;
@@ -228,10 +230,10 @@ class ApartmentController extends Controller
     }
 
     /**
-     * Ensure the apartment is assigned to the current supervisor.
+     * Supervisors can manage all apartments.
      */
     private function authorizeApartment(Apartments $apartment): void
     {
-        // Supervisor can manage all apartments in the property
+        // Supervisors have access to all apartments
     }
 }

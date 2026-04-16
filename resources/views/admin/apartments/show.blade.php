@@ -359,6 +359,13 @@
                         <span class="text-gray-600 text-sm">Last Updated</span>
                         <span class="font-semibold text-gray-900">{{ $apartment->updated_at?->diffForHumans() ?? 'N/A' }}</span>
                     </div>
+                    @php
+                        $assignedBy = $tenant?->manager?->name ?? $apartment->supervisor?->name ?? null;
+                    @endphp
+                    <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                        <span class="text-gray-600 text-sm">Assigned By</span>
+                        <span class="font-semibold text-gray-900">{{ $assignedBy ?? 'Unassigned' }}</span>
+                    </div>
                 </div>
             </div>
 

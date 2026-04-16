@@ -96,13 +96,12 @@ class DashboardController extends Controller
         Accounts::create([
             'user_id' => Auth::id(),
             'fiscal_period_id' => $activePeriod->id,
+            'payment_id' => $payment->id,
             'account_type' => Accounts::TYPE_INCOME,
             'category' => $category,
             'amount' => $request->amount,
             'description' => ucfirst($request->payment_type) . ' - ' . ($rental->apartment->apartment_number ?? 'N/A') . ' (' . ($rental->tenant->name ?? 'N/A') . ')',
             'transaction_date' => $request->transaction_date,
-            'reference_type' => 'payment',
-            'reference_id' => $payment->id,
         ]);
 
         return back()->with('success', 'Revenue of $' . number_format($request->amount, 2) . ' recorded.');

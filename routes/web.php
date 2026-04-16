@@ -218,6 +218,8 @@ Route::middleware(['auth', 'role:supervisor'])->prefix('supervisor')->group(func
     Route::get('/payments/create', [SupervisorPaymentController::class, 'create'])->name('supervisor.payments.create');
     Route::post('/payments', [SupervisorPaymentController::class, 'store'])->name('supervisor.payments.store');
     Route::get('/payments/{payment}', [SupervisorPaymentController::class, 'show'])->name('supervisor.payments.show');
+    // Donate view
+    Route::view('/donate', 'supervisor.donate')->name('supervisor.donate');
 });
 
 require __DIR__.'/auth.php';

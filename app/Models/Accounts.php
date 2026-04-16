@@ -34,6 +34,7 @@ class Accounts extends Model
     public const CAT_RENT_INCOME    = 'rent_income';
     public const CAT_UTILITY_INCOME = 'utility_income';
     public const CAT_DEPOSIT_INCOME = 'deposit_income';
+    public const CAT_LATE_FEE_INCOME = 'late_fee_income';
     public const CAT_OTHER_INCOME   = 'other_income';
 
     // ── Expense Categories ───────────────────────────────────────
@@ -41,6 +42,7 @@ class Accounts extends Model
     public const CAT_BUSINESS_FIXED     = 'business_fixed';
     public const CAT_BUSINESS_VARIABLE  = 'business_variable';
     public const CAT_MAINTENANCE        = 'maintenance';
+    public const CAT_MAINTENANCE_EXPENSE = 'maintenance';
     public const CAT_INSURANCE          = 'insurance';
     public const CAT_PROPERTY_TAX       = 'property_tax';
     public const CAT_MANAGEMENT         = 'management';

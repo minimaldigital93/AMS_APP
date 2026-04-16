@@ -12,6 +12,7 @@ use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
+use Illuminate\Support\Facades\Auth;
 
 class ApartmentController extends Controller
 {
@@ -240,6 +241,9 @@ class ApartmentController extends Controller
             'deposit' => $validated['deposit'],
             'status' => 'active',
         ];
+
+        // Record who assigned this tenant (admin or supervisor)
+        $updateData['managed_by'] = Auth::id();
 
         if ($photoPath) {
             $updateData['photo_path'] = $photoPath;

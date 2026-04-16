@@ -31,9 +31,9 @@ class TenantController extends Controller
     }
 
     /**
-     * Get apartment IDs assigned to the current supervisor.
+     * Get all apartment IDs (supervisor sees same data as admin).
      */
-    private function supervisorApartmentIds(): array
+    private function allApartmentIds(): array
     {
         return Apartments::pluck('id')->toArray();
     }
@@ -43,7 +43,7 @@ class TenantController extends Controller
      */
     public function index(Request $request): View
     {
-        $apartmentIds = $this->supervisorApartmentIds();
+        $apartmentIds = $this->allApartmentIds();
 
         // Get admin's active fiscal period
         $activePeriod = FiscalPeriods::where('status', 'open')
@@ -167,7 +167,7 @@ class TenantController extends Controller
      */
     public function archived(Request $request): View
     {
-        $apartmentIds = $this->supervisorApartmentIds();
+        $apartmentIds = $this->allApartmentIds();
 
         $query = Tenants::onlyTrashed()
             ->whereIn('apartment_id', $apartmentIds)
@@ -219,10 +219,8 @@ class TenantController extends Controller
      */
     public function store(Request $request): RedirectResponse
     {
-        $apartmentIds = $this->supervisorApartmentIds();
-
         $validated = $request->validate([
-            'apartment_id' => 'required|exists:apartments,id|in:' . implode(',', $apartmentIds),
+            'apartment_id' => 'required|exists:apartments,id',
             'name' => 'required|string|max:255',
             'email' => 'required|email|unique:tenants|max:255',
             'phone' => 'required|string|max:20',
@@ -244,6 +242,7 @@ class TenantController extends Controller
             }
         }
 
+        $validated['managed_by'] = Auth::id();
         $tenant = Tenants::create($validated);
 
         // Update apartment status to occupied
@@ -457,14 +456,11 @@ class TenantController extends Controller
     }
 
     /**
-     * Ensure the tenant belongs to a supervisor-assigned apartment.
+     * Ensure the tenant belongs to a valid apartment.
      */
     private function authorizeTenant(Tenants $tenant): void
     {
-        $apartmentIds = $this->supervisorApartmentIds();
-        if (!in_array($tenant->apartment_id, $apartmentIds)) {
-            abort(403, 'You are not authorized to manage this tenant.');
-        }
+        // Supervisors can manage tenants across all apartments
     }
 
     /**
@@ -474,8 +470,7 @@ class TenantController extends Controller
     {
         $this->authorizeTenant($tenant);
 
-        $apartments = Apartments::where('supervisor_id', Auth::id())
-            ->where(function ($q) use ($tenant) {
+        $apartments = Apartments::where(function ($q) use ($tenant) {
                 $q->where('status', 'available')
                   ->orWhere('id', $tenant->apartment_id);
             })
@@ -491,10 +486,8 @@ class TenantController extends Controller
     {
         $this->authorizeTenant($tenant);
 
-        $apartmentIds = $this->supervisorApartmentIds();
-
         $validated = $request->validate([
-            'apartment_id' => 'required|exists:apartments,id|in:' . implode(',', $apartmentIds),
+            'apartment_id' => 'required|exists:apartments,id',
             'name' => 'required|string|max:255',
             'email' => 'required|email|max:255|unique:tenants,email,' . $tenant->id,
             'phone' => 'required|string|max:20',

@@ -185,6 +185,35 @@
                                             $monthTextColor = 'text-blue-600';
                                         }
 
+                                        // Calculate billing/payment progress for the current billing period
+                                        $rental = $apartment->rentals()->where('tenant_id', $tenant->id)->latest()->first();
+                                        $expectedAmount = $rental->rent_amount ?? $apartment->monthly_rent ?? 0;
+                                        $paidAmount = 0.0;
+                                        $paymentPercent = 0;
+                                        $paymentBarColor = 'from-gray-300 to-gray-400';
+
+                                        if ($expectedAmount > 0 && $rental) {
+                                            try {
+                                                $paidAmount = (float) $rental->payments()
+                                                    ->whereNotNull('paid_at')
+                                                    ->whereBetween('due_date', [$periodStart->toDateString(), $periodEnd->toDateString()])
+                                                    ->sum('amount');
+                                                $paymentPercent = min(100, max(0, round(($paidAmount / $expectedAmount) * 100, 1)));
+
+                                                if ($paymentPercent >= 80) {
+                                                    $paymentBarColor = 'from-green-400 to-green-600';
+                                                } elseif ($paymentPercent >= 50) {
+                                                    $paymentBarColor = 'from-yellow-400 to-orange-500';
+                                                } else {
+                                                    $paymentBarColor = 'from-red-400 to-red-600';
+                                                }
+                                            } catch (\Exception $e) {
+                                                $paidAmount = 0.0;
+                                                $paymentPercent = 0;
+                                                $paymentBarColor = 'from-gray-300 to-gray-400';
+                                            }
+                                        }
+
                                         $hasMonthlyPeriod = true;
                                     }
                                 @endphp
@@ -196,6 +225,19 @@
                                             <div class="bg-gradient-to-r {{ $monthBarColor }} h-full rounded-full" style="width: {{ $periodPercent }}%"></div>
                                         </div>
                                         <div class="{{ $monthTextColor }} text-[11px] mt-1 font-medium">{{ $periodDaysLeft }}d left</div>
+
+                                        {{-- Billing payment progress for current period --}}
+                                        @if($expectedAmount > 0)
+                                        <div class="mt-2">
+                                            <div class="flex items-center justify-between text-xs text-gray-500 mb-1">
+                                                <div class="font-medium">Paid</div>
+                                                <div class="font-semibold text-gray-700">${{ number_format($paidAmount, 2) }} / ${{ number_format($expectedAmount, 2) }} ({{ $paymentPercent }}%)</div>
+                                            </div>
+                                            <div class="w-full bg-gray-100 rounded-full h-1 overflow-hidden">
+                                                <div class="bg-gradient-to-r {{ $paymentBarColor }} h-full rounded-full" style="width: {{ $paymentPercent }}%"></div>
+                                            </div>
+                                        </div>
+                                        @endif
                                         @endif
                                     </div>
                                 @else
@@ -203,7 +245,13 @@
                                 @endif
                             </td>
                             <td class="px-6 py-4 text-sm text-gray-600">
-                                {{ $apartment->supervisor->name ?? 'Unassigned' }}
+                                @php
+                                    // Prefer the supervisor who managed/assigned the tenant; fall back to apartment supervisor
+                                    $tenant = $apartment->tenants()->whereNull('deleted_at')->latest()->first();
+                                    $tenantManager = $tenant?->manager ?? null;
+                                    $displaySupervisor = $tenantManager ?? $apartment->supervisor;
+                                @endphp
+                                {{ $displaySupervisor?->name ?? 'Unassigned' }}
                             </td>
                             <td class="px-6 py-4 text-right">
                                 <div class="flex items-center justify-end gap-2">

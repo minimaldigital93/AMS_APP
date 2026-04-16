@@ -261,44 +261,58 @@ class DashboardController extends Controller
             ->where('status', 'occupied')
             ->sum('monthly_rent');
 
-        // Use fiscal period date range if available, otherwise fall back to current month
-        $revenueQuery = Payments::whereHas('rental', function ($q) use ($apartmentIds) {
-            $q->whereIn('apartment_id', $apartmentIds);
-        })->where('payment_status', 'paid')
-          ->where('payment_type', 'rent');
+        // For paid/pending/overdue stats use current-month logic (same approach as admin) scoped to supervisor's apartments
+        $currentMonth = now()->month;
+        $currentYear = now()->year;
 
-        if ($activePeriod) {
-            $revenueQuery->whereBetween('paid_at', [$activePeriod->opening_date, $activePeriod->closing_date]);
-        } else {
-            $revenueQuery->whereMonth('paid_at', now()->month)->whereYear('paid_at', now()->year);
+        // Collected this month (sum of rent payments for supervisor's apartments)
+        $monthlyRentCollected = Payments::whereHas('rental', function ($q) use ($apartmentIds) {
+            $q->whereIn('apartment_id', $apartmentIds);
+            })->where('payment_status', 'paid')
+              ->where('payment_type', 'rent')
+              ->whereMonth('paid_at', $currentMonth)
+              ->whereYear('paid_at', $currentYear)
+              ->sum('amount');
+
+        $paidCount = 0;
+        $pendingCount = 0;
+        $overdueCount = 0;
+        $totalPendingAmount = 0;
+
+        $activeRentalsForPayments = Rentals::whereIn('apartment_id', $apartmentIds)
+            ->where(function ($q) {
+                $q->whereNull('end_date')->orWhere('end_date', '>=', now());
+            })
+            ->with(['payments'])
+            ->get();
+
+        foreach ($activeRentalsForPayments as $rental) {
+            $paidThisMonth = $rental->payments->filter(function ($p) use ($currentMonth, $currentYear) {
+                return $p->payment_type === 'rent'
+                    && $p->payment_status === 'paid'
+                    && $p->paid_at
+                    && Carbon::parse($p->paid_at)->month === $currentMonth
+                    && Carbon::parse($p->paid_at)->year === $currentYear;
+            })->isNotEmpty();
+
+            $dueDay = $rental->start_date ? Carbon::parse($rental->start_date)->day : 1;
+            $dueDay = min($dueDay, Carbon::create($currentYear, $currentMonth)->daysInMonth);
+            $dueDate = Carbon::create($currentYear, $currentMonth, $dueDay)->endOfDay();
+
+            if ($paidThisMonth) {
+                $paidCount++;
+            } elseif (now()->gt($dueDate)) {
+                $overdueCount++;
+                $totalPendingAmount += $rental->rent_amount ?? 0;
+            } else {
+                $pendingCount++;
+                $totalPendingAmount += $rental->rent_amount ?? 0;
+            }
         }
-        $monthlyRentCollected = $revenueQuery->sum('amount');
 
-        $pendingPayments = Payments::whereHas('rental', function ($q) use ($apartmentIds) {
-            $q->whereIn('apartment_id', $apartmentIds);
-        })->where('payment_status', 'pending')->count();
-
-        $overduePayments = Payments::whereHas('rental', function ($q) use ($apartmentIds) {
-            $q->whereIn('apartment_id', $apartmentIds);
-        })->where('due_date', '<', now())
-          ->whereNull('paid_at')
-          ->where('payment_status', '!=', 'cancelled')
-          ->count();
-
-        $paidQuery = Payments::whereHas('rental', function ($q) use ($apartmentIds) {
-            $q->whereIn('apartment_id', $apartmentIds);
-        })->where('payment_status', 'paid');
-
-        if ($activePeriod) {
-            $paidQuery->whereBetween('paid_at', [$activePeriod->opening_date, $activePeriod->closing_date]);
-        } else {
-            $paidQuery->whereMonth('paid_at', now()->month)->whereYear('paid_at', now()->year);
-        }
-        $paidPayments = $paidQuery->count();
-
-        $totalPendingAmount = Payments::whereHas('rental', function ($q) use ($apartmentIds) {
-            $q->whereIn('apartment_id', $apartmentIds);
-        })->where('payment_status', 'pending')->sum('amount');
+        $paidPayments = $paidCount;
+        $pendingPayments = $pendingCount;
+        $overduePayments = $overdueCount;
 
         // Floor and apartment breakdown
         $floors = Floors::whereHas('apartments')->count();
@@ -317,8 +331,8 @@ class DashboardController extends Controller
                 'active' => Tenants::whereIn('apartment_id', $apartmentIds)->where('status', 'active')->count(),
             ],
             'rentals' => [
-                'active' => $activeRentals,
-            ],
+                    'active' => $activeRentals,
+                ],
             'payments' => [
                 'paid' => $paidPayments,
                 'pending' => $pendingPayments,
@@ -327,9 +341,9 @@ class DashboardController extends Controller
             ],
             'revenue' => [
                 'expected_monthly' => $monthlyRentExpected,
-                'collected_this_month' => $monthlyRentCollected,
+                'collected_this_month' => $monthlyRentCollected ?? 0,
                 'collection_rate' => $monthlyRentExpected > 0
-                    ? round(($monthlyRentCollected / $monthlyRentExpected) * 100, 1) : 0,
+                    ? round((($monthlyRentCollected ?? 0) / $monthlyRentExpected) * 100, 1) : 0,
             ],
         ];
     }

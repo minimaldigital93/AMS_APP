@@ -16,9 +16,9 @@ use Carbon\Carbon;
 class PaymentController extends Controller
 {
     /**
-     * Get apartment IDs assigned to the current supervisor.
+     * Get all apartment IDs (supervisor sees same data as admin).
      */
-    private function supervisorApartmentIds(): array
+    private function allApartmentIds(): array
     {
         return Apartments::pluck('id')->toArray();
     }
@@ -28,7 +28,7 @@ class PaymentController extends Controller
      */
     public function index(Request $request): View
     {
-        $apartmentIds = $this->supervisorApartmentIds();
+        $apartmentIds = $this->allApartmentIds();
 
         // Get admin's active fiscal period
         $activePeriod = FiscalPeriods::where('status', 'open')
@@ -100,7 +100,7 @@ class PaymentController extends Controller
      */
     public function create(): View
     {
-        $apartmentIds = $this->supervisorApartmentIds();
+        $apartmentIds = $this->allApartmentIds();
 
         $rentals = Rentals::whereIn('apartment_id', $apartmentIds)
             ->where(function ($q) {
@@ -117,7 +117,7 @@ class PaymentController extends Controller
      */
     public function store(Request $request)
     {
-        $apartmentIds = $this->supervisorApartmentIds();
+        $apartmentIds = $this->allApartmentIds();
 
         $validated = $request->validate([
             'rental_id' => 'required|exists:rentals,id',
@@ -165,6 +165,7 @@ class PaymentController extends Controller
             Accounts::create([
                 'user_id' => $activePeriod->user_id,
                 'fiscal_period_id' => $activePeriod->id,
+                'payment_id' => $payment->id,
                 'account_type' => Accounts::TYPE_INCOME,
                 'category' => $categoryMap[$validated['payment_type']] ?? Accounts::CAT_OTHER_INCOME,
                 'amount' => $validated['amount'],
@@ -172,8 +173,6 @@ class PaymentController extends Controller
                     ($rental->apartment->apartment_number ?? 'N/A') . ' (' .
                     ($rental->tenant->name ?? 'N/A') . ') [by supervisor]',
                 'transaction_date' => $validated['transaction_date'],
-                'reference_type' => 'payment',
-                'reference_id' => $payment->id,
             ]);
         }
 
@@ -186,13 +185,7 @@ class PaymentController extends Controller
      */
     public function show(Payments $payment): View
     {
-        $apartmentIds = $this->supervisorApartmentIds();
-
         $payment->load(['rental.tenant', 'rental.apartment']);
-
-        if (!in_array($payment->rental->apartment_id, $apartmentIds)) {
-            abort(403, 'Unauthorized.');
-        }
 
         return view('supervisor.payments.show', compact('payment'));
     }

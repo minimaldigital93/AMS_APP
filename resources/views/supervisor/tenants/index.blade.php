@@ -124,9 +124,13 @@
                                 <tr class="hover:bg-gray-50">
                                     <td class="px-6 py-4 whitespace-nowrap">
                                         <div class="flex items-center">
-                                            <div class="h-10 w-10 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-700 font-bold text-sm">
-                                                {{ strtoupper(substr($tenant->name, 0, 1)) }}
-                                            </div>
+                                                @if($tenant->photo_path && !str_ends_with($tenant->photo_path, '.pdf'))
+                                                    <img src="{{ asset('storage/' . $tenant->photo_path) }}" alt="{{ $tenant->name }}" class="h-10 w-10 rounded-full object-cover">
+                                                @else
+                                                    <div class="h-10 w-10 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-700 font-bold text-sm">
+                                                        {{ strtoupper(substr($tenant->name, 0, 1)) }}
+                                                    </div>
+                                                @endif
                                             <div class="ml-4">
                                                 <div class="text-sm font-medium text-gray-900">{{ $tenant->name }}</div>
                                                 <div class="text-sm text-gray-500">{{ $tenant->email }}</div>
