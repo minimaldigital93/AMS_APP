@@ -87,6 +87,7 @@
                                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Apartment</th>
                                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
                                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Monthly Rent</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Billing</th>
                                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tenant</th>
                                     <th class="px-6 py-3"></th>
                                 </tr>
@@ -104,7 +105,107 @@
                                             </span>
                                         </td>
                                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${{ number_format($apartment->monthly_rent, 2) }}</td>
-                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{{ $activeTenant?->name ?? '-' }}</td>
+
+                                        {{-- Billing progress (monthly period) --}}
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                                            @php
+                                                $tenant = $apartment->tenants()->whereNull('deleted_at')->latest()->first();
+                                                $periodPercent = 0;
+                                                $periodDaysLeft = 0;
+                                                $monthBarColor = 'from-blue-400 to-blue-600';
+                                                $monthTextColor = 'text-blue-600';
+                                                $hasMonthlyPeriod = false;
+                                                if($tenant && $tenant->move_in_date) {
+                                                    $today = \Carbon\Carbon::today();
+                                                    $moveInDate = \Carbon\Carbon::parse($tenant->move_in_date);
+                                                    $billingDay = $moveInDate->day;
+
+                                                    if ($today->day >= $billingDay) {
+                                                        $periodStart = $today->copy()->day($billingDay)->startOfDay();
+                                                    } else {
+                                                        $prevMonth = $today->copy()->subMonth();
+                                                        $periodStart = $prevMonth->day(min($billingDay, $prevMonth->daysInMonth))->startOfDay();
+                                                    }
+
+                                                    $periodEnd = $periodStart->copy()->addMonth()->subDay()->endOfDay();
+
+                                                    if ($periodStart->lt($moveInDate)) $periodStart = $moveInDate->copy();
+                                                    if ($tenant->move_out_date) {
+                                                        $moveOutDate = \Carbon\Carbon::parse($tenant->move_out_date);
+                                                        if ($periodEnd->gt($moveOutDate)) $periodEnd = $moveOutDate->copy()->endOfDay();
+                                                    }
+
+                                                    $periodTotalDays = max(1, $periodStart->diffInDays($periodEnd));
+                                                    $periodDaysPassed = max(0, min($periodTotalDays, $periodStart->diffInDays($today)));
+                                                    $periodPercent = min(100, max(0, round(($periodDaysPassed / $periodTotalDays) * 100, 1)));
+                                                    $periodDaysLeft = max(0, (int)$today->diffInDays($periodEnd, false));
+
+                                                    if ($periodPercent >= 80) {
+                                                        $monthBarColor = 'from-red-400 to-red-600';
+                                                        $monthTextColor = 'text-red-600';
+                                                    } elseif ($periodPercent >= 50) {
+                                                        $monthBarColor = 'from-yellow-400 to-orange-500';
+                                                        $monthTextColor = 'text-orange-600';
+                                                    } else {
+                                                        $monthBarColor = 'from-blue-400 to-blue-600';
+                                                        $monthTextColor = 'text-blue-600';
+                                                    }
+
+                                                    $hasMonthlyPeriod = true;
+                                                }
+                                            @endphp
+
+                                            @if($tenant && $tenant->move_in_date && $hasMonthlyPeriod)
+                                                <div class="w-full bg-gray-200 rounded-full h-1.5 overflow-hidden" title="{{ $periodStart->format('M d') }}–{{ $periodEnd->format('M d') }} ({{ $periodPercent }}%)">
+                                                    <div class="bg-gradient-to-r {{ $monthBarColor }} h-full rounded-full transition-all duration-500" style="width: {{ $periodPercent }}%"></div>
+                                                </div>
+                                                <div class="{{ $monthTextColor }} text-[11px] mt-1 font-medium">{{ $periodDaysLeft }}d left</div>
+                                            @else
+                                                <span class="text-gray-400 text-xs">—</span>
+                                            @endif
+                                        </td>
+
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                                            @if($activeTenant)
+                                                @php
+                                                    $photoUrl = null;
+                                                    $pp = $activeTenant->photo_path ?? null;
+                                                    if ($pp) {
+                                                        if (str_starts_with($pp, 'http://') || str_starts_with($pp, 'https://')) {
+                                                            $photoUrl = $pp;
+                                                        } else {
+                                                            try {
+                                                                if (\Illuminate\Support\Facades\Storage::disk('public')->exists($pp)) {
+                                                                    $photoUrl = \Illuminate\Support\Facades\Storage::url($pp);
+                                                                } else {
+                                                                    // fallback to asset path if file is stored under storage/app/public but Storage doesn't detect it
+                                                                    $assetPath = asset('storage/' . $pp);
+                                                                    $photoUrl = $assetPath;
+                                                                }
+                                                            } catch (Exception $e) {
+                                                                $photoUrl = asset('storage/' . $pp);
+                                                            }
+                                                        }
+                                                    }
+                                                @endphp
+
+                                                @if($photoUrl && !str_ends_with($photoUrl, '.pdf'))
+                                                    <div class="flex items-center">
+                                                        <img src="{{ $photoUrl }}" alt="{{ $activeTenant->name }}" class="h-8 w-8 rounded-full object-cover mr-3" loading="lazy">
+                                                        <span class="text-sm text-gray-700">{{ $activeTenant->name }}</span>
+                                                    </div>
+                                                @else
+                                                    <div class="flex items-center">
+                                                        <div class="h-8 w-8 rounded-full bg-gray-100 flex items-center justify-center text-gray-400 mr-3">
+                                                            <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path d="M10 10a4 4 0 100-8 4 4 0 000 8zm0 2c-4 0-6 2-6 4v1h12v-1c0-2-2-4-6-4z"/></svg>
+                                                        </div>
+                                                        <span class="text-sm text-gray-700">{{ $activeTenant->name }}</span>
+                                                    </div>
+                                                @endif
+                                            @else
+                                                <span class="text-gray-400">-</span>
+                                            @endif
+                                        </td>
                                         <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                                             <a href="{{ route('supervisor.apartments.show', $apartment) }}" class="text-emerald-600 hover:text-emerald-800" title="View">
                                                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
@@ -141,6 +242,7 @@
                                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Apartment</th>
                                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
                                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Monthly Rent</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Billing</th>
                                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tenant</th>
                                     <th class="px-6 py-3"></th>
                                 </tr>
@@ -158,7 +260,105 @@
                                             </span>
                                         </td>
                                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${{ number_format($apartment->monthly_rent, 2) }}</td>
-                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{{ $activeTenant?->name ?? '-' }}</td>
+
+                                        {{-- Billing progress (monthly period) --}}
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                                            @php
+                                                $tenant = $apartment->tenants()->whereNull('deleted_at')->latest()->first();
+                                                $periodPercent = 0;
+                                                $periodDaysLeft = 0;
+                                                $monthBarColor = 'from-blue-400 to-blue-600';
+                                                $monthTextColor = 'text-blue-600';
+                                                $hasMonthlyPeriod = false;
+                                                if($tenant && $tenant->move_in_date) {
+                                                    $today = \Carbon\Carbon::today();
+                                                    $moveInDate = \Carbon\Carbon::parse($tenant->move_in_date);
+                                                    $billingDay = $moveInDate->day;
+
+                                                    if ($today->day >= $billingDay) {
+                                                        $periodStart = $today->copy()->day($billingDay)->startOfDay();
+                                                    } else {
+                                                        $prevMonth = $today->copy()->subMonth();
+                                                        $periodStart = $prevMonth->day(min($billingDay, $prevMonth->daysInMonth))->startOfDay();
+                                                    }
+
+                                                    $periodEnd = $periodStart->copy()->addMonth()->subDay()->endOfDay();
+
+                                                    if ($periodStart->lt($moveInDate)) $periodStart = $moveInDate->copy();
+                                                    if ($tenant->move_out_date) {
+                                                        $moveOutDate = \Carbon\Carbon::parse($tenant->move_out_date);
+                                                        if ($periodEnd->gt($moveOutDate)) $periodEnd = $moveOutDate->copy()->endOfDay();
+                                                    }
+
+                                                    $periodTotalDays = max(1, $periodStart->diffInDays($periodEnd));
+                                                    $periodDaysPassed = max(0, min($periodTotalDays, $periodStart->diffInDays($today)));
+                                                    $periodPercent = min(100, max(0, round(($periodDaysPassed / $periodTotalDays) * 100, 1)));
+                                                    $periodDaysLeft = max(0, (int)$today->diffInDays($periodEnd, false));
+
+                                                    if ($periodPercent >= 80) {
+                                                        $monthBarColor = 'from-red-400 to-red-600';
+                                                        $monthTextColor = 'text-red-600';
+                                                    } elseif ($periodPercent >= 50) {
+                                                        $monthBarColor = 'from-yellow-400 to-orange-500';
+                                                        $monthTextColor = 'text-orange-600';
+                                                    } else {
+                                                        $monthBarColor = 'from-blue-400 to-blue-600';
+                                                        $monthTextColor = 'text-blue-600';
+                                                    }
+
+                                                    $hasMonthlyPeriod = true;
+                                                }
+                                            @endphp
+
+                                            @if($tenant && $tenant->move_in_date && $hasMonthlyPeriod)
+                                                <div class="w-full bg-gray-200 rounded-full h-1.5 overflow-hidden" title="{{ $periodStart->format('M d') }}–{{ $periodEnd->format('M d') }} ({{ $periodPercent }}%)">
+                                                    <div class="bg-gradient-to-r {{ $monthBarColor }} h-full rounded-full transition-all duration-500" style="width: {{ $periodPercent }}%"></div>
+                                                </div>
+                                                <div class="{{ $monthTextColor }} text-[11px] mt-1 font-medium">{{ $periodDaysLeft }}d left</div>
+                                            @else
+                                                <span class="text-gray-400 text-xs">—</span>
+                                            @endif
+                                        </td>
+
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                                            @if($activeTenant)
+                                                @php
+                                                    $photoUrl = null;
+                                                    $pp = $activeTenant->photo_path ?? null;
+                                                    if ($pp) {
+                                                        if (str_starts_with($pp, 'http://') || str_starts_with($pp, 'https://')) {
+                                                            $photoUrl = $pp;
+                                                        } else {
+                                                            try {
+                                                                if (\Illuminate\Support\Facades\Storage::disk('public')->exists($pp)) {
+                                                                    $photoUrl = \Illuminate\Support\Facades\Storage::url($pp);
+                                                                } else {
+                                                                    $photoUrl = asset('storage/' . $pp);
+                                                                }
+                                                            } catch (Exception $e) {
+                                                                $photoUrl = asset('storage/' . $pp);
+                                                            }
+                                                        }
+                                                    }
+                                                @endphp
+
+                                                @if($photoUrl && !str_ends_with($photoUrl, '.pdf'))
+                                                    <div class="flex items-center">
+                                                        <img src="{{ $photoUrl }}" alt="{{ $activeTenant->name }}" class="h-8 w-8 rounded-full object-cover mr-3" loading="lazy">
+                                                        <span class="text-sm text-gray-700">{{ $activeTenant->name }}</span>
+                                                    </div>
+                                                @else
+                                                    <div class="flex items-center">
+                                                        <div class="h-8 w-8 rounded-full bg-gray-100 flex items-center justify-center text-gray-400 mr-3">
+                                                            <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path d="M10 10a4 4 0 100-8 4 4 0 000 8zm0 2c-4 0-6 2-6 4v1h12v-1c0-2-2-4-6-4z"/></svg>
+                                                        </div>
+                                                        <span class="text-sm text-gray-700">{{ $activeTenant->name }}</span>
+                                                    </div>
+                                                @endif
+                                            @else
+                                                <span class="text-gray-400">-</span>
+                                            @endif
+                                        </td>
                                         <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                                             <a href="{{ route('supervisor.apartments.show', $apartment) }}" class="text-emerald-600 hover:text-emerald-800">View</a>
                                             @if($apartment->status === 'available')
