@@ -4,46 +4,34 @@
 <div class="min-h-screen bg-gray-50 py-8">
     <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
         <!-- Header -->
-        <div class="mb-8">
-            <a href="{{ route('admin.tenants.index') }}" class="text-blue-600 hover:text-blue-900 flex items-center mb-4">
-                <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
-                </svg>
+        <div class="flex items-center justify-between mb-8">
+            <div>
+                <h1 class="text-2xl font-semibold text-slate-800 tracking-tight">Tenant Details</h1>
+                <p class="text-slate-400 text-sm mt-1">View tenant information and rental history</p>
+            </div>
+            <a href="{{ route('admin.tenants.index') }}" class="text-slate-400 hover:text-slate-600 text-sm font-medium py-2 px-4 rounded-lg border border-slate-200 hover:border-slate-300 transition">
                 Back to Tenants
             </a>
-            <h1 class="text-3xl font-bold text-gray-900">Tenant Details</h1>
         </div>
 
         <!-- Tenant Card -->
-        <div class="bg-white rounded-lg shadow-md overflow-hidden mb-6">
-            <div class="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
+        <div class="bg-white rounded-xl border border-slate-100 overflow-hidden mb-6">
+            <div class="p-6 border-b border-slate-100 flex justify-between items-center">
                 <div class="flex items-center">
                     @if($tenant->photo_path && !str_ends_with($tenant->photo_path, '.pdf'))
                         <img src="{{ asset('storage/' . $tenant->photo_path) }}" alt="{{ $tenant->name }}" class="h-12 w-12 rounded-full object-cover mr-4 border border-gray-300">
-                    @elseif($tenant->photo_path && str_ends_with($tenant->photo_path, '.pdf'))
-                        <a href="{{ asset('storage/' . $tenant->photo_path) }}" target="_blank" class="h-12 w-12 rounded-full bg-red-100 flex items-center justify-center mr-4 text-red-600 border border-red-200" title="View PDF">
-                            <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 20 20"><path d="M4 2h7l5 5v11a2 2 0 01-2 2H4a2 2 0 01-2-2V4a2 2 0 012-2z"/></svg>
-                        </a>
                     @else
                         <div class="h-12 w-12 rounded-full bg-blue-100 flex items-center justify-center mr-4">
                             <span class="text-blue-600 font-semibold text-lg">{{ strtoupper(substr($tenant->name, 0, 1)) }}</span>
                         </div>
                     @endif
                     <div>
-                        <h2 class="text-xl font-semibold text-gray-900">{{ $tenant->name }}</h2>
-                        <p class="text-sm text-gray-600">{{ $tenant->email }}</p>
+                        <h2 class="text-lg font-semibold text-slate-800">{{ $tenant->name }}</h2>
+                        <p class="text-sm text-slate-500">{{ $tenant->email }}</p>
                     </div>
-                    {{-- View document button in header --}}
-                    @if($tenant->document_path)
-                        <div>
-                            <a href="{{ asset('storage/' . $tenant->document_path) }}" target="_blank" class="inline-flex items-center px-3 py-2 bg-gray-50 text-gray-700 rounded-lg border border-gray-200 hover:bg-gray-100">
-                                <svg class="w-4 h-4 mr-2 text-red-600" fill="currentColor" viewBox="0 0 20 20"><path d="M4 2h7l5 5v11a2 2 0 01-2 2H4a2 2 0 01-2-2V4a2 2 0 012-2z" /></svg>
-                                View Document
-                            </a>
-                        </div>
-                    @endif
+                    {{-- document link moved to Attached Document section below --}}
                 </div>
-                <span class="px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full {{ $tenant->status === 'active' ? 'bg-green-100 text-green-800' : ($tenant->status === 'pending' ? 'bg-yellow-100 text-yellow-800' : 'bg-red-100 text-red-800') }}">
+                <span class="px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full {{ $tenant->status === 'active' ? 'bg-emerald-50 text-emerald-600' : ($tenant->status === 'pending' ? 'bg-amber-50 text-amber-600' : 'bg-red-50 text-red-600') }}">
                     {{ ucfirst($tenant->status) }}
                 </span>
             </div>
@@ -52,26 +40,18 @@
                 <!-- Tenant Photo (if available) -->
                 @if($tenant->photo_path && !str_ends_with($tenant->photo_path, '.pdf'))
                     <div>
-                        <h3 class="text-sm font-medium text-gray-600 uppercase tracking-wide mb-4">Photo</h3>
+                        <h3 class="text-sm font-medium text-slate-500 uppercase tracking-wide mb-4">Photo</h3>
                         <img src="{{ asset('storage/' . $tenant->photo_path) }}" alt="{{ $tenant->name }}" class="max-w-sm h-auto rounded-lg shadow-md border border-gray-300">
-                    </div>
-                @elseif($tenant->photo_path && str_ends_with($tenant->photo_path, '.pdf'))
-                    <div>
-                        <h3 class="text-sm font-medium text-gray-600 uppercase tracking-wide mb-4">Document</h3>
-                        <a href="{{ asset('storage/' . $tenant->photo_path) }}" target="_blank" class="inline-flex items-center px-3 py-2 bg-red-50 text-red-600 rounded-lg border border-red-200">
-                            <svg class="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20"><path d="M4 2h7l5 5v11a2 2 0 01-2 2H4a2 2 0 01-2-2V4a2 2 0 012-2z"/></svg>
-                            View ID (PDF)
-                        </a>
                     </div>
                 @endif
 
                 <!-- Personal Information -->
                 <div>
-                    <h3 class="text-sm font-medium text-gray-600 uppercase tracking-wide mb-4">Personal Information</h3>
+                    <h3 class="text-sm font-medium text-slate-500 uppercase tracking-wide mb-4">Personal Information</h3>
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div>
-                            <p class="text-xs text-gray-500 uppercase tracking-wide">Full Name</p>
-                            <p class="text-sm font-medium text-gray-900 mt-1">{{ $tenant->name }}</p>
+                            <p class="text-xs text-slate-400 uppercase tracking-wide">Full Name</p>
+                            <p class="text-sm font-medium text-slate-800 mt-1">{{ $tenant->name }}</p>
                         </div>
                         <div>
                             <p class="text-xs text-gray-500 uppercase tracking-wide">Email</p>
@@ -93,12 +73,12 @@
                 </div>
 
                 <!-- Tenancy Information -->
-                <div class="border-t border-gray-200 pt-6">
-                    <h3 class="text-sm font-medium text-gray-600 uppercase tracking-wide mb-4">Tenancy Information</h3>
+                <div class="border-t border-slate-100 pt-6">
+                    <h3 class="text-sm font-medium text-slate-500 uppercase tracking-wide mb-4">Tenancy Information</h3>
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div>
-                            <p class="text-xs text-gray-500 uppercase tracking-wide">Apartment</p>
-                            <p class="text-sm font-medium text-gray-900 mt-1">{{ $tenant->apartment?->apartment_number ?? 'N/A' }}</p>
+                            <p class="text-xs text-slate-400 uppercase tracking-wide">Apartment</p>
+                            <p class="text-sm font-medium text-slate-800 mt-1">{{ $tenant->apartment?->apartment_number ?? 'N/A' }}</p>
                         </div>
                         <div>
                             <p class="text-xs text-gray-500 uppercase tracking-wide">Move In Date</p>
@@ -121,22 +101,39 @@
 
                 <!-- Notes -->
                 @if($tenant->notes)
-                    <div class="border-t border-gray-200 pt-6">
-                        <h3 class="text-sm font-medium text-gray-600 uppercase tracking-wide mb-4">Notes</h3>
-                        <p class="text-sm text-gray-700">{{ $tenant->notes }}</p>
+                    <div class="border-t border-slate-100 pt-6">
+                        <h3 class="text-sm font-medium text-slate-500 uppercase tracking-wide mb-4">Notes</h3>
+                        <p class="text-sm text-slate-700">{{ $tenant->notes }}</p>
+                    </div>
+                @endif
+
+                <!-- Attached Document -->
+                @if($tenant->document_path)
+                    <div class="border-t border-slate-100 pt-6">
+                        <h3 class="text-sm font-medium text-slate-500 uppercase tracking-wide mb-4">Attached Document</h3>
+                        <a href="{{ asset('storage/' . $tenant->document_path) }}" target="_blank" class="inline-flex items-center gap-3 px-4 py-3 bg-slate-50 hover:bg-slate-100 rounded-lg border border-slate-200 hover:border-slate-300 transition group">
+                            <div class="h-10 w-10 rounded-lg bg-red-50 flex items-center justify-center">
+                                <svg class="w-5 h-5 text-red-600" fill="currentColor" viewBox="0 0 20 20"><path d="M4 2h7l5 5v11a2 2 0 01-2 2H4a2 2 0 01-2-2V4a2 2 0 012-2z"/></svg>
+                            </div>
+                            <div class="flex-1">
+                                <p class="text-sm font-medium text-slate-700 group-hover:text-slate-900">View Document</p>
+                                <p class="text-xs text-slate-400">{{ basename($tenant->document_path) }}</p>
+                            </div>
+                            <svg class="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M13 7l5 5m0 0l-5 5m5-5H6"/></svg>
+                        </a>
                     </div>
                 @endif
 
                 <!-- Active Rentals -->
                 @if($tenant->rentals->count() > 0)
-                    <div class="border-t border-gray-200 pt-6">
-                        <h3 class="text-sm font-medium text-gray-600 uppercase tracking-wide mb-4">Active Rentals</h3>
+                    <div class="border-t border-slate-100 pt-6">
+                        <h3 class="text-sm font-medium text-slate-500 uppercase tracking-wide mb-4">Active Rentals</h3>
                         <div class="space-y-2">
                             @foreach($tenant->rentals as $rental)
-                                <div class="bg-gray-50 rounded p-3">
-                                    <p class="text-sm font-medium text-gray-900">{{ $rental->apartment?->apartment_number ?? 'Unknown Apartment' }}</p>
-                                    <p class="text-xs text-gray-600 mt-1">Start: {{ $rental->start_date->format('M d, Y') }} | End: {{ $rental->end_date?->format('M d, Y') ?? 'Ongoing' }}</p>
-                                    <p class="text-xs text-gray-600">Rent: ${{ number_format($rental->monthly_rent ?? 0, 2) }}/month</p>
+                                <div class="bg-slate-50 rounded p-3">
+                                    <p class="text-sm font-medium text-slate-800">{{ $rental->apartment?->apartment_number ?? 'Unknown Apartment' }}</p>
+                                    <p class="text-xs text-slate-500 mt-1">Start: {{ $rental->start_date->format('M d, Y') }} | End: {{ $rental->end_date?->format('M d, Y') ?? 'Ongoing' }}</p>
+                                    <p class="text-xs text-slate-500">Rent: ${{ number_format($rental->monthly_rent ?? 0, 2) }}/month</p>
                                 </div>
                             @endforeach
                         </div>
@@ -145,19 +142,13 @@
             </div>
         </div>
 
-        <!-- Action Buttons -->
-        <div class="flex gap-3">
-            <a href="{{ route('admin.tenants.edit', $tenant->id) }}" class="flex-1 px-6 py-3 border border-transparent text-base font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 transition text-center">
-                Edit Tenant
-            </a>
+        <!-- Action Button (Process Leave, right aligned) -->
+        <div class="flex justify-end items-center gap-3">
             @if($tenant->status === 'active')
-                <a href="{{ route('admin.tenants.leave', $tenant->id) }}" class="flex-1 px-6 py-3 border border-transparent text-base font-medium rounded-md text-white bg-orange-600 hover:bg-orange-700 transition text-center">
+                <a href="{{ route('admin.tenants.leave', $tenant->id) }}" class="inline-flex items-center gap-2 text-sm font-medium py-2.5 px-5 rounded-lg text-red-600 hover:text-red-700 border border-red-200 hover:border-red-300 hover:bg-red-50 transition" title="Process Leave">
                     Process Leave
                 </a>
             @endif
-            <a href="{{ route('admin.tenants.index') }}" class="flex-1 px-6 py-3 border border-gray-300 text-base font-medium rounded-md text-gray-700 hover:bg-gray-50 transition text-center">
-                Back
-            </a>
         </div>
     </div>
 </div>

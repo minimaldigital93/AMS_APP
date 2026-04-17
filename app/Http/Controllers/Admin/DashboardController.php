@@ -51,9 +51,12 @@ class DashboardController extends Controller
             ->take(15)
             ->get();
 
+        // Per-apartment revenue comparison (expected vs collected for current month)
+        $apartmentRevenues = $this->getApartmentRevenueComparison();
+
         return view('admin.dashboard', compact(
             'stats', 'fiscalData', 'calendarData',
-            'activePeriod', 'apartmentsWithRentals', 'recentTransactions'
+            'activePeriod', 'apartmentsWithRentals', 'recentTransactions', 'apartmentRevenues'
         ));
     }
 
@@ -554,7 +557,13 @@ class DashboardController extends Controller
                 'paid' => $paidCount,
                 'pending' => $pendingCount,
                 'overdue' => $overdueCount,
-                'total_collected' => Payments::where('payment_status', 'paid')
+                'total_collected' => Payments::whereHas('rental', function ($q) {
+                        $q->whereHas('apartment', function ($sq) {
+                            $sq->where('supervisor_id', Auth::id())
+                               ->orWhereNull('supervisor_id');
+                        });
+                    })
+                    ->where('payment_status', 'paid')
                     ->whereMonth('paid_at', $currentMonth)
                     ->whereYear('paid_at', $currentYear)
                     ->sum('amount'),
@@ -562,22 +571,121 @@ class DashboardController extends Controller
             ],
             'revenue' => [
                 'total_monthly_rent' => Apartments::where('status', 'occupied')->sum('monthly_rent'),
-                'collected_this_month' => Payments::where('payment_status', 'paid')
+                'collected_this_month' => Payments::whereHas('rental', function ($q) {
+                        $q->whereHas('apartment', function ($sq) {
+                            $sq->where('supervisor_id', Auth::id())
+                               ->orWhereNull('supervisor_id');
+                        });
+                    })
+                    ->where('payment_status', 'paid')
                     ->whereMonth('paid_at', $currentMonth)
                     ->whereYear('paid_at', $currentYear)
                     ->sum('amount'),
-                'late_fees_this_month' => Payments::where('payment_status', 'paid')
+                'late_fees_this_month' => Payments::whereHas('rental', function ($q) {
+                        $q->whereHas('apartment', function ($sq) {
+                            $sq->where('supervisor_id', Auth::id())
+                               ->orWhereNull('supervisor_id');
+                        });
+                    })
+                    ->where('payment_status', 'paid')
                     ->whereMonth('paid_at', $currentMonth)
                     ->whereYear('paid_at', $currentYear)
                     ->sum('late_fee'),
+                'by_type' => Payments::whereHas('rental', function ($q) {
+                        $q->whereHas('apartment', function ($sq) {
+                            $sq->where('supervisor_id', Auth::id())
+                               ->orWhereNull('supervisor_id');
+                        });
+                    })
+                    ->where('payment_status', 'paid')
+                    ->whereMonth('paid_at', $currentMonth)
+                    ->whereYear('paid_at', $currentYear)
+                    ->selectRaw('payment_type, SUM(amount) as total')
+                    ->groupBy('payment_type')
+                    ->pluck('total', 'payment_type')
+                    ->toArray(),
             ],
             'expenses' => [
                 'monthly_total' => round($monthlyExpensesTotal, 2),
+                'utilities_total' => round($monthlyUtilities, 2),
+                'account_total' => round($monthlyAccountExpenses, 2),
                 'utility_breakdown' => $utilityBreakdown,
+                'account_breakdown' => Accounts::where('user_id', Auth::id())
+                    ->where('account_type', 'expense')
+                    ->whereMonth('transaction_date', $currentMonth)
+                    ->whereYear('transaction_date', $currentYear)
+                    ->selectRaw('category, SUM(amount) as total')
+                    ->groupBy('category')
+                    ->pluck('total', 'category')
+                    ->toArray(),
             ],
             'floor_labels' => $floorLabels,
             'floor_occupancy' => $floorOccupancy,
         ];
+    }
+
+    /**
+     * Compute expected vs collected rent grouped by floor, with apartment breakdown.
+     */
+    private function getApartmentRevenueComparison(): array
+    {
+        $currentMonth = now()->month;
+        $currentYear = now()->year;
+
+        $floors = Floors::with(['apartments' => function ($q) {
+                $q->where(function ($q2) {
+                    $q2->where('supervisor_id', Auth::id())->orWhereNull('supervisor_id');
+                })->select('id', 'floor_id', 'apartment_number', 'monthly_rent', 'status')
+                  ->orderBy('apartment_number');
+            }])
+            ->orderBy('id')
+            ->get();
+
+        $result = [];
+
+        foreach ($floors as $floor) {
+            $floorExpected = 0;
+            $floorActual = 0;
+            $apartments = [];
+
+            foreach ($floor->apartments as $apt) {
+                $expected = (float) ($apt->monthly_rent ?? 0);
+
+                $actual = (float) Payments::whereHas('rental', function ($q) use ($apt) {
+                        $q->where('apartment_id', $apt->id);
+                    })
+                    ->where('payment_status', 'paid')
+                    ->where('payment_type', 'rent')
+                    ->whereMonth('paid_at', $currentMonth)
+                    ->whereYear('paid_at', $currentYear)
+                    ->sum('amount');
+
+                $percentage = $expected > 0 ? round(($actual / $expected) * 100, 1) : 0;
+
+                $floorExpected += $expected;
+                $floorActual += $actual;
+
+                $apartments[] = [
+                    'apartment' => $apt->apartment_number ?? "Apt {$apt->id}",
+                    'expected' => round($expected, 2),
+                    'actual' => round($actual, 2),
+                    'percentage' => $percentage,
+                    'status' => $apt->status,
+                ];
+            }
+
+            $floorPct = $floorExpected > 0 ? round(($floorActual / $floorExpected) * 100, 1) : 0;
+
+            $result[] = [
+                'floor' => $floor->floor_name ?? "Floor {$floor->id}",
+                'expected' => round($floorExpected, 2),
+                'actual' => round($floorActual, 2),
+                'percentage' => $floorPct,
+                'apartments' => $apartments,
+            ];
+        }
+
+        return $result;
     }
 
     /**

@@ -14,7 +14,7 @@
     </div>
 
     @if(session('error'))
-    <div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-lg text-sm">{{ session('error') }}</div>
+    <div class="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">{{ session('error') }}</div>
     @endif
     @if($errors->any())
     <div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-lg text-sm">
@@ -23,7 +23,7 @@
     @endif
 
     <!-- Tenant Info Card -->
-    <div class="bg-white rounded-xl shadow-sm border p-5">
+    <div class="bg-white rounded-xl border border-slate-100 p-5">
         <div class="flex items-center gap-4 mb-4">
             @if($tenant->photo_path)
                 <img src="{{ asset('storage/' . $tenant->photo_path) }}" alt="{{ $tenant->name }}" class="h-14 w-14 rounded-lg object-cover border">
@@ -38,21 +38,21 @@
             </div>
         </div>
         <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm">
-            <div class="bg-gray-50 rounded-lg p-3">
-                <p class="text-xs text-gray-500">Move In</p>
-                <p class="font-semibold text-gray-800">{{ $tenant->move_in_date?->format('M d, Y') ?? 'N/A' }}</p>
+            <div class="bg-slate-50 rounded-lg p-3">
+                <p class="text-xs text-slate-400">Move In</p>
+                <p class="font-semibold text-slate-800">{{ $tenant->move_in_date?->format('M d, Y') ?? 'N/A' }}</p>
             </div>
-            <div class="bg-gray-50 rounded-lg p-3">
-                <p class="text-xs text-gray-500">Monthly Rent</p>
-                <p class="font-semibold text-gray-800">${{ number_format($rental->rent_amount ?? 0, 2) }}</p>
+            <div class="bg-slate-50 rounded-lg p-3">
+                <p class="text-xs text-slate-400">Monthly Rent</p>
+                <p class="font-semibold text-slate-800">${{ number_format($rental->rent_amount ?? 0, 2) }}</p>
             </div>
-            <div class="bg-gray-50 rounded-lg p-3">
-                <p class="text-xs text-gray-500">Deposit</p>
-                <p class="font-semibold text-gray-800">${{ number_format($tenant->deposit ?? 0, 2) }}</p>
+            <div class="bg-slate-50 rounded-lg p-3">
+                <p class="text-xs text-slate-400">Deposit</p>
+                <p class="font-semibold text-slate-800">${{ number_format($tenant->deposit ?? 0, 2) }}</p>
             </div>
-            <div class="bg-blue-50 rounded-lg p-3">
-                <p class="text-xs text-gray-500">Stay Days</p>
-                <p class="font-semibold text-blue-700" id="stayDaysDisplay">0</p>
+            <div class="bg-amber-50 rounded-lg p-3">
+                <p class="text-xs text-slate-400">Stay Days</p>
+                <p class="font-semibold text-amber-700" id="stayDaysDisplay">0</p>
             </div>
         </div>
     </div>

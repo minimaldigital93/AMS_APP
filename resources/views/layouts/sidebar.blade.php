@@ -240,6 +240,27 @@
             transform: scale(1.15) rotate(-8deg);
         }
 
+        /* Section header icon styling */
+        .section-icon {
+            flex-shrink: 0;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 32px;
+            height: 32px;
+            border-radius: 0.5rem;
+            background: linear-gradient(135deg, rgba(107, 114, 128, 0.12) 0%, rgba(107, 114, 128, 0.08) 100%);
+            transition: all 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+            color: #9ca3af;
+        }
+
+        .section-header:hover .section-icon {
+            background: linear-gradient(135deg, rgba(59, 130, 246, 0.2) 0%, rgba(99, 102, 241, 0.15) 100%);
+            color: #3b82f6;
+            transform: scale(1.1) rotate(-5deg);
+            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.2);
+        }
+
         /* Section header title styling */
         .section-title {
             font-size: 0.75rem;
@@ -379,7 +400,14 @@
     <div class="mt-4">
         <button @click="expandedSections['Property'] = !expandedSections['Property']" 
                 class="section-header flex items-center justify-between w-full transition sidebar-transition">
-            <span class="section-title sidebar-label">📍 {{ __('messages.property_management') }}</span>
+            <span class="flex items-center gap-2.5">
+                <span class="section-icon">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                    </svg>
+                </span>
+                <span class="section-title sidebar-label">{{ __('messages.property_management') }}</span>
+            </span>
             <svg class="chevron h-5 w-5 transition-transform flex-shrink-0" :class="expandedSections['Property'] ? 'rotate-90' : ''" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7" />
             </svg>
@@ -419,7 +447,14 @@
     <div class="mt-4">
         <button @click="expandedSections['Tenant'] = !expandedSections['Tenant']" 
                 class="section-header flex items-center justify-between w-full transition sidebar-transition">
-            <span class="section-title sidebar-label">👥 {{ __('messages.tenant_management') }}</span>
+            <span class="flex items-center gap-2.5">
+                <span class="section-icon">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2m-10 2H2v-2a3 3 0 015.356-1.857M7 20v-2m5-4a4 4 0 100-8 4 4 0 000 8z" />
+                    </svg>
+                </span>
+                <span class="section-title sidebar-label">{{ __('messages.tenant_management') }}</span>
+            </span>
             <svg class="chevron h-5 w-5 transition-transform flex-shrink-0" :class="expandedSections['Tenant'] ? 'rotate-90' : ''" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7" />
             </svg>
@@ -462,7 +497,14 @@
     <div class="mt-4">
         <button @click="expandedSections['Revenue'] = !expandedSections['Revenue']" 
                 class="section-header flex items-center justify-between w-full transition sidebar-transition">
-            <span class="section-title sidebar-label">💰 {{ __('messages.revenue_expense') }}</span>
+            <span class="flex items-center gap-2.5">
+                <span class="section-icon">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                </span>
+                <span class="section-title sidebar-label">{{ __('messages.revenue_expense') }}</span>
+            </span>
             <svg class="chevron h-5 w-5 transition-transform flex-shrink-0" :class="expandedSections['Revenue'] ? 'rotate-90' : ''" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7" />
             </svg>
@@ -531,7 +573,14 @@
     <div class="mt-4">
         <a href="{{ route('admin.fiscalperiod.index') }}" 
            class="section-header flex items-center justify-between w-full transition sidebar-transition {{ request()->routeIs('admin.fiscalperiod.*') ? 'text-blue-700' : '' }}">
-            <span class="section-title sidebar-label">📅 {{ __('messages.fiscal_period') }}</span>
+            <span class="flex items-center gap-2.5">
+                <span class="section-icon">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                    </svg>
+                </span>
+                <span class="section-title sidebar-label">{{ __('messages.fiscal_period') }}</span>
+            </span>
             <svg class="chevron h-5 w-5 transition-transform flex-shrink-0" :class="expandedSections['FiscalPeriod'] ? 'rotate-90' : ''" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7" />
             </svg>
@@ -591,7 +640,15 @@
     <div class="mt-4">
         <button @click="expandedSections['Settings'] = !expandedSections['Settings']" 
                 class="section-header flex items-center justify-between w-full transition sidebar-transition">
-            <span class="section-title sidebar-label">⚙️ {{ __('messages.system_settings') }}</span>
+            <span class="flex items-center gap-2.5">
+                <span class="section-icon">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                    </svg>
+                </span>
+                <span class="section-title sidebar-label">{{ __('messages.system_settings') }}</span>
+            </span>
             <svg class="chevron h-5 w-5 transition-transform flex-shrink-0" :class="expandedSections['Settings'] ? 'rotate-90' : ''" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7" />
             </svg>

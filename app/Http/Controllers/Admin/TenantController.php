@@ -7,6 +7,7 @@ use App\Models\Tenants;
 use App\Models\TenantLeave;
 use App\Models\Rentals;
 use App\Models\Apartments;
+use App\Models\Floors;
 use App\Models\Payments;
 use App\Models\Accounts;
 use App\Models\FiscalPeriods;
@@ -53,8 +54,17 @@ class TenantController extends Controller
             $query->where('status', $request->status);
         }
 
+        // Floor filter (filter tenants by apartment's floor)
+        if ($request->has('floor') && !empty($request->floor)) {
+            $floorId = $request->floor;
+            $query->whereHas('apartment', function (Builder $q) use ($floorId) {
+                $q->where('floor_id', $floorId);
+            });
+        }
+
         $tenants = $query->orderBy('id', 'desc')->paginate(15);
         $apartments = Apartments::all();
+        $floors = Floors::whereHas('apartments')->orderBy('floor_name')->get();
 
         // Build rent progress for each tenant (current month)
         $currentMonth = now()->month;
@@ -107,20 +117,43 @@ class TenantController extends Controller
             }
         }
 
-        return view('admin.tenantManagement.activeTenants', compact('tenants', 'apartments', 'rentProgressMap'));
+        // Statistics counts (across all records, not just current page)
+        $activeTenantCount = Tenants::where('status', 'active')->count();
+        $archivedTenantCount = Tenants::onlyTrashed()->count();
+        $totalDeposits = Tenants::where('status', 'active')->sum('deposit');
+
+        return view('admin.tenantManagement.activeTenants', compact('tenants', 'apartments', 'rentProgressMap', 'floors', 'activeTenantCount', 'archivedTenantCount', 'totalDeposits'));
     }
 
     /**
      * Display archived tenants (soft deleted)
      */
-    public function archived(): View
+    public function archived(Request $request): View
     {
-        $tenants = Tenants::onlyTrashed()
-            ->with(['apartment', 'leaves'])
-            ->orderBy('deleted_at', 'desc')
-            ->paginate(15);
+        $query = Tenants::onlyTrashed()
+            ->with(['apartment.floor', 'leaves']);
 
-        return view('admin.tenantManagement.archivedTenants', compact('tenants'));
+        if ($search = $request->input('search')) {
+            $query->where(function ($q) use ($search) {
+                $q->where('name', 'like', "%{$search}%")
+                  ->orWhere('email', 'like', "%{$search}%");
+            });
+        }
+
+        if ($floorId = $request->input('floor')) {
+            $query->whereHas('apartment.floor', function ($q) use ($floorId) {
+                $q->where('id', $floorId);
+            });
+        }
+
+        $tenants = $query->orderBy('deleted_at', 'desc')->paginate(15)->withQueryString();
+        $floors = Floors::orderBy('floor_name')->get();
+
+        $archivedTenantCount = Tenants::onlyTrashed()->count();
+        $recentlyArchivedCount = Tenants::onlyTrashed()->where('deleted_at', '>=', now()->subDays(30))->count();
+        $totalDeposits = Tenants::onlyTrashed()->sum('deposit');
+
+        return view('admin.tenantManagement.archivedTenants', compact('tenants', 'floors', 'archivedTenantCount', 'recentlyArchivedCount', 'totalDeposits'));
     }
 
     /**

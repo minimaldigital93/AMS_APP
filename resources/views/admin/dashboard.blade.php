@@ -3,7 +3,7 @@
 @section('title', 'Dashboard')
 
 @section('content')
-<div class="space-y-6" x-data="{ showRevenueForm: false, showExpenseForm: false }">
+<div class="space-y-6">
 
     {{-- Flash Messages --}}
     @if(session('success'))
@@ -30,14 +30,6 @@
             <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-700">
                 {{ $activePeriod->name }}
             </span>
-            <button @click="showRevenueForm = true" class="inline-flex items-center gap-1.5 px-4 py-2 bg-green-600 text-white text-sm font-medium rounded-lg hover:bg-green-700 transition">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/></svg>
-                Record Revenue
-            </button>
-            <button @click="showExpenseForm = true" class="inline-flex items-center gap-1.5 px-4 py-2 bg-red-600 text-white text-sm font-medium rounded-lg hover:bg-red-700 transition">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 12H4"/></svg>
-                Record Expense
-            </button>
         </div>
         @endif
     </div>
@@ -55,6 +47,23 @@
                     <p class="text-xl font-bold text-gray-900">${{ number_format($stats['revenue']['collected_this_month'] + $stats['revenue']['late_fees_this_month'], 2) }}</p>
                 </div>
             </div>
+            <div>
+            <p class="text-[11px] text-gray-400 mt-2 space-y-0.5">
+                @php $byType = $stats['revenue']['by_type'] ?? []; @endphp
+                @if(($byType['rent'] ?? 0) > 0)
+                    <span class="flex justify-between"><span>Rent</span><span class="font-medium text-green-500">+${{ number_format($byType['rent'], 2) }}</span></span>
+                @endif
+                @if(($byType['deposit'] ?? 0) > 0)
+                    <span class="flex justify-between"><span>Deposit</span><span class="font-medium text-green-500">+${{ number_format($byType['deposit'], 2) }}</span></span>
+                @endif
+                @if(($stats['revenue']['late_fees_this_month'] ?? 0) > 0)
+                    <span class="flex justify-between"><span>Late Fees</span><span class="font-medium text-green-500">+${{ number_format($stats['revenue']['late_fees_this_month'], 2) }}</span></span>
+                @endif
+                @if(($byType['other'] ?? 0) > 0)
+                    <span class="flex justify-between"><span>Other</span><span class="font-medium text-green-500">+${{ number_format($byType['other'], 2) }}</span></span>
+                @endif
+            </p>
+            </div>
         </div>
 
         {{-- Monthly Expenses --}}
@@ -67,6 +76,18 @@
                     <p class="text-xs text-gray-500 font-medium">Expenses</p>
                     <p class="text-xl font-bold text-gray-900">${{ number_format($stats['expenses']['monthly_total'] ?? 0, 2) }}</p>
                 </div>
+            </div>
+            <div>
+            <p class="text-[11px] text-gray-400 mt-2 space-y-0.5">
+                @if(($stats['expenses']['utilities_total'] ?? 0) > 0)
+                    <span class="flex justify-between"><span>Utilities</span><span class="font-medium text-red-400">-${{ number_format($stats['expenses']['utilities_total'], 2) }}</span></span>
+                @endif
+                @foreach(($stats['expenses']['account_breakdown'] ?? []) as $cat => $amt)
+                    @if($amt > 0)
+                        <span class="flex justify-between"><span>{{ str_replace('_', ' ', ucfirst($cat)) }}</span><span class="font-medium text-red-400">-${{ number_format($amt, 2) }}</span></span>
+                    @endif
+                @endforeach
+            </p>
             </div>
         </div>
 
@@ -86,7 +107,13 @@
                     </p>
                 </div>
             </div>
-        </div>
+            <div>
+            <p class="text-[11px] text-gray-400 mt-2 space-y-0.5">
+                <span class="flex justify-between"><span>Revenue</span><span class="font-medium text-green-500">+${{ number_format($stats['revenue']['collected_this_month'] + $stats['revenue']['late_fees_this_month'], 2) }}</span></span>
+                <span class="flex justify-between"><span>Expenses</span><span class="font-medium text-red-400">-${{ number_format($stats['expenses']['monthly_total'] ?? 0, 2) }}</span></span>
+            </p>
+                </div>
+            </div>
 
         {{-- Occupancy --}}
         <div class="bg-white rounded-xl border border-gray-200 p-5 shadow-sm">
@@ -98,6 +125,16 @@
                     <p class="text-xs text-gray-500 font-medium">Occupied / Total</p>
                     <p class="text-xl font-bold text-gray-900">{{ $stats['apartments']['occupied'] }} / {{ $stats['apartments']['total'] }}</p>
                 </div>
+            </div>
+            <div>
+            @php $occRate = $stats['apartments']['total'] > 0 ? round(($stats['apartments']['occupied'] / $stats['apartments']['total']) * 100, 1) : 0; @endphp
+            <p class="text-[11px] text-gray-400 mt-2 space-y-0.5">
+                <span class="flex justify-between"><span>Occupancy Rate</span><span class="font-medium {{ $occRate >= 80 ? 'text-green-500' : ($occRate >= 50 ? 'text-yellow-500' : 'text-red-500') }}">{{ $occRate }}%</span></span>
+                <span class="flex justify-between"><span>Available</span><span class="font-medium text-gray-500">{{ $stats['apartments']['available'] }}</span></span>
+                @if(($stats['apartments']['maintenance'] ?? 0) > 0)
+                    <span class="flex justify-between"><span>Maintenance</span><span class="font-medium text-gray-500">{{ $stats['apartments']['maintenance'] }}</span></span>
+                @endif
+            </p>
             </div>
         </div>
     </div>
@@ -126,26 +163,34 @@
                 <p class="text-sm font-medium text-green-700">Paid</p>
                 <p class="text-2xl font-bold text-green-800">{{ $stats['payments']['paid'] }}</p>
             </div>
-            <div class="w-10 h-10 rounded-full bg-green-200 flex items-center justify-center">
-                <svg class="w-5 h-5 text-green-700" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>
+            @php $paid = $stats['payments']['paid'] ?? 0; $assigned = $stats['apartments']['occupied'] ?? ($stats['apartments']['total'] ?? 0); @endphp
+            <div class="relative w-16 h-16 flex items-center justify-center">
+                <canvas id="paymentsDonutPaid" width="64" height="64"></canvas>
+                <span class="absolute inset-0 flex items-center justify-center pointer-events-none text-xs font-medium text-gray-700">{{ $paid }} / {{ $assigned }}</span>
             </div>
         </div>
+
         <div class="bg-yellow-50 border border-yellow-200 rounded-xl p-4 flex items-center justify-between">
             <div>
                 <p class="text-sm font-medium text-yellow-700">Pending</p>
                 <p class="text-2xl font-bold text-yellow-800">{{ $stats['payments']['pending'] }}</p>
             </div>
-            <div class="w-10 h-10 rounded-full bg-yellow-200 flex items-center justify-center">
-                <svg class="w-5 h-5 text-yellow-700" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clip-rule="evenodd"/></svg>
+            @php $pending = $stats['payments']['pending'] ?? 0; @endphp
+            <div class="relative w-16 h-16 flex items-center justify-center">
+                <canvas id="paymentsDonutPending" width="64" height="64"></canvas>
+                <span class="absolute inset-0 flex items-center justify-center pointer-events-none text-xs font-medium text-gray-700">{{ $pending }} / {{ $assigned }}</span>
             </div>
         </div>
+
         <div class="bg-red-50 border border-red-200 rounded-xl p-4 flex items-center justify-between">
             <div>
                 <p class="text-sm font-medium text-red-700">Overdue</p>
                 <p class="text-2xl font-bold text-red-800">{{ $stats['payments']['overdue'] }}</p>
             </div>
-            <div class="w-10 h-10 rounded-full bg-red-200 flex items-center justify-center">
-                <svg class="w-5 h-5 text-red-700" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/></svg>
+            @php $overdue = $stats['payments']['overdue'] ?? 0; @endphp
+            <div class="relative w-16 h-16 flex items-center justify-center">
+                <canvas id="paymentsDonutOverdue" width="64" height="64"></canvas>
+                <span class="absolute inset-0 flex items-center justify-center pointer-events-none text-xs font-medium text-gray-700">{{ $overdue }} / {{ $assigned }}</span>
             </div>
         </div>
     </div>
@@ -156,25 +201,6 @@
         <div class="flex items-center justify-between mb-4">
             <div>
                 <h2 class="text-lg font-bold text-gray-900">{{ $calendarData['startOfMonth']->format('F Y') }}</h2>
-                <p class="text-xs text-gray-500 mt-0.5">Daily revenue and expense overview</p>
-            </div>
-        </div>
-
-        {{-- Calendar Summary --}}
-        <div class="grid grid-cols-3 gap-3 mb-4">
-            <div class="bg-green-50 rounded-lg border border-green-200 p-3 text-center">
-                <p class="text-xs text-green-600 font-semibold uppercase">Income</p>
-                <p class="text-lg font-bold text-green-700">${{ number_format($calendarData['monthTotalIncome'], 2) }}</p>
-            </div>
-            <div class="bg-red-50 rounded-lg border border-red-200 p-3 text-center">
-                <p class="text-xs text-red-600 font-semibold uppercase">Expenses</p>
-                <p class="text-lg font-bold text-red-700">${{ number_format($calendarData['monthTotalExpense'], 2) }}</p>
-            </div>
-            <div class="bg-blue-50 rounded-lg border border-blue-200 p-3 text-center">
-                <p class="text-xs text-blue-600 font-semibold uppercase">Net</p>
-                <p class="text-lg font-bold {{ $calendarData['monthNet'] >= 0 ? 'text-green-700' : 'text-red-700' }}">
-                    {{ $calendarData['monthNet'] >= 0 ? '+' : '' }}${{ number_format($calendarData['monthNet'], 2) }}
-                </p>
             </div>
         </div>
 
@@ -234,40 +260,161 @@
 
         {{-- Legend --}}
         <div class="flex items-center gap-4 text-xs text-gray-500 mt-3">
-            <span class="flex items-center gap-1"><span class="w-2 h-2 bg-green-500 rounded-full"></span> Income</span>
-            <span class="flex items-center gap-1"><span class="w-2 h-2 bg-red-500 rounded-full"></span> Expense</span>
             <span class="flex items-center gap-1"><span class="w-3 h-3 border-2 border-blue-500 rounded"></span> Today</span>
         </div>
     </div>
 
+    {{-- Per-Floor Revenue Chart --}}
+    @if(!empty($apartmentRevenues))
+    <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6" x-data="{ expandedFloor: null }">
+        <div class="mb-4">
+            <h2 class="text-lg font-bold text-gray-900">Revenue by Floor</h2>
+            <p class="text-xs text-gray-500 mt-1">Expected vs Collected — {{ now()->format('F Y') }}</p>
+        </div>
+
+        {{-- Summary Cards --}}
+        @php
+            $totalExpected = collect($apartmentRevenues)->sum('expected');
+            $totalActual = collect($apartmentRevenues)->sum('actual');
+            $overallPct = $totalExpected > 0 ? round(($totalActual / $totalExpected) * 100, 1) : 0;
+            $outstanding = $totalExpected - $totalActual;
+        @endphp
+        <div class="mt-5 grid grid-cols-1 sm:grid-cols-3 gap-4">
+            {{-- Expected Rent --}}
+            <div class="rounded-xl border border-indigo-200 bg-indigo-50 p-4">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-lg bg-indigo-100 flex items-center justify-center">
+                        <svg class="w-5 h-5 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z"/></svg>
+                    </div>
+                    <div>
+                        <p class="text-xs font-medium text-indigo-600">Expected Rent</p>
+                        <p class="text-xl font-bold text-indigo-900">${{ number_format($totalExpected, 2) }}</p>
+                    </div>
+                </div>
+                <p class="text-xs text-indigo-500 mt-2">{{ now()->format('F Y') }} — all occupied units</p>
+            </div>
+
+            {{-- Rent Collected --}}
+            <div class="rounded-xl border border-emerald-200 bg-emerald-50 p-4">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-lg bg-emerald-100 flex items-center justify-center">
+                        <svg class="w-5 h-5 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                    </div>
+                    <div>
+                        <p class="text-xs font-medium text-emerald-600">Rent Collected</p>
+                        <p class="text-xl font-bold text-emerald-900">${{ number_format($totalActual, 2) }}</p>
+                    </div>
+                </div>
+                <p class="text-xs text-emerald-500 mt-2">
+                    @if($outstanding > 0)
+                        ${{ number_format($outstanding, 2) }} outstanding
+                    @else
+                        Fully collected
+                    @endif
+                </p>
+            </div>
+
+            {{-- Collection Rate --}}
+            <div class="rounded-xl border {{ $overallPct >= 80 ? 'border-emerald-200 bg-emerald-50' : ($overallPct >= 50 ? 'border-yellow-200 bg-yellow-50' : 'border-red-200 bg-red-50') }} p-4">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-lg {{ $overallPct >= 80 ? 'bg-emerald-100' : ($overallPct >= 50 ? 'bg-yellow-100' : 'bg-red-100') }} flex items-center justify-center">
+                        <svg class="w-5 h-5 {{ $overallPct >= 80 ? 'text-emerald-600' : ($overallPct >= 50 ? 'text-yellow-600' : 'text-red-600') }}" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 3.055A9.001 9.001 0 1020.945 13H11V3.055z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.488 9H15V3.512A9.025 9.025 0 0120.488 9z"/></svg>
+                    </div>
+                    <div>
+                        <p class="text-xs font-medium {{ $overallPct >= 80 ? 'text-emerald-600' : ($overallPct >= 50 ? 'text-yellow-600' : 'text-red-600') }}">Collection Rate</p>
+                        <p class="text-xl font-bold {{ $overallPct >= 80 ? 'text-emerald-900' : ($overallPct >= 50 ? 'text-yellow-900' : 'text-red-900') }}">{{ $overallPct }}%</p>
+                    </div>
+                </div>
+                <div class="mt-2">
+                    <div class="w-full bg-white/60 rounded-full h-2">
+                        <div class="h-2 rounded-full {{ $overallPct >= 80 ? 'bg-emerald-500' : ($overallPct >= 50 ? 'bg-yellow-500' : 'bg-red-500') }}" style="width: {{ min($overallPct, 100) }}%"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        {{-- Floor Apartment Breakdown (click to expand) --}}
+        <div class="mt-5 space-y-2">
+            @foreach($apartmentRevenues as $idx => $floor)
+            <div class="border border-gray-200 rounded-lg overflow-hidden">
+                <button @click="expandedFloor === {{ $idx }} ? expandedFloor = null : expandedFloor = {{ $idx }}"
+                    class="w-full flex items-center justify-between px-4 py-3 bg-gray-50 hover:bg-gray-100 transition text-left">
+                    <div class="flex items-center gap-3">
+                        <svg class="w-4 h-4 text-gray-400 transition-transform" :class="{ 'rotate-90': expandedFloor === {{ $idx }} }" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+                        <span class="text-sm font-semibold text-gray-800">{{ $floor['floor'] }}</span>
+                        <span class="text-xs text-gray-500">({{ count($floor['apartments']) }} units)</span>
+                    </div>
+                    <div class="flex items-center gap-4">
+                        <span class="text-xs text-gray-500">${{ number_format($floor['actual'], 2) }} / ${{ number_format($floor['expected'], 2) }}</span>
+                        <span class="text-xs font-bold px-2 py-0.5 rounded-full
+                            {{ $floor['percentage'] >= 100 ? 'bg-emerald-100 text-emerald-700' : ($floor['percentage'] >= 50 ? 'bg-yellow-100 text-yellow-700' : 'bg-red-100 text-red-700') }}">
+                            {{ $floor['percentage'] }}%
+                        </span>
+                    </div>
+                </button>
+                <div x-show="expandedFloor === {{ $idx }}" x-collapse>
+                    <table class="w-full text-sm">
+                        <thead>
+                            <tr class="bg-gray-50/50 text-left">
+                                <th class="px-4 py-2 font-medium text-gray-500">Unit</th>
+                                <th class="px-4 py-2 font-medium text-gray-500">Status</th>
+                                <th class="px-4 py-2 font-medium text-gray-500 text-right">Expected</th>
+                                <th class="px-4 py-2 font-medium text-gray-500 text-right">Collected</th>
+                                <th class="px-4 py-2 font-medium text-gray-500 text-right">Rate</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-gray-100">
+                            @foreach($floor['apartments'] as $apt)
+                            <tr class="hover:bg-gray-50">
+                                <td class="px-4 py-2 font-medium text-gray-800">{{ $apt['apartment'] }}</td>
+                                <td class="px-4 py-2">
+                                    <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium
+                                        {{ $apt['status'] === 'occupied' ? 'bg-green-100 text-green-700' : ($apt['status'] === 'available' ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-600') }}">
+                                        {{ ucfirst($apt['status']) }}
+                                    </span>
+                                </td>
+                                <td class="px-4 py-2 text-right text-gray-600">${{ number_format($apt['expected'], 2) }}</td>
+                                <td class="px-4 py-2 text-right font-medium text-gray-800">${{ number_format($apt['actual'], 2) }}</td>
+                                <td class="px-4 py-2 text-right">
+                                    <span class="font-semibold {{ $apt['percentage'] >= 100 ? 'text-emerald-600' : ($apt['percentage'] >= 50 ? 'text-yellow-600' : 'text-red-600') }}">
+                                        {{ $apt['percentage'] }}%
+                                    </span>
+                                </td>
+                            </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            @endforeach
+        </div>
+    </div>
+    @endif
+
     {{-- Recent Transactions --}}
     @if($recentTransactions->isNotEmpty())
     <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-        <h2 class="text-lg font-bold text-gray-900 mb-4">Recent Transactions</h2>
+        <h2 class="text-lg font-bold text-gray-900 mb-2">Recent Transactions</h2>
+        <p class="text-xs text-gray-500 mb-4">Latest 5 transactions — concise view</p>
         <div class="overflow-x-auto">
             <table class="w-full text-sm">
                 <thead>
                     <tr class="text-left border-b border-gray-200">
                         <th class="pb-2 font-semibold text-gray-600">Date</th>
-                        <th class="pb-2 font-semibold text-gray-600">Type</th>
                         <th class="pb-2 font-semibold text-gray-600">Description</th>
-                        <th class="pb-2 font-semibold text-gray-600">Category</th>
                         <th class="pb-2 font-semibold text-gray-600 text-right">Amount</th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-gray-100">
-                    @foreach($recentTransactions as $tx)
+                    @foreach($recentTransactions->take(5) as $tx)
                     <tr class="hover:bg-gray-50">
                         <td class="py-2.5 text-gray-500">{{ $tx->transaction_date->format('M d') }}</td>
-                        <td class="py-2.5">
-                            @if($tx->account_type === 'income')
-                                <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-700">Income</span>
-                            @else
-                                <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-700">Expense</span>
-                            @endif
+                        <td class="py-2.5 text-gray-700 max-w-[260px] truncate">
+                            <div class="flex items-center gap-2">
+                                <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium {{ $tx->account_type === 'income' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700' }}">{{ $tx->account_type === 'income' ? 'Income' : 'Expense' }}</span>
+                                <span class="truncate">{{ \Illuminate\Support\Str::limit($tx->description, 50) }}</span>
+                            </div>
                         </td>
-                        <td class="py-2.5 text-gray-700 max-w-[200px] truncate">{{ $tx->description }}</td>
-                        <td class="py-2.5 text-gray-500 text-xs">{{ str_replace('_', ' ', ucfirst($tx->category)) }}</td>
                         <td class="py-2.5 text-right font-medium {{ $tx->account_type === 'income' ? 'text-green-700' : 'text-red-700' }}">
                             {{ $tx->account_type === 'income' ? '+' : '-' }}${{ number_format($tx->amount, 2) }}
                         </td>
@@ -317,145 +464,59 @@
     </div>
     @endif
 
-    {{-- ═══════════════════════════════════════════════════════════ --}}
-    {{-- RECORD REVENUE MODAL                                       --}}
-    {{-- ═══════════════════════════════════════════════════════════ --}}
-    @if($activePeriod)
-    <div x-show="showRevenueForm" x-cloak
-         class="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
-         @keydown.escape.window="showRevenueForm = false">
-        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md mx-4 max-h-[90vh] overflow-y-auto"
-             @click.outside="showRevenueForm = false">
-            <div class="p-6">
-                <div class="flex items-center justify-between mb-5">
-                    <h3 class="text-lg font-bold text-gray-900">Record Revenue</h3>
-                    <button @click="showRevenueForm = false" class="text-gray-400 hover:text-gray-600">
-                        <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"/></svg>
-                    </button>
-                </div>
-                <form method="POST" action="{{ route('admin.dashboard.quick_revenue') }}" class="space-y-4">
-                    @csrf
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Apartment / Tenant</label>
-                        <select name="rental_id" required class="w-full border-gray-300 rounded-lg text-sm focus:ring-green-500 focus:border-green-500">
-                            <option value="">Select apartment...</option>
-                            @foreach($apartmentsWithRentals as $apt)
-                                @foreach($apt->rentals as $rental)
-                                <option value="{{ $rental->id }}">
-                                    Apt {{ $apt->apartment_number }} — {{ $rental->tenant->name ?? 'N/A' }} (${{ number_format($rental->rent_amount, 2) }}/mo)
-                                </option>
-                                @endforeach
-                            @endforeach
-                        </select>
-                    </div>
-                    <div class="grid grid-cols-2 gap-3">
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">Amount ($)</label>
-                            <input type="number" name="amount" step="0.01" min="0.01" required
-                                   class="w-full border-gray-300 rounded-lg text-sm focus:ring-green-500 focus:border-green-500"
-                                   placeholder="0.00">
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">Date</label>
-                            <input type="date" name="transaction_date" value="{{ now()->toDateString() }}" required
-                                   class="w-full border-gray-300 rounded-lg text-sm focus:ring-green-500 focus:border-green-500">
-                        </div>
-                    </div>
-                    <div class="grid grid-cols-2 gap-3">
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">Type</label>
-                            <select name="payment_type" required class="w-full border-gray-300 rounded-lg text-sm focus:ring-green-500 focus:border-green-500">
-                                <option value="rent">Rent</option>
-                                <option value="utilities">Utilities</option>
-                                <option value="deposit">Deposit</option>
-                                <option value="other">Other</option>
-                            </select>
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">Method</label>
-                            <select name="payment_method" required class="w-full border-gray-300 rounded-lg text-sm focus:ring-green-500 focus:border-green-500">
-                                <option value="cash">Cash</option>
-                                <option value="bank">Bank</option>
-                            </select>
-                        </div>
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Note <span class="text-gray-400">(optional)</span></label>
-                        <input type="text" name="note" maxlength="500"
-                               class="w-full border-gray-300 rounded-lg text-sm focus:ring-green-500 focus:border-green-500"
-                               placeholder="e.g. April rent payment">
-                    </div>
-                    <button type="submit" class="w-full bg-green-600 text-white py-2.5 rounded-lg font-medium hover:bg-green-700 transition">
-                        Record Revenue
-                    </button>
-                </form>
-            </div>
-        </div>
-    </div>
+@push('scripts')
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+    document.addEventListener('DOMContentLoaded', function () {
 
-    {{-- ═══════════════════════════════════════════════════════════ --}}
-    {{-- RECORD EXPENSE MODAL                                       --}}
-    {{-- ═══════════════════════════════════════════════════════════ --}}
-    <div x-show="showExpenseForm" x-cloak
-         class="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
-         @keydown.escape.window="showExpenseForm = false">
-        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md mx-4 max-h-[90vh] overflow-y-auto"
-             @click.outside="showExpenseForm = false">
-            <div class="p-6">
-                <div class="flex items-center justify-between mb-5">
-                    <h3 class="text-lg font-bold text-gray-900">Record Expense</h3>
-                    <button @click="showExpenseForm = false" class="text-gray-400 hover:text-gray-600">
-                        <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"/></svg>
-                    </button>
-                </div>
-                <form method="POST" action="{{ route('admin.dashboard.quick_expense') }}" class="space-y-4">
-                    @csrf
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Category</label>
-                        <select name="category" required class="w-full border-gray-300 rounded-lg text-sm focus:ring-red-500 focus:border-red-500">
-                            <option value="">Select category...</option>
-                            <option value="utilities_expense">Utilities (Electric, Water, etc.)</option>
-                            <option value="maintenance">Maintenance & Repairs</option>
-                            <option value="insurance">Insurance</option>
-                            <option value="property_tax">Property Tax</option>
-                            <option value="management">Management Fee</option>
-                            <option value="business_fixed">Business Fixed (Salary, Recurring)</option>
-                            <option value="business_variable">Business Variable (Supplies, Ads)</option>
-                            <option value="other_expense">Other</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Description</label>
-                        <input type="text" name="description" required maxlength="500"
-                               class="w-full border-gray-300 rounded-lg text-sm focus:ring-red-500 focus:border-red-500"
-                               placeholder="e.g. Electricity bill for building">
-                    </div>
-                    <div class="grid grid-cols-2 gap-3">
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">Amount ($)</label>
-                            <input type="number" name="amount" step="0.01" min="0.01" required
-                                   class="w-full border-gray-300 rounded-lg text-sm focus:ring-red-500 focus:border-red-500"
-                                   placeholder="0.00">
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">Date</label>
-                            <input type="date" name="transaction_date" value="{{ now()->toDateString() }}" required
-                                   class="w-full border-gray-300 rounded-lg text-sm focus:ring-red-500 focus:border-red-500">
-                        </div>
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Note <span class="text-gray-400">(optional)</span></label>
-                        <input type="text" name="note" maxlength="500"
-                               class="w-full border-gray-300 rounded-lg text-sm focus:ring-red-500 focus:border-red-500"
-                               placeholder="Additional details...">
-                    </div>
-                    <button type="submit" class="w-full bg-red-600 text-white py-2.5 rounded-lg font-medium hover:bg-red-700 transition">
-                        Record Expense
-                    </button>
-                </form>
-            </div>
-        </div>
-    </div>
-    @endif
+        // ── Payment Status Donuts ──
+        var paid = {{ json_encode($stats['payments']['paid'] ?? 0) }};
+        var pending = {{ json_encode($stats['payments']['pending'] ?? 0) }};
+        var overdue = {{ json_encode($stats['payments']['overdue'] ?? 0) }};
+        var totalAssigned = {{ json_encode($stats['apartments']['occupied'] ?? ($stats['apartments']['total'] ?? 0)) }};
+
+        function renderMini(id, value, color) {
+            var el = document.getElementById(id);
+            if (!el) return;
+            var remainder = Math.max((totalAssigned || 0) - value, 0);
+            new Chart(el, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Value', 'Remaining'],
+                    datasets: [{
+                        data: [value, remainder],
+                        backgroundColor: [color, '#e5e7eb'],
+                        hoverBackgroundColor: [color, '#d1d5db'],
+                        borderWidth: 0
+                    }]
+                },
+                options: {
+                    cutout: '70%',
+                    maintainAspectRatio: false,
+                    responsive: true,
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    if (context.dataIndex !== 0) return null;
+                                    var v = context.parsed || 0;
+                                    var pct = totalAssigned > 0 ? (v / totalAssigned * 100).toFixed(1) : '0.0';
+                                    return context.label + ': ' + v + ' (' + pct + '%)';
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        renderMini('paymentsDonutPaid', paid, '#16a34a');
+        renderMini('paymentsDonutPending', pending, '#f59e0b');
+        renderMini('paymentsDonutOverdue', overdue, '#ef4444');
+    });
+    </script>
+    @endpush
+
 </div>
 @endsection

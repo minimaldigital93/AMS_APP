@@ -1,7 +1,7 @@
 @extends('layouts.admin')
 
 @section('content')
-<div class="min-h-screen bg-gray-50 py-8">
+<div class="max-w-4xl mx-auto space-y-6">
     <div class="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8">
         <!-- Header -->
         <div class="mb-8">
@@ -15,15 +15,15 @@
         </div>
 
         <!-- Form Card -->
-        <div class="bg-white rounded-lg shadow-md p-6">
+        <div class="bg-white rounded-xl border border-slate-100 p-6">
             <form action="{{ route('admin.tenants.store') }}" method="POST" enctype="multipart/form-data" class="space-y-6">
                 @csrf
 
                 <!-- Photo Upload -->
                 <div>
-                    <label for="photo" class="block text-sm font-medium text-gray-700 mb-2">Tenant Photo</label>
+                    <label for="photo" class="block text-sm font-medium text-slate-500 mb-2">Tenant Photo</label>
                     <div class="flex items-center justify-center w-full">
-                        <label for="photo" class="flex flex-col items-center justify-center w-full h-32 border-2 border-gray-300 border-dashed rounded-lg cursor-pointer bg-gray-50 hover:bg-gray-100 transition">
+                        <label for="photo" class="flex flex-col items-center justify-center w-full h-32 border-2 border-slate-200 border-dashed rounded-lg cursor-pointer bg-slate-50 hover:bg-slate-100 transition text-slate-600">
                             <div class="flex flex-col items-center justify-center pt-5 pb-6">
                                 <svg class="w-8 h-8 text-gray-400 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
@@ -43,7 +43,7 @@
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <!-- Apartment -->
                     <div>
-                        <label for="apartment_id" class="block text-sm font-medium text-gray-700 mb-2">Apartment *</label>
+                        <label for="apartment_id" class="block text-sm font-medium text-slate-500 mb-2">Apartment *</label>
                         <select id="apartment_id" name="apartment_id" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent {{ $errors->has('apartment_id') ? 'border-red-500' : '' }}">
                             <option value="">Select an Apartment</option>
                             @foreach($apartments as $apartment)
@@ -59,8 +59,8 @@
 
                     <!-- Tenant Name -->
                     <div>
-                        <label for="name" class="block text-sm font-medium text-gray-700 mb-2">Tenant Name *</label>
-                        <input type="text" id="name" name="name" required placeholder="Full Name" value="{{ old('name') }}" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent {{ $errors->has('name') ? 'border-red-500' : '' }}">
+                        <label for="name" class="block text-sm font-medium text-slate-500 mb-2">Tenant Name *</label>
+                        <input type="text" id="name" name="name" required placeholder="Full Name" value="{{ old('name') }}" class="w-full px-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-slate-200 focus:border-transparent text-slate-600 {{ $errors->has('name') ? 'border-red-500' : '' }}">
                         @error('name')
                             <p class="text-red-500 text-sm mt-1">{{ $message }}</p>
                         @enderror
@@ -68,8 +68,8 @@
 
                     <!-- Email -->
                     <div>
-                        <label for="email" class="block text-sm font-medium text-gray-700 mb-2">Email *</label>
-                        <input type="email" id="email" name="email" required placeholder="email@example.com" value="{{ old('email') }}" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent {{ $errors->has('email') ? 'border-red-500' : '' }}">
+                        <label for="email" class="block text-sm font-medium text-slate-500 mb-2">Email *</label>
+                        <input type="email" id="email" name="email" required placeholder="email@example.com" value="{{ old('email') }}" class="w-full px-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-slate-200 focus:border-transparent text-slate-600 {{ $errors->has('email') ? 'border-red-500' : '' }}">
                         @error('email')
                             <p class="text-red-500 text-sm mt-1">{{ $message }}</p>
                         @enderror
@@ -113,8 +113,8 @@
 
                     <!-- Status -->
                     <div>
-                        <label for="status" class="block text-sm font-medium text-gray-700 mb-2">Status *</label>
-                        <select id="status" name="status" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent {{ $errors->has('status') ? 'border-red-500' : '' }}">
+                        <label for="status" class="block text-sm font-medium text-slate-500 mb-2">Status *</label>
+                            <select id="status" name="status" required class="w-full px-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-slate-200 focus:border-transparent text-slate-600 {{ $errors->has('status') ? 'border-red-500' : '' }}">
                             <option value="">Select Status</option>
                             <option value="pending" {{ old('status') === 'pending' ? 'selected' : '' }}>Pending</option>
                             <option value="active" {{ old('status') === 'active' ? 'selected' : '' }}>Active</option>
@@ -155,10 +155,10 @@
 
                 <!-- Buttons -->
                 <div class="flex gap-3 pt-6">
-                    <button type="submit" class="flex-1 px-6 py-2 border border-transparent text-base font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 transition">
+                    <button type="submit" class="flex-1 px-6 py-2 border border-transparent text-base font-medium rounded-md text-white bg-slate-800 hover:bg-slate-700 transition">
                         Create Tenant
                     </button>
-                    <a href="{{ route('admin.tenants.index') }}" class="flex-1 px-6 py-2 border border-gray-300 text-base font-medium rounded-md text-gray-700 hover:bg-gray-50 transition text-center">
+                    <a href="{{ route('admin.tenants.index') }}" class="flex-1 px-6 py-2 border border-slate-200 text-base font-medium rounded-md text-slate-700 hover:bg-slate-50 transition text-center">
                         Cancel
                     </a>
                 </div>

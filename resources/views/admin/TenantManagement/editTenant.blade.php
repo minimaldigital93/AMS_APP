@@ -1,28 +1,28 @@
 @extends('layouts.admin')
 
 @section('content')
-<div class="min-h-screen bg-gray-50 py-8">
+<div class="max-w-4xl mx-auto space-y-6">
     <div class="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8">
         <!-- Header -->
         <div class="mb-8">
-            <a href="{{ route('admin.tenants.show', $tenant->id) }}" class="text-blue-600 hover:text-blue-900 flex items-center mb-4">
+            <a href="{{ route('admin.tenants.show', $tenant->id) }}" class="text-slate-500 hover:text-slate-700 flex items-center mb-4">
                 <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
                 </svg>
                 Back to Details
             </a>
-            <h1 class="text-3xl font-bold text-gray-900">Edit Tenant</h1>
+            <h1 class="text-2xl font-semibold text-slate-800">Edit Tenant</h1>
         </div>
 
         <!-- Form Card -->
-        <div class="bg-white rounded-lg shadow-md p-6">
+        <div class="bg-white rounded-xl border border-slate-100 p-6">
             <form action="{{ route('admin.tenants.update', $tenant->id) }}" method="POST" enctype="multipart/form-data" class="space-y-6">
                 @csrf
                 @method('PUT')
 
                 <!-- Photo Upload -->
                 <div>
-                    <label for="photo" class="block text-sm font-medium text-gray-700 mb-2">Tenant Photo</label>
+                            <label for="photo" class="block text-sm font-medium text-slate-500 mb-2">Tenant Photo</label>
                     <div class="flex items-start gap-6">
                         <!-- Current Photo -->
                         @if($tenant->photo_path && !str_ends_with($tenant->photo_path, '.pdf'))
@@ -47,7 +47,7 @@
                         
                         <!-- Upload Area -->
                         <div class="flex-1">
-                            <label for="photo" class="flex flex-col items-center justify-center w-full h-32 border-2 border-gray-300 border-dashed rounded-lg cursor-pointer bg-gray-50 hover:bg-gray-100 transition">
+                            <label for="photo" class="flex flex-col items-center justify-center w-full h-32 border-2 border-slate-200 border-dashed rounded-lg cursor-pointer bg-slate-50 hover:bg-slate-100 transition text-slate-600">
                                 <div class="flex flex-col items-center justify-center pt-5 pb-6">
                                     <svg class="w-8 h-8 text-gray-400 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
@@ -68,8 +68,8 @@
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <!-- Apartment -->
                     <div>
-                        <label for="apartment_id" class="block text-sm font-medium text-gray-700 mb-2">Apartment *</label>
-                        <select id="apartment_id" name="apartment_id" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent {{ $errors->has('apartment_id') ? 'border-red-500' : '' }}">
+                        <label for="apartment_id" class="block text-sm font-medium text-slate-500 mb-2">Apartment *</label>
+                            <select id="apartment_id" name="apartment_id" required class="w-full px-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-slate-200 focus:border-transparent text-slate-600 {{ $errors->has('apartment_id') ? 'border-red-500' : '' }}">
                             <option value="">Select an Apartment</option>
                             @foreach($apartments as $apartment)
                                 <option value="{{ $apartment->id }}" {{ $tenant->apartment_id == $apartment->id ? 'selected' : '' }}>
@@ -84,8 +84,8 @@
 
                     <!-- Tenant Name -->
                     <div>
-                        <label for="name" class="block text-sm font-medium text-gray-700 mb-2">Tenant Name *</label>
-                        <input type="text" id="name" name="name" required placeholder="Full Name" value="{{ old('name', $tenant->name) }}" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent {{ $errors->has('name') ? 'border-red-500' : '' }}">
+                        <label for="name" class="block text-sm font-medium text-slate-500 mb-2">Tenant Name *</label>
+                        <input type="text" id="name" name="name" required placeholder="Full Name" value="{{ old('name', $tenant->name) }}" class="w-full px-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-slate-200 focus:border-transparent text-slate-600 {{ $errors->has('name') ? 'border-red-500' : '' }}">
                         @error('name')
                             <p class="text-red-500 text-sm mt-1">{{ $message }}</p>
                         @enderror
@@ -93,8 +93,8 @@
 
                     <!-- Email -->
                     <div>
-                        <label for="email" class="block text-sm font-medium text-gray-700 mb-2">Email *</label>
-                        <input type="email" id="email" name="email" required placeholder="email@example.com" value="{{ old('email', $tenant->email) }}" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent {{ $errors->has('email') ? 'border-red-500' : '' }}">
+                        <label for="email" class="block text-sm font-medium text-slate-500 mb-2">Email *</label>
+                        <input type="email" id="email" name="email" required placeholder="email@example.com" value="{{ old('email', $tenant->email) }}" class="w-full px-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-slate-200 focus:border-transparent text-slate-600 {{ $errors->has('email') ? 'border-red-500' : '' }}">
                         @error('email')
                             <p class="text-red-500 text-sm mt-1">{{ $message }}</p>
                         @enderror
@@ -138,8 +138,8 @@
 
                     <!-- Status -->
                     <div>
-                        <label for="status" class="block text-sm font-medium text-gray-700 mb-2">Status *</label>
-                        <select id="status" name="status" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent {{ $errors->has('status') ? 'border-red-500' : '' }}">
+                        <label for="status" class="block text-sm font-medium text-slate-500 mb-2">Status *</label>
+                            <select id="status" name="status" required class="w-full px-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-slate-200 focus:border-transparent text-slate-600 {{ $errors->has('status') ? 'border-red-500' : '' }}">
                             <option value="">Select Status</option>
                             <option value="pending" {{ old('status', $tenant->status) === 'pending' ? 'selected' : '' }}>Pending</option>
                             <option value="active" {{ old('status', $tenant->status) === 'active' ? 'selected' : '' }}>Active</option>
@@ -180,10 +180,10 @@
 
                 <!-- Buttons -->
                 <div class="flex gap-3 pt-6">
-                    <button type="submit" class="flex-1 px-6 py-2 border border-transparent text-base font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 transition">
+                    <button type="submit" class="flex-1 px-6 py-2 border border-transparent text-base font-medium rounded-md text-white bg-slate-800 hover:bg-slate-700 transition">
                         Update Tenant
                     </button>
-                    <a href="{{ route('admin.tenants.show', $tenant->id) }}" class="flex-1 px-6 py-2 border border-gray-300 text-base font-medium rounded-md text-gray-700 hover:bg-gray-50 transition text-center">
+                    <a href="{{ route('admin.tenants.show', $tenant->id) }}" class="flex-1 px-6 py-2 border border-slate-200 text-base font-medium rounded-md text-slate-700 hover:bg-slate-50 transition text-center">
                         Cancel
                     </a>
                 </div>

@@ -12,25 +12,24 @@
         </a>
     </div>
 
-    <!-- Search and Filters -->
+    <!-- Realtime Search and Filters -->
     <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-        <form method="GET" action="{{ route('admin.users.index') }}" class="flex gap-4">
-            <input type="text" name="search" placeholder="Search by name or email..." value="{{ request('search') }}" 
+        <div class="flex gap-4 items-center">
+            <input id="userSearch" type="text" placeholder="search by name or email..."
                 class="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
-            
-            <select name="role" class="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+
+            <select id="roleFilter" class="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
                 <option value="">All Roles</option>
                 @foreach($roles as $role)
-                    <option value="{{ $role->name }}" {{ request('role') == $role->name ? 'selected' : '' }}>
-                        {{ ucfirst($role->name) }}
-                    </option>
+                    <option value="{{ $role->name }}">{{ ucfirst($role->name) }}</option>
                 @endforeach
             </select>
-            
-            <button type="submit" class="px-6 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition">
-                Filter
+
+            <button id="clearFilters" type="button" class="px-4 py-2 bg-gray-100 rounded-lg hover:bg-gray-200 transition">
+                Clear
             </button>
-        </form>
+        </div>
+       
     </div>
 
     <!-- Users Table -->
@@ -38,9 +37,12 @@
         <table class="w-full">
             <thead class="bg-gray-50 border-b border-gray-200">
                 <tr>
+                    <th class="px-6 py-3 text-left text-sm font-semibold text-gray-900">No</th>
                     <th class="px-6 py-3 text-left text-sm font-semibold text-gray-900">Name</th>
                     <th class="px-6 py-3 text-left text-sm font-semibold text-gray-900">Email</th>
-                    <th class="px-6 py-3 text-left text-sm font-semibold text-gray-900">Role</th>
+                    <th class="px-6 py-3 text-left text-sm font-semibold text-gray-900">Role
+                        <button id="sortRoleBtn" title="Sort by role" class="ml-2 text-xs text-gray-500 hover:text-gray-700">Sort</button>
+                    </th>
                     <th class="px-6 py-3 text-left text-sm font-semibold text-gray-900">Status</th>
                     <th class="px-6 py-3 text-left text-sm font-semibold text-gray-900">Assigned Roles</th>
                     <th class="px-6 py-3 text-left text-sm font-semibold text-gray-900">Actions</th>
@@ -49,6 +51,7 @@
             <tbody class="divide-y divide-gray-200">
                 @forelse($users as $user)
                 <tr class="hover:bg-gray-50 transition">
+                    <td class="px-6 py-4 text-gray-600">{{ ($users->currentPage()-1) * $users->perPage() + $loop->iteration }}</td>
                     <td class="px-6 py-4 font-medium text-gray-900">{{ $user->name }}</td>
                     <td class="px-6 py-4 text-gray-600">{{ $user->email }}</td>
                     <td class="px-6 py-4">
@@ -90,7 +93,7 @@
                 </tr>
                 @empty
                 <tr>
-                    <td colspan="5" class="px-6 py-4 text-center text-gray-500">No users found</td>
+                    <td colspan="7" class="px-6 py-4 text-center text-gray-500">No users found</td>
                 </tr>
                 @endforelse
             </tbody>
@@ -102,5 +105,67 @@
         {{ $users->links() }}
     </div>
 </div>
+
+    @push('scripts')
+    <script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const searchInput = document.getElementById('userSearch');
+        const roleFilter = document.getElementById('roleFilter');
+        const clearBtn = document.getElementById('clearFilters');
+        const sortBtn = document.getElementById('sortRoleBtn');
+        const tbody = document.querySelector('table tbody');
+        let sortAsc = true;
+
+        function normalize(text){ return (text||'').toString().trim().toLowerCase(); }
+
+        function filterRows() {
+            const q = normalize(searchInput.value);
+            const role = normalize(roleFilter.value);
+
+            Array.from(tbody.querySelectorAll('tr')).forEach(row => {
+                // skip empty/no-data row
+                if (row.querySelectorAll('td').length === 1) return;
+                const name = normalize(row.children[1].innerText);
+                const email = normalize(row.children[2].innerText);
+                const roleText = normalize(row.children[3].innerText);
+
+                const matchesQuery = q === '' || name.includes(q) || email.includes(q);
+                const matchesRole = role === '' || roleText === role;
+
+                row.style.display = (matchesQuery && matchesRole) ? '' : 'none';
+            });
+        }
+
+        function sortByRole() {
+            const rows = Array.from(tbody.querySelectorAll('tr'))
+                .filter(r => r.querySelectorAll('td').length > 1 && r.style.display !== 'none');
+
+            rows.sort((a,b) => {
+                const ra = normalize(a.children[3].innerText) || 'zzzz';
+                const rb = normalize(b.children[3].innerText) || 'zzzz';
+                if (ra === rb) {
+                    const na = normalize(a.children[1].innerText);
+                    const nb = normalize(b.children[1].innerText);
+                    return na.localeCompare(nb) * (sortAsc ? 1 : -1);
+                }
+                return (ra.localeCompare(rb)) * (sortAsc ? 1 : -1);
+            });
+
+            // Re-append in sorted order
+            rows.forEach(r => tbody.appendChild(r));
+            sortAsc = !sortAsc;
+            sortBtn.textContent = sortAsc ? 'Sort ▲' : 'Sort ▼';
+        }
+
+        searchInput.addEventListener('input', filterRows);
+        roleFilter.addEventListener('change', filterRows);
+        clearBtn.addEventListener('click', function(){ searchInput.value=''; roleFilter.value=''; filterRows(); });
+        sortBtn.addEventListener('click', sortByRole);
+
+        // initialize button text
+        sortBtn.textContent = 'Sort ▲';
+    });
+    </script>
+    @endpush
 
 @endsection
