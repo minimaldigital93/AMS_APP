@@ -84,14 +84,30 @@ class RevenueExpenseController extends Controller
             ? round(($allApartments->where('status', 'occupied')->count() / $allApartments->count()) * 100, 1)
             : 0;
 
-        $revenueExpenseData['expectedMonthlyRent'] = Rentals::whereHas('tenant')
+        // Expected monthly rent: sum of rents for rentals active during the selected date range
+        $rentalQuery = Rentals::whereHas('tenant')
             ->whereHas('apartment', function ($q) {
                 $q->where(function ($sq) {
                     $sq->where('supervisor_id', Auth::id())->orWhereNull('supervisor_id');
                 });
-            })
-            ->active()
-            ->sum('rent_amount');
+            });
+
+        if ($startDate && $endDate) {
+            // include rentals that overlap the selected month/date range
+            $rentalQuery->where(function ($q) use ($startDate, $endDate) {
+                $q->whereNull('end_date')->where('start_date', '<=', $endDate)
+                  ->orWhere(function ($q2) use ($startDate, $endDate) {
+                      $q2->where('start_date', '<=', $endDate)
+                         ->where(function ($q3) use ($startDate) {
+                             $q3->whereNull('end_date')->orWhere('end_date', '>=', $startDate);
+                         });
+                  });
+            });
+        } else {
+            $rentalQuery->active();
+        }
+
+        $revenueExpenseData['expectedMonthlyRent'] = $rentalQuery->sum('rent_amount');
 
         // ===== RECORD INCOME DATA =====
         $incomeApartments = $this->scopeApartments()
@@ -660,6 +676,8 @@ class RevenueExpenseController extends Controller
                 'tenant_id' => $activeTenantId,
                 'apartment_number' => $apartment->apartment_number,
                 'floor' => $apartment->floor->floor_number ?? 'N/A',
+                // explicit floor_number for view grouping
+                'floor_number' => $apartment->floor->floor_number ?? 'N/A',
                 'tenant' => $tenantName ?: 'Vacant',
                 'has_active_rental' => $hasActiveRental,
                 'monthly_rent' => $apartment->monthly_rent,

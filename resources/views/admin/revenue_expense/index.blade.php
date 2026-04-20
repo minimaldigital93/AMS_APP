@@ -129,39 +129,107 @@
     </div>
     @endif
 
-    {{-- Fiscal Period Progress Bar --}}
+     {{-- Summary Cards  --}}
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 my-6">
+        <div class="bg-white rounded-xl shadow-md p-6 border-l-4 border-green-500">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-gray-500 text-sm font-medium">Income</p>
+                    <p class="text-2xl font-bold text-green-600 mt-1">${{ number_format($income['total_income'], 2) }}</p>
+                </div>
+                <div class="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center">
+                    <svg class="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                </div>
+            </div>
+            <p class="text-xs text-gray-400 mt-2">{{ $income['payment_count'] }} payment{{ $income['payment_count'] !== 1 ? 's' : '' }}</p>
+        </div>
+        <div class="bg-white rounded-xl shadow-md p-6 border-l-4 border-red-500">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-gray-500 text-sm font-medium">Business Expenses</p>
+                    <p class="text-2xl font-bold text-red-600 mt-1">${{ number_format($expenses['total_expenses'], 2) }}</p>
+                </div>
+                <div class="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center">
+                    <svg class="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 17h8m0 0V9m0 8l-8-8-4 4-6-6"/></svg>
+                </div>
+            </div>
+            <p class="text-xs text-gray-400 mt-2">{{ $expenses['expense_count'] }} transaction{{ $expenses['expense_count'] !== 1 ? 's' : '' }}</p>
+        </div>
+        <div class="bg-white rounded-xl shadow-md p-6 border-l-4 {{ $summary['net_profit'] >= 0 ? 'border-blue-500' : 'border-orange-500' }}">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-gray-500 text-sm font-medium">Net Profit</p>
+                    <p class="text-2xl font-bold {{ $summary['net_profit'] >= 0 ? 'text-blue-600' : 'text-orange-600' }} mt-1">
+                        {{ $summary['net_profit'] >= 0 ? '+' : '' }}${{ number_format($summary['net_profit'], 2) }}
+                    </p>
+                </div>
+                <div class="w-12 h-12 {{ $summary['net_profit'] >= 0 ? 'bg-blue-100' : 'bg-orange-100' }} rounded-full flex items-center justify-center">
+                    <svg class="w-6 h-6 {{ $summary['net_profit'] >= 0 ? 'text-blue-600' : 'text-orange-600' }}" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+                </div>
+            </div>
+            <p class="text-xs text-gray-400 mt-2">{{ $summary['profit_margin'] }}% margin</p>
+        </div>
+        <div class="bg-white rounded-xl shadow-md p-6 border-l-4 border-purple-500">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-gray-500 text-sm font-medium">Occupancy</p>
+                    <p class="text-2xl font-bold text-purple-600 mt-1">{{ $occupiedCount }}/{{ $totalApartments }}</p>
+                </div>
+                <div class="w-12 h-12 bg-purple-100 rounded-full flex items-center justify-center">
+                    <svg class="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/></svg>
+                </div>
+            </div>
+            <p class="text-xs text-gray-400 mt-2">{{ $occupancyRate }}% occupied</p>
+        </div>
+    </div>
+
+    {{-- Fiscal Period Donut Progress --}}
     @php
         $periodStart = \Carbon\Carbon::parse($activePeriod->opening_date);
         $periodEnd = \Carbon\Carbon::parse($activePeriod->closing_date);
         $today = now();
         $totalDays = max(1, $periodStart->diffInDays($periodEnd));
         $daysPassed = max(0, (int) $periodStart->diffInDays($today));
-        $daysLeft = max(0, (int) $today->diffInDays($periodEnd, false));
         $periodPercent = min(100, max(0, round(($daysPassed / $totalDays) * 100, 1)));
-
-        if ($periodPercent >= 80) {
-            $barColor = 'from-red-400 to-red-500';
-            $bgColor = 'bg-red-100';
-            $textColor = 'text-red-600';
-        } elseif ($periodPercent >= 50) {
-            $barColor = 'from-orange-400 to-orange-500';
-            $bgColor = 'bg-orange-100';
-            $textColor = 'text-orange-600';
-        } else {
-            $barColor = 'from-blue-400 to-blue-500';
-            $bgColor = 'bg-blue-100';
-            $textColor = 'text-blue-600';
-        }
+        $percentLabel = $periodPercent . '%';
+        $r = 40;
+        $circ = 2 * pi() * $r;
+        $offset = $circ * (1 - ($periodPercent / 100));
     @endphp
-    <div class="bg-white rounded-xl shadow-md px-4 py-2.5">
-        <div class="flex items-center justify-between mb-1">
-            <span class="text-xs font-semibold {{ $textColor }}">{{ $periodPercent }}%</span>
-            <span class="text-xs font-medium text-gray-500">{{ $daysLeft }} days left</span>
+    <div class="bg-white rounded-xl shadow-md p-4">
+        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-3">
+            <div>
+                <p class="text-sm font-medium text-gray-700">Fiscal Period Progress</p>
+                <p class="text-xs text-gray-500">{{ $activePeriod->name }} — {{ $periodStart->format('M d') }} to {{ $periodEnd->format('M d') }}</p>
+            </div>
+            <div class="flex items-center gap-4">
+                <div class="text-right mr-2">
+                    <div class="text-sm font-bold text-gray-900">{{ $percentLabel }}</div>
+                    <div class="text-xs text-gray-500">{{ $daysPassed }} / {{ $totalDays }} days passed</div>
+                </div>
+                <div class="w-20 h-20">
+                    <svg viewBox="0 0 100 100" class="w-20 h-20">
+                        <defs>
+                            <linearGradient id="periodGrad" x1="0%" x2="100%">
+                                <stop offset="0%" stop-color="#F59E0B" />
+                                <stop offset="100%" stop-color="#D97706" />
+                            </linearGradient>
+                        </defs>
+                        <circle cx="50" cy="50" r="40" stroke="#F3F4F6" stroke-width="12" fill="none" />
+                        <circle cx="50" cy="50" r="40" stroke="url(#periodGrad)" stroke-width="12" fill="none"
+                            stroke-dasharray="{{ $circ }}" stroke-dashoffset="{{ $offset }}" transform="rotate(-90 50 50)" stroke-linecap="round" />
+                        <text x="50" y="55" text-anchor="middle" font-size="12" fill="#111" class="font-semibold">{{ $periodPercent }}%</text>
+                    </svg>
+                </div>
+            </div>
         </div>
-        <div class="w-full {{ $bgColor }} rounded-full h-1.5 overflow-hidden">
-            <div class="bg-gradient-to-r {{ $barColor }} h-full rounded-full transition-all duration-500" style="width: {{ $periodPercent }}%"></div>
+        <div class="flex items-center justify-between mt-2 text-xs text-gray-500">
+            <div>Opened: {{ $periodStart->format('M d, Y') }}</div>
+            <div>Closes: {{ $periodEnd->format('M d, Y') }}</div>
         </div>
     </div>
+
+   
 
     {{-- Flash Messages --}}
     @if(session('success'))
@@ -213,72 +281,50 @@
     {{-- ================================================== --}}
     <div x-show="tab === 'overview'" x-cloak>
 
-        {{-- Summary Cards --}}
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
-            <div class="bg-white rounded-xl shadow-md p-6 border-l-4 border-green-500">
-                <div class="flex items-center justify-between">
-                    <div>
-                        <p class="text-gray-500 text-sm font-medium">Income</p>
-                        <p class="text-2xl font-bold text-green-600 mt-1">${{ number_format($income['total_income'], 2) }}</p>
-                    </div>
-                    <div class="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center">
-                        <svg class="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-                    </div>
-                </div>
-                <p class="text-xs text-gray-400 mt-2">{{ $income['payment_count'] }} payment{{ $income['payment_count'] !== 1 ? 's' : '' }}</p>
-            </div>
-            <div class="bg-white rounded-xl shadow-md p-6 border-l-4 border-red-500">
-                <div class="flex items-center justify-between">
-                    <div>
-                        <p class="text-gray-500 text-sm font-medium">Business Expenses</p>
-                        <p class="text-2xl font-bold text-red-600 mt-1">${{ number_format($expenses['total_expenses'], 2) }}</p>
-                    </div>
-                    <div class="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center">
-                        <svg class="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 17h8m0 0V9m0 8l-8-8-4 4-6-6"/></svg>
-                    </div>
-                </div>
-                <p class="text-xs text-gray-400 mt-2">{{ $expenses['expense_count'] }} transaction{{ $expenses['expense_count'] !== 1 ? 's' : '' }}</p>
-            </div>
-            <div class="bg-white rounded-xl shadow-md p-6 border-l-4 {{ $summary['net_profit'] >= 0 ? 'border-blue-500' : 'border-orange-500' }}">
-                <div class="flex items-center justify-between">
-                    <div>
-                        <p class="text-gray-500 text-sm font-medium">Net Profit</p>
-                        <p class="text-2xl font-bold {{ $summary['net_profit'] >= 0 ? 'text-blue-600' : 'text-orange-600' }} mt-1">
-                            {{ $summary['net_profit'] >= 0 ? '+' : '' }}${{ number_format($summary['net_profit'], 2) }}
-                        </p>
-                    </div>
-                    <div class="w-12 h-12 {{ $summary['net_profit'] >= 0 ? 'bg-blue-100' : 'bg-orange-100' }} rounded-full flex items-center justify-center">
-                        <svg class="w-6 h-6 {{ $summary['net_profit'] >= 0 ? 'text-blue-600' : 'text-orange-600' }}" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
-                    </div>
-                </div>
-                <p class="text-xs text-gray-400 mt-2">{{ $summary['profit_margin'] }}% margin</p>
-            </div>
-            <div class="bg-white rounded-xl shadow-md p-6 border-l-4 border-purple-500">
-                <div class="flex items-center justify-between">
-                    <div>
-                        <p class="text-gray-500 text-sm font-medium">Occupancy</p>
-                        <p class="text-2xl font-bold text-purple-600 mt-1">{{ $occupiedCount }}/{{ $totalApartments }}</p>
-                    </div>
-                    <div class="w-12 h-12 bg-purple-100 rounded-full flex items-center justify-center">
-                        <svg class="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/></svg>
-                    </div>
-                </div>
-                <p class="text-xs text-gray-400 mt-2">{{ $occupancyRate }}% occupied</p>
-            </div>
-        </div>
+        
 
-        {{-- Collection Progress --}}
+        {{-- Collection Progress (Donut) --}}
         @if($expectedMonthlyRent > 0)
+        @php
+            $collected = $income['rent_income'] ?? 0;
+            $goal = $expectedMonthlyRent;
+            $collectionPercent = $goal > 0 ? min(100, round(($collected / $goal) * 100, 1)) : 0;
+            $r = 36;
+            $circ = 2 * pi() * $r;
+            $offset = $circ * (1 - ($collectionPercent / 100));
+        @endphp
         <div class="bg-white rounded-xl shadow-md p-5 mb-6">
-            <div class="flex items-center justify-between mb-2">
-                <p class="text-sm font-medium text-gray-700">Monthly Rent Collection</p>
-                <p class="text-sm font-semibold text-gray-900">
-                    ${{ number_format($income['rent_income'], 2) }}
-                    <span class="text-gray-400 font-normal">/ ${{ number_format($expectedMonthlyRent, 2) }}</span>
-                </p>
+            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-3">
+                <div>
+                    <p class="text-sm font-medium text-gray-700">Monthly Rent Collection</p>
+                    <p class="text-xs text-gray-500">Collected this month</p>
+                </div>
+                <div class="text-right">
+                    <div class="text-lg font-bold text-gray-900">${{ number_format($collected, 2) }}</div>
+                    <div class="text-xs text-gray-400">of ${{ number_format($goal, 2) }} goal</div>
+                </div>
             </div>
-            <div class="w-full bg-gray-100 rounded-full h-2">
-                <div class="bg-blue-500 h-2 rounded-full transition-all" style="width: {{ min(($income['rent_income'] / $expectedMonthlyRent) * 100, 100) }}%"></div>
+
+            <div class="flex items-center gap-4">
+                <div class="w-20 flex-shrink-0">
+                    <svg viewBox="0 0 100 100" class="w-20 h-20 mx-auto">
+                        <defs>
+                            <linearGradient id="collectGrad" x1="0%" x2="100%">
+                                <stop offset="0%" stop-color="#34D399" />
+                                <stop offset="100%" stop-color="#059669" />
+                            </linearGradient>
+                        </defs>
+                        <circle cx="50" cy="50" r="36" stroke="#E5E7EB" stroke-width="12" fill="none" />
+                        <circle cx="50" cy="50" r="36" stroke="url(#collectGrad)" stroke-width="12" fill="none"
+                            stroke-dasharray="{{ $circ }}" stroke-dashoffset="{{ $offset }}" transform="rotate(-90 50 50)" stroke-linecap="round" />
+                        <text x="50" y="56" text-anchor="middle" font-size="12" fill="#064E3B" class="font-semibold">{{ $collectionPercent }}%</text>
+                    </svg>
+                </div>
+
+                <div class="flex-1">
+                    <div class="text-sm text-gray-600">${{ number_format($collected, 2) }} collected</div>
+                    <div class="mt-2 text-xs text-gray-500">{{ $collected > $goal ? 'Goal exceeded' : ( '$' . number_format($goal - $collected, 2) . ' to goal') }}</div>
+                </div>
             </div>
         </div>
         @endif
@@ -361,16 +407,37 @@
             </div>
         </div>
 
-        {{-- Per-Apartment Table --}}
+        {{-- Per-Apartment Table with Grouping Toggle --}}
         @if(isset($perApartment) && count($perApartment) > 0)
-        <div class="bg-white rounded-xl shadow-md overflow-hidden" x-data="{ showAll: false, expenseForm: null }">
+        @php
+            // Attempt to group by floor number from available keys
+            $groupedByFloor = collect($perApartment)->groupBy(function($a) {
+                return $a['floor_number'] ?? $a['floor'] ?? $a['apartment_floor'] ?? 'Unspecified';
+            });
+        @endphp
+        <div class="bg-white rounded-xl shadow-md overflow-hidden" x-data="{ showAll: false, expenseForm: null, groupBy: 'apartment' }">
             <div class="px-5 py-3 border-b flex items-center justify-between">
-                <h2 class="text-sm font-semibold text-gray-900">Per-Apartment Summary</h2>
-                <button @click="showAll = !showAll" class="text-xs text-blue-600 hover:text-blue-800 font-medium">
-                    <span x-text="showAll ? 'Occupied Only' : 'Show All'"></span>
-                </button>
+                <div class="flex items-center gap-3">
+                    <h2 class="text-sm font-semibold text-gray-900">Per-Apartment Summary</h2>
+                    <div class="text-xs text-gray-500">·</div>
+                    <div class="text-xs text-gray-500">Group by:</div>
+                    <div class="inline-flex bg-gray-50 rounded-lg p-1">
+                        <button @click="groupBy = 'apartment'" :class="groupBy === 'apartment' ? 'bg-blue-600 text-white' : 'text-gray-600'" class="px-2 py-1 text-xs rounded">Apartment</button>
+                        <button @click="groupBy = 'floor'" :class="groupBy === 'floor' ? 'bg-blue-600 text-white' : 'text-gray-600'" class="px-2 py-1 text-xs rounded">Floor</button>
+                    </div>
+                </div>
+                <div>
+                    <button @click="showAll = !showAll" class="text-xs text-blue-600 hover:text-blue-800 font-medium mr-3">
+                        <span x-text="showAll ? 'Occupied Only' : 'Show All'"></span>
+                    </button>
+                    <button onclick="window.print()" class="p-1 text-gray-400 hover:text-gray-600 rounded-lg" title="Print small">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>
+                    </button>
+                </div>
             </div>
-            <div class="overflow-x-auto">
+
+            {{-- Default: Apartment list (existing table) --}}
+            <div class="overflow-x-auto" x-show="groupBy === 'apartment'" x-cloak>
                 <table class="w-full text-sm">
                     <thead>
                         <tr class="border-b bg-gray-50 text-xs text-gray-500 uppercase">
@@ -544,6 +611,48 @@
                         </tr>
                     </tfoot>
                 </table>
+            </div>
+
+            {{-- Grouped by Floor view --}}
+            <div class="overflow-x-auto" x-show="groupBy === 'floor'" x-cloak>
+                @foreach($groupedByFloor as $floor => $items)
+                <div class="p-4 border-b">
+                    <div class="flex items-center justify-between mb-2">
+                        <div>
+                            <h3 class="text-sm font-semibold text-gray-800">Floor: {{ $floor }}</h3>
+                            <p class="text-xs text-gray-500 mt-0.5">{{ count($items) }} unit{{ count($items) !== 1 ? 's' : '' }}</p>
+                        </div>
+                        <div class="text-xs text-gray-500">Floor summary — Rent: ${{ number_format(collect($items)->sum('monthly_rent'), 2) }} · Income: ${{ number_format(collect($items)->sum('income'), 2) }} · Utilities: ${{ number_format(collect($items)->sum('expenses'), 2) }}</div>
+                    </div>
+
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-sm">
+                            <thead>
+                                <tr class="border-b bg-gray-50 text-xs text-gray-500 uppercase">
+                                    <th class="text-left px-4 py-2 font-medium">Unit</th>
+                                    <th class="text-left px-4 py-2 font-medium">Tenant</th>
+                                    <th class="text-right px-4 py-2 font-medium">Rent</th>
+                                    <th class="text-right px-4 py-2 font-medium">Income</th>
+                                    <th class="text-right px-4 py-2 font-medium">Utilities</th>
+                                    <th class="text-right px-4 py-2 font-medium">Net</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-gray-100">
+                                @foreach($items as $aptIdx => $apt)
+                                <tr class="{{ !$apt['has_active_rental'] ? 'text-gray-300' : 'text-gray-700' }}">
+                                    <td class="px-4 py-2 font-medium">{{ $apt['apartment_number'] }}</td>
+                                    <td class="px-4 py-2">{{ $apt['has_active_rental'] ? $apt['tenant'] : 'Vacant' }}</td>
+                                    <td class="px-4 py-2 text-right">${{ number_format($apt['monthly_rent'], 2) }}</td>
+                                    <td class="px-4 py-2 text-right">${{ number_format($apt['income'], 2) }}</td>
+                                    <td class="px-4 py-2 text-right">${{ number_format($apt['expenses'], 2) }}</td>
+                                    <td class="px-4 py-2 text-right font-semibold">${{ number_format($apt['tenant_net'] ?? ($apt['income'] + $apt['expenses']), 2) }}</td>
+                                </tr>
+                                @endforeach
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                @endforeach
             </div>
         </div>
         @endif
@@ -1297,7 +1406,6 @@ function revenueExpense() {
             { key: 'fixed', label: 'Fixed Costs' },
             { key: 'bills', label: 'Bills' },
             { key: 'breakeven', label: 'Break-Even' },
-            { key: 'calendar', label: '📅 Calendar', href: '{{ route("admin.revenue_expense.monthly_calendar") }}' },
         ],
         init() {
             this.$watch('tab', (val) => { window.location.hash = val; });
