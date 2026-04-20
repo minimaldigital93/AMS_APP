@@ -15,6 +15,7 @@ use App\Models\Apartments;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Carbon\Carbon;
+use Illuminate\Pagination\LengthAwarePaginator;
 
 /**
  * ╔═══════════════════════════════════════════════════════════════════╗
@@ -170,6 +171,8 @@ class RevenueExpenseController extends Controller
         $revenueExpenseData['recentIncome'] = $recentIncome;
         $revenueExpenseData['totalRentExpected'] = $totalRentExpected;
         $revenueExpenseData['totalRentCollected'] = $totalRentCollected;
+        $revenueExpenseData['expectedTenantCount'] = count($apartmentSummary);
+        $revenueExpenseData['paidTenantCount'] = collect($apartmentSummary)->where('paid_this_month', true)->count();
 
         // ===== RECORD EXPENSE DATA =====
         $expenseApartments = $this->scopeApartments()
@@ -1199,6 +1202,22 @@ class RevenueExpenseController extends Controller
         // Also keep the old $apartmentSummary for backward compat
         $apartmentSummary = $tenantBills;
 
+        // Keep a full copy for totals and counts, then paginate the tenant bills (10 per page)
+        $tenantBillsAll = $tenantBills;
+        $perPage = 10;
+        $page = (int) request()->get('page', 1);
+        $offset = ($page - 1) * $perPage;
+        $tenantBills = new LengthAwarePaginator(
+            array_slice($tenantBillsAll, $offset, $perPage),
+            count($tenantBillsAll),
+            $perPage,
+            $page,
+            [
+                'path' => request()->url(),
+                'query' => request()->query(),
+            ]
+        );
+
         // Recent income records for this fiscal period
         $recentIncome = Accounts::income()
             ->forUser(Auth::id())
@@ -1208,7 +1227,7 @@ class RevenueExpenseController extends Controller
             ->get();
 
         return view('admin.revenue_expense.record_income', compact(
-            'activePeriod', 'apartments', 'apartmentSummary', 'tenantBills', 'recentIncome',
+            'activePeriod', 'apartments', 'apartmentSummary', 'tenantBills', 'tenantBillsAll', 'recentIncome',
             'totalRentExpected', 'totalRentCollected', 'totalPending',
             'overdueCount', 'paidCount', 'pendingCount',
             'selectedDate', 'prevDate', 'nextDate',
@@ -1228,23 +1247,46 @@ class RevenueExpenseController extends Controller
             'charge_amount' => 'required|numeric|min:0.01',
             'meter_reading_in' => 'nullable|numeric|min:0',
             'meter_reading_out' => 'nullable|numeric|min:0',
+            'billing_month' => 'nullable|integer|min:1|max:12',
+            'billing_year' => 'nullable|integer|min:2000|max:2100',
             'note' => 'nullable|string|max:500',
         ]);
 
         $rental = Rentals::with('tenant')->findOrFail($validated['rental_id']);
 
-        Utilities::create([
-            'tenant_id' => $rental->tenant_id,
-            'rental_id' => $rental->id,
-            'utility_type' => $validated['charge_type'],
-            'meter_number' => null,
-            'meter_reading_in' => $validated['meter_reading_in'] ?? 0,
-            'meter_reading_out' => $validated['meter_reading_out'] ?? 0,
-            'charge_amount' => $validated['charge_amount'],
-            'billing_month' => now()->month,
-            'billing_year' => now()->year,
-            'paid_status' => false,
-            'paid_at' => null,
+        $billingMonth = $validated['billing_month'] ?? now()->month;
+        $billingYear = $validated['billing_year'] ?? now()->year;
+
+        // Only create a Utilities operational record for actual meter-based utility types.
+        $utilityTypes = ['electricity', 'water', 'internet', 'trash', 'parking'];
+
+        if (in_array($validated['charge_type'], $utilityTypes, true)) {
+            Utilities::create([
+                'tenant_id' => $rental->tenant_id,
+                'rental_id' => $rental->id,
+                'utility_type' => $validated['charge_type'],
+                'meter_number' => null,
+                'meter_reading_in' => $validated['meter_reading_in'] ?? 0,
+                'meter_reading_out' => $validated['meter_reading_out'] ?? 0,
+                'charge_amount' => $validated['charge_amount'],
+                'billing_month' => $billingMonth,
+                'billing_year' => $billingYear,
+                'paid_status' => false,
+                'paid_at' => null,
+            ]);
+        }
+
+        // Always create an Accounts record so the fiscal period reflects the charge.
+        Accounts::create([
+            'fiscal_period_id' => $this->getActiveFiscalPeriod()?->id,
+            'payment_id' => null,
+            'user_id' => Auth::id(),
+            'account_type' => Accounts::TYPE_EXPENSE,
+            'category' => in_array($validated['charge_type'], $utilityTypes, true) ? Accounts::CAT_UTILITIES_EXPENSE : Accounts::CAT_OTHER_EXPENSE,
+            'description' => '[Apt ' . ($rental->apartment->apartment_number ?? 'N/A') . '] ' . ucfirst($validated['charge_type']),
+            'amount' => $validated['charge_amount'],
+            'transaction_date' => now()->toDateString(),
+            'note' => $validated['note'] ?? null,
         ]);
 
         return redirect()->back()
@@ -1323,11 +1365,27 @@ class RevenueExpenseController extends Controller
                 'account_type' => Accounts::TYPE_INCOME,
                 'category' => Accounts::CAT_RENT_INCOME,
                 'description' => '[Apt ' . $rental->apartment->apartment_number . '] Monthly rent',
-                'amount' => $rentAmount + $lateFee,
+                'amount' => $rentAmount,
                 'transaction_date' => $paymentDate,
                 'reference_number' => $validated['transaction_reference'] ?? null,
                 'note' => $validated['note'] ?? null,
             ]);
+
+            // Record late fee as a separate Accounts entry if applicable
+            if ($lateFee > 0) {
+                Accounts::create([
+                    'fiscal_period_id' => $activePeriod->id,
+                    'payment_id' => $payment->id,
+                    'user_id' => Auth::id(),
+                    'account_type' => Accounts::TYPE_INCOME,
+                    'category' => Accounts::CAT_LATE_FEE_INCOME,
+                    'description' => '[Apt ' . $rental->apartment->apartment_number . '] Late fee',
+                    'amount' => $lateFee,
+                    'transaction_date' => $paymentDate,
+                    'reference_number' => $validated['transaction_reference'] ?? null,
+                    'note' => 'Late fee',
+                ]);
+            }
 
             $totalPaid += $rentAmount + $lateFee;
             $items[] = 'Rent: $' . number_format($rentAmount, 2);
@@ -1509,11 +1567,28 @@ class RevenueExpenseController extends Controller
             'account_type' => Accounts::TYPE_INCOME,
             'category' => $category,
             'description' => '[Apt ' . $rental->apartment->apartment_number . '] ' . ucfirst($validated['payment_type']) . ' payment',
-            'amount' => $validated['amount'] + ($validated['late_fee'] ?? 0),
+            'amount' => $validated['amount'],
             'transaction_date' => $validated['transaction_date'],
             'reference_number' => $validated['transaction_reference'] ?? null,
             'note' => $validated['note'] ?? null,
         ]);
+
+        // Record late fee as a separate Accounts entry if applicable
+        $lateFeeAmount = $validated['late_fee'] ?? 0;
+        if ($lateFeeAmount > 0) {
+            Accounts::create([
+                'fiscal_period_id' => $activePeriod->id,
+                'payment_id' => $payment->id,
+                'user_id' => Auth::id(),
+                'account_type' => Accounts::TYPE_INCOME,
+                'category' => Accounts::CAT_LATE_FEE_INCOME,
+                'description' => '[Apt ' . $rental->apartment->apartment_number . '] Late fee',
+                'amount' => $lateFeeAmount,
+                'transaction_date' => $validated['transaction_date'],
+                'reference_number' => $validated['transaction_reference'] ?? null,
+                'note' => 'Late fee for ' . ucfirst($validated['payment_type']),
+            ]);
+        }
 
         return redirect()->back()
             ->with('success', ucfirst($validated['payment_type']) . ' income of $' . number_format($validated['amount'], 2) . ' recorded for apartment ' . $rental->apartment->apartment_number . '.');
@@ -1578,11 +1653,27 @@ class RevenueExpenseController extends Controller
                 'account_type' => Accounts::TYPE_INCOME,
                 'category' => Accounts::CAT_RENT_INCOME,
                 'description' => '[Apt ' . $rental->apartment->apartment_number . '] Monthly rent',
-                'amount' => $amount + $lateFee,
+                'amount' => $amount,
                 'transaction_date' => $paymentDate,
                 'reference_number' => null,
                 'note' => 'Auto-generated monthly rent',
             ]);
+
+            // Record late fee as a separate Accounts entry if applicable
+            if ($lateFee > 0) {
+                Accounts::create([
+                    'fiscal_period_id' => $activePeriod->id,
+                    'payment_id' => $payment->id,
+                    'user_id' => Auth::id(),
+                    'account_type' => Accounts::TYPE_INCOME,
+                    'category' => Accounts::CAT_LATE_FEE_INCOME,
+                    'description' => '[Apt ' . $rental->apartment->apartment_number . '] Late fee',
+                    'amount' => $lateFee,
+                    'transaction_date' => $paymentDate,
+                    'reference_number' => null,
+                    'note' => 'Auto-generated late fee',
+                ]);
+            }
 
             $recordedCount++;
             $totalAmount += $amount + $lateFee;
@@ -1663,6 +1754,24 @@ class RevenueExpenseController extends Controller
             $apartmentExpenses[] = $aptExpense;
         }
 
+        // Keep a full copy of the per-apartment expense array for totals and reporting
+        $apartmentExpensesAll = $apartmentExpenses;
+
+        // Paginate apartment expenses for listing (10 per page)
+        $perPage = 10;
+        $page = (int) (request()->get('page', 1));
+        $offset = ($page - 1) * $perPage;
+        $apartmentExpenses = new LengthAwarePaginator(
+            array_slice($apartmentExpensesAll, $offset, $perPage),
+            count($apartmentExpensesAll),
+            $perPage,
+            $page,
+            [
+                'path' => request()->url(),
+                'query' => request()->query(),
+            ]
+        );
+
         // Recent expense records from Accounts for the selected month
         $recentExpenses = Accounts::expense()
             ->forUser(Auth::id())
@@ -1682,6 +1791,7 @@ class RevenueExpenseController extends Controller
         // Other expense categories (non-utility)
         $otherExpenseCategories = [
             'maintenance' => 'Maintenance & Repairs',
+            'repairs' => 'Repairs',
             'insurance' => 'Insurance',
             'property_tax' => 'Property Tax',
             'management' => 'Property Management',
@@ -1691,6 +1801,9 @@ class RevenueExpenseController extends Controller
             'supplies' => 'Supplies & Materials',
             'marketing' => 'Marketing & Advertising',
             'legal' => 'Legal & Professional Fees',
+            'salaries' => 'Salaries & Wages',
+            'taxes' => 'Taxes',
+            'other_expense' => 'Other Expense',
             'miscellaneous' => 'Miscellaneous',
         ];
 
@@ -1749,7 +1862,7 @@ class RevenueExpenseController extends Controller
         $currentYear = now()->year;
 
         return view('admin.revenue_expense.record_expense', compact(
-            'activePeriod', 'apartments', 'apartmentExpenses', 'recentExpenses',
+            'activePeriod', 'apartments', 'apartmentExpenses', 'apartmentExpensesAll', 'recentExpenses',
             'utilityTypes', 'totalExpenses', 'otherExpenseCategories', 'otherExpenses',
             'totalOtherExpenses', 'businessExpenses', 'businessFixedTotal',
             'businessVariableTotal', 'businessTotal', 'businessCategories',
@@ -1940,14 +2053,20 @@ class RevenueExpenseController extends Controller
     {
         $name = $businessExpense->expense_name;
 
-        // Also remove the corresponding Accounts record that was created alongside it
+        // Build the exact description that was used when creating the Accounts record
+        $costLabel = $businessExpense->cost_type === 'fixed' ? 'Fixed' : 'Variable';
+        $expectedDescription = '[Business ' . $costLabel . '] ' . $businessExpense->expense_name;
+
+        // Remove the corresponding Accounts record using exact description match
         Accounts::where('user_id', Auth::id())
             ->where('fiscal_period_id', $businessExpense->fiscal_period_id)
             ->where('account_type', Accounts::TYPE_EXPENSE)
-            ->whereIn('category', [Accounts::CAT_BUSINESS_FIXED, Accounts::CAT_BUSINESS_VARIABLE])
+            ->where('category', $businessExpense->cost_type === 'fixed'
+                ? Accounts::CAT_BUSINESS_FIXED
+                : Accounts::CAT_BUSINESS_VARIABLE)
             ->where('amount', $businessExpense->amount)
             ->where('transaction_date', $businessExpense->expense_date)
-            ->where('description', 'like', '%' . $businessExpense->expense_name . '%')
+            ->where('description', $expectedDescription)
             ->limit(1)
             ->delete();
 
@@ -2186,7 +2305,7 @@ class RevenueExpenseController extends Controller
                     'payment_id' => null,
                     'user_id' => Auth::id(),
                     'account_type' => Accounts::TYPE_EXPENSE,
-                    'category' => Accounts::CAT_UTILITIES_EXPENSE,
+                    'category' => Accounts::CAT_BUSINESS_FIXED,
                     'description' => '[Apt ' . $rental->apartment->apartment_number . '] ' . $fixedExpense->expense_name . ' (monthly)',
                     'amount' => $amount,
                     'transaction_date' => $billingDate->toDateString(),
@@ -2225,35 +2344,7 @@ class RevenueExpenseController extends Controller
         $startOfMonth = Carbon::create($year, $month, 1)->startOfMonth();
         $endOfMonth = $startOfMonth->copy()->endOfMonth();
 
-        // Fetch daily income (payments)
-        $dailyIncome = Payments::whereHas('rental', function ($q) {
-                $q->whereHas('apartment', function ($q2) {
-                    $q2->where('supervisor_id', Auth::id())
-                        ->orWhereNull('supervisor_id');
-                });
-            })
-            ->where('payment_status', 'paid')
-            ->whereBetween('paid_at', [$startOfMonth, $endOfMonth])
-            ->selectRaw('DATE(paid_at) as day, SUM(amount) as total_income, SUM(late_fee) as total_late_fee, COUNT(*) as tx_count')
-            ->groupByRaw('DATE(paid_at)')
-            ->get()
-            ->keyBy('day');
-
-        // Fetch daily expenses from utilities
-        $dailyUtilities = Utilities::whereHas('rental', function ($q) {
-                $q->whereHas('apartment', function ($q2) {
-                    $q2->where('supervisor_id', Auth::id())
-                        ->orWhereNull('supervisor_id');
-                });
-            })
-            ->where('paid_status', true)
-            ->whereBetween('paid_at', [$startOfMonth, $endOfMonth])
-            ->selectRaw('DATE(paid_at) as day, SUM(charge_amount) as total_expense, COUNT(*) as tx_count')
-            ->groupByRaw('DATE(paid_at)')
-            ->get()
-            ->keyBy('day');
-
-        // Fetch daily expenses from accounts
+        // Fetch daily expenses from accounts (single source of truth)
         $dailyAccountExpenses = Accounts::expense()
             ->forUser(Auth::id())
             ->betweenDates($startOfMonth, $endOfMonth)
@@ -2262,7 +2353,7 @@ class RevenueExpenseController extends Controller
             ->get()
             ->keyBy('day');
 
-        // Fetch daily account income
+        // Fetch daily income from accounts (single source of truth)
         $dailyAccountIncome = Accounts::income()
             ->forUser(Auth::id())
             ->betweenDates($startOfMonth, $endOfMonth)
@@ -2282,16 +2373,11 @@ class RevenueExpenseController extends Controller
 
         for ($d = 1; $d <= $daysInMonth; $d++) {
             $dateStr = $startOfMonth->copy()->day($d)->toDateString();
-            $income = ($dailyIncome[$dateStr]->total_income ?? 0)
-                    + ($dailyIncome[$dateStr]->total_late_fee ?? 0)
-                    + ($dailyAccountIncome[$dateStr]->total_income ?? 0);
-            $expense = ($dailyUtilities[$dateStr]->total_expense ?? 0)
-                     + ($dailyAccountExpenses[$dateStr]->total_expense ?? 0);
+            $income = $dailyAccountIncome[$dateStr]->total_income ?? 0;
+            $expense = $dailyAccountExpenses[$dateStr]->total_expense ?? 0;
             $net = $income - $expense;
-            $txCount = ($dailyIncome[$dateStr]->tx_count ?? 0)
-                     + ($dailyUtilities[$dateStr]->tx_count ?? 0)
-                     + ($dailyAccountExpenses[$dateStr]->tx_count ?? 0)
-                     + ($dailyAccountIncome[$dateStr]->tx_count ?? 0);
+            $txCount = ($dailyAccountIncome[$dateStr]->tx_count ?? 0)
+                     + ($dailyAccountExpenses[$dateStr]->tx_count ?? 0);
 
             $monthTotalIncome += $income;
             $monthTotalExpense += $expense;

@@ -158,7 +158,7 @@ class PaymentController extends Controller
                 'rent' => Accounts::CAT_RENT_INCOME,
                 'utilities' => Accounts::CAT_UTILITY_INCOME,
                 'deposit' => Accounts::CAT_DEPOSIT_INCOME,
-                'late_fee' => 'late_fee_income',
+                'late_fee' => Accounts::CAT_LATE_FEE_INCOME,
                 'other' => Accounts::CAT_OTHER_INCOME,
             ];
 

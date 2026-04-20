@@ -20,7 +20,7 @@ use Carbon\Carbon;
  * the accounting summary.
  *
  * CATEGORIES (use the constants below — never raw strings):
- *  Income:  rent_income, utility_income, deposit_income, other_income
+ *  Income:  rent_income, utility_income, deposit_income, late_fee_income, other_income
  *  Expense: utilities_expense, business_fixed, business_variable,
  *           maintenance, insurance, property_tax, management, other_expense
  */
@@ -55,6 +55,7 @@ class Accounts extends Model
         'rent'      => self::CAT_RENT_INCOME,
         'utilities' => self::CAT_UTILITY_INCOME,
         'deposit'   => self::CAT_DEPOSIT_INCOME,
+        'late_fee'  => self::CAT_LATE_FEE_INCOME,
         'other'     => self::CAT_OTHER_INCOME,
     ];
 
