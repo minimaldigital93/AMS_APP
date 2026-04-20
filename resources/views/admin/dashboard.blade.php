@@ -44,7 +44,7 @@
                 </div>
                 <div>
                     <p class="text-xs text-gray-500 font-medium">Revenue</p>
-                    <p class="text-xl font-bold text-gray-900">${{ number_format($stats['revenue']['collected_this_month'] + $stats['revenue']['late_fees_this_month'], 2) }}</p>
+                    <p class="text-xl font-bold text-gray-900">${{ number_format($stats['revenue']['collected_this_month'] + $stats['revenue']['late_fees_this_month'] + ($stats['revenue']['archived_deposits'] ?? 0), 2) }}</p>
                 </div>
             </div>
             <div>
@@ -55,6 +55,9 @@
                 @endif
                 @if(($byType['deposit'] ?? 0) > 0)
                     <span class="flex justify-between"><span>Deposit</span><span class="font-medium text-green-500">+${{ number_format($byType['deposit'], 2) }}</span></span>
+                @endif
+                @if(($stats['revenue']['archived_deposits'] ?? 0) > 0)
+                    <span class="flex justify-between"><span>Archived Deposits</span><span class="font-medium text-green-500">+${{ number_format($stats['revenue']['archived_deposits'], 2) }}</span></span>
                 @endif
                 @if(($stats['revenue']['late_fees_this_month'] ?? 0) > 0)
                     <span class="flex justify-between"><span>Late Fees</span><span class="font-medium text-green-500">+${{ number_format($stats['revenue']['late_fees_this_month'], 2) }}</span></span>
@@ -93,7 +96,7 @@
 
         {{-- Net Profit --}}
         @php
-            $netProfit = ($stats['revenue']['collected_this_month'] + $stats['revenue']['late_fees_this_month']) - ($stats['expenses']['monthly_total'] ?? 0);
+            $netProfit = ($stats['revenue']['collected_this_month'] + $stats['revenue']['late_fees_this_month'] + ($stats['revenue']['archived_deposits'] ?? 0)) - ($stats['expenses']['monthly_total'] ?? 0);
         @endphp
         <div class="bg-white rounded-xl border border-gray-200 p-5 shadow-sm">
             <div class="flex items-center gap-3">
@@ -109,7 +112,7 @@
             </div>
             <div>
             <p class="text-[11px] text-gray-400 mt-2 space-y-0.5">
-                <span class="flex justify-between"><span>Revenue</span><span class="font-medium text-green-500">+${{ number_format($stats['revenue']['collected_this_month'] + $stats['revenue']['late_fees_this_month'], 2) }}</span></span>
+                <span class="flex justify-between"><span>Revenue</span><span class="font-medium text-green-500">+${{ number_format($stats['revenue']['collected_this_month'] + $stats['revenue']['late_fees_this_month'] + ($stats['revenue']['archived_deposits'] ?? 0), 2) }}</span></span>
                 <span class="flex justify-between"><span>Expenses</span><span class="font-medium text-red-400">-${{ number_format($stats['expenses']['monthly_total'] ?? 0, 2) }}</span></span>
             </p>
                 </div>

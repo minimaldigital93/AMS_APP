@@ -604,6 +604,7 @@ class DashboardController extends Controller
                     ->groupBy('payment_type')
                     ->pluck('total', 'payment_type')
                     ->toArray(),
+                'archived_deposits' => Tenants::onlyTrashed()->sum('deposit'),
             ],
             'expenses' => [
                 'monthly_total' => round($monthlyExpensesTotal, 2),
