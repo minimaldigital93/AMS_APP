@@ -23,7 +23,9 @@
     <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
             <h1 class="text-2xl font-semibold text-slate-800 tracking-tight">Dashboard</h1>
-            <p class="text-slate-400 text-sm mt-1">{{ now()->format('F Y') }} — Overview & Quick Recording</p>
+            <p class="text-slate-400 text-sm mt-1">
+                {{ $isFullPeriod ? $activePeriod->name . ' — Full Fiscal Period Overview' : $displayMonth->format('F Y') . ' — Overview & Quick Recording' }}
+            </p>
         </div>
         @if($activePeriod)
         <div class="flex items-center gap-2">
@@ -33,6 +35,67 @@
         </div>
         @endif
     </div>
+
+    @if($activePeriod && count($periodMonths) > 0)
+    <div class="flex items-center justify-center">
+        <div class="inline-flex items-center bg-white rounded-xl border border-slate-100 px-2 py-1.5 gap-1">
+            @if($monthNavigation['previousMonth'])
+            <a href="{{ route('admin.dashboard', ['month' => $monthNavigation['previousMonth']['month'], 'year' => $monthNavigation['previousMonth']['year']]) }}"
+               class="inline-flex items-center justify-center w-10 h-10 rounded-lg text-slate-500 hover:bg-slate-50 hover:text-sky-600 transition" title="Previous Month">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
+            </a>
+            @else
+            <span class="inline-flex items-center justify-center w-10 h-10 rounded-lg text-slate-300 cursor-not-allowed">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
+            </span>
+            @endif
+
+            <div class="px-4 py-2 min-w-[220px] text-center">
+                @if($isFullPeriod)
+                    <span class="text-lg font-bold text-slate-800">All Months</span>
+                    <span class="ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-sky-100 text-sky-700">Full Period</span>
+                @else
+                <span class="text-lg font-bold text-slate-800">{{ $displayMonth->format('F') }}</span>
+                <span class="text-lg text-slate-500 ml-1">{{ $displayMonth->format('Y') }}</span>
+                @if($monthNavigation['isCurrentMonth'])
+                    <span class="ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-emerald-100 text-emerald-700">Current</span>
+                @elseif($displayMonth->isFuture())
+                    <span class="ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-sky-100 text-sky-700">Upcoming</span>
+                @else
+                    <span class="ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-600">Past</span>
+                @endif
+                @endif
+            </div>
+
+            @if($monthNavigation['nextMonth'])
+            <a href="{{ route('admin.dashboard', ['month' => $monthNavigation['nextMonth']['month'], 'year' => $monthNavigation['nextMonth']['year']]) }}"
+               class="inline-flex items-center justify-center w-10 h-10 rounded-lg text-slate-500 hover:bg-slate-50 hover:text-sky-600 transition" title="Next Month">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+            </a>
+            @else
+            <span class="inline-flex items-center justify-center w-10 h-10 rounded-lg text-slate-300 cursor-not-allowed">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+            </span>
+            @endif
+
+                @if(!$isFullPeriod)
+                <a href="{{ route('admin.dashboard', ['view' => 'all']) }}"
+                    class="ml-1 inline-flex items-center px-3 py-2 text-sm font-medium text-slate-600 bg-slate-50 rounded-lg hover:bg-slate-100 transition" title="View full fiscal period">
+                     <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h16M4 18h16"/></svg>
+                     All
+                </a>
+                @endif
+
+                @if(($isFullPeriod || !$monthNavigation['isCurrentMonth']) && $monthNavigation['currentMonthInPeriod'])
+            <a href="{{ route('admin.dashboard', ['month' => now()->month, 'year' => now()->year]) }}"
+               class="ml-1 inline-flex items-center px-3 py-2 text-sm font-medium text-sky-600 bg-sky-50 rounded-lg hover:bg-sky-100 transition" title="Go to current month">
+                <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+                Today
+            </a>
+            @endif
+        </div>
+    </div>
+    @endif
 
     {{-- Summary Cards --}}
     <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
@@ -44,7 +107,7 @@
                 </div>
                 <div>
                     <p class="text-xs text-slate-400 font-medium">Revenue</p>
-                    <p class="text-xl font-bold text-slate-800">${{ number_format($stats['revenue']['collected_this_month'] + $stats['revenue']['late_fees_this_month'] + ($stats['revenue']['archived_deposits'] ?? 0), 2) }}</p>
+                    <p class="text-xl font-bold text-slate-800">${{ number_format($stats['revenue']['total_monthly'] ?? 0, 2) }}</p>
                 </div>
             </div>
             <div>
@@ -56,8 +119,8 @@
                 @if(($byType['deposit'] ?? 0) > 0)
                     <span class="flex justify-between"><span>Deposit</span><span class="font-medium text-green-500">+${{ number_format($byType['deposit'], 2) }}</span></span>
                 @endif
-                @if(($stats['revenue']['archived_deposits'] ?? 0) > 0)
-                    <span class="flex justify-between"><span>Archived Deposits</span><span class="font-medium text-green-500">+${{ number_format($stats['revenue']['archived_deposits'], 2) }}</span></span>
+                @if(($byType['utilities'] ?? 0) > 0)
+                    <span class="flex justify-between"><span>Utilities</span><span class="font-medium text-green-500">+${{ number_format($byType['utilities'], 2) }}</span></span>
                 @endif
                 @if(($stats['revenue']['late_fees_this_month'] ?? 0) > 0)
                     <span class="flex justify-between"><span>Late Fees</span><span class="font-medium text-green-500">+${{ number_format($stats['revenue']['late_fees_this_month'], 2) }}</span></span>
@@ -96,7 +159,7 @@
 
         {{-- Net Profit --}}
         @php
-            $netProfit = ($stats['revenue']['collected_this_month'] + $stats['revenue']['late_fees_this_month'] + ($stats['revenue']['archived_deposits'] ?? 0)) - ($stats['expenses']['monthly_total'] ?? 0);
+            $netProfit = ($stats['revenue']['total_monthly'] ?? 0) - ($stats['expenses']['monthly_total'] ?? 0);
         @endphp
         <div class="bg-white rounded-xl border border-slate-100 p-5">
             <div class="flex items-center gap-3">
@@ -112,7 +175,7 @@
             </div>
             <div>
             <p class="text-[11px] text-slate-400 mt-2 space-y-0.5">
-                <span class="flex justify-between"><span>Revenue</span><span class="font-medium text-emerald-500">+${{ number_format($stats['revenue']['collected_this_month'] + $stats['revenue']['late_fees_this_month'] + ($stats['revenue']['archived_deposits'] ?? 0), 2) }}</span></span>
+                <span class="flex justify-between"><span>Revenue</span><span class="font-medium text-emerald-500">+${{ number_format($stats['revenue']['total_monthly'] ?? 0, 2) }}</span></span>
                 <span class="flex justify-between"><span>Expenses</span><span class="font-medium text-red-400">-${{ number_format($stats['expenses']['monthly_total'] ?? 0, 2) }}</span></span>
             </p>
                 </div>
@@ -159,7 +222,7 @@
     @endif
 
     {{-- Payment Status Quick View --}}
-    @if($fiscalData['has_active_period'])
+    @if($fiscalData['has_active_period'] && !$isFullPeriod)
     <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div class="bg-emerald-50/70 border border-emerald-100 rounded-xl p-4 flex items-center justify-between">
             <div>
@@ -200,6 +263,7 @@
     @endif
 
     {{-- Monthly Calendar --}}
+    @if(!$isFullPeriod && $calendarData)
     <div class="bg-white rounded-xl border border-slate-100 p-6">
         <div class="flex items-center justify-between mb-4">
             <div>
@@ -266,13 +330,14 @@
             <span class="flex items-center gap-1"><span class="w-3 h-3 border-2 border-sky-500 rounded"></span> Today</span>
         </div>
     </div>
+    @endif
 
     {{-- Per-Floor Revenue Chart --}}
-    @if(!empty($apartmentRevenues))
+    @if(!$isFullPeriod && !empty($apartmentRevenues))
     <div class="bg-white rounded-xl border border-slate-100 p-6" x-data="{ expandedFloor: null }">
         <div class="mb-4">
             <h2 class="text-lg font-semibold text-slate-800">Revenue by Floor</h2>
-            <p class="text-xs text-slate-400 mt-1">Expected vs Collected — {{ now()->format('F Y') }}</p>
+            <p class="text-xs text-slate-400 mt-1">Expected vs Collected — {{ $displayMonth->format('F Y') }}</p>
         </div>
 
         {{-- Summary Cards --}}
@@ -294,7 +359,7 @@
                         <p class="text-xl font-bold text-indigo-900">${{ number_format($totalExpected, 2) }}</p>
                     </div>
                 </div>
-                <p class="text-xs text-indigo-500 mt-2">{{ now()->format('F Y') }} — all occupied units</p>
+                <p class="text-xs text-indigo-500 mt-2">{{ $displayMonth->format('F Y') }} — all occupied units</p>
             </div>
 
             {{-- Rent Collected --}}
@@ -398,7 +463,7 @@
     @if($recentTransactions->isNotEmpty())
     <div class="bg-white rounded-xl border border-slate-100 p-6">
         <h2 class="text-lg font-semibold text-slate-800 mb-2">Recent Transactions</h2>
-        <p class="text-xs text-slate-400 mb-4">Latest 5 transactions — concise view</p>
+        <p class="text-xs text-slate-400 mb-4">{{ $isFullPeriod ? 'Latest 5 transactions in this fiscal period' : 'Latest 5 transactions in ' . $displayMonth->format('F Y') }}</p>
         <div class="overflow-x-auto">
             <table class="w-full text-sm">
                 <thead>

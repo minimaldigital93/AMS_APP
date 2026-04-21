@@ -19,17 +19,22 @@ use Illuminate\View\View;
 class DashboardController extends Controller
 {
 
-    public function index(): View
+    public function index(Request $request): View
     {
-        $stats = $this->getStats();
-        $fiscalData = $this->getActiveFiscalPeriodData();
-        $calendarData = $this->getCalendarData();
+        $activePeriod = $this->getActiveFiscalPeriod();
+        $periodMonths = $activePeriod ? $this->buildPeriodMonths($activePeriod) : [];
+        $isFullPeriod = $activePeriod && $request->query('view') === 'all';
+        $selectedMonth = $isFullPeriod ? null : $this->resolveSelectedMonth(
+            $activePeriod,
+            $request->integer('month'),
+            $request->integer('year')
+        );
+        $dateRange = $this->resolveDateRange($activePeriod, $selectedMonth, $isFullPeriod);
+        $displayMonth = $selectedMonth ?: $this->resolveDisplayMonth($activePeriod, $periodMonths);
 
-        // Active fiscal period for quick recording
-        $activePeriod = FiscalPeriods::where('user_id', Auth::id())
-            ->where('status', 'open')
-            ->orderBy('opening_date', 'desc')
-            ->first();
+        $stats = $this->getStats($dateRange['start'], $dateRange['end'], $displayMonth);
+        $fiscalData = $this->getActiveFiscalPeriodData();
+        $calendarData = $isFullPeriod ? null : $this->getCalendarData($displayMonth);
 
         // Apartments with active rentals for revenue modal
         $apartmentsWithRentals = Apartments::with(['rentals' => function ($q) {
@@ -46,17 +51,24 @@ class DashboardController extends Controller
 
         // Recent transactions
         $recentTransactions = Accounts::where('user_id', Auth::id())
+            ->whereBetween('transaction_date', [
+                $dateRange['start']->copy()->startOfDay(),
+                $dateRange['end']->copy()->endOfDay(),
+            ])
             ->orderBy('transaction_date', 'desc')
             ->orderBy('created_at', 'desc')
             ->take(15)
             ->get();
 
-        // Per-apartment revenue comparison (expected vs collected for current month)
-        $apartmentRevenues = $this->getApartmentRevenueComparison();
+        // Per-apartment revenue comparison for the selected month
+        $apartmentRevenues = $isFullPeriod ? [] : $this->getApartmentRevenueComparison($displayMonth);
+
+        $monthNavigation = $this->getMonthNavigation($periodMonths, $displayMonth, $isFullPeriod);
 
         return view('admin.dashboard', compact(
             'stats', 'fiscalData', 'calendarData',
-            'activePeriod', 'apartmentsWithRentals', 'recentTransactions', 'apartmentRevenues'
+            'activePeriod', 'apartmentsWithRentals', 'recentTransactions', 'apartmentRevenues',
+            'selectedMonth', 'periodMonths', 'monthNavigation', 'isFullPeriod', 'displayMonth'
         ));
     }
 
@@ -175,46 +187,30 @@ class DashboardController extends Controller
             ];
         }
 
-        // Calculate Revenue from Payments (Rent Income) within fiscal period
-        $revenueQuery = Payments::whereHas('rental', function ($query) use ($activePeriod) {
-            $query->whereHas('apartment', function ($subQuery) use ($activePeriod) {
-                $subQuery->where('supervisor_id', $activePeriod->user_id);
-            });
-        })
-        ->where('payment_status', 'paid')
-        ->whereBetween('paid_at', [$activePeriod->opening_date, $activePeriod->closing_date]);
-
-        $revenue = $revenueQuery->sum('amount');
-        $lateFees = $revenueQuery->sum('late_fee');
-        $totalIncome = $revenue + $lateFees;
-
-        // Calculate Expenses from Utilities within fiscal period
-        $utilitiesData = Utilities::whereHas('rental', function ($query) use ($activePeriod) {
-            $query->whereHas('apartment', function ($subQuery) use ($activePeriod) {
-                $subQuery->where('supervisor_id', $activePeriod->user_id);
-            });
-        })
-        ->where('paid_status', true)
-        ->whereBetween('paid_at', [$activePeriod->opening_date, $activePeriod->closing_date])
-        ->get();
-
-        $expenses = [];
-        $totalExpenses = 0;
-        foreach ($utilitiesData->groupBy('utility_type') as $type => $items) {
-            $typeTotal = $items->sum('charge_amount');
-            $expenses[$type] = $typeTotal;
-            $totalExpenses += $typeTotal;
-        }
-
-        // Add account-based expenses
-        $accountExpenses = Accounts::where('user_id', Auth::id())
-            ->where('account_type', 'expense')
+        // Use Accounts as the single accounting source to avoid double counting.
+        $incomeRecords = Accounts::where('user_id', Auth::id())
             ->where('fiscal_period_id', $activePeriod->id)
+            ->where('account_type', Accounts::TYPE_INCOME)
+            ->get();
+
+        $expenseRecords = Accounts::where('user_id', Auth::id())
+            ->where('fiscal_period_id', $activePeriod->id)
+            ->where('account_type', Accounts::TYPE_EXPENSE)
+            ->get();
+
+        $revenue = $incomeRecords
+            ->where('category', Accounts::CAT_RENT_INCOME)
             ->sum('amount');
-        $totalExpenses += $accountExpenses;
-        if ($accountExpenses > 0) {
-            $expenses['other'] = $accountExpenses;
-        }
+        $lateFees = $incomeRecords
+            ->where('category', Accounts::CAT_LATE_FEE_INCOME)
+            ->sum('amount');
+        $totalIncome = $incomeRecords->sum('amount');
+
+        $expenses = $expenseRecords
+            ->groupBy('category')
+            ->map(fn ($items) => round($items->sum('amount'), 2))
+            ->toArray();
+        $totalExpenses = $expenseRecords->sum('amount');
 
         // Net profit
         $netProfit = $totalIncome - $totalExpenses;
@@ -268,23 +264,18 @@ class DashboardController extends Controller
      */
     private function getMonthlyRevenue(FiscalPeriods $period): array
     {
-        // Direct payment-based revenue
-        $payments = Payments::whereHas('rental', function ($query) use ($period) {
-            $query->whereHas('apartment', function ($subQuery) use ($period) {
-                $subQuery->where('supervisor_id', $period->user_id);
-            });
-        })
-        ->where('payment_status', 'paid')
-        ->whereBetween('paid_at', [$period->opening_date, $period->closing_date])
-        ->selectRaw('YEAR(paid_at) as year, MONTH(paid_at) as month, SUM(amount + late_fee) as total')
-        ->groupByRaw('YEAR(paid_at), MONTH(paid_at)')
-        ->orderByRaw('YEAR(paid_at), MONTH(paid_at)')
-        ->get();
+        $income = Accounts::where('user_id', $period->user_id)
+            ->where('fiscal_period_id', $period->id)
+            ->where('account_type', Accounts::TYPE_INCOME)
+            ->selectRaw('YEAR(transaction_date) as year, MONTH(transaction_date) as month, SUM(amount) as total')
+            ->groupByRaw('YEAR(transaction_date), MONTH(transaction_date)')
+            ->orderByRaw('YEAR(transaction_date), MONTH(transaction_date)')
+            ->get();
 
         $result = [];
-        foreach ($payments as $payment) {
-            $label = date('M Y', mktime(0, 0, 0, $payment->month, 1, $payment->year));
-            $result[$label] = round($payment->total, 2);
+        foreach ($income as $item) {
+            $label = date('M Y', mktime(0, 0, 0, $item->month, 1, $item->year));
+            $result[$label] = round($item->total, 2);
         }
 
         return $result;
@@ -295,37 +286,18 @@ class DashboardController extends Controller
      */
     private function getMonthlyExpenses(FiscalPeriods $period): array
     {
-        // Utilities expenses
-        $utilities = Utilities::whereHas('rental', function ($query) use ($period) {
-            $query->whereHas('apartment', function ($subQuery) use ($period) {
-                $subQuery->where('supervisor_id', $period->user_id);
-            });
-        })
-        ->where('paid_status', true)
-        ->whereBetween('paid_at', [$period->opening_date, $period->closing_date])
-        ->selectRaw('YEAR(paid_at) as year, MONTH(paid_at) as month, SUM(charge_amount) as total')
-        ->groupByRaw('YEAR(paid_at), MONTH(paid_at)')
-        ->orderByRaw('YEAR(paid_at), MONTH(paid_at)')
-        ->get();
-
-        $result = [];
-        foreach ($utilities as $utility) {
-            $label = date('M Y', mktime(0, 0, 0, $utility->month, 1, $utility->year));
-            $result[$label] = round($utility->total, 2);
-        }
-
-        // Account-based expenses (recorded via Record Expense form)
         $accountExpenses = Accounts::where('user_id', $period->user_id)
             ->where('fiscal_period_id', $period->id)
-            ->where('account_type', 'expense')
+            ->where('account_type', Accounts::TYPE_EXPENSE)
             ->selectRaw('YEAR(transaction_date) as year, MONTH(transaction_date) as month, SUM(amount) as total')
             ->groupByRaw('YEAR(transaction_date), MONTH(transaction_date)')
             ->orderByRaw('YEAR(transaction_date), MONTH(transaction_date)')
             ->get();
 
+        $result = [];
         foreach ($accountExpenses as $expense) {
             $label = date('M Y', mktime(0, 0, 0, $expense->month, 1, $expense->year));
-            $result[$label] = round(($result[$label] ?? 0) + $expense->total, 2);
+            $result[$label] = round($expense->total, 2);
         }
 
         return $result;
@@ -349,28 +321,8 @@ class DashboardController extends Controller
             $expenses[$d->format('Y-m')] = 0;
         }
 
-        // Revenue from actual payments (collected)
-        $payments = Payments::whereHas('rental', function ($query) {
-                $query->whereHas('apartment', function ($subQuery) {
-                    $subQuery->where('supervisor_id', Auth::id())
-                             ->orWhereNull('supervisor_id');
-                });
-            })
-            ->where('payment_status', 'paid')
-            ->where('paid_at', '>=', $sixMonthsAgo)
-            ->selectRaw('DATE_FORMAT(paid_at, "%Y-%m") as ym, SUM(amount) as total_amount, SUM(late_fee) as total_late')
-            ->groupByRaw('DATE_FORMAT(paid_at, "%Y-%m")')
-            ->get();
-
-        foreach ($payments as $p) {
-            if (isset($revenue[$p->ym])) {
-                $revenue[$p->ym] = round($p->total_amount + $p->total_late, 2);
-            }
-        }
-
-        // Account income
         $accountIncome = Accounts::where('user_id', Auth::id())
-            ->where('account_type', 'income')
+            ->where('account_type', Accounts::TYPE_INCOME)
             ->where('transaction_date', '>=', $sixMonthsAgo)
             ->selectRaw('DATE_FORMAT(transaction_date, "%Y-%m") as ym, SUM(amount) as total')
             ->groupByRaw('DATE_FORMAT(transaction_date, "%Y-%m")')
@@ -382,28 +334,8 @@ class DashboardController extends Controller
             }
         }
 
-        // Expenses from utilities
-        $utilities = Utilities::whereHas('rental', function ($query) {
-                $query->whereHas('apartment', function ($subQuery) {
-                    $subQuery->where('supervisor_id', Auth::id())
-                             ->orWhereNull('supervisor_id');
-                });
-            })
-            ->where('paid_status', true)
-            ->where('paid_at', '>=', $sixMonthsAgo)
-            ->selectRaw('DATE_FORMAT(paid_at, "%Y-%m") as ym, SUM(charge_amount) as total')
-            ->groupByRaw('DATE_FORMAT(paid_at, "%Y-%m")')
-            ->get();
-
-        foreach ($utilities as $u) {
-            if (isset($expenses[$u->ym])) {
-                $expenses[$u->ym] = round($u->total, 2);
-            }
-        }
-
-        // Account expenses
         $accountExpenses = Accounts::where('user_id', Auth::id())
-            ->where('account_type', 'expense')
+            ->where('account_type', Accounts::TYPE_EXPENSE)
             ->where('transaction_date', '>=', $sixMonthsAgo)
             ->selectRaw('DATE_FORMAT(transaction_date, "%Y-%m") as ym, SUM(amount) as total')
             ->groupByRaw('DATE_FORMAT(transaction_date, "%Y-%m")')
@@ -425,10 +357,11 @@ class DashboardController extends Controller
     /**
      * Fetch all dashboard statistics from database.
      */
-    private function getStats(): array
+    private function getStats(Carbon $startDate, Carbon $endDate, Carbon $referenceMonth): array
     {
-        $currentMonth = now()->month;
-        $currentYear = now()->year;
+        $currentMonth = $referenceMonth->month;
+        $currentYear = $referenceMonth->year;
+        $referenceDate = $referenceMonth->isPast() ? $endDate->copy()->endOfDay() : now();
 
         // -- Payment status counts (from active rentals, same logic as record_income) --
         $paidCount = 0;
@@ -439,8 +372,11 @@ class DashboardController extends Controller
         $activeRentals = Rentals::with(['payments' => function ($pq) {
                 $pq->where('payment_status', 'paid');
             }, 'apartment'])
-            ->where(function ($q) {
-                $q->whereNull('end_date')->orWhere('end_date', '>=', now());
+            ->where(function ($q) use ($startDate, $endDate) {
+                $q->where('start_date', '<=', $endDate)
+                    ->where(function ($q2) use ($startDate) {
+                        $q2->whereNull('end_date')->orWhere('end_date', '>=', $startDate);
+                    });
             })
             ->whereHas('apartment', function ($q) {
                 $q->where('supervisor_id', Auth::id())
@@ -464,7 +400,7 @@ class DashboardController extends Controller
 
             if ($paidThisMonth) {
                 $paidCount++;
-            } elseif (now()->gt($dueDate)) {
+            } elseif ($referenceDate->gt($dueDate)) {
                 $overdueCount++;
                 $totalPendingAmount += $rental->rent_amount;
             } else {
@@ -473,25 +409,32 @@ class DashboardController extends Controller
             }
         }
 
-        // -- Monthly expenses from utilities (current month) --
-        $monthlyUtilities = Utilities::whereHas('rental', function ($query) {
-                $query->whereHas('apartment', function ($subQuery) {
-                    $subQuery->where('supervisor_id', Auth::id())
-                             ->orWhereNull('supervisor_id');
-                });
-            })
-            ->where('paid_status', true)
-            ->where('billing_month', $currentMonth)
-            ->where('billing_year', $currentYear)
-            ->sum('charge_amount');
+        // Accounting totals use Accounts only.
+        $monthlyRevenueAccounts = Accounts::where('user_id', Auth::id())
+            ->where('account_type', Accounts::TYPE_INCOME)
+            ->whereBetween('transaction_date', [$startDate->copy()->startOfDay(), $endDate->copy()->endOfDay()])
+            ->get();
 
-        $monthlyAccountExpenses = Accounts::where('user_id', Auth::id())
-            ->where('account_type', 'expense')
-            ->whereMonth('transaction_date', $currentMonth)
-            ->whereYear('transaction_date', $currentYear)
+        $monthlyCollected = $monthlyRevenueAccounts
+            ->where('category', '!=', Accounts::CAT_LATE_FEE_INCOME)
             ->sum('amount');
+        $monthlyLateFees = $monthlyRevenueAccounts
+            ->where('category', Accounts::CAT_LATE_FEE_INCOME)
+            ->sum('amount');
+        $monthlyTotalRevenue = $monthlyCollected + $monthlyLateFees;
 
-        $monthlyExpensesTotal = $monthlyUtilities + $monthlyAccountExpenses;
+        $monthlyExpenseAccounts = Accounts::where('user_id', Auth::id())
+            ->where('account_type', Accounts::TYPE_EXPENSE)
+            ->whereBetween('transaction_date', [$startDate->copy()->startOfDay(), $endDate->copy()->endOfDay()])
+            ->get();
+
+        $monthlyUtilities = $monthlyExpenseAccounts
+            ->where('category', Accounts::CAT_UTILITIES_EXPENSE)
+            ->sum('amount');
+        $monthlyAccountExpenses = $monthlyExpenseAccounts
+            ->where('category', '!=', Accounts::CAT_UTILITIES_EXPENSE)
+            ->sum('amount');
+        $monthlyExpensesTotal = $monthlyExpenseAccounts->sum('amount');
 
         // -- Utility breakdown (current month, all consumption regardless of payment status) --
         $utilityBreakdown = Utilities::whereHas('rental', function ($query) {
@@ -500,8 +443,13 @@ class DashboardController extends Controller
                              ->orWhereNull('supervisor_id');
                 });
             })
-            ->where('billing_month', $currentMonth)
-            ->where('billing_year', $currentYear)
+            ->where(function ($query) use ($startDate, $endDate) {
+                $query->whereBetween('paid_at', [$startDate->copy()->startOfDay(), $endDate->copy()->endOfDay()])
+                    ->orWhere(function ($query2) use ($startDate, $endDate) {
+                        $query2->whereRaw('(billing_year * 100 + billing_month) >= ?', [$startDate->year * 100 + $startDate->month])
+                            ->whereRaw('(billing_year * 100 + billing_month) <= ?', [$endDate->year * 100 + $endDate->month]);
+                    });
+            })
             ->selectRaw('utility_type, SUM(charge_amount) as total')
             ->groupBy('utility_type')
             ->pluck('total', 'utility_type')
@@ -564,47 +512,22 @@ class DashboardController extends Controller
                         });
                     })
                     ->where('payment_status', 'paid')
-                    ->whereMonth('paid_at', $currentMonth)
-                    ->whereYear('paid_at', $currentYear)
+                    ->whereBetween('paid_at', [$startDate->copy()->startOfDay(), $endDate->copy()->endOfDay()])
                     ->sum('amount'),
                 'total_pending' => $totalPendingAmount,
             ],
             'revenue' => [
+                'total_monthly' => round($monthlyTotalRevenue, 2),
                 'total_monthly_rent' => Apartments::where('status', 'occupied')->sum('monthly_rent'),
-                'collected_this_month' => Payments::whereHas('rental', function ($q) {
-                        $q->whereHas('apartment', function ($sq) {
-                            $sq->where('supervisor_id', Auth::id())
-                               ->orWhereNull('supervisor_id');
-                        });
-                    })
-                    ->where('payment_status', 'paid')
-                    ->whereMonth('paid_at', $currentMonth)
-                    ->whereYear('paid_at', $currentYear)
-                    ->sum('amount'),
-                'late_fees_this_month' => Payments::whereHas('rental', function ($q) {
-                        $q->whereHas('apartment', function ($sq) {
-                            $sq->where('supervisor_id', Auth::id())
-                               ->orWhereNull('supervisor_id');
-                        });
-                    })
-                    ->where('payment_status', 'paid')
-                    ->whereMonth('paid_at', $currentMonth)
-                    ->whereYear('paid_at', $currentYear)
-                    ->sum('late_fee'),
-                'by_type' => Payments::whereHas('rental', function ($q) {
-                        $q->whereHas('apartment', function ($sq) {
-                            $sq->where('supervisor_id', Auth::id())
-                               ->orWhereNull('supervisor_id');
-                        });
-                    })
-                    ->where('payment_status', 'paid')
-                    ->whereMonth('paid_at', $currentMonth)
-                    ->whereYear('paid_at', $currentYear)
-                    ->selectRaw('payment_type, SUM(amount) as total')
-                    ->groupBy('payment_type')
-                    ->pluck('total', 'payment_type')
-                    ->toArray(),
-                'archived_deposits' => Tenants::onlyTrashed()->sum('deposit'),
+                'collected_this_month' => round($monthlyCollected, 2),
+                'late_fees_this_month' => round($monthlyLateFees, 2),
+                'by_type' => [
+                    'rent' => round($monthlyRevenueAccounts->where('category', Accounts::CAT_RENT_INCOME)->sum('amount'), 2),
+                    'deposit' => round($monthlyRevenueAccounts->where('category', Accounts::CAT_DEPOSIT_INCOME)->sum('amount'), 2),
+                    'utilities' => round($monthlyRevenueAccounts->where('category', Accounts::CAT_UTILITY_INCOME)->sum('amount'), 2),
+                    'other' => round($monthlyRevenueAccounts->where('category', Accounts::CAT_OTHER_INCOME)->sum('amount'), 2),
+                ],
+                'archived_deposits' => 0,
             ],
             'expenses' => [
                 'monthly_total' => round($monthlyExpensesTotal, 2),
@@ -612,9 +535,9 @@ class DashboardController extends Controller
                 'account_total' => round($monthlyAccountExpenses, 2),
                 'utility_breakdown' => $utilityBreakdown,
                 'account_breakdown' => Accounts::where('user_id', Auth::id())
-                    ->where('account_type', 'expense')
-                    ->whereMonth('transaction_date', $currentMonth)
-                    ->whereYear('transaction_date', $currentYear)
+                    ->where('account_type', Accounts::TYPE_EXPENSE)
+                    ->where('category', '!=', Accounts::CAT_UTILITIES_EXPENSE)
+                    ->whereBetween('transaction_date', [$startDate->copy()->startOfDay(), $endDate->copy()->endOfDay()])
                     ->selectRaw('category, SUM(amount) as total')
                     ->groupBy('category')
                     ->pluck('total', 'category')
@@ -628,10 +551,10 @@ class DashboardController extends Controller
     /**
      * Compute expected vs collected rent grouped by floor, with apartment breakdown.
      */
-    private function getApartmentRevenueComparison(): array
+    private function getApartmentRevenueComparison(Carbon $selectedMonth): array
     {
-        $currentMonth = now()->month;
-        $currentYear = now()->year;
+        $currentMonth = $selectedMonth->month;
+        $currentYear = $selectedMonth->year;
 
         $floors = Floors::with(['apartments' => function ($q) {
                 $q->where(function ($q2) {
@@ -692,53 +615,24 @@ class DashboardController extends Controller
     /**
      * Get calendar data for current month (revenue & expense).
      */
-    private function getCalendarData(): array
+    private function getCalendarData(Carbon $selectedMonth): array
     {
-        $startOfMonth = now()->startOfMonth();
-        $endOfMonth = now()->endOfMonth();
+        $startOfMonth = $selectedMonth->copy()->startOfMonth();
+        $endOfMonth = $selectedMonth->copy()->endOfMonth();
 
-        // Fetch daily income (payments)
-        $dailyIncome = Payments::whereHas('rental', function ($q) {
-                $q->whereHas('apartment', function ($q2) {
-                    $q2->where('supervisor_id', Auth::id())
-                        ->orWhereNull('supervisor_id');
-                });
-            })
-            ->where('payment_status', 'paid')
-            ->whereBetween('paid_at', [$startOfMonth, $endOfMonth])
-            ->selectRaw('DATE(paid_at) as day, SUM(amount) as total_income, SUM(late_fee) as total_late_fee, COUNT(*) as tx_count')
-            ->groupByRaw('DATE(paid_at)')
-            ->get()
-            ->keyBy('day');
-
-        // Fetch daily expenses from utilities
-        $dailyUtilities = Utilities::whereHas('rental', function ($q) {
-                $q->whereHas('apartment', function ($q2) {
-                    $q2->where('supervisor_id', Auth::id())
-                        ->orWhereNull('supervisor_id');
-                });
-            })
-            ->where('paid_status', true)
-            ->whereBetween('paid_at', [$startOfMonth, $endOfMonth])
-            ->selectRaw('DATE(paid_at) as day, SUM(charge_amount) as total_expense, COUNT(*) as tx_count')
-            ->groupByRaw('DATE(paid_at)')
-            ->get()
-            ->keyBy('day');
-
-        // Fetch daily expenses from accounts
-        $dailyAccountExpenses = Accounts::where('user_id', Auth::id())
-            ->where('account_type', 'expense')
+        // Daily totals are ledger-based to match Revenue & Expense screens.
+        $dailyIncome = Accounts::where('user_id', Auth::id())
+            ->where('account_type', Accounts::TYPE_INCOME)
             ->whereBetween('transaction_date', [$startOfMonth, $endOfMonth])
-            ->selectRaw('DATE(transaction_date) as day, SUM(amount) as total_expense, COUNT(*) as tx_count')
+            ->selectRaw('DATE(transaction_date) as day, SUM(amount) as total_income, COUNT(*) as tx_count')
             ->groupByRaw('DATE(transaction_date)')
             ->get()
             ->keyBy('day');
 
-        // Fetch daily account income
-        $dailyAccountIncome = Accounts::where('user_id', Auth::id())
-            ->where('account_type', 'income')
+        $dailyAccountExpenses = Accounts::where('user_id', Auth::id())
+            ->where('account_type', Accounts::TYPE_EXPENSE)
             ->whereBetween('transaction_date', [$startOfMonth, $endOfMonth])
-            ->selectRaw('DATE(transaction_date) as day, SUM(amount) as total_income, COUNT(*) as tx_count')
+            ->selectRaw('DATE(transaction_date) as day, SUM(amount) as total_expense, COUNT(*) as tx_count')
             ->groupByRaw('DATE(transaction_date)')
             ->get()
             ->keyBy('day');
@@ -753,16 +647,11 @@ class DashboardController extends Controller
 
         for ($d = 1; $d <= $daysInMonth; $d++) {
             $dateStr = $startOfMonth->copy()->day($d)->toDateString();
-            $income = ($dailyIncome[$dateStr]->total_income ?? 0)
-                    + ($dailyIncome[$dateStr]->total_late_fee ?? 0)
-                    + ($dailyAccountIncome[$dateStr]->total_income ?? 0);
-            $expense = ($dailyUtilities[$dateStr]->total_expense ?? 0)
-                     + ($dailyAccountExpenses[$dateStr]->total_expense ?? 0);
+            $income = $dailyIncome[$dateStr]->total_income ?? 0;
+            $expense = $dailyAccountExpenses[$dateStr]->total_expense ?? 0;
             $net = $income - $expense;
             $txCount = ($dailyIncome[$dateStr]->tx_count ?? 0)
-                     + ($dailyUtilities[$dateStr]->tx_count ?? 0)
-                     + ($dailyAccountExpenses[$dateStr]->tx_count ?? 0)
-                     + ($dailyAccountIncome[$dateStr]->tx_count ?? 0);
+                + ($dailyAccountExpenses[$dateStr]->tx_count ?? 0);
 
             $monthTotalIncome += $income;
             $monthTotalExpense += $expense;
@@ -794,6 +683,119 @@ class DashboardController extends Controller
             'monthTotalExpense' => $monthTotalExpense,
             'monthNet' => $monthNet,
             'bestDay' => $bestDay,
+        ];
+    }
+
+    private function getActiveFiscalPeriod(): ?FiscalPeriods
+    {
+        return FiscalPeriods::where('user_id', Auth::id())
+            ->where('status', 'open')
+            ->orderBy('opening_date', 'desc')
+            ->first();
+    }
+
+    private function buildPeriodMonths(FiscalPeriods $period): array
+    {
+        $months = [];
+        $cursor = Carbon::parse($period->opening_date)->startOfMonth();
+        $end = Carbon::parse($period->closing_date)->endOfMonth();
+
+        while ($cursor->lte($end)) {
+            $months[] = [
+                'month' => $cursor->month,
+                'year' => $cursor->year,
+                'label' => $cursor->format('F Y'),
+            ];
+            $cursor->addMonth();
+        }
+
+        return $months;
+    }
+
+    private function resolveSelectedMonth(?FiscalPeriods $activePeriod, ?int $month, ?int $year): Carbon
+    {
+        if ($activePeriod) {
+            $periodMonths = $this->buildPeriodMonths($activePeriod);
+
+            if ($month && $year && $month >= 1 && $month <= 12) {
+                foreach ($periodMonths as $periodMonth) {
+                    if ($periodMonth['month'] === $month && $periodMonth['year'] === $year) {
+                        return Carbon::create($year, $month, 1)->startOfMonth();
+                    }
+                }
+            }
+
+            foreach ($periodMonths as $periodMonth) {
+                if ($periodMonth['month'] === now()->month && $periodMonth['year'] === now()->year) {
+                    return now()->startOfMonth();
+                }
+            }
+
+            if (!empty($periodMonths)) {
+                return Carbon::create($periodMonths[0]['year'], $periodMonths[0]['month'], 1)->startOfMonth();
+            }
+        }
+
+        if ($month && $year && $month >= 1 && $month <= 12) {
+            return Carbon::create($year, $month, 1)->startOfMonth();
+        }
+
+        return now()->startOfMonth();
+    }
+
+    private function resolveDateRange(?FiscalPeriods $activePeriod, ?Carbon $selectedMonth, bool $isFullPeriod): array
+    {
+        if ($activePeriod && $isFullPeriod) {
+            return [
+                'start' => Carbon::parse($activePeriod->opening_date)->startOfDay(),
+                'end' => Carbon::parse($activePeriod->closing_date)->endOfDay(),
+            ];
+        }
+
+        $month = $selectedMonth ?: now()->startOfMonth();
+
+        return [
+            'start' => $month->copy()->startOfMonth(),
+            'end' => $month->copy()->endOfMonth(),
+        ];
+    }
+
+    private function resolveDisplayMonth(?FiscalPeriods $activePeriod, array $periodMonths): Carbon
+    {
+        if ($activePeriod) {
+            foreach ($periodMonths as $periodMonth) {
+                if ($periodMonth['month'] === now()->month && $periodMonth['year'] === now()->year) {
+                    return now()->startOfMonth();
+                }
+            }
+
+            if (!empty($periodMonths)) {
+                return Carbon::create($periodMonths[0]['year'], $periodMonths[0]['month'], 1)->startOfMonth();
+            }
+        }
+
+        return now()->startOfMonth();
+    }
+
+    private function getMonthNavigation(array $periodMonths, Carbon $selectedMonth, bool $isFullPeriod): array
+    {
+        $currentIndex = null;
+
+        foreach ($periodMonths as $index => $periodMonth) {
+            if ($periodMonth['month'] === $selectedMonth->month && $periodMonth['year'] === $selectedMonth->year) {
+                $currentIndex = $index;
+                break;
+            }
+        }
+
+        return [
+            'previousMonth' => !$isFullPeriod && $currentIndex !== null && $currentIndex > 0 ? $periodMonths[$currentIndex - 1] : null,
+            'nextMonth' => !$isFullPeriod && $currentIndex !== null && $currentIndex < count($periodMonths) - 1 ? $periodMonths[$currentIndex + 1] : null,
+            'isCurrentMonth' => $selectedMonth->month === now()->month && $selectedMonth->year === now()->year,
+            'isFullPeriod' => $isFullPeriod,
+            'currentMonthInPeriod' => collect($periodMonths)->first(function ($periodMonth) {
+                return $periodMonth['month'] === now()->month && $periodMonth['year'] === now()->year;
+            }),
         ];
     }
 }

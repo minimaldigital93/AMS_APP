@@ -146,7 +146,7 @@ class TenantController extends Controller
             });
         }
 
-        $tenants = $query->orderBy('deleted_at', 'desc')->paginate(15)->withQueryString();
+        $tenants = $query->orderBy('deleted_at', 'desc')->paginate(7)->withQueryString();
         $floors = Floors::orderBy('floor_name')->get();
 
         $archivedTenantCount = Tenants::onlyTrashed()->count();

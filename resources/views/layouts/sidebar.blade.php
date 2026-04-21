@@ -636,10 +636,10 @@
         </div>
     </div>
 
-    {{-- System Settings Section --}}
+    {{-- System Settings Section (single-click to General Settings) --}}
     <div class="mt-4">
-        <button @click="expandedSections['Settings'] = !expandedSections['Settings']" 
-                class="section-header flex items-center justify-between w-full transition sidebar-transition">
+        <a href="{{ route('admin.settings.index') }}" 
+           class="section-header flex items-center justify-between w-full transition sidebar-transition {{ request()->routeIs('admin.settings.*') ? 'text-blue-700' : '' }}">
             <span class="flex items-center gap-2.5">
                 <span class="section-icon">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
@@ -649,29 +649,9 @@
                 </span>
                 <span class="section-title sidebar-label">{{ __('messages.system_settings') }}</span>
             </span>
-            <svg class="chevron h-5 w-5 transition-transform flex-shrink-0" :class="expandedSections['Settings'] ? 'rotate-90' : ''" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+            <svg class="chevron h-5 w-5 transition-transform flex-shrink-0" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7" />
             </svg>
-        </button>
-        <div x-show="expandedSections['Settings']"
-             x-transition:enter="transition ease-out duration-300"
-             x-transition:enter-start="opacity-0 -translate-y-2"
-             x-transition:enter-end="opacity-100 translate-y-0"
-             x-transition:leave="transition ease-in duration-200"
-             x-transition:leave-start="opacity-100 translate-y-0"
-             x-transition:leave-end="opacity-0 -translate-y-2"
-             class="submenu-container mt-2 space-y-1">
-            
-            {{-- System Settings --}}
-            <a href="{{ route('admin.settings.index') }}" class="submenu-item nav-link flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm {{ request()->routeIs('admin.settings.*') ? 'text-blue-700 active' : 'text-gray-700 hover:text-blue-700' }} transition-all sidebar-transition">
-                <span class="nav-icon sidebar-transition">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                    </svg>
-                </span>
-                <span class="nav-text truncate sidebar-label">{{ __('messages.general_settings') }}</span>
-            </a>
-        </div>
+        </a>
     </div>
 </nav>
