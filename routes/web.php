@@ -16,6 +16,7 @@ use App\Http\Controllers\Supervisor\PaymentController as SupervisorPaymentContro
 use App\Http\Controllers\Tenant\DashboardController as TenantDashboardController;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
+
   
 
 Route::get('/', function () {
@@ -34,6 +35,7 @@ Route::post('/language/switch', function (\Illuminate\Http\Request $request) {
 
 //Route for dashboard - redirects to role-appropriate dashboard
 Route::get('/dashboard', function () {
+    /** @var \App\Models\User $user */
     $user = Auth::user();
     if ($user->hasRole('admin')) {
         return redirect()->route('admin.dashboard');
@@ -48,14 +50,6 @@ Route::get('/dashboard', function () {
 Route::get('/admin/dashboard', [DashboardController::class, 'index'])
     ->middleware(['auth', 'verified', 'role:admin'])
     ->name('admin.dashboard');
-
-Route::post('/admin/dashboard/quick-revenue', [DashboardController::class, 'storeQuickRevenue'])
-    ->middleware(['auth', 'verified', 'role:admin'])
-    ->name('admin.dashboard.quick_revenue');
-
-Route::post('/admin/dashboard/quick-expense', [DashboardController::class, 'storeQuickExpense'])
-    ->middleware(['auth', 'verified', 'role:admin'])
-    ->name('admin.dashboard.quick_expense');
 
 Route::get('/supervisor/dashboard', [SupervisorDashboardController::class, 'index'])
     ->middleware(['auth', 'verified', 'role:supervisor'])

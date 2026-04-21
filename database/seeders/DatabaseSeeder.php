@@ -28,9 +28,7 @@ class DatabaseSeeder extends Seeder
             'status' => 'active',
         ]);
 
-        if (!$admin->hasRole('admin')) {
-            $admin->assignRole('admin');    
-        }
+        $admin->syncRoles(['admin']);
 
         //Create supervisor user
         $supervisor = User::firstOrCreate([
@@ -42,9 +40,7 @@ class DatabaseSeeder extends Seeder
             'status' => 'active',
         ]);
 
-        if (!$supervisor->hasRole('supervisor')) {
-            $supervisor->assignRole('supervisor');
-        }
+        $supervisor->syncRoles(['supervisor']);
 
         //Create tenant user
         $tenant = User::firstOrCreate([
@@ -56,8 +52,6 @@ class DatabaseSeeder extends Seeder
             'status' => 'active',
         ]);    
 
-        if (!$tenant->hasRole('tenant')) {
-            $tenant->assignRole('tenant');    
-        }
+        $tenant->syncRoles(['tenant']);
     }
 }

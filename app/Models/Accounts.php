@@ -6,24 +6,6 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Carbon\Carbon;
 
-/**
- * Accounts = The General Ledger (central record of ALL money in & out).
- *
- * HOW REVENUE & EXPENSES WORK:
- * ─────────────────────────────
- *  INCOME FLOW:   Tenant pays rent/utilities → Payments table → Accounts (income)
- *  EXPENSE FLOW:  Owner pays bills           → Utilities / BusinessExpense → Accounts (expense)
- *
- * Every financial transaction MUST create an Accounts record so the
- * fiscal period totals stay accurate. The Payments, Utilities, and
- * BusinessExpense tables hold the operational detail; Accounts holds
- * the accounting summary.
- *
- * CATEGORIES (use the constants below — never raw strings):
- *  Income:  rent_income, utility_income, deposit_income, late_fee_income, other_income
- *  Expense: utilities_expense, business_fixed, business_variable,
- *           maintenance, insurance, property_tax, management, other_expense
- */
 class Accounts extends Model
 {
     // ── Account Types ────────────────────────────────────────────

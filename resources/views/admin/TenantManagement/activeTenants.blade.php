@@ -118,13 +118,19 @@
                                 <td class="px-6 py-4 whitespace-nowrap">
                                     @php $rp = $rentProgressMap[$tenant->id] ?? null; @endphp
                                     @if($rp)
+                                    @php
+                                        $dp = $rp['day_percent'];
+                                        $barColor  = $dp >= 80 ? 'bg-red-400'    : ($dp >= 50 ? 'bg-yellow-400' : 'bg-blue-400');
+                                        $trackColor = $dp >= 80 ? 'bg-red-100'   : ($dp >= 50 ? 'bg-yellow-100' : 'bg-blue-100');
+                                        $textColor  = $dp >= 80 ? 'text-red-500' : ($dp >= 50 ? 'text-yellow-600' : 'text-blue-500');
+                                    @endphp
                                     <div class="w-28">
                                         <div class="flex items-center justify-between mb-0.5">
-                                            <span class="text-[10px] text-gray-500">{{ intval($rp['days_stayed']) }}/{{ intval($rp['total_days']) }}d</span>
-                                            <span class="text-[10px] font-semibold {{ $rp['day_percent'] >= 100 ? 'text-green-600' : 'text-gray-600' }}">{{ intval($rp['day_percent']) }}%</span>
+                                            <span class="text-[10px] font-semibold {{ $textColor }}">{{ $dp }}%</span>
+                                            <span class="text-[10px] text-gray-400">${{ number_format($rp['paid'], 0) }}/${{ number_format($rp['rent'], 0) }}</span>
                                         </div>
-                                        <div class="w-full bg-gray-100 rounded-full h-1.5">
-                                            <div class="bg-blue-500 h-1.5 rounded-full" style="width: {{ $rp['day_percent'] }}%"></div>
+                                        <div class="w-full rounded-full h-1.5 {{ $trackColor }}">
+                                            <div class="h-1.5 rounded-full {{ $barColor }}" style="width: {{ $dp }}%"></div>
                                         </div>
                                     </div>
                                     @else
