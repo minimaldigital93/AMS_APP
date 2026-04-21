@@ -230,15 +230,27 @@
                                 <p class="text-xs text-red-500 font-medium">{{ (int) ($isPastMonth ? $selectedDate->copy()->endOfMonth() : now())->diffInDays($bill['due_date']) }} days late</p>
                             @elseif($bill['status'] === 'pending' && ($isFutureMonth || $isCurrentMonth))
                                 @php
-                                    $daysUntilDue = (int) now()->diffInDays($bill['due_date'], false);
-                                    $totalDaysInMonth = $selectedDate->copy()->daysInMonth;
-                                    $daysPassed = $isCurrentMonth ? now()->day : 0;
-                                    $progressPct = $isCurrentMonth ? min(100, round(($daysPassed / $totalDaysInMonth) * 100)) : 0;
+                                    // Occupancy-based progress: proportion of days in the selected month the rental is occupied
+                                    $rangeStart = $selectedDate->copy()->startOfMonth()->startOfDay();
+                                    $rangeEnd = $selectedDate->copy()->endOfMonth()->endOfDay();
+                                    $rentStart = \Carbon\Carbon::parse($bill['rental']->start_date)->startOfDay();
+                                    $rentEnd = $bill['rental']->end_date ? \Carbon\Carbon::parse($bill['rental']->end_date)->endOfDay() : null;
+                                    $ovStart = $rentStart->greaterThan($rangeStart) ? $rentStart : $rangeStart;
+                                    $ovEnd = $rentEnd ? ($rentEnd->lessThan($rangeEnd) ? $rentEnd : $rangeEnd) : $rangeEnd;
+                                    $overlapDays = 0;
+                                    if ($ovStart->lte($ovEnd)) {
+                                        $overlapDays = $ovStart->diffInDays($ovEnd) + 1;
+                                    }
+                                    $daysInRange = $rangeStart->diffInDays($rangeEnd) + 1;
+                                    $progressPct = $daysInRange > 0 ? min(100, round(($overlapDays / $daysInRange) * 100)) : 0;
                                 @endphp
                                 <div class="mt-1.5 w-full">
                                     <div class="w-full bg-slate-200 rounded-full h-1.5">
                                         <div class="h-1.5 rounded-full {{ $progressPct > 75 ? 'bg-amber-500' : 'bg-sky-500' }}" style="width: {{ $progressPct }}%"></div>
                                     </div>
+                                    @php
+                                        $daysUntilDue = (int) now()->diffInDays($bill['due_date'], false);
+                                    @endphp
                                     <p class="text-xs {{ $daysUntilDue <= 5 && $isCurrentMonth ? 'text-amber-500' : 'text-sky-500' }} font-medium mt-0.5">
                                         @if($isFutureMonth)
                                             Upcoming

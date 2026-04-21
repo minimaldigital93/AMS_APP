@@ -108,7 +108,24 @@ class RevenueExpenseController extends Controller
             $rentalQuery->active();
         }
 
-        $revenueExpenseData['expectedMonthlyRent'] = $rentalQuery->sum('rent_amount');
+        // Compute expected monthly rent as the sum of prorated rents for rentals overlapping the selected range
+        $expectedMonthlyRent = 0;
+        $rentalsForExpect = $rentalQuery->get();
+        $expectRangeStart = Carbon::parse($startDate ?: now()->startOfMonth())->startOfDay();
+        $expectRangeEnd = Carbon::parse($endDate ?: now()->endOfMonth())->endOfDay();
+        foreach ($rentalsForExpect as $rental) {
+            $rentStart = Carbon::parse($rental->start_date)->startOfDay();
+            $rentEnd = $rental->end_date ? Carbon::parse($rental->end_date)->endOfDay() : null;
+            $ovStart = $rentStart->greaterThan($expectRangeStart) ? $rentStart : $expectRangeStart;
+            $ovEnd = $rentEnd ? ($rentEnd->lessThan($expectRangeEnd) ? $rentEnd : $expectRangeEnd) : $expectRangeEnd;
+            if ($ovStart->lte($ovEnd)) {
+                $overlapDays = $ovStart->diffInDays($ovEnd) + 1;
+                $daysInRange = $expectRangeStart->diffInDays($expectRangeEnd) + 1;
+                $proration = $daysInRange > 0 ? ($overlapDays / $daysInRange) : 0;
+                $expectedMonthlyRent += round($rental->rent_amount * $proration, 2);
+            }
+        }
+        $revenueExpenseData['expectedMonthlyRent'] = $expectedMonthlyRent;
 
         // ===== RECORD INCOME DATA =====
         $incomeApartments = $this->scopeApartments()
@@ -129,32 +146,69 @@ class RevenueExpenseController extends Controller
         $apartmentSummary = [];
         $totalRentExpected = 0;
         $totalRentCollected = 0;
-        $currentMonth = $filterMonth ?? now()->month;
-        $currentYear = $filterYear ?? now()->year;
+        // Use the selected date range (clamped to fiscal period) for "this month" calculations.
+        $rangeStart = Carbon::parse($startDate ?: now()->startOfMonth())->startOfDay();
+        $rangeEnd = Carbon::parse($endDate ?: now()->endOfMonth())->endOfDay();
 
         foreach ($incomeApartments as $apartment) {
             foreach ($apartment->rentals as $rental) {
-                $collected = $rental->payments->sum('amount');
-                $lateFees = $rental->payments->sum('late_fee');
+                // Sum payments that occurred inside the selected date range
+                $monthPayments = $rental->payments->filter(function($p) use ($rangeStart, $rangeEnd) {
+                    return Carbon::parse($p->paid_at)->between($rangeStart, $rangeEnd);
+                });
+                $collected = $monthPayments->sum('amount');
+                $lateFees = $monthPayments->sum('late_fee');
                 $totalRentCollected += $collected + $lateFees;
-                $totalRentExpected += $rental->rent_amount;
 
-                $paidThisMonth = $rental->payments
-                    ->filter(function ($p) use ($currentMonth, $currentYear) {
-                        return $p->payment_type === 'rent'
-                            && Carbon::parse($p->paid_at)->month === $currentMonth
-                            && Carbon::parse($p->paid_at)->year === $currentYear;
-                    })->isNotEmpty();
+                // Calculate prorated rent due for the selected date range based on rental start/end
+                $rentPeriodStart = Carbon::parse($rental->start_date)->startOfDay();
+                $rentPeriodEnd = $rental->end_date ? Carbon::parse($rental->end_date)->endOfDay() : null;
+
+                $overlapStart = $rentPeriodStart->greaterThan($rangeStart) ? $rentPeriodStart : $rangeStart;
+                $overlapEnd = $rentPeriodEnd ? ($rentPeriodEnd->lessThan($rangeEnd) ? $rentPeriodEnd : $rangeEnd) : $rangeEnd;
+
+                $overlapDays = 0;
+                if ($overlapStart->lte($overlapEnd)) {
+                    // inclusive days
+                    $overlapDays = $overlapStart->diffInDays($overlapEnd) + 1;
+                }
+
+                $daysInRange = $rangeStart->diffInDays($rangeEnd) + 1;
+                $proration = $daysInRange > 0 ? ($overlapDays / $daysInRange) : 0;
+                $proratedRent = round($rental->rent_amount * $proration, 2);
+
+                $totalRentExpected += $proratedRent;
+
+                // Determine if tenant has paid at least the prorated amount this range
+                $paidThisMonth = ($collected + $lateFees) >= $proratedRent && $proratedRent > 0;
+
+                // Last payment date within range
+                $lastPaymentDate = $monthPayments->isNotEmpty() ? Carbon::parse($monthPayments->max('paid_at'))->toDateString() : null;
+
+                // occupancy end date for the overlap
+                $occupancyEndDate = ($overlapStart->lte($overlapEnd)) ? $overlapEnd->toDateString() : null;
+
+                // days left from today to occupancy end (0 if past)
+                $daysLeft = null;
+                if ($occupancyEndDate) {
+                    $diff = Carbon::parse($occupancyEndDate)->startOfDay()->diffInDays(Carbon::now()->startOfDay());
+                    $daysLeft = $diff > 0 ? $diff : 0;
+                }
 
                 $apartmentSummary[] = [
                     'apartment' => $apartment,
                     'rental' => $rental,
                     'monthly_rent' => $rental->rent_amount,
+                    'prorated_rent' => $proratedRent,
                     'collected' => $collected,
                     'late_fees' => $lateFees,
                     'total_collected' => $collected + $lateFees,
                     'payment_count' => $rental->payments->count(),
                     'paid_this_month' => $paidThisMonth,
+                    'occupancy_percent' => round($proration * 100, 1),
+                    'last_payment_date' => $lastPaymentDate,
+                    'occupancy_end_date' => $occupancyEndDate,
+                    'days_left' => $daysLeft,
                 ];
             }
         }
@@ -173,6 +227,10 @@ class RevenueExpenseController extends Controller
         $revenueExpenseData['totalRentCollected'] = $totalRentCollected;
         $revenueExpenseData['expectedTenantCount'] = count($apartmentSummary);
         $revenueExpenseData['paidTenantCount'] = collect($apartmentSummary)->where('paid_this_month', true)->count();
+
+        // Current month/year used by billing and utilities queries (respect filter if provided)
+        $currentMonth = $filterMonth ?? now()->month;
+        $currentYear = $filterYear ?? now()->year;
 
         // ===== RECORD EXPENSE DATA =====
         $expenseApartments = $this->scopeApartments()
@@ -581,8 +639,9 @@ class RevenueExpenseController extends Controller
      */
     private function calculatePerApartmentData($startDate = null, $endDate = null)
     {
-        $currentMonth = now()->month;
-        $currentYear = now()->year;
+        // Determine the date range used for per-apartment "this period" calculations
+        $rangeStart = Carbon::parse($startDate ?: now()->startOfMonth())->startOfDay();
+        $rangeEnd = Carbon::parse($endDate ?: now()->endOfMonth())->endOfDay();
         $activePeriod = $this->getActiveFiscalPeriod();
 
         $apartments = $this->scopeApartments()
@@ -642,16 +701,54 @@ class RevenueExpenseController extends Controller
                     $tenantName = $rental->tenant->name ?? 'N/A';
                 }
 
-                // Current month rent progress
-                $monthPayments = $rental->payments->filter(function ($p) use ($currentMonth, $currentYear) {
-                    return $p->payment_type === 'rent'
-                        && Carbon::parse($p->paid_at)->month === $currentMonth
-                        && Carbon::parse($p->paid_at)->year === $currentYear;
+                // Rent progress for the selected date range, prorated by rental occupancy within the range
+                $monthPayments = $rental->payments->filter(function ($p) use ($rangeStart, $rangeEnd) {
+                    return $p->payment_type === 'rent' && Carbon::parse($p->paid_at)->between($rangeStart, $rangeEnd);
                 });
                 $rentPaid = $monthPayments->sum('amount');
-                $rentDue = $rental->rent_amount;
-                $rentPercent = $rentDue > 0 ? min(round(($rentPaid / $rentDue) * 100, 1), 100) : 0;
-                $rentStatus = $rentPercent >= 100 ? 'paid' : ($rentPercent > 0 ? 'partial' : 'unpaid');
+
+                // Prorate rent due by overlap of rental start/end with the selected range
+                $rentPeriodStart = Carbon::parse($rental->start_date)->startOfDay();
+                $rentPeriodEnd = $rental->end_date ? Carbon::parse($rental->end_date)->endOfDay() : null;
+
+                $overlapStart = $rentPeriodStart->greaterThan($rangeStart) ? $rentPeriodStart : $rangeStart;
+                $overlapEnd = $rentPeriodEnd ? ($rentPeriodEnd->lessThan($rangeEnd) ? $rentPeriodEnd : $rangeEnd) : $rangeEnd;
+
+                $overlapDays = 0;
+                if ($overlapStart->lte($overlapEnd)) {
+                    $overlapDays = $overlapStart->diffInDays($overlapEnd) + 1;
+                }
+
+                $daysInRange = $rangeStart->diffInDays($rangeEnd) + 1;
+                $proration = $daysInRange > 0 ? ($overlapDays / $daysInRange) : 0;
+                $rentDue = round($rental->rent_amount * $proration, 2);
+
+                if ($proration <= 0) {
+                    $rentPercent = 0;
+                    $rentStatus = 'none';
+                } else {
+                    $rentPercent = $rentDue > 0 ? min(round(($rentPaid / $rentDue) * 100, 1), 100) : 0;
+                    $rentStatus = $rentPaid >= $rentDue ? 'paid' : ($rentPercent > 0 ? 'partial' : 'unpaid');
+                }
+
+                // Occupancy percent (how many days in the selected range the rental was occupied)
+                $occupancyPercent = round($proration * 100, 1);
+
+                // Last payment date within the selected range (if any)
+                $lastPaymentDate = null;
+                if ($monthPayments->isNotEmpty()) {
+                    $lastPaymentDate = Carbon::parse($monthPayments->max('paid_at'))->toDateString();
+                }
+
+                // Occupancy end date for the overlap (if any)
+                $occupancyEndDate = $overlapDays > 0 ? $overlapEnd->toDateString() : null;
+
+                // days left for this rental overlap
+                $daysLeft = null;
+                if ($occupancyEndDate) {
+                    $diff = Carbon::parse($occupancyEndDate)->startOfDay()->diffInDays(Carbon::now()->startOfDay());
+                    $daysLeft = $diff > 0 ? $diff : 0;
+                }
 
                 foreach ($rental->utilities as $utility) {
                     $type = $utility->utility_type;
@@ -695,6 +792,10 @@ class RevenueExpenseController extends Controller
                 'rent_percent' => $rentPercent,
                 'rent_paid' => round($rentPaid, 2),
                 'rent_due' => round($rentDue, 2),
+                'occupancy_percent' => $occupancyPercent ?? 0,
+                'last_payment_date' => $lastPaymentDate,
+                'occupancy_end_date' => $occupancyEndDate,
+                'days_left' => $daysLeft,
                 'rent_status' => $hasActiveRental ? $rentStatus : 'none',
             ];
         }

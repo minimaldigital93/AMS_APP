@@ -401,7 +401,7 @@
                             <th class="text-left px-4 py-2 font-medium">This Month</th>
                             <th class="text-right px-4 py-2 font-medium">Income</th>
                             <th class="text-right px-4 py-2 font-medium">Utilities</th>
-                            <th class="text-right px-4 py-2 font-medium" title="Income + Utilities = Total tenant pays to owner">Net<br><span class="text-[9px] normal-case text-slate-400">(Tenant → Owner)</span></th>
+                            <th class="text-right px-4 py-2 font-medium" title="Income + Utilities = Total tenant pays to owner">Net Profit<br><span class="text-[9px] normal-case text-slate-400"></span></th>
                             <th class="text-center px-4 py-2 font-medium">Action</th>
                         </tr>
                     </thead>
@@ -415,19 +415,25 @@
                                 @if($apt['rent_status'] !== 'none')
                                 <div class="w-28">
                                     <div class="flex items-center justify-between mb-0.5">
-                                        <span class="text-[10px] font-bold {{ $apt['rent_status'] === 'paid' ? 'text-emerald-600' : ($apt['rent_status'] === 'partial' ? 'text-amber-600' : 'text-red-500') }}">{{ $apt['rent_percent'] }}%</span>
-                                        <span class="text-[10px] text-slate-400">${{ number_format($apt['rent_paid'], 0) }}/${{ number_format($apt['rent_due'], 0) }}</span>
+                                        <span class="text-[10px] font-bold {{ $apt['rent_status'] === 'paid' ? 'text-emerald-600' : ($apt['rent_status'] === 'partial' ? 'text-amber-600' : 'text-red-500') }}">{{ $apt['occupancy_percent'] ?? 0 }}%</span>
+                                        @php
+                                            $last = isset($apt['last_payment_date']) && $apt['last_payment_date'] ? \Carbon\Carbon::parse($apt['last_payment_date'])->format('d') : '-';
+                                            $daysLeft = array_key_exists('days_left', $apt) && $apt['days_left'] !== null ? $apt['days_left'] . 'd' : '-';
+                                        @endphp
+                                        <span class="text-[10px] text-slate-400">{{ $last }} / {{ $daysLeft }}</span>
                                     </div>
                                     <div class="w-full bg-slate-200 rounded-full h-1.5">
-                                        @php
-                                            $barColor = match($apt['rent_status']) {
-                                                'paid' => 'bg-emerald-500',
-                                                'partial' => 'bg-amber-500',
-                                                default => 'bg-red-300',
-                                            };
-                                        @endphp
-                                        <div class="{{ $barColor }} h-1.5 rounded-full" style="width: {{ $apt['rent_percent'] }}%"></div>
-                                    </div>
+                                            @php
+                                                $barColor = match($apt['rent_status']) {
+                                                    'paid' => 'bg-emerald-500',
+                                                    'partial' => 'bg-amber-500',
+                                                    default => 'bg-red-300',
+                                                };
+                                                // Use occupancy percent to show proportion of days occupied in range
+                                                $occupancyWidth = $apt['occupancy_percent'] ?? 0;
+                                            @endphp
+                                            <div class="{{ $barColor }} h-1.5 rounded-full" style="width: {{ $occupancyWidth > 0 ? max($occupancyWidth, 2) : 0 }}%"></div>
+                                        </div>
                                 </div>
                                 @else
                                 <span class="text-[10px] text-slate-300">—</span>
@@ -699,15 +705,17 @@
                                             <div>
                                                 <span class="inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-medium bg-emerald-100 text-emerald-700">Paid</span>
                                                 <div class="w-full bg-slate-200 rounded-full h-1 mt-1">
-                                                    <div class="bg-emerald-500 h-1 rounded-full" style="width: 100%"></div>
-                                                </div>
+                                                        @php $occWidth = $s['occupancy_percent'] ?? 0; @endphp
+                                                        <div class="bg-emerald-500 h-1 rounded-full" style="width: {{ $occWidth > 0 ? max($occWidth, 2) : 0 }}%"></div>
+                                                    </div>
                                             </div>
                                             @else
                                             <div>
                                                 <span class="inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-700">Pending</span>
                                                 <div class="w-full bg-slate-200 rounded-full h-1 mt-1">
                                                     @php
-                                                        $bulkPercent = $s['monthly_rent'] > 0 ? min(round(($s['collected'] / $s['monthly_rent']) * 100, 1), 100) : 0;
+                                                        $due = $s['prorated_rent'] ?? $s['monthly_rent'];
+                                                        $bulkPercent = $due > 0 ? min(round(($s['collected'] / $due) * 100, 1), 100) : 0;
                                                     @endphp
                                                     <div class="{{ $bulkPercent > 0 ? 'bg-amber-500' : 'bg-red-300' }} h-1 rounded-full" style="width: {{ max($bulkPercent, 2) }}%"></div>
                                                 </div>
