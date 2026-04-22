@@ -7,9 +7,6 @@
     <!-- Header -->
     <div class="flex items-center justify-between">
         <div class="flex items-center gap-4">
-            <a href="{{ route('admin.apartments.index') }}" class="text-slate-400 hover:text-slate-600 transition">
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M10 19l-7-7m0 0l7-7m-7 7h18"/></svg>
-            </a>
             <div>
                 <h1 class="text-2xl font-semibold text-slate-800 tracking-tight">{{ $apartment->apartment_number }}</h1>
                 <p class="text-slate-400 text-sm mt-0.5">
@@ -20,7 +17,8 @@
                 </p>
             </div>
         </div>
-        <span class="inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg
+        <div class="flex items-center gap-3">
+            <span class="inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg
             @if($apartment->status === 'available') text-emerald-600 bg-emerald-50
             @elseif($apartment->status === 'occupied') text-sky-600 bg-sky-50
             @elseif($apartment->status === 'maintenance') text-amber-600 bg-amber-50
@@ -33,7 +31,12 @@
                 @else bg-slate-300
                 @endif"></span>
             {{ ucfirst($apartment->status) }}
-        </span>
+            </span>
+            <a href="{{ route('admin.revenue_expense.index') }}" class="inline-flex items-center gap-2 text-slate-500 hover:text-slate-700 text-sm font-medium py-2.5 px-5 rounded-lg border border-slate-200 hover:border-slate-300 transition">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M10 19l-7-7m0 0l7-7m-7 7h18"/></svg>
+                Back
+            </a>
+        </div>
     </div>
 
     <!-- Apartment Details -->
@@ -110,6 +113,30 @@
             <!-- Monthly Timeline -->
             <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
                 @foreach($rentProgress as $month)
+                @php
+                    // Determine percent to display. For the current month, calculate based on days stayed in month when a rental exists.
+                    $displayPercent = $month['percent'] ?? 0;
+                    if(!empty($month['is_current']) && $month['is_current'] && !empty($activeRental)) {
+                        // Build month start safely: controller provides 'month' as short name (e.g. 'Apr') and 'year'.
+                        if(isset($month['year']) && isset($month['month']) && is_numeric($month['month'])) {
+                            $monthStart = \Carbon\Carbon::createFromDate($month['year'], $month['month'], 1)->startOfMonth();
+                        } else {
+                            try {
+                                $monthStart = \Carbon\Carbon::createFromFormat('M Y', ($month['month'] ?? '') . ' ' . ($month['year'] ?? now()->year))->startOfMonth();
+                            } catch (\Exception $e) {
+                                $monthStart = \Carbon\Carbon::createFromDate($month['year'] ?? now()->year, now()->month, 1)->startOfMonth();
+                            }
+                        }
+                        $monthEnd = (clone $monthStart)->endOfMonth();
+                        $rentalStart = \Carbon\Carbon::parse($activeRental->start_date)->startOfDay();
+                        $rentalEnd = $activeRental->end_date ? \Carbon\Carbon::parse($activeRental->end_date)->endOfDay() : now();
+                        $occStart = $rentalStart->greaterThan($monthStart) ? $rentalStart : $monthStart;
+                        $occEnd = $rentalEnd->lessThan($monthEnd) ? $rentalEnd : $monthEnd;
+                        $daysInMonth = $monthStart->daysInMonth;
+                        $daysOccupied = $occEnd->gte($occStart) ? $occEnd->diffInDays($occStart) + 1 : 0;
+                        $displayPercent = $daysInMonth > 0 ? min(100, round(($daysOccupied / $daysInMonth) * 100, 1)) : $displayPercent;
+                    }
+                @endphp
                 <div class="rounded-xl border p-3 {{ $month['is_current'] ? 'border-slate-300 bg-slate-50' : 'border-slate-100' }}">
                     <div class="flex items-center justify-between mb-2">
                         <span class="text-[11px] font-semibold text-slate-600">{{ $month['label'] }}</span>
@@ -123,7 +150,7 @@
                                 ($month['status'] === 'partial' ? 'bg-amber-400' :
                                 ($month['status'] === 'overdue' ? 'bg-red-400' :
                                 ($month['status'] === 'due' ? 'bg-sky-400' : 'bg-slate-200'))) }}"
-                            style="width: {{ $month['percent'] }}%"></div>
+                            style="width: {{ $displayPercent }}%"></div>
                     </div>
                     <div class="flex justify-between text-[10px]">
                         <span class="{{ $month['status'] === 'paid' ? 'text-emerald-600' :
@@ -132,7 +159,7 @@
                                         ($month['status'] === 'due' ? 'text-sky-600' : 'text-slate-400'))) }} font-medium">
                             {{ ucfirst($month['status']) }}
                         </span>
-                        <span class="text-slate-400">{{ $month['percent'] }}%</span>
+                        <span class="text-slate-400">{{ $displayPercent }}%</span>
                     </div>
                     @if(!empty($month['paid_date']))
                     <p class="text-[10px] text-slate-300 mt-1">Paid {{ $month['paid_date'] }}</p>

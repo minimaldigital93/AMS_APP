@@ -17,33 +17,7 @@ use Illuminate\Support\Facades\Auth;
 use Carbon\Carbon;
 use Illuminate\Pagination\LengthAwarePaginator;
 
-/**
- * ╔═══════════════════════════════════════════════════════════════════╗
- * ║              REVENUE & EXPENSE CONTROLLER                       ║
- * ║                                                                 ║
- * ║  HOW MONEY FLOWS IN THIS SYSTEM:                                ║
- * ║                                                                 ║
- * ║  INCOME (money coming in):                                      ║
- * ║    Tenant pays rent      → Payments table → Accounts (income)   ║
- * ║    Tenant pays utilities → Payments table → Accounts (income)   ║
- * ║    Tenant pays deposit   → Payments table → Accounts (income)   ║
- * ║                                                                 ║
- * ║  EXPENSES (money going out):                                    ║
- * ║    Utility bills (electricity, water)  → Utilities + Accounts   ║
- * ║    Business costs (insurance, tax)     → BusinessExpense + Accts║
- * ║    Other costs (maintenance, cleaning) → Accounts only          ║
- * ║                                                                 ║
- * ║  REPORTS:                                                       ║
- * ║    Dashboard = overview of income vs expenses                   ║
- * ║    Income Statement = detailed profit & loss report             ║
- * ║    Break-even = how many units needed to cover costs            ║
- * ║    Calendar = daily income/expense view                         ║
- * ║                                                                 ║
- * ║  IMPORTANT: The Accounts table is the "source of truth" for     ║
- * ║  all financial totals. Every payment or expense MUST also       ║
- * ║  create an Accounts record.                                     ║
- * ╚═══════════════════════════════════════════════════════════════════╝
- */
+
 class RevenueExpenseController extends Controller
 {
   
@@ -213,6 +187,17 @@ class RevenueExpenseController extends Controller
             }
         }
 
+        // Paginate apartment summary (array) server-side
+        $apartmentPerPage = 20;
+        $apartmentPage = (int) request('apartment_page', 1);
+        $apartmentTotal = count($apartmentSummary);
+        $apartmentSlice = array_slice($apartmentSummary, ($apartmentPage - 1) * $apartmentPerPage, $apartmentPerPage);
+        $apartmentSummary = new LengthAwarePaginator($apartmentSlice, $apartmentTotal, $apartmentPerPage, $apartmentPage, [
+            'path' => request()->url(),
+            'query' => request()->query(),
+        ]);
+
+        // Recent income (no pagination)
         $recentIncome = Accounts::income()
             ->forUser(Auth::id())
             ->forPeriod($activePeriod->id)
@@ -1235,10 +1220,29 @@ class RevenueExpenseController extends Controller
                             && Carbon::parse($p->paid_at)->year === $currentYear;
                     })->isNotEmpty();
 
-                // Calculate due date: use the day from rental start_date each month
-                $dueDay = $rental->start_date ? $rental->start_date->day : 1;
-                $dueDay = min($dueDay, Carbon::create($currentYear, $currentMonth)->daysInMonth);
-                $dueDate = Carbon::create($currentYear, $currentMonth, $dueDay);
+                // Determine if this is the tenant's first month in the selected period
+                $isFirstMonth = $rental->start_date
+                    && $rental->start_date->month === $currentMonth
+                    && $rental->start_date->year  === $currentYear;
+
+                // Calculate due date based on tenant start date:
+                // - For regular tenants: due on the same day-of-month as their `start_date` within the selected month.
+                // - For tenants whose tenancy began in the selected month: due = start_date + 1 month (count 1 month).
+                if ($rental->start_date) {
+                    $startDay = $rental->start_date->day;
+                    if ($isFirstMonth) {
+                        $dueDate = Carbon::parse($rental->start_date)->copy()->addMonth()->endOfDay();
+                        $dueDay = $dueDate->day;
+                    } else {
+                        $daysInMonth = Carbon::create($currentYear, $currentMonth)->daysInMonth;
+                        $dueDay = min($startDay, $daysInMonth);
+                        $dueDate = Carbon::create($currentYear, $currentMonth, $dueDay)->endOfDay();
+                    }
+                } else {
+                    // Fallback: end of selected month
+                    $dueDay  = Carbon::create($currentYear, $currentMonth)->daysInMonth;
+                    $dueDate = Carbon::create($currentYear, $currentMonth, $dueDay)->endOfDay();
+                }
 
                 // Determine status
                 if ($paidThisMonth) {
@@ -1275,6 +1279,7 @@ class RevenueExpenseController extends Controller
                     'monthly_rent' => $rental->rent_amount,
                     'due_date' => $dueDate,
                     'due_day' => $dueDay,
+                    'is_first_month' => $isFirstMonth,
                     'status' => $status,
                     'paid_this_month' => $paidThisMonth,
                     'utilities' => $utilityCharges,
@@ -2425,6 +2430,136 @@ class RevenueExpenseController extends Controller
 
         return redirect()->back()
             ->with('success', $recordedCount . ' expense(s) generated totaling $' . number_format($totalAmount, 2) . ' for tenants to pay.');
+    }
+
+    /**
+     * Auto-generate monthly bills for all apartments (quick action).
+     * This will create Utilities + Accounts records for any active fixed expense
+     * that has not yet been billed for the billing month/year.
+     */
+    public function autoProcessMonthlyBills(Request $request)
+    {
+        $activePeriod = $this->getActiveFiscalPeriod();
+
+        if (!$activePeriod) {
+            return redirect()->route('admin.fiscalperiod.create')
+                ->with('warning', 'Please create a fiscal period first.');
+        }
+
+        $billingDate = $request->input('billing_date') ? Carbon::parse($request->input('billing_date')) : now();
+        $month = $billingDate->month;
+        $year = $billingDate->year;
+
+        $recordedCount = 0;
+        $totalAmount = 0;
+
+        $apartments = $this->scopeApartments()
+            ->with(['activeFixedExpenses', 'rentals' => function ($q) {
+                $q->where(function ($q2) {
+                        $q2->whereNull('end_date')->orWhere('end_date', '>=', now());
+                    })->with('tenant');
+            }])->get();
+
+        foreach ($apartments as $apartment) {
+            if ($apartment->rentals->isEmpty()) continue;
+
+            foreach ($apartment->rentals as $rental) {
+                foreach ($apartment->activeFixedExpenses as $fe) {
+                    $exists = Utilities::where('rental_id', $rental->id)
+                        ->where('utility_type', $fe->expense_type)
+                        ->where('billing_month', $month)
+                        ->where('billing_year', $year)
+                        ->exists();
+
+                    if ($exists) continue;
+
+                    Utilities::create([
+                        'tenant_id' => $rental->tenant_id,
+                        'rental_id' => $rental->id,
+                        'utility_type' => $fe->expense_type,
+                        'meter_reading_in' => 0,
+                        'meter_reading_out' => 0,
+                        'charge_amount' => $fe->amount,
+                        'billing_month' => $month,
+                        'billing_year' => $year,
+                        'paid_status' => false,
+                        'paid_at' => null,
+                    ]);
+
+                    Accounts::create([
+                        'fiscal_period_id' => $activePeriod->id,
+                        'payment_id' => null,
+                        'user_id' => Auth::id() ?? null,
+                        'account_type' => Accounts::TYPE_EXPENSE,
+                        'category' => Accounts::CAT_BUSINESS_FIXED,
+                        'description' => '[Apt ' . $apartment->apartment_number . '] ' . $fe->expense_name . ' (monthly)',
+                        'amount' => $fe->amount,
+                        'transaction_date' => $billingDate->toDateString(),
+                        'note' => 'Auto-generated monthly fixed expense',
+                    ]);
+
+                    $recordedCount++;
+                    $totalAmount += $fe->amount;
+                }
+            }
+        }
+
+        if ($recordedCount === 0) {
+            return redirect()->back()
+                ->with('error', 'No new expenses were generated. Expenses may already be billed for this month.');
+        }
+
+        return redirect()->back()
+            ->with('success', $recordedCount . ' expense(s) generated totaling $' . number_format($totalAmount, 2) . ' for tenants to pay.');
+    }
+
+    /**
+     * Export per-apartment account summary as PDF (or HTML fallback).
+     */
+    public function apartmentSummaryPdf(Request $request)
+    {
+        $start = $request->get('start') ?: now()->startOfMonth()->toDateString();
+        $end = $request->get('end') ?: now()->endOfMonth()->toDateString();
+
+        $perApartment = $this->calculatePerApartmentData($start, $end);
+        $activePeriod = $this->getActiveFiscalPeriod();
+
+        // view flags
+        $summaryOnly = (bool) $request->get('summary_only', false);
+        $wholeNumbers = (bool) $request->get('whole', false);
+
+        // If Dompdf (barryvdh) is installed, use it. Otherwise return HTML view for manual printing.
+        try {
+            if (class_exists('\\Barryvdh\\DomPDF\\Facade') || class_exists('\\PDF')) {
+                $pdf = \PDF::loadView('admin.revenue_expense.apartment_summary_pdf', compact('perApartment', 'activePeriod', 'start', 'end', 'summaryOnly', 'wholeNumbers'));
+                $filename = 'apartment-summary-' . now()->format('Y-m-d') . '.pdf';
+                return $pdf->download($filename);
+            }
+        } catch (\Exception $e) {
+            // Fall through to HTML view
+        }
+
+        return response()->view('admin.revenue_expense.apartment_summary_pdf', compact('perApartment', 'activePeriod', 'start', 'end', 'summaryOnly', 'wholeNumbers'));
+    }
+
+    /**
+     * Show HTML preview of the apartment summary before exporting to PDF.
+     * This returns the same view used for PDF rendering but with a preview toolbar.
+     */
+    public function apartmentSummaryPreview(Request $request)
+    {
+        $start = $request->get('start') ?: now()->startOfMonth()->toDateString();
+        $end = $request->get('end') ?: now()->endOfMonth()->toDateString();
+
+        $perApartment = $this->calculatePerApartmentData($start, $end);
+        $activePeriod = $this->getActiveFiscalPeriod();
+
+        // view flags
+        $summaryOnly = (bool) $request->get('summary_only', false);
+        $wholeNumbers = (bool) $request->get('whole', false);
+
+        return response()->view('admin.revenue_expense.apartment_summary_pdf', compact('perApartment', 'activePeriod', 'start', 'end', 'summaryOnly', 'wholeNumbers'))
+            ->header('X-Preview-Mode', '1');
     }
 
     /**

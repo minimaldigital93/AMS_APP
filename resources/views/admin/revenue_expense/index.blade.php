@@ -28,9 +28,6 @@
                 </select>
             </form>
             @endif
-            <button onclick="window.print()" class="p-2 text-slate-400 hover:text-slate-600 rounded-lg" title="Print">
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>
-            </button>
         </div>
     </div>
 
@@ -199,64 +196,49 @@
         $offset = $circ * (1 - ($periodPercent / 100));
     @endphp
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {{-- Fiscal Period Progress --}}
-        <div class="bg-white rounded-xl border border-slate-100 p-4">
-            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-3">
-                <div>
-                    <p class="text-sm font-medium text-slate-700">Fiscal Period Progress</p>
-                    <p class="text-xs text-slate-400">{{ $activePeriod->name }} — {{ $periodStart->format('M d') }} to {{ $periodEnd->format('M d') }}</p>
-                </div>
-                <div class="flex items-center gap-4">
-                    <div class="text-right mr-2">
-                        <div class="text-sm font-bold text-slate-800">{{ $percentLabel }}</div>
-                        <div class="text-xs text-slate-400">{{ $daysPassed }} / {{ $totalDays }} days passed</div>
-                    </div>
-                    <div class="w-20 h-20">
-                        <svg viewBox="0 0 100 100" class="w-20 h-20">
-                            <defs>
-                                <linearGradient id="periodGrad" x1="0%" x2="100%">
-                                    <stop offset="0%" stop-color="#F59E0B" />
-                                    <stop offset="100%" stop-color="#D97706" />
-                                </linearGradient>
-                            </defs>
-                            <circle cx="50" cy="50" r="40" stroke="#F3F4F6" stroke-width="12" fill="none" />
-                            <circle cx="50" cy="50" r="40" stroke="url(#periodGrad)" stroke-width="12" fill="none"
-                                stroke-dasharray="{{ $circ }}" stroke-dashoffset="{{ $offset }}" transform="rotate(-90 50 50)" stroke-linecap="round" />
-                            <text x="50" y="55" text-anchor="middle" font-size="12" fill="#111" class="font-semibold">{{ $periodPercent }}%</text>
-                        </svg>
-                    </div>
-                </div>
+        {{-- Fiscal Period Progress (condensed) --}}
+        <div class="bg-white rounded-xl border border-slate-100 p-4 flex items-center justify-between">
+            <div>
+                <p class="text-sm font-medium text-slate-700">Fiscal Period</p>
+                <p class="text-xs text-slate-400">{{ $activePeriod->name }}</p>
             </div>
-            <div class="flex items-center justify-between mt-2 text-xs text-slate-400">
-                <div>Opened: {{ $periodStart->format('M d, Y') }}</div>
-                <div>Closes: {{ $periodEnd->format('M d, Y') }}</div>
+            <div class="flex items-center gap-4">
+                <div class="text-right">
+                    <div class="text-lg font-bold text-slate-800">{{ $periodPercent }}%</div>
+                </div>
+                <div class="w-20 h-20">
+                    <svg viewBox="0 0 100 100" class="w-20 h-20">
+                        <defs>
+                            <linearGradient id="periodGrad" x1="0%" x2="100%">
+                                <stop offset="0%" stop-color="#F59E0B" />
+                                <stop offset="100%" stop-color="#D97706" />
+                            </linearGradient>
+                        </defs>
+                        <circle cx="50" cy="50" r="40" stroke="#F3F4F6" stroke-width="12" fill="none" />
+                        <circle cx="50" cy="50" r="40" stroke="url(#periodGrad)" stroke-width="12" fill="none"
+                            stroke-dasharray="{{ $circ }}" stroke-dashoffset="{{ $offset }}" transform="rotate(-90 50 50)" stroke-linecap="round" />
+                    </svg>
+                </div>
             </div>
         </div>
 
-        {{-- Monthly Rent Collection --}}
+        {{-- Monthly Rent Collection (condensed) --}}
         @if($expectedMonthlyRent > 0)
         @php
             $collected = $income['rent_income'] ?? 0;
-            $goal = $expectedMonthlyRent;
-            $collectionPercent = $goal > 0 ? min(100, round(($collected / $goal) * 100, 1)) : 0;
+            $collectionPercent = $expectedMonthlyRent > 0 ? min(100, round(($collected / $expectedMonthlyRent) * 100, 1)) : 0;
             $rc = 36;
             $rcCirc = 2 * pi() * $rc;
             $rcOffset = $rcCirc * (1 - ($collectionPercent / 100));
         @endphp
-        <div class="bg-white rounded-xl border border-slate-100 p-4">
-            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-3">
-                <div>
-                    <p class="text-sm font-medium text-slate-700">Monthly Rent Collection</p>
-                    <p class="text-xs text-slate-400">Collected this month</p>
-                </div>
-                <div class="text-right">
-                    <div class="text-lg font-bold text-slate-800">${{ number_format($collected, 2) }}</div>
-                    <div class="text-xs text-slate-400">of ${{ number_format($goal, 2) }} goal</div>
-                </div>
+        <div class="bg-white rounded-xl border border-slate-100 p-4 flex items-center justify-between">
+            <div>
+                <p class="text-sm font-medium text-slate-700">Collected</p>
+                <p class="text-lg font-bold text-slate-800">${{ number_format($collected, 2) }}</p>
             </div>
             <div class="flex items-center gap-4">
-                <div class="w-20 flex-shrink-0">
-                    <svg viewBox="0 0 100 100" class="w-20 h-20 mx-auto">
+                <div class="w-20 h-20">
+                    <svg viewBox="0 0 100 100" class="w-20 h-20">
                         <defs>
                             <linearGradient id="collectGrad" x1="0%" x2="100%">
                                 <stop offset="0%" stop-color="#34D399" />
@@ -269,27 +251,17 @@
                         <text x="50" y="56" text-anchor="middle" font-size="12" fill="#064E3B" class="font-semibold">{{ $collectionPercent }}%</text>
                     </svg>
                 </div>
-                <div class="flex-1">
-                    <div class="text-sm text-slate-600">${{ number_format($collected, 2) }} collected</div>
-                    <div class="mt-2 text-xs text-slate-400">{{ $collected > $goal ? 'Goal exceeded' : ( '$' . number_format($goal - $collected, 2) . ' to goal') }}</div>
-                    <div class="mt-3 flex items-center gap-2">
-                        <div class="flex items-center gap-1.5">
-                            <svg class="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
-                            <span class="text-sm font-semibold {{ $paidTenantCount === $expectedTenantCount ? 'text-emerald-600' : 'text-amber-600' }}">{{ $paidTenantCount }}/{{ $expectedTenantCount }}</span>
-                            <span class="text-xs text-slate-400">tenants paid</span>
-                        </div>
-                        @if($expectedTenantCount > 0 && $paidTenantCount < $expectedTenantCount)
-                            <span class="inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-medium bg-amber-50 text-amber-700">{{ $expectedTenantCount - $paidTenantCount }} unpaid</span>
-                        @elseif($paidTenantCount === $expectedTenantCount && $expectedTenantCount > 0)
-                            <span class="inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-medium bg-emerald-50 text-emerald-700">All paid</span>
-                        @endif
-                    </div>
+                <div class="text-sm text-slate-600">
+                    <div class="font-semibold {{ $paidTenantCount === $expectedTenantCount ? 'text-emerald-600' : 'text-amber-600' }}">{{ $paidTenantCount }}/{{ $expectedTenantCount }}</div>
+                    <div class="text-xs text-slate-400">tenants paid</div>
                 </div>
             </div>
         </div>
         @else
         <div class="bg-white rounded-xl border border-slate-100 p-4 flex items-center justify-center text-slate-400 text-sm">No expected rent this month</div>
         @endif
+
+        
     </div>
 
    
@@ -361,7 +333,7 @@
         </div>
 
        
-        {{-- Per-Apartment Table with Grouping Toggle --}}
+        {{-- Per-Apartment Table with Grouping Toggle (now with sub-tabs) --}}
         @if(isset($perApartment) && count($perApartment) > 0)
         @php
             // Attempt to group by floor number from available keys
@@ -369,7 +341,16 @@
                 return $a['floor_number'] ?? $a['floor'] ?? $a['apartment_floor'] ?? 'Unspecified';
             });
         @endphp
-        <div class="bg-white rounded-xl border border-slate-100 overflow-hidden" x-data="{ showAll: false, expenseForm: null, groupBy: 'apartment' }">
+        <div class="mt-4 space-y-3">
+            <div class="bg-white rounded-xl border border-slate-100 p-2">
+                <nav class="flex gap-1" aria-label="Sub tabs">
+                    <button @click="subtab = 'apartments'" :class="subtab === 'apartments' ? 'bg-slate-800 text-white' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-50'" class="whitespace-nowrap px-4 py-2.5 text-sm font-medium transition rounded-lg">Apartment Summary</button>
+                    <button @click="subtab = 'transactions'" :class="subtab === 'transactions' ? 'bg-slate-800 text-white' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-50'" class="whitespace-nowrap px-4 py-2.5 text-sm font-medium transition rounded-lg">Recent Transactions</button>
+                </nav>
+            </div>
+
+            <div x-show="subtab === 'apartments'" x-cloak>
+                <div class="bg-white rounded-xl border border-slate-100 overflow-hidden" x-data="{ showAll: false, expenseForm: null, groupBy: 'apartment' }">
             <div class="px-5 py-3 border-b border-slate-100 flex items-center justify-between">
                 <div class="flex items-center gap-3">
                     <h2 class="text-sm font-semibold text-slate-800">Per-Apartment Summary</h2>
@@ -384,7 +365,7 @@
                     <button @click="showAll = !showAll" class="text-xs text-sky-600 hover:text-sky-800 font-medium mr-3">
                         <span x-text="showAll ? 'Occupied Only' : 'Show All'"></span>
                     </button>
-                    <button onclick="window.print()" class="p-1 text-slate-400 hover:text-slate-600 rounded-lg" title="Print small">
+                    <button type="button" onclick="openSummaryPreview()" class="p-1 text-slate-400 hover:text-slate-600 rounded-lg" title="Preview apartment summary before export">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>
                     </button>
                 </div>
@@ -398,10 +379,10 @@
                             <th class="text-left px-4 py-2 font-medium">Unit</th>
                             <th class="text-left px-4 py-2 font-medium">Tenant</th>
                             <th class="text-right px-4 py-2 font-medium">Rent</th>
-                            <th class="text-left px-4 py-2 font-medium">This Month</th>
                             <th class="text-right px-4 py-2 font-medium">Income</th>
                             <th class="text-right px-4 py-2 font-medium">Utilities</th>
                             <th class="text-right px-4 py-2 font-medium" title="Income + Utilities = Total tenant pays to owner">Net Profit<br><span class="text-[9px] normal-case text-slate-400"></span></th>
+                            <th class="text-center px-4 py-2 font-medium">Status</th>
                             <th class="text-center px-4 py-2 font-medium">Action</th>
                         </tr>
                     </thead>
@@ -411,34 +392,7 @@
                             <td class="px-4 py-2 font-medium {{ $apt['has_active_rental'] ? 'text-slate-800' : '' }}">{{ $apt['apartment_number'] }}</td>
                             <td class="px-4 py-2">{{ $apt['has_active_rental'] ? $apt['tenant'] : 'Vacant' }}</td>
                             <td class="px-4 py-2 text-right">${{ number_format($apt['monthly_rent'], 2) }}</td>
-                            <td class="px-4 py-2">
-                                @if($apt['rent_status'] !== 'none')
-                                <div class="w-28">
-                                    <div class="flex items-center justify-between mb-0.5">
-                                        <span class="text-[10px] font-bold {{ $apt['rent_status'] === 'paid' ? 'text-emerald-600' : ($apt['rent_status'] === 'partial' ? 'text-amber-600' : 'text-red-500') }}">{{ $apt['occupancy_percent'] ?? 0 }}%</span>
-                                        @php
-                                            $last = isset($apt['last_payment_date']) && $apt['last_payment_date'] ? \Carbon\Carbon::parse($apt['last_payment_date'])->format('d') : '-';
-                                            $daysLeft = array_key_exists('days_left', $apt) && $apt['days_left'] !== null ? $apt['days_left'] . 'd' : '-';
-                                        @endphp
-                                        <span class="text-[10px] text-slate-400">{{ $last }} / {{ $daysLeft }}</span>
-                                    </div>
-                                    <div class="w-full bg-slate-200 rounded-full h-1.5">
-                                            @php
-                                                $barColor = match($apt['rent_status']) {
-                                                    'paid' => 'bg-emerald-500',
-                                                    'partial' => 'bg-amber-500',
-                                                    default => 'bg-red-300',
-                                                };
-                                                // Use occupancy percent to show proportion of days occupied in range
-                                                $occupancyWidth = $apt['occupancy_percent'] ?? 0;
-                                            @endphp
-                                            <div class="{{ $barColor }} h-1.5 rounded-full" style="width: {{ $occupancyWidth > 0 ? max($occupancyWidth, 2) : 0 }}%"></div>
-                                        </div>
-                                </div>
-                                @else
-                                <span class="text-[10px] text-slate-300">—</span>
-                                @endif
-                            </td>
+                            {{-- Income moved up; Status column added before Action --}}
                             <td class="px-4 py-2 text-right {{ $apt['income'] > 0 ? 'text-emerald-600 font-medium' : '' }}">${{ number_format($apt['income'], 2) }}</td>
                             <td class="px-4 py-2 text-right {{ $apt['expenses'] > 0 ? 'text-sky-600 font-medium' : '' }}">
                                 @if($apt['expenses'] > 0 && isset($apt['expense_breakdown']))
@@ -480,13 +434,33 @@
                                 ${{ number_format($tenantNet, 2) }}
                             </td>
                             <td class="px-4 py-2 text-center">
+                                @if(!$apt['has_active_rental'])
+                                    <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-500">Vacant</span>
+                                @else
+                                    @php
+                                        $isPaid = $apt['paid_this_month'] ?? ($apt['rent_status'] === 'paid');
+                                        $collected = $apt['collected'] ?? ($apt['income'] ?? 0);
+                                        $due = $apt['prorated_rent'] ?? $apt['monthly_rent'] ?? 0;
+                                        $progress = $due > 0 ? min(round(($collected / $due) * 100, 1), 100) : 0;
+                                        $occWidth = $apt['occupancy_percent'] ?? $progress;
+                                    @endphp
+
+                                    @if($isPaid)
+                                        <span class="inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-medium bg-emerald-100 text-emerald-700">Paid</span>
+                                    @else
+                                        @if(($apt['rent_status'] ?? '') === 'partial')
+                                            <span class="inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-700">Partial</span>
+                                        @elseif(($apt['rent_status'] ?? '') === 'overdue')
+                                            <span class="inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-700">Overdue</span>
+                                        @else
+                                            <span class="inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-700">Pending</span>
+                                        @endif
+                                    @endif
+                                @endif
+                            </td>
+                            <td class="px-4 py-2 text-center">
                                 @if($apt['has_active_rental'] && $apt['rental_id'])
                                 <div class="flex items-center justify-center gap-1">
-                                    <button @click="expenseForm = expenseForm === {{ $aptIdx }} ? null : {{ $aptIdx }}" title="Assign Expense"
-                                        class="p-1 rounded transition"
-                                        :class="expenseForm === {{ $aptIdx }} ? 'bg-red-100 text-red-600 hover:bg-red-200' : 'bg-orange-100 text-orange-600 hover:bg-orange-200'">
-                                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/></svg>
-                                    </button>
                                     @if($apt['tenant_id'])
                                     <a href="{{ route('admin.tenants.show', $apt['tenant_id']) }}" title="View Tenant"
                                         class="p-1 rounded bg-sky-100 text-sky-600 hover:bg-sky-200 transition">
@@ -558,7 +532,7 @@
                     </tbody>
                     <tfoot>
                         <tr class="border-t-2 bg-slate-50/80 font-semibold text-slate-800">
-                            <td class="px-4 py-2" colspan="4">Total</td>
+                            <td class="px-4 py-2" colspan="3">Total</td>
                             <td class="px-4 py-2 text-right text-emerald-600">${{ number_format(collect($perApartment)->sum('income'), 2) }}</td>
                             <td class="px-4 py-2 text-right text-sky-600">${{ number_format(collect($perApartment)->sum('expenses'), 2) }}</td>
                             @php
@@ -567,6 +541,7 @@
                             <td class="px-4 py-2 text-right text-emerald-700">
                                 ${{ number_format($totalTenantNet, 2) }}
                             </td>
+                            <td class="px-4 py-2"></td>
                             <td class="px-4 py-2"></td>
                         </tr>
                     </tfoot>
@@ -618,9 +593,70 @@
         @endif
     </div>
 
+<script>
+    function openSummaryPreview() {
+        const start = '{{ now()->startOfMonth()->toDateString() }}';
+        const end = '{{ now()->endOfMonth()->toDateString() }}';
+        const url = '{{ route('admin.revenue_expense.apartment_summary_preview') }}' + '?start=' + encodeURIComponent(start) + '&end=' + encodeURIComponent(end);
+        window.open(url, '_blank');
+    }
+</script>
+
     {{-- ================================================== --}}
     {{-- TAB 2: RECORD INCOME --}}
     {{-- ================================================== --}}
+    {{-- Recent Transactions (bottom, per-apartment style) --}}
+    <div class="mt-6" x-show="subtab === 'transactions'" x-cloak>
+        <div class="bg-white rounded-xl border border-slate-100 overflow-hidden">
+            <div class="px-5 py-3 border-b border-slate-100 flex items-center justify-between">
+                <div class="flex items-center gap-3">
+                    <h2 class="text-sm font-semibold text-slate-800">Recent Transactions</h2>
+                    <p class="text-xs text-slate-400">· Income & Expenses</p>
+                </div>
+                <div class="text-xs text-slate-400">Showing recent activity across apartments</div>
+            </div>
+
+            <div class="p-4 grid grid-cols-1 lg:grid-cols-2 gap-4">
+                <div>
+                    <h3 class="text-xs font-medium text-slate-500 mb-2">Income</h3>
+                            @if($recentIncome->isEmpty())
+                                <p class="text-sm text-slate-400">No income recorded yet</p>
+                            @else
+                                <div class="space-y-2">
+                                    @foreach($recentIncome as $record)
+                                    <div class="p-2 rounded-lg border border-emerald-100 bg-emerald-50 flex items-start justify-between">
+                                        <div class="text-xs text-slate-700">
+                                            <div class="font-medium">{{ ucfirst(str_replace('_', ' ', $record->category)) }} — {{ $record->description }}</div>
+                                            <div class="text-[11px] text-slate-400">{{ \Carbon\Carbon::parse($record->transaction_date)->format('M d, Y') }}</div>
+                                        </div>
+                                        <div class="font-semibold text-emerald-600">${{ number_format($record->amount, 2) }}</div>
+                                    </div>
+                                    @endforeach
+                                </div>
+                            @endif
+                </div>
+
+                <div>
+                    <h3 class="text-xs font-medium text-slate-500 mb-2">Expenses</h3>
+                    @if($recentExpenses->isEmpty())
+                        <p class="text-sm text-slate-400">No expenses recorded yet</p>
+                    @else
+                        <div class="space-y-2">
+                            @foreach($recentExpenses as $record)
+                            <div class="p-2 rounded-lg border border-red-100 bg-red-50 flex items-start justify-between">
+                                <div class="text-xs text-slate-700">
+                                    <div class="font-medium">{{ ucfirst(str_replace('_', ' ', $record->category)) }} — {{ $record->description }}</div>
+                                    <div class="text-[11px] text-slate-400">{{ \Carbon\Carbon::parse($record->transaction_date)->format('M d, Y') }}</div>
+                                </div>
+                                <div class="font-semibold text-red-600">${{ number_format($record->amount, 2) }}</div>
+                            </div>
+                            @endforeach
+                        </div>
+                    @endif
+                </div>
+            </div>
+        </div>
+    </div>
     <div x-show="tab === 'income'" x-cloak>
 
         {{-- Income Summary Row --}}
@@ -649,7 +685,7 @@
                     <h2 class="text-sm font-semibold text-slate-800 mb-1 pb-2 border-b border-slate-100">Auto Generate Monthly Rent</h2>
                     <p class="text-xs text-slate-400 mb-3">Select apartments and record rent for all at once.</p>
 
-                    @if($apartmentSummary && count($apartmentSummary) > 0)
+                    @if($apartmentSummary && $apartmentSummary->total() > 0)
                     <form action="{{ route('admin.revenue_expense.store_income_bulk') }}" method="POST" id="bulkRentForm">
                         @csrf
                         <div class="grid grid-cols-2 gap-3 mb-4 p-3 bg-sky-50 rounded-lg">
@@ -702,24 +738,9 @@
                                         </td>
                                         <td class="px-3 py-2 text-center">
                                             @if($s['paid_this_month'])
-                                            <div>
                                                 <span class="inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-medium bg-emerald-100 text-emerald-700">Paid</span>
-                                                <div class="w-full bg-slate-200 rounded-full h-1 mt-1">
-                                                        @php $occWidth = $s['occupancy_percent'] ?? 0; @endphp
-                                                        <div class="bg-emerald-500 h-1 rounded-full" style="width: {{ $occWidth > 0 ? max($occWidth, 2) : 0 }}%"></div>
-                                                    </div>
-                                            </div>
                                             @else
-                                            <div>
                                                 <span class="inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-700">Pending</span>
-                                                <div class="w-full bg-slate-200 rounded-full h-1 mt-1">
-                                                    @php
-                                                        $due = $s['prorated_rent'] ?? $s['monthly_rent'];
-                                                        $bulkPercent = $due > 0 ? min(round(($s['collected'] / $due) * 100, 1), 100) : 0;
-                                                    @endphp
-                                                    <div class="{{ $bulkPercent > 0 ? 'bg-amber-500' : 'bg-red-300' }} h-1 rounded-full" style="width: {{ max($bulkPercent, 2) }}%"></div>
-                                                </div>
-                                            </div>
                                             @endif
                                         </td>
                                     </tr>
@@ -741,9 +762,10 @@
                             <button type="submit" class="px-4 py-2 bg-slate-800 text-white text-sm rounded-lg hover:bg-slate-700 transition font-medium">
                                 Record Selected Rent
                             </button>
-                            <span class="text-xs text-slate-400" id="selectedCount">{{ count($apartmentSummary) }} selected</span>
+                            <span class="text-xs text-slate-400" id="selectedCount">{{ $apartmentSummary->total() }} selected</span>
                         </div>
                     </form>
+                    <div class="mt-3">{{ $apartmentSummary->withQueryString()->links() }}</div>
                     @else
                     <p class="text-center py-6 text-slate-400 text-sm">No apartments with active rentals.</p>
                     @endif
@@ -815,30 +837,7 @@
                 </div>
             </div>
 
-            {{-- Recent Income Sidebar --}}
-            <div class="lg:col-span-1">
-                <div class="bg-white rounded-xl border border-slate-100 p-5">
-                    <h3 class="text-sm font-semibold text-slate-800 mb-3 pb-2 border-b border-slate-100">Recent Income</h3>
-                    @if($recentIncome->isEmpty())
-                    <p class="text-center py-4 text-slate-400 text-sm">No income recorded yet</p>
-                    @else
-                    <div class="space-y-2">
-                        @foreach($recentIncome as $record)
-                        <div class="p-2.5 bg-emerald-50 rounded-lg border border-emerald-100">
-                            <div class="flex justify-between items-start">
-                                <div>
-                                    <p class="text-xs font-medium text-slate-700">{{ ucfirst(str_replace('_', ' ', $record->category)) }}</p>
-                                    <p class="text-xs text-slate-400 mt-0.5">{{ $record->description }}</p>
-                                    <p class="text-xs text-slate-400">{{ \Carbon\Carbon::parse($record->transaction_date)->format('M d, Y') }}</p>
-                                </div>
-                                <p class="text-sm font-bold text-emerald-600">${{ number_format($record->amount, 2) }}</p>
-                            </div>
-                        </div>
-                        @endforeach
-                    </div>
-                    @endif
-                </div>
-            </div>
+            
         </div>
     </div>
 
@@ -970,30 +969,7 @@
                 </div>
             </div>
 
-            {{-- Recent Expenses Sidebar --}}
-            <div class="lg:col-span-1">
-                <div class="bg-white rounded-xl border border-slate-100 p-5">
-                    <h3 class="text-sm font-semibold text-slate-800 mb-3 pb-2 border-b border-slate-100">Recent Expenses</h3>
-                    @if($recentExpenses->isEmpty())
-                    <p class="text-center py-4 text-slate-400 text-sm">No expenses recorded yet</p>
-                    @else
-                    <div class="space-y-2">
-                        @foreach($recentExpenses as $record)
-                        <div class="p-2.5 bg-red-50 rounded-lg border border-red-100">
-                            <div class="flex justify-between items-start">
-                                <div>
-                                    <p class="text-xs font-medium text-slate-700">{{ ucfirst(str_replace('_', ' ', $record->category)) }}</p>
-                                    <p class="text-xs text-slate-400 mt-0.5">{{ $record->description }}</p>
-                                    <p class="text-xs text-slate-400">{{ \Carbon\Carbon::parse($record->transaction_date)->format('M d, Y') }}</p>
-                                </div>
-                                <p class="text-sm font-bold text-red-600">${{ number_format($record->amount, 2) }}</p>
-                            </div>
-                        </div>
-                        @endforeach
-                    </div>
-                    @endif
-                </div>
-            </div>
+            
         </div>
     </div>
 
@@ -1361,6 +1337,7 @@ function revenueExpense() {
     const validTabs = ['overview', 'income', 'expense', 'fixed', 'bills', 'breakeven'];
     return {
         tab: validTabs.includes(hash) ? hash : 'overview',
+        subtab: 'apartments',
         tabs: [
             { key: 'overview', label: 'Overview' },
             { key: 'income', label: 'Income' },

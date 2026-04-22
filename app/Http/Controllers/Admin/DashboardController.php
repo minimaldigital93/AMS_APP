@@ -11,6 +11,7 @@ use App\Models\Rentals;
 use App\Models\Tenants;
 use App\Models\Utilities;
 use App\Models\Accounts;
+use App\Models\TenantLeave;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Http\Request;
@@ -394,9 +395,18 @@ class DashboardController extends Controller
                 })->isNotEmpty();
 
             // Calculate due date from rental start_date
-            $dueDay = $rental->start_date ? Carbon::parse($rental->start_date)->day : 1;
+            $start = $rental->start_date ? Carbon::parse($rental->start_date) : null;
+            $dueDay = $start ? $start->day : 1;
             $dueDay = min($dueDay, Carbon::create($currentYear, $currentMonth)->daysInMonth);
-            $dueDate = Carbon::create($currentYear, $currentMonth, $dueDay);
+            $dueDate = Carbon::create($currentYear, $currentMonth, $dueDay)->endOfDay();
+
+            // If the rental started in the reference month and hasn't paid yet,
+            // treat the first partial month as pending (do not mark as overdue).
+            if ($start && $start->month === $currentMonth && $start->year === $currentYear && !$paidThisMonth) {
+                $pendingCount++;
+                $totalPendingAmount += $rental->rent_amount;
+                continue;
+            }
 
             if ($paidThisMonth) {
                 $paidCount++;
@@ -545,6 +555,7 @@ class DashboardController extends Controller
             ],
             'floor_labels' => $floorLabels,
             'floor_occupancy' => $floorOccupancy,
+            'tenants_on_leave' => TenantLeave::count(),
         ];
     }
 

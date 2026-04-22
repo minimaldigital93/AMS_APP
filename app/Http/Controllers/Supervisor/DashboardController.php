@@ -295,9 +295,18 @@ class DashboardController extends Controller
                     && Carbon::parse($p->paid_at)->year === $currentYear;
             })->isNotEmpty();
 
-            $dueDay = $rental->start_date ? Carbon::parse($rental->start_date)->day : 1;
+            $start = $rental->start_date ? Carbon::parse($rental->start_date) : null;
+            $dueDay = $start ? $start->day : 1;
             $dueDay = min($dueDay, Carbon::create($currentYear, $currentMonth)->daysInMonth);
             $dueDate = Carbon::create($currentYear, $currentMonth, $dueDay)->endOfDay();
+
+            // If the rental started in the current month and hasn't paid yet,
+            // treat the first partial month as pending (do not mark as overdue).
+            if ($start && $start->month === $currentMonth && $start->year === $currentYear && !$paidThisMonth) {
+                $pendingCount++;
+                $totalPendingAmount += $rental->rent_amount ?? 0;
+                continue;
+            }
 
             if ($paidThisMonth) {
                 $paidCount++;

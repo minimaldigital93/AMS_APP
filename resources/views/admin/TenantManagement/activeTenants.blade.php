@@ -53,35 +53,32 @@
             </div>
         </div>
 
-        <!-- Filters / Search Section -->
-        <div class="bg-white rounded-xl border border-slate-100 mb-6 p-6">
-            <form method="GET" action="{{ route('admin.tenants.index') }}" class="grid grid-cols-1 md:grid-cols-4 gap-4">
-                <div class="md:col-span-2">
-                    <label class="block text-sm font-medium text-slate-500 mb-2">Search by Name or Email</label>
-                    <input type="text" name="search" placeholder="Search tenants..." value="{{ request('search') }}" class="w-full h-10 px-3 text-sm border border-slate-200 rounded-lg focus:ring-2 focus:ring-slate-300 focus:border-transparent">
-                </div>
-                <div class="md:col-span-1">
-                    <label class="block text-sm font-medium text-slate-500 mb-2">Sort by Floor</label>
-                    <select name="floor" class="w-full h-10 px-3 text-sm border border-slate-200 rounded-lg focus:ring-2 focus:ring-slate-300 focus:border-transparent">
-                        <option value="">All Floors</option>
-                        @foreach($floors ?? [] as $floor)
-                            <option value="{{ $floor->id }}" {{ request('floor') == $floor->id ? 'selected' : '' }}>{{ $floor->floor_name }}</option>
-                        @endforeach
-                    </select>
-                </div>
-                <div class="flex items-end justify-center md:col-span-1">
-                    <a href="{{ route('admin.tenants.index') }}" class="inline-flex items-center h-10 px-3 whitespace-nowrap border border-slate-200 rounded-md text-slate-700 hover:bg-slate-50 transition font-medium text-center text-sm">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 mr-2 text-slate-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v6h6M20 20v-6h-6M4 10a8 8 0 0116 0M20 14a8 8 0 01-16 0" />
-                        </svg>
-                        Reset
-                    </a>
-                </div>
-            </form>
-        </div>
+  
 
         <!-- Tenants Table -->
-        <div class="bg-white rounded-xl border border-slate-100 overflow-hidden">
+        <div x-data="tenantFilter()" class="bg-white rounded-xl border border-slate-100 overflow-hidden">
+            <!-- Client-side Filter Bar -->
+            <div class="px-6 py-4 border-b border-slate-100 flex flex-wrap items-center gap-4">
+                <div class="flex items-center gap-2">
+                    <span class="text-sm font-medium text-slate-500">Filter:</span>
+                    <button @click="filter = 'all'" :class="filter === 'all' ? 'bg-slate-800 text-white' : 'bg-slate-50 text-slate-600 hover:bg-slate-100'"
+                        class="px-3 py-1.5 rounded-lg text-sm font-medium transition">All</button>
+                    <button @click="filter = 'paid'" :class="filter === 'paid' ? 'bg-emerald-600 text-white' : 'bg-slate-50 text-slate-600 hover:bg-slate-100'"
+                        class="px-3 py-1.5 rounded-lg text-sm font-medium transition">Paid</button>
+                    <button @click="filter = 'paying'" :class="filter === 'paying' ? 'bg-yellow-600 text-white' : 'bg-slate-50 text-slate-600 hover:bg-slate-100'"
+                        class="px-3 py-1.5 rounded-lg text-sm font-medium transition">Paying</button>
+                    <button @click="filter = 'overdue'" :class="filter === 'overdue' ? 'bg-red-600 text-white' : 'bg-slate-50 text-slate-600 hover:bg-slate-100'"
+                        class="px-3 py-1.5 rounded-lg text-sm font-medium transition">Overdue</button>
+                    <button @click="filter = 'unpaid'" :class="filter === 'unpaid' ? 'bg-gray-800 text-white' : 'bg-slate-50 text-slate-600 hover:bg-slate-100'"
+                        class="px-3 py-1.5 rounded-lg text-sm font-medium transition">Unpaid</button>
+                </div>
+                <div class="flex-1"></div>
+                <div class="relative">
+                    <input type="text" x-model="searchQuery" placeholder="Search tenant or apartment..."
+                        class="pl-9 pr-4 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-slate-300 focus:border-slate-300 w-64">
+                    <svg class="w-4 h-4 text-slate-400 absolute left-3 top-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+                </div>
+            </div>
             <div class="p-6 overflow-x-auto">
                 <table class="min-w-full divide-y divide-gray-200">
                     <thead class="bg-gray-50">
@@ -90,12 +87,14 @@
                             <th class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Tenant Name</th>
                             <th class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Floor / Apartment</th>
                             <th class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Progress</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Status</th>
                             <th class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Actions</th>
                         </tr>
                     </thead>
                     <tbody class="bg-white divide-y divide-gray-200">
                         @forelse ($tenants as $tenant)
-                            <tr class="hover:bg-gray-50 transition" title="photo_path: {{ $tenant->photo_path ?? 'empty' }}">
+                            @php $rp = $rentProgressMap[$tenant->id] ?? null; $status = $rp['status'] ?? 'unknown'; @endphp
+                            <tr x-show="matchesFilter('{{ $status }}','{{ strtolower($tenant->name ?? '') }}','{{ strtolower($tenant->apartment?->apartment_number ?? '') }}','{{ $rp['day_percent'] ?? 0 }}')" class="hover:bg-gray-50 transition" title="photo_path: {{ $tenant->photo_path ?? 'empty' }}">
                                 <td class="px-4 py-4 whitespace-nowrap text-sm text-gray-600">
                                     {{ $tenants->firstItem() ? $tenants->firstItem() + $loop->index : $loop->iteration }}
                                 </td>
@@ -137,7 +136,28 @@
                                     <span class="text-[10px] text-gray-300">—</span>
                                     @endif
                                 </td>
-                                {{-- status column removed per request --}}
+
+                                <td class="px-6 py-4 whitespace-nowrap">
+                                    @if(isset($rp))
+                                        @php
+                                            $status = $rp['status'] ?? null;
+                                            $dayPercent = $rp['day_percent'] ?? 0;
+                                        @endphp
+                                        @if($status === 'paid')
+                                            <span class="px-2 py-1 text-xs font-semibold rounded-md bg-emerald-100 text-emerald-700">Paid</span>
+                                        @elseif($status === 'partial')
+                                            <span class="px-2 py-1 text-xs font-semibold rounded-md bg-yellow-100 text-yellow-700">Paying</span>
+                                        @else
+                                            @if($dayPercent >= 80)
+                                                <span class="px-2 py-1 text-xs font-semibold rounded-md bg-red-100 text-red-700">Overdue</span>
+                                            @else
+                                                <span class="px-2 py-1 text-xs font-semibold rounded-md bg-gray-100 text-gray-700">Unpaid</span>
+                                            @endif
+                                        @endif
+                                    @else
+                                        <span class="text-[10px] text-gray-300">—</span>
+                                    @endif
+                                </td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm font-medium flex items-center space-x-3 mt-3">
                                     <a href="{{ route('admin.tenants.show', $tenant->id) }}" title="View Details" class="inline-flex items-center justify-center h-8 w-8 rounded-md text-sky-600 bg-sky-50 hover:bg-sky-100 transition" aria-label="View">
                                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -160,7 +180,7 @@
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="5" class="px-6 py-4 text-center text-gray-500">
+                                <td colspan="6" class="px-6 py-4 text-center text-gray-500">
                                     No tenants found
                                 </td>
                             </tr>
@@ -173,22 +193,38 @@
 </div>
 
 <script>
+function tenantFilter(){
+    return {
+        filter: 'all',
+        searchQuery: '',
+        matchesFilter(status, name, apartment, dayPercent){
+            const q = (this.searchQuery || '').trim().toLowerCase();
+            if(q && !((name || '').toLowerCase().includes(q) || (apartment || '').toLowerCase().includes(q))) return false;
+            if(this.filter === 'all') return true;
+            if(this.filter === 'paid') return status === 'paid';
+            if(this.filter === 'paying') return status === 'partial';
+            if(this.filter === 'overdue') return status === 'overdue' || (Number(dayPercent) >= 80);
+            if(this.filter === 'unpaid') return status !== 'paid' && status !== 'partial' && Number(dayPercent) < 80;
+            return true;
+        }
+    }
+}
 document.addEventListener('DOMContentLoaded', function(){
     const searchInput = document.querySelector('input[name="search"]');
     const floorSelect = document.querySelector('select[name="floor"]');
-    if(!searchInput) return;
-
-    const form = searchInput.closest('form');
+    const form = (floorSelect || searchInput) ? (floorSelect || searchInput).closest('form') : null;
     let timer = null;
 
-    searchInput.addEventListener('input', function(){
-        clearTimeout(timer);
-        timer = setTimeout(function(){
-            form.submit();
-        }, 400);
-    });
+    if(searchInput && form){
+        searchInput.addEventListener('input', function(){
+            clearTimeout(timer);
+            timer = setTimeout(function(){
+                form.submit();
+            }, 400);
+        });
+    }
 
-    if(floorSelect){
+    if(floorSelect && form){
         floorSelect.addEventListener('change', function(){
             form.submit();
         });

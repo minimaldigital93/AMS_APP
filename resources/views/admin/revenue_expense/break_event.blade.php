@@ -3,6 +3,12 @@
 @section('content')
 <div class="max-w-5xl mx-auto space-y-6">
 
+    @php
+        $coveragePercent = (isset($break_even_revenue) && $break_even_revenue > 0)
+            ? min(($current_revenue / $break_even_revenue) * 100, 100)
+            : 0;
+    @endphp
+
     {{-- ── Header ─────────────────────────────────────────────── --}}
     <div class="flex items-center justify-between">
         <div>
@@ -120,9 +126,9 @@
             <div class="relative w-44 h-44">
                 <canvas id="revenueChart"></canvas>
                 <div class="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-                    <span class="text-xl font-extrabold {{ $is_above_break_even ? 'text-emerald-600' : 'text-red-500' }}">
-                        {{ $break_even_revenue > 0 ? number_format(min(($current_revenue / $break_even_revenue) * 100, 100), 0) : 0 }}%
-                    </span>
+                        <span class="text-xl font-extrabold {{ $is_above_break_even ? 'text-emerald-600' : 'text-red-500' }}">
+                            <?php echo e(number_format($coveragePercent, 0)); ?>%
+                        </span>
                     <span class="text-[11px] text-slate-400">covered</span>
                 </div>
             </div>

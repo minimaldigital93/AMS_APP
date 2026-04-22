@@ -179,6 +179,12 @@ Route::middleware(['auth', 'role:admin'])->group(function () {
         // Monthly Bill Generation
         Route::get('/admin/revenue-expense/generate-bills', [RevenueExpenseController::class, 'generateMonthlyBills'])->name('admin.revenue_expense.generate_bills');
         Route::post('/admin/revenue-expense/generate-bills', [RevenueExpenseController::class, 'processMonthlyBills'])->name('admin.revenue_expense.process_bills');
+        // Quick auto-process action (triggered by small icon)
+        Route::post('/admin/revenue-expense/generate-bills/auto', [RevenueExpenseController::class, 'autoProcessMonthlyBills'])->name('admin.revenue_expense.process_bills_auto');
+        // Export per-apartment summary as PDF
+        Route::get('/admin/revenue-expense/apartment-summary-pdf', [RevenueExpenseController::class, 'apartmentSummaryPdf'])->name('admin.revenue_expense.apartment_summary_pdf');
+        // HTML preview of apartment summary (show first, allow export)
+        Route::get('/admin/revenue-expense/apartment-summary-preview', [RevenueExpenseController::class, 'apartmentSummaryPreview'])->name('admin.revenue_expense.apartment_summary_preview');
 
         // Monthly Calendar View
         Route::get('/admin/revenue-expense/monthly-calendar', [RevenueExpenseController::class, 'monthlyCalendar'])->name('admin.revenue_expense.monthly_calendar');
@@ -217,3 +223,7 @@ Route::middleware(['auth', 'role:supervisor'])->prefix('supervisor')->group(func
 });
 
 require __DIR__.'/auth.php';
+
+// DEV-ONLY: Temporary unauthenticated endpoint to generate apartment summary PDF for local testing.
+// Remove this route after verification.
+Route::get('/dev/generate-apartment-summary-pdf', [RevenueExpenseController::class, 'apartmentSummaryPdf']);

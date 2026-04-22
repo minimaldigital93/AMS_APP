@@ -228,6 +228,13 @@
             <div>
                 <p class="text-sm font-medium text-emerald-700">Paid</p>
                 <p class="text-2xl font-bold text-emerald-800">{{ $stats['payments']['paid'] }}</p>
+                @if(!empty($stats['tenants_on_leave']) && $stats['tenants_on_leave'] > 0)
+                    @php $leaveCount = (int) $stats['tenants_on_leave']; @endphp
+                    <p class="flex items-center gap-2 text-sm text-slate-500 mt-2" title="{{ $leaveCount === 1 ? '1 tenant is on leave' : $leaveCount . ' tenants on leave' }}">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-sky-500 shrink-0" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path fill-rule="evenodd" d="M18 10A8 8 0 1110 2a8 8 0 018 8zm-9-3a1 1 0 102 0 1 1 0 00-2 0zm1 4a1 1 0 00-1 1v1a1 1 0 102 0v-1a1 1 0 00-1-1z" clip-rule="evenodd"/></svg>
+                        <span>{{ $leaveCount === 1 ? '1 tenant is on leave' : $leaveCount . ' tenants on leave' }}</span>
+                    </p>
+                @endif
             </div>
             @php $paid = $stats['payments']['paid'] ?? 0; $assigned = $stats['apartments']['occupied'] ?? ($stats['apartments']['total'] ?? 0); @endphp
             <div class="relative w-16 h-16 flex items-center justify-center">
@@ -332,167 +339,8 @@
     </div>
     @endif
 
-    {{-- Per-Floor Revenue Chart --}}
-    @if(!$isFullPeriod && !empty($apartmentRevenues))
-    <div class="bg-white rounded-xl border border-slate-100 p-6" x-data="{ expandedFloor: null }">
-        <div class="mb-4">
-            <h2 class="text-lg font-semibold text-slate-800">Revenue by Floor</h2>
-            <p class="text-xs text-slate-400 mt-1">Expected vs Collected — {{ $displayMonth->format('F Y') }}</p>
-        </div>
 
-        {{-- Summary Cards --}}
-        @php
-            $totalExpected = collect($apartmentRevenues)->sum('expected');
-            $totalActual = collect($apartmentRevenues)->sum('actual');
-            $overallPct = $totalExpected > 0 ? round(($totalActual / $totalExpected) * 100, 1) : 0;
-            $outstanding = $totalExpected - $totalActual;
-        @endphp
-        <div class="mt-5 grid grid-cols-1 sm:grid-cols-3 gap-4">
-            {{-- Expected Rent --}}
-            <div class="rounded-xl border border-indigo-200 bg-indigo-50 p-4">
-                <div class="flex items-center gap-3">
-                    <div class="w-10 h-10 rounded-lg bg-indigo-100 flex items-center justify-center">
-                        <svg class="w-5 h-5 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z"/></svg>
-                    </div>
-                    <div>
-                        <p class="text-xs font-medium text-indigo-600">Expected Rent</p>
-                        <p class="text-xl font-bold text-indigo-900">${{ number_format($totalExpected, 2) }}</p>
-                    </div>
-                </div>
-                <p class="text-xs text-indigo-500 mt-2">{{ $displayMonth->format('F Y') }} — all occupied units</p>
-            </div>
-
-            {{-- Rent Collected --}}
-            <div class="rounded-xl border border-emerald-200 bg-emerald-50 p-4">
-                <div class="flex items-center gap-3">
-                    <div class="w-10 h-10 rounded-lg bg-emerald-100 flex items-center justify-center">
-                        <svg class="w-5 h-5 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-                    </div>
-                    <div>
-                        <p class="text-xs font-medium text-emerald-600">Rent Collected</p>
-                        <p class="text-xl font-bold text-emerald-900">${{ number_format($totalActual, 2) }}</p>
-                    </div>
-                </div>
-                <p class="text-xs text-emerald-500 mt-2">
-                    @if($outstanding > 0)
-                        ${{ number_format($outstanding, 2) }} outstanding
-                    @else
-                        Fully collected
-                    @endif
-                </p>
-            </div>
-
-            {{-- Collection Rate --}}
-            <div class="rounded-xl border {{ $overallPct >= 80 ? 'border-emerald-200 bg-emerald-50' : ($overallPct >= 50 ? 'border-yellow-200 bg-yellow-50' : 'border-red-200 bg-red-50') }} p-4">
-                <div class="flex items-center gap-3">
-                    <div class="w-10 h-10 rounded-lg {{ $overallPct >= 80 ? 'bg-emerald-100' : ($overallPct >= 50 ? 'bg-yellow-100' : 'bg-red-100') }} flex items-center justify-center">
-                        <svg class="w-5 h-5 {{ $overallPct >= 80 ? 'text-emerald-600' : ($overallPct >= 50 ? 'text-yellow-600' : 'text-red-600') }}" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 3.055A9.001 9.001 0 1020.945 13H11V3.055z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.488 9H15V3.512A9.025 9.025 0 0120.488 9z"/></svg>
-                    </div>
-                    <div>
-                        <p class="text-xs font-medium {{ $overallPct >= 80 ? 'text-emerald-600' : ($overallPct >= 50 ? 'text-yellow-600' : 'text-red-600') }}">Collection Rate</p>
-                        <p class="text-xl font-bold {{ $overallPct >= 80 ? 'text-emerald-900' : ($overallPct >= 50 ? 'text-yellow-900' : 'text-red-900') }}">{{ $overallPct }}%</p>
-                    </div>
-                </div>
-                <div class="mt-2">
-                    <div class="w-full bg-white/60 rounded-full h-2">
-                        <div class="h-2 rounded-full {{ $overallPct >= 80 ? 'bg-emerald-500' : ($overallPct >= 50 ? 'bg-yellow-500' : 'bg-red-500') }}" style="width: {{ min($overallPct, 100) }}%"></div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        {{-- Floor Apartment Breakdown (click to expand) --}}
-        <div class="mt-5 space-y-2">
-            @foreach($apartmentRevenues as $idx => $floor)
-            <div class="border border-slate-100 rounded-lg overflow-hidden">
-                <button @click="expandedFloor === {{ $idx }} ? expandedFloor = null : expandedFloor = {{ $idx }}"
-                    class="w-full flex items-center justify-between px-4 py-3 bg-slate-50/80 hover:bg-slate-50 transition text-left">
-                    <div class="flex items-center gap-3">
-                        <svg class="w-4 h-4 text-slate-400 transition-transform" :class="{ 'rotate-90': expandedFloor === {{ $idx }} }" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
-                        <span class="text-sm font-semibold text-slate-700">{{ $floor['floor'] }}</span>
-                        <span class="text-xs text-slate-400">({{ count($floor['apartments']) }} units)</span>
-                    </div>
-                    <div class="flex items-center gap-4">
-                        <span class="text-xs text-slate-400">${{ number_format($floor['actual'], 2) }} / ${{ number_format($floor['expected'], 2) }}</span>
-                        <span class="text-xs font-bold px-2 py-0.5 rounded-full
-                            {{ $floor['percentage'] >= 100 ? 'bg-emerald-100 text-emerald-700' : ($floor['percentage'] >= 50 ? 'bg-yellow-100 text-yellow-700' : 'bg-red-100 text-red-700') }}">
-                            {{ $floor['percentage'] }}%
-                        </span>
-                    </div>
-                </button>
-                <div x-show="expandedFloor === {{ $idx }}" x-collapse>
-                    <table class="w-full text-sm">
-                        <thead>
-                            <tr class="bg-slate-50/80 text-left">
-                                <th class="px-4 py-2 text-[11px] font-medium text-slate-400 uppercase tracking-wider">Unit</th>
-                                <th class="px-4 py-2 text-[11px] font-medium text-slate-400 uppercase tracking-wider">Status</th>
-                                <th class="px-4 py-2 text-[11px] font-medium text-slate-400 uppercase tracking-wider text-right">Expected</th>
-                                <th class="px-4 py-2 text-[11px] font-medium text-slate-400 uppercase tracking-wider text-right">Collected</th>
-                                <th class="px-4 py-2 text-[11px] font-medium text-slate-400 uppercase tracking-wider text-right">Rate</th>
-                            </tr>
-                        </thead>
-                        <tbody class="divide-y divide-slate-50">
-                            @foreach($floor['apartments'] as $apt)
-                            <tr class="hover:bg-slate-50/50">
-                                <td class="px-4 py-2 font-medium text-slate-700">{{ $apt['apartment'] }}</td>
-                                <td class="px-4 py-2">
-                                    <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium
-                                        {{ $apt['status'] === 'occupied' ? 'bg-emerald-50 text-emerald-700' : ($apt['status'] === 'available' ? 'bg-sky-50 text-sky-700' : 'bg-slate-100 text-slate-600') }}">
-                                        {{ ucfirst($apt['status']) }}
-                                    </span>
-                                </td>
-                                <td class="px-4 py-2 text-right text-slate-500">${{ number_format($apt['expected'], 2) }}</td>
-                                <td class="px-4 py-2 text-right font-medium text-slate-700">${{ number_format($apt['actual'], 2) }}</td>
-                                <td class="px-4 py-2 text-right">
-                                    <span class="font-semibold {{ $apt['percentage'] >= 100 ? 'text-emerald-600' : ($apt['percentage'] >= 50 ? 'text-yellow-600' : 'text-red-600') }}">
-                                        {{ $apt['percentage'] }}%
-                                    </span>
-                                </td>
-                            </tr>
-                            @endforeach
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-            @endforeach
-        </div>
-    </div>
-    @endif
-
-    {{-- Recent Transactions --}}
-    @if($recentTransactions->isNotEmpty())
-    <div class="bg-white rounded-xl border border-slate-100 p-6">
-        <h2 class="text-lg font-semibold text-slate-800 mb-2">Recent Transactions</h2>
-        <p class="text-xs text-slate-400 mb-4">{{ $isFullPeriod ? 'Latest 5 transactions in this fiscal period' : 'Latest 5 transactions in ' . $displayMonth->format('F Y') }}</p>
-        <div class="overflow-x-auto">
-            <table class="w-full text-sm">
-                <thead>
-                    <tr class="text-left border-b border-slate-100">
-                        <th class="pb-2 text-[11px] font-medium text-slate-400 uppercase tracking-wider">Date</th>
-                        <th class="pb-2 text-[11px] font-medium text-slate-400 uppercase tracking-wider">Description</th>
-                        <th class="pb-2 text-[11px] font-medium text-slate-400 uppercase tracking-wider text-right">Amount</th>
-                    </tr>
-                </thead>
-                <tbody class="divide-y divide-slate-50">
-                    @foreach($recentTransactions->take(5) as $tx)
-                    <tr class="hover:bg-slate-50/50">
-                        <td class="py-2.5 text-slate-400">{{ $tx->transaction_date->format('M d') }}</td>
-                        <td class="py-2.5 text-slate-600 max-w-[260px] truncate">
-                            <div class="flex items-center gap-2">
-                                <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium {{ $tx->account_type === 'income' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700' }}">{{ $tx->account_type === 'income' ? 'Income' : 'Expense' }}</span>
-                                <span class="truncate">{{ \Illuminate\Support\Str::limit($tx->description, 50) }}</span>
-                            </div>
-                        </td>
-                        <td class="py-2.5 text-right font-medium {{ $tx->account_type === 'income' ? 'text-green-700' : 'text-red-700' }}">
-                            {{ $tx->account_type === 'income' ? '+' : '-' }}${{ number_format($tx->amount, 2) }}
-                        </td>
-                    </tr>
-                    @endforeach
-                </tbody>
-            </table>
-        </div>
-    </div>
-    @endif
+    {{-- Recent Transactions removed per design request --}}
 
     {{-- Recent Closed Fiscal Periods --}}
     @if($fiscalData['has_active_period'] && $fiscalData['recent_periods']->count() > 0)
