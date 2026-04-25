@@ -107,7 +107,9 @@ class DashboardController extends Controller
 
         // Create accounts record
         $category = $request->payment_type === 'rent' ? Accounts::CAT_RENT_INCOME
-            : ($request->payment_type === 'late_fee' ? Accounts::CAT_LATE_FEE_INCOME : Accounts::CAT_OTHER_INCOME);
+            : ($request->payment_type === 'late_fee' ? Accounts::CAT_LATE_FEE_INCOME : (
+                $request->payment_type === 'deposit' ? Accounts::CAT_DEPOSIT_INCOME : Accounts::CAT_OTHER_INCOME
+            ));
 
         Accounts::create([
             'user_id' => Auth::id(),

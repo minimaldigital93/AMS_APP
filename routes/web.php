@@ -156,6 +156,7 @@ Route::middleware(['auth', 'role:admin'])->group(function () {
         // Tenant Billing Actions
         Route::post('/admin/revenue-expense/add-charge', [RevenueExpenseController::class, 'addTenantCharge'])->name('admin.revenue_expense.add_charge');
         Route::delete('/admin/revenue-expense/remove-charge/{charge}', [RevenueExpenseController::class, 'removeTenantCharge'])->name('admin.revenue_expense.remove_charge');
+        Route::delete('/admin/revenue-expense/clear-charges/{rental}', [RevenueExpenseController::class, 'clearTenantCharges'])->name('admin.revenue_expense.clear_charges');
         Route::post('/admin/revenue-expense/checkout', [RevenueExpenseController::class, 'checkoutTenant'])->name('admin.revenue_expense.checkout');
         Route::get('/admin/revenue-expense/print-bill/{rental}', [RevenueExpenseController::class, 'printTenantBill'])->name('admin.revenue_expense.print_bill');
 
@@ -227,3 +228,11 @@ require __DIR__.'/auth.php';
 // DEV-ONLY: Temporary unauthenticated endpoint to generate apartment summary PDF for local testing.
 // Remove this route after verification.
 Route::get('/dev/generate-apartment-summary-pdf', [RevenueExpenseController::class, 'apartmentSummaryPdf']);
+
+// DEV-ONLY: Simple test form to verify global submit spinner (no CSRF middleware)
+Route::view('/dev/test-form', 'dev.test-form');
+Route::post('/dev/test-submit', function (\Illuminate\Http\Request $request) {
+    // simulate short processing
+    sleep(1);
+    return redirect('/dev/test-form')->with('success', 'Form submitted');
+})->withoutMiddleware([\App\Http\Middleware\VerifyCsrfToken::class]);

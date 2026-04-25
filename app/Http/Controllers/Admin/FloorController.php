@@ -31,8 +31,7 @@ class FloorController extends Controller
 
     public function create(): View
     {
-        $tempApartments = session('temp_apartments', []);
-        return view('admin.floors.create', compact('tempApartments'));
+        return view('admin.floors.create');
     }
 
     public function edit(Floors $floor): View
@@ -49,85 +48,40 @@ class FloorController extends Controller
 
     public function store(Request $request)
     {
-        $action = $request->input('action', 'create_floor');
-        
-        if ($action === 'add_apartment') {
-            $validated = $request->validate([
-                'floor_name' => 'required|string|max:255',
-                'description' => 'nullable|string',
-                'apartment_number' => [
-                    'required',
-                    'string',
-                    'max:255',
-                    Rule::unique('apartments', 'apartment_number')
-                        ->where('deleted_at', null)
-                ],
-                'monthly_rent' => 'nullable|numeric|min:0',
-                'apartment_status' => 'nullable|in:available,occupied,maintenance',
-            ]);
-
-            // Get existing temp apartments
-            $tempApartments = session('temp_apartments', []);
-            
-            // Add new apartment
-            $tempApartments[] = [
-                'apartment_number' => $validated['apartment_number'],
-                'monthly_rent' => $validated['monthly_rent'] ?? 0,
-                'status' => $validated['apartment_status'] ?? 'available',
-            ];
-            
-            // Store in session
-            session(['temp_apartments' => $tempApartments]);
-            session(['floor_data' => [
-                'floor_name' => $validated['floor_name'],
-                'description' => $validated['description'] ?? null,
-            ]]);
-
-            return redirect()->route('admin.floors.create')
-                ->with('success', 'Unit added successfully!')
-                ->withInput($request->only('floor_name', 'description'));
-        }
-        
-        // ACTION: Create Floor with Apartments
-
         $validated = $request->validate([
-            'floor_name' => 'required|string|max:255',
-            'description' => 'nullable|string',
-            'apartments' => 'nullable|array',
+            'floor_name'                        => 'required|string|max:255',
+            'description'                       => 'nullable|string',
+            'apartments'                        => 'nullable|array',
+            'apartments.*.apartment_number'     => [
+                'required', 'string', 'max:255',
+                Rule::unique('apartments', 'apartment_number')->where('deleted_at', null),
+            ],
+            'apartments.*.monthly_rent'         => 'nullable|numeric|min:0',
+            'apartments.*.status'               => 'nullable|in:available,occupied,maintenance',
         ]);
 
-        // Create the floor
         $floor = Floors::create([
-            'floor_name' => $validated['floor_name'],
+            'floor_name'  => $validated['floor_name'],
             'description' => $validated['description'] ?? null,
         ]);
 
-        // Create apartments ONLY from session (they contain the submitted data via hidden inputs)
-        $tempApartments = session('temp_apartments', []);
-        
         $apartmentsCreated = 0;
-        if (!empty($tempApartments)) {
-            foreach ($tempApartments as $apartmentData) {
-                try {
-                    $floor->apartments()->create([
-                        'apartment_number' => $apartmentData['apartment_number'],
-                        'monthly_rent' => $apartmentData['monthly_rent'] ?? 0,
-                        'status' => $apartmentData['status'] ?? 'available',
-                    ]);
-                    $apartmentsCreated++;
-                } catch (\Exception $e) {
-                    Log::error('Error creating apartment for floor ' . $floor->id . ': ' . $e->getMessage());
-                }
+        foreach ($validated['apartments'] ?? [] as $apt) {
+            try {
+                $floor->apartments()->create([
+                    'apartment_number' => $apt['apartment_number'],
+                    'monthly_rent'     => $apt['monthly_rent'] ?? 0,
+                    'status'           => $apt['status'] ?? 'available',
+                ]);
+                $apartmentsCreated++;
+            } catch (\Exception $e) {
+                Log::error('Error creating apartment for floor ' . $floor->id . ': ' . $e->getMessage());
             }
         }
 
-        // Clear session
-        session()->forget('temp_apartments');
-        session()->forget('floor_data');
-
         $message = 'Floor created successfully';
         if ($apartmentsCreated > 0) {
-            $message .= " with $apartmentsCreated apartment(s)";
+            $message .= " with {$apartmentsCreated} apartment(s)";
         }
 
         return redirect()->route('admin.floors.index')->with('success', $message);

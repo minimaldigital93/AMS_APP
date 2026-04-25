@@ -496,10 +496,14 @@ class RevenueExpenseController extends Controller
      *
      * Income categories:
      *   rent_income     = Monthly rent paid by tenants
-     *   utility_income  = Electricity/water/internet collected from tenants
+     *   utility_income  = Electricity + Water collected from tenants
+     *   other_income    = Internet + Parking + Trash + generic other charges
      *   deposit_income  = Security deposits
-     *   other_income    = Any other income
      *   (late_fee)      = Pulled from linked Payments records
+     *
+     * Utility income split:
+     *   Utilities income → electricity, water
+     *   Other income     → internet, parking, trash, other (generic charges)
      */
     public function calculateIncome($startDate = null, $endDate = null)
     {
@@ -518,31 +522,100 @@ class RevenueExpenseController extends Controller
 
         $records = $query->get();
 
-        // Sum each income category
+        // Accounts-level totals
         $rentIncome    = $records->where('category', Accounts::CAT_RENT_INCOME)->sum('amount');
-        $utilityIncome = $records->where('category', Accounts::CAT_UTILITY_INCOME)->sum('amount');
         $depositIncome = $records->where('category', Accounts::CAT_DEPOSIT_INCOME)->sum('amount');
-        $otherIncome   = $records->where('category', Accounts::CAT_OTHER_INCOME)->sum('amount');
-        $totalIncome   = $rentIncome + $utilityIncome + $depositIncome + $otherIncome;
+        $lateFeesFromAccts = $records->where('category', Accounts::CAT_LATE_FEE_INCOME)->sum('amount');
 
-        // Late fees come from the linked Payments records
+        // Late fees also from the linked Payments records (legacy path)
         $paymentIds = $records->pluck('payment_id')->filter()->unique();
-        $lateFeesIncome = $paymentIds->isNotEmpty()
+        $lateFeesFromPayments = $paymentIds->isNotEmpty()
             ? Payments::whereIn('id', $paymentIds)->sum('late_fee')
             : 0;
-        $totalIncome += $lateFeesIncome;
+        // Use whichever is larger (avoid double-counting: prefer the dedicated late_fee_income entries)
+        $lateFeesIncome = max($lateFeesFromAccts, $lateFeesFromPayments);
 
         $paymentCount = $records->count();
 
+        // ── Utility & Other Income Breakdown via Utilities table ────────────────
+        // The Utilities table stores utility_type per charge and is the ground truth
+        // for per-type amounts. We query it scoped to the same date range.
+        $apartmentIds = $this->scopeApartments()->pluck('id');
+
+        $utilityQuery = Utilities::whereHas('rental', function ($q) use ($apartmentIds) {
+            $q->whereIn('apartment_id', $apartmentIds);
+        });
+
+        if ($activePeriod) {
+            $start = Carbon::parse($activePeriod->opening_date);
+            $end   = Carbon::parse($activePeriod->closing_date);
+            $utilityQuery->where(function ($q) use ($start, $end) {
+                $q->whereBetween('paid_at', [$start->startOfDay(), $end->copy()->endOfDay()])
+                  ->orWhere(function ($q2) use ($start, $end) {
+                      $q2->where('billing_year', '>=', $start->year)
+                          ->where('billing_year', '<=', $end->year);
+                  });
+            });
+        } elseif ($startDate && $endDate) {
+            $start = Carbon::parse($startDate);
+            $end   = Carbon::parse($endDate);
+            $utilityQuery->where(function ($q) use ($start, $end) {
+                $q->whereBetween('paid_at', [$start->startOfDay(), $end->copy()->endOfDay()])
+                  ->orWhere(function ($q2) use ($start, $end) {
+                      $q2->where('billing_year', '>=', $start->year)
+                          ->where('billing_year', '<=', $end->year);
+                  });
+            });
+        }
+
+        $byType = $utilityQuery
+            ->selectRaw('utility_type, SUM(charge_amount) as total')
+            ->groupBy('utility_type')
+            ->pluck('total', 'utility_type')
+            ->toArray();
+
+        // Utilities Income = electricity + water
+        $utilityBreakdown = [
+            'electricity' => round($byType['electricity'] ?? 0, 2),
+            'water'       => round($byType['water']       ?? 0, 2),
+        ];
+        $totalUtilityIncome = $utilityBreakdown['electricity'] + $utilityBreakdown['water'];
+
+        // Other Income = internet + parking + trash (from Utilities) + generic other (from Accounts)
+        $otherFromUtilities = [
+            'internet' => round($byType['internet'] ?? 0, 2),
+            'parking'  => round($byType['parking']  ?? 0, 2),
+            'trash'    => round($byType['trash']     ?? 0, 2),
+        ];
+
+        // Pure "other" charges stored in Accounts (charge_type = 'other', no Utilities row)
+        $pureOtherIncome = round(
+            $records->where('category', Accounts::CAT_OTHER_INCOME)->sum('amount')
+            - $otherFromUtilities['internet']
+            - $otherFromUtilities['parking']
+            - $otherFromUtilities['trash'],
+            2
+        );
+        $pureOtherIncome = max(0, $pureOtherIncome);
+
+        $otherIncomeBreakdown = array_merge($otherFromUtilities, ['other' => $pureOtherIncome]);
+        $totalOtherIncome = array_sum($otherIncomeBreakdown);
+
+        $totalIncome = $rentIncome + $totalUtilityIncome + $totalOtherIncome + $depositIncome + $lateFeesIncome;
+
         return [
-            'rent_income'          => round($rentIncome, 2),
-            'late_fees'            => round($lateFeesIncome, 2),
-            'total_utility_income' => round($utilityIncome, 2),
-            'deposit_income'       => round($depositIncome, 2),
-            'other_income'         => round($otherIncome, 2),
-            'total_income'         => round($totalIncome, 2),
-            'payment_count'        => $paymentCount,
-            'average_payment'      => $paymentCount > 0 ? round($rentIncome / $paymentCount, 2) : 0,
+            'rent_income'             => round($rentIncome, 2),
+            'late_fees'               => round($lateFeesIncome, 2),
+            // Utilities income (electricity + water only)
+            'total_utility_income'    => round($totalUtilityIncome, 2),
+            'utility_breakdown'       => $utilityBreakdown,       // ['electricity' => x, 'water' => y]
+            // Other income (internet, parking, trash, generic other)
+            'other_income'            => round($totalOtherIncome, 2),
+            'other_income_breakdown'  => $otherIncomeBreakdown,   // ['internet'=>x,'parking'=>y,'trash'=>z,'other'=>w]
+            'deposit_income'          => round($depositIncome, 2),
+            'total_income'            => round($totalIncome, 2),
+            'payment_count'           => $paymentCount,
+            'average_payment'         => $paymentCount > 0 ? round($rentIncome / $paymentCount, 2) : 0,
         ];
     }
 
@@ -667,11 +740,37 @@ class RevenueExpenseController extends Controller
             }])
             ->get();
 
+        // Preload "other" income charges (type='other') that have NO Utilities row —
+        // they are stored only in Accounts with reference_number 'tenant_charge:rental:{id}:t...'
+        $otherAccountsQuery = Accounts::where('account_type', Accounts::TYPE_INCOME)
+            ->where('category', Accounts::CAT_OTHER_INCOME)
+            ->where('reference_number', 'LIKE', 'tenant_charge:rental:%');
+        if ($activePeriod) {
+            $otherAccountsQuery->where('fiscal_period_id', $activePeriod->id);
+        } elseif ($startDate && $endDate) {
+            $otherAccountsQuery->whereBetween('transaction_date', [
+                Carbon::parse($startDate)->startOfDay(),
+                Carbon::parse($endDate)->endOfDay(),
+            ]);
+        }
+        // Group by rental_id (extracted from reference_number: tenant_charge:rental:{rental_id}:t...)
+        $otherAccountsByRental = [];
+        foreach ($otherAccountsQuery->get() as $acct) {
+            $parts = explode(':', $acct->reference_number);
+            // format: tenant_charge:rental:{rental_id}:t{timestamp}
+            if (isset($parts[2]) && is_numeric($parts[2])) {
+                $rentalId = (int) $parts[2];
+                $otherAccountsByRental[$rentalId] = ($otherAccountsByRental[$rentalId] ?? 0) + $acct->amount;
+            }
+        }
+
         $perApartment = [];
         foreach ($apartments as $apartment) {
             $income = 0;
             $expenses = 0;
-            $expenseBreakdown = ['electricity' => 0, 'water' => 0, 'internet' => 0, 'parking' => 0];
+            $otherIncome = 0;
+            $utilitiesIncome = 0;
+            $expenseBreakdown = ['electricity' => 0, 'water' => 0, 'internet' => 0, 'parking' => 0, 'trash' => 0, 'other' => 0];
             $tenantName = 'Vacant';
             $hasActiveRental = false;
             $rentPercent = 0;
@@ -741,6 +840,21 @@ class RevenueExpenseController extends Controller
                         $expenseBreakdown[$type] += $utility->charge_amount;
                     }
                     $expenses += $utility->charge_amount;
+                    if (in_array($type, ['internet', 'parking', 'trash', 'other'])) {
+                        $otherIncome += $utility->charge_amount;
+                    }
+                    if (in_array($type, ['electricity', 'water'])) {
+                        $utilitiesIncome += $utility->charge_amount;
+                    }
+                }
+
+                // Add "other" charges stored only in Accounts (no Utilities row)
+                $rentalOtherFromAccounts = $otherAccountsByRental[$rental->id] ?? 0;
+                if ($rentalOtherFromAccounts > 0) {
+                    $expenseBreakdown['other'] += $rentalOtherFromAccounts;
+                    $otherIncome  += $rentalOtherFromAccounts;
+                    $expenses     += $rentalOtherFromAccounts;
+                    $income       += $rentalOtherFromAccounts;
                 }
             }
 
@@ -768,6 +882,8 @@ class RevenueExpenseController extends Controller
                 'monthly_rent' => $apartment->monthly_rent,
                 'income' => round($income, 2),
                 'expenses' => round($expenses, 2),
+                'utilities_income' => round($utilitiesIncome, 2),
+                'other_income' => round($otherIncome, 2),
                 'fixed_expenses' => round($fixedExpTotal, 2),
                 'tenant_net' => round($income - $expenses, 2),           // Net: Income minus utility costs
                 'owner_expenses' => round($fixedExpTotal, 2),            // Owner → Vendor
@@ -1259,6 +1375,8 @@ class RevenueExpenseController extends Controller
                 // Calculate extra charges (utilities for current month)
                 $utilityCharges = $rental->utilities ?? collect();
                 $totalUtilities = $utilityCharges->sum('charge_amount');
+                $totalUtilityOnly = $utilityCharges->whereIn('utility_type', ['electricity', 'water'])->sum('charge_amount');
+                $totalOtherCharges = $utilityCharges->whereIn('utility_type', ['internet', 'parking', 'trash', 'other'])->sum('charge_amount');
 
                 // Fixed expenses for the apartment
                 $fixedExpenses = $apartment->activeFixedExpenses ?? collect();
@@ -1284,6 +1402,8 @@ class RevenueExpenseController extends Controller
                     'paid_this_month' => $paidThisMonth,
                     'utilities' => $utilityCharges,
                     'total_utilities' => $totalUtilities,
+                    'total_utility_only' => $totalUtilityOnly,
+                    'total_other_charges' => $totalOtherCharges,
                     'fixed_expenses' => $fixedExpenses,
                     'total_fixed' => $totalFixed,
                     'total_bill' => $totalBill,
@@ -1349,7 +1469,7 @@ class RevenueExpenseController extends Controller
     {
         $validated = $request->validate([
             'rental_id' => 'required|exists:rentals,id',
-            'charge_type' => 'required|in:electricity,water,internet,parking,cleaning,other',
+            'charge_type' => 'required|in:electricity,water,internet,parking,trash,other',
             'charge_amount' => 'required|numeric|min:0.01',
             'meter_reading_in' => 'nullable|numeric|min:0',
             'meter_reading_out' => 'nullable|numeric|min:0',
@@ -1364,10 +1484,10 @@ class RevenueExpenseController extends Controller
         $billingYear = $validated['billing_year'] ?? now()->year;
 
         // Only create a Utilities operational record for actual meter-based utility types.
-        $utilityTypes = ['electricity', 'water', 'internet', 'trash', 'parking'];
+        $utilityTypes = ['electricity', 'water', 'internet', 'trash', 'parking', 'other'];
 
         if (in_array($validated['charge_type'], $utilityTypes, true)) {
-            Utilities::create([
+            $utility = Utilities::create([
                 'tenant_id' => $rental->tenant_id,
                 'rental_id' => $rental->id,
                 'utility_type' => $validated['charge_type'],
@@ -1382,21 +1502,45 @@ class RevenueExpenseController extends Controller
             ]);
         }
 
-        // Always create an Accounts record so the fiscal period reflects the charge.
+        // Create an Accounts record to reflect the tenant charge in the fiscal period.
+        // Routing:
+        //   electricity, water → utility_income  (true utility costs charged to tenant)
+        //   internet, parking, trash, other → other_income  (service/misc charges)
+        $isUtility = in_array($validated['charge_type'], $utilityTypes, true);
+        $utilityIncomeTypes = ['electricity', 'water'];
+        $otherIncomeTypes   = ['internet', 'parking', 'trash', 'other'];
+        if (in_array($validated['charge_type'], $utilityIncomeTypes, true)) {
+            $acctType     = Accounts::TYPE_INCOME;
+            $acctCategory = Accounts::CAT_UTILITY_INCOME;
+        } elseif (in_array($validated['charge_type'], $otherIncomeTypes, true)) {
+            $acctType     = Accounts::TYPE_INCOME;
+            $acctCategory = Accounts::CAT_OTHER_INCOME;
+        } else {
+            // Fallback: treat unknown types as expense to avoid accidental income entries
+            $acctType     = Accounts::TYPE_EXPENSE;
+            $acctCategory = Accounts::CAT_OTHER_EXPENSE;
+        }
+
         Accounts::create([
             'fiscal_period_id' => $this->getActiveFiscalPeriod()?->id,
             'payment_id' => null,
             'user_id' => Auth::id(),
-            'account_type' => Accounts::TYPE_EXPENSE,
-            'category' => in_array($validated['charge_type'], $utilityTypes, true) ? Accounts::CAT_UTILITIES_EXPENSE : Accounts::CAT_OTHER_EXPENSE,
+            'account_type' => $acctType,
+            'category' => $acctCategory,
             'description' => '[Apt ' . ($rental->apartment->apartment_number ?? 'N/A') . '] ' . ucfirst($validated['charge_type']),
             'amount' => $validated['charge_amount'],
             'transaction_date' => now()->toDateString(),
             'note' => $validated['note'] ?? null,
+            'reference_number' => 'tenant_charge' . ($isUtility && isset($utility) ? (':' . $utility->id) : (':rental:' . $rental->id . ':t' . time())),
         ]);
 
-        return redirect()->back()
-            ->with('success', ucfirst($validated['charge_type']) . ' charge of $' . number_format($validated['charge_amount'], 2) . ' added for ' . ($rental->tenant->name ?? 'tenant') . '.');
+        $successMsg = ucfirst($validated['charge_type']) . ' charge of $' . number_format($validated['charge_amount'], 2) . ' added for ' . ($rental->tenant->name ?? 'tenant') . '.';
+
+        if ($request->expectsJson()) {
+            return response()->json(['success' => true, 'message' => $successMsg]);
+        }
+
+        return redirect()->back()->with('success', $successMsg);
     }
 
     /**
@@ -1408,12 +1552,52 @@ class RevenueExpenseController extends Controller
 
         // Only allow removing unpaid charges
         if ($charge->paid_status) {
+            if (request()->expectsJson()) {
+                return response()->json(['error' => 'Cannot remove a paid charge.'], 422);
+            }
             return redirect()->back()->with('error', 'Cannot remove a charge that has already been paid.');
+        }
+
+        // Remove any Accounts entry created for this tenant charge
+        try {
+            \App\Models\Accounts::where('reference_number', 'tenant_charge:' . $charge->id)
+                ->whereNull('payment_id')
+                ->where('user_id', Auth::id())
+                ->delete();
+        } catch (\Exception $e) {
+            // not fatal
         }
 
         $charge->delete();
 
+        if (request()->expectsJson()) {
+            return response()->json(['success' => true]);
+        }
         return redirect()->back()->with('success', 'Charge removed successfully.');
+    }
+
+    /**
+     * Clear all unpaid charges for a rental.
+     */
+    public function clearTenantCharges($rentalId)
+    {
+        $rental = Rentals::findOrFail($rentalId);
+        $charges = Utilities::where('rental_id', $rentalId)->where('paid_status', false)->get();
+
+        foreach ($charges as $charge) {
+            try {
+                \App\Models\Accounts::where('reference_number', 'tenant_charge:' . $charge->id)
+                    ->whereNull('payment_id')
+                    ->where('user_id', Auth::id())
+                    ->delete();
+            } catch (\Exception $e) {}
+            $charge->delete();
+        }
+
+        if (request()->expectsJson()) {
+            return response()->json(['success' => true]);
+        }
+        return redirect()->back()->with('success', 'All unpaid charges cleared.');
     }
 
     /**
@@ -1520,18 +1704,72 @@ class RevenueExpenseController extends Controller
                     'note' => 'Utility charges: ' . $unpaidUtilities->pluck('utility_type')->implode(', '),
                 ]);
 
-                Accounts::create([
-                    'fiscal_period_id' => $activePeriod->id,
-                    'payment_id' => $payment->id,
-                    'user_id' => Auth::id(),
-                    'account_type' => Accounts::TYPE_INCOME,
-                    'category' => Accounts::CAT_UTILITY_INCOME,
-                    'description' => '[Apt ' . $rental->apartment->apartment_number . '] Utility charges',
-                    'amount' => $utilityTotal,
-                    'transaction_date' => $paymentDate,
-                    'reference_number' => $validated['transaction_reference'] ?? null,
-                    'note' => 'Utilities: ' . $unpaidUtilities->pluck('utility_type')->implode(', '),
-                ]);
+                // Split Accounts entries: electricity+water → utility_income, rest → other_income
+                $utilityIncomeTypes = ['electricity', 'water'];
+                $otherIncomeTypes   = ['internet', 'parking', 'trash', 'other'];
+                $utilIncomeAmt  = $unpaidUtilities->whereIn('utility_type', $utilityIncomeTypes)->sum('charge_amount');
+                $otherIncomeAmt = $unpaidUtilities->whereIn('utility_type', $otherIncomeTypes)->sum('charge_amount');
+
+                if ($utilIncomeAmt > 0) {
+                    $utilTypes = $unpaidUtilities->whereIn('utility_type', $utilityIncomeTypes)->pluck('utility_type')->unique()->implode(', ');
+                    Accounts::create([
+                        'fiscal_period_id' => $activePeriod->id,
+                        'payment_id'       => $payment->id,
+                        'user_id'          => Auth::id(),
+                        'account_type'     => Accounts::TYPE_INCOME,
+                        'category'         => Accounts::CAT_UTILITY_INCOME,
+                        'description'      => '[Apt ' . $rental->apartment->apartment_number . '] ' . ucwords($utilTypes),
+                        'amount'           => $utilIncomeAmt,
+                        'transaction_date' => $paymentDate,
+                        'reference_number' => $validated['transaction_reference'] ?? null,
+                        'note'             => 'Utilities (electricity/water): ' . $utilTypes,
+                    ]);
+                    // Also record as a utility expense (mirrors the real cost to the owner)
+                    Accounts::create([
+                        'fiscal_period_id' => $activePeriod->id,
+                        'payment_id'       => $payment->id,
+                        'user_id'          => Auth::id(),
+                        'account_type'     => Accounts::TYPE_EXPENSE,
+                        'category'         => Accounts::CAT_UTILITIES_EXPENSE,
+                        'description'      => '[Apt ' . $rental->apartment->apartment_number . '] ' . ucwords($utilTypes) . ' (expense)',
+                        'amount'           => $utilIncomeAmt,
+                        'transaction_date' => $paymentDate,
+                        'reference_number' => $validated['transaction_reference'] ?? null,
+                        'note'             => 'Utility expense offset (electricity/water): ' . $utilTypes,
+                    ]);
+                }
+
+                if ($otherIncomeAmt > 0) {
+                    $otherTypes = $unpaidUtilities->whereIn('utility_type', $otherIncomeTypes)->pluck('utility_type')->unique()->implode(', ');
+                    Accounts::create([
+                        'fiscal_period_id' => $activePeriod->id,
+                        'payment_id'       => $payment->id,
+                        'user_id'          => Auth::id(),
+                        'account_type'     => Accounts::TYPE_INCOME,
+                        'category'         => Accounts::CAT_OTHER_INCOME,
+                        'description'      => '[Apt ' . $rental->apartment->apartment_number . '] ' . ucwords($otherTypes),
+                        'amount'           => $otherIncomeAmt,
+                        'transaction_date' => $paymentDate,
+                        'reference_number' => $validated['transaction_reference'] ?? null,
+                        'note'             => 'Other charges (internet/parking/trash): ' . $otherTypes,
+                    ]);
+                }
+
+                // Fallback: if neither matched (shouldn't happen), record all as utility_income
+                if ($utilIncomeAmt <= 0 && $otherIncomeAmt <= 0 && $utilityTotal > 0) {
+                    Accounts::create([
+                        'fiscal_period_id' => $activePeriod->id,
+                        'payment_id'       => $payment->id,
+                        'user_id'          => Auth::id(),
+                        'account_type'     => Accounts::TYPE_INCOME,
+                        'category'         => Accounts::CAT_UTILITY_INCOME,
+                        'description'      => '[Apt ' . $rental->apartment->apartment_number . '] Utility charges',
+                        'amount'           => $utilityTotal,
+                        'transaction_date' => $paymentDate,
+                        'reference_number' => $validated['transaction_reference'] ?? null,
+                        'note'             => 'Utilities: ' . $unpaidUtilities->pluck('utility_type')->implode(', '),
+                    ]);
+                }
 
                 // Mark utilities as paid
                 foreach ($unpaidUtilities as $utility) {
@@ -1892,6 +2130,7 @@ class RevenueExpenseController extends Controller
             'water' => 'Water',
             'internet' => 'Internet',
             'parking' => 'Parking',
+            'trash' => 'Trash',
         ];
 
         // Other expense categories (non-utility)
@@ -1991,7 +2230,7 @@ class RevenueExpenseController extends Controller
 
         $validated = $request->validate([
             'rental_id' => 'required|exists:rentals,id',
-            'utility_type' => 'required|in:electricity,water,internet,parking',
+            'utility_type' => 'required|in:electricity,water,internet,parking,trash',
             'charge_amount' => 'required|numeric|min:0.01',
             'transaction_date' => 'required|date',
             'meter_reading_in' => 'nullable|numeric|min:0',

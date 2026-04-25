@@ -154,7 +154,7 @@
                                 <select name="utility_type" id="utility_type" required class="w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500">
                                     <option value="">-- Select type --</option>
                                     @foreach($utilityTypes as $key => $label)
-                                    <option value="{{ $key }}" {{ old('utility_type') == $key ? 'selected' : '' }}>{{ $label }}</option>
+                                                                        <option value="{{ $key }}" {{ old('utility_type') == $key ? 'selected' : '' }}>{{ $key === 'trash' ? 'Trash Services' : $label }}</option>
                                     @endforeach
                                 </select>
                             </div>

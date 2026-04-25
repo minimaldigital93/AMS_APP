@@ -180,12 +180,12 @@
                     <tr>
                         <th class="px-4 py-3 text-left text-[11px] font-medium text-slate-400 uppercase tracking-wider">Apartment</th>
                         <th class="px-4 py-3 text-left text-[11px] font-medium text-slate-400 uppercase tracking-wider">Tenant</th>
-                        <th class="px-4 py-3 text-right text-[11px] font-medium text-slate-400 uppercase tracking-wider">Rent</th>
-                        <th class="px-4 py-3 text-right text-[11px] font-medium text-slate-400 uppercase tracking-wider">Charges</th>
-                        <th class="px-4 py-3 text-right text-[11px] font-medium text-slate-400 uppercase tracking-wider">Total Bill</th>
-                        <th class="px-4 py-3 text-center text-[11px] font-medium text-slate-400 uppercase tracking-wider">Due Date</th>
-                        <th class="px-4 py-3 text-center text-[11px] font-medium text-slate-400 uppercase tracking-wider">Status</th>
-                        <th class="px-4 py-3 text-center text-[11px] font-medium text-slate-400 uppercase tracking-wider">Actions</th>
+                        <th class="hidden lg:table-cell px-4 py-3 text-right text-[11px] font-medium text-slate-400 uppercase tracking-wider">Rent</th>
+                        <th class="hidden lg:table-cell px-4 py-3 text-right text-[11px] font-medium text-slate-400 uppercase tracking-wider">Charges</th>
+                        <th class="px-4 py-3 text-right text-[11px] font-medium text-slate-400 uppercase tracking-wider">Total</th>
+                        <th class="px-3 py-3 text-center text-[11px] font-medium text-slate-400 uppercase tracking-wider">Due</th>
+                        <th class="px-3 py-3 text-center text-[11px] font-medium text-slate-400 uppercase tracking-wider">Status</th>
+                        <th class="px-3 py-3 text-center text-[11px] font-medium text-slate-400 uppercase tracking-wider">Actions</th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-slate-50">
@@ -207,25 +207,26 @@
                             <p class="font-medium text-slate-700">{{ $bill['tenant']->name ?? 'N/A' }}</p>
                             <p class="text-xs text-slate-400">{{ $bill['tenant']->phone ?? '' }}</p>
                         </td>
-                        <td class="px-4 py-4 text-right">
+                        <td class="hidden lg:table-cell px-4 py-4 text-right">
                                 <span class="font-semibold text-slate-800">${{ number_format($bill['monthly_rent'], 2) }}</span>
                         </td>
-                        <td class="px-4 py-4 text-right">
-                            @php $extraCharges = $bill['total_utilities'] + $bill['total_fixed']; @endphp
+                        <td class="hidden lg:table-cell px-4 py-4 text-right">
+                            @php
+                                $extraCharges = $bill['total_utilities'] + $bill['total_fixed'];
+                                $chargesCount = $bill['utilities']->count() + $bill['fixed_expenses']->count();
+                            @endphp
                             @if($extraCharges > 0)
                                 <span class="font-medium text-amber-600">${{ number_format($extraCharges, 2) }}</span>
-                                <p class="text-xs text-slate-400">
-                                    {{ $bill['utilities']->count() }} utility, {{ $bill['fixed_expenses']->count() }} fixed
-                                </p>
+                                <p class="text-xs text-slate-400">{{ $chargesCount }} charge(s)</p>
                             @else
-                                <span class="text-slate-300">$0.00</span>
+                                <span class="text-slate-300">—</span>
                             @endif
                         </td>
                         <td class="px-4 py-4 text-right">
                             <span class="text-lg font-bold {{ $bill['status'] === 'paid' ? 'text-emerald-600' : 'text-slate-800' }}">${{ number_format($bill['total_bill'], 2) }}</span>
                         </td>
-                        <td class="px-4 py-4 text-center">
-                            <span class="text-sm text-slate-600">{{ $bill['due_date']->format('M d') }}</span>
+                        <td class="px-3 py-4 text-center">
+                            <span class="text-sm text-slate-600 whitespace-nowrap">{{ $bill['due_date']->format('M d') }}</span>
                             @if($bill['status'] === 'overdue')
                                 <p class="text-xs text-red-500 font-medium">{{ (int) ($isPastMonth ? $selectedDate->copy()->endOfMonth() : now())->diffInDays($bill['due_date']) }} days late</p>
                             @elseif($bill['status'] === 'pending' && ($isFutureMonth || $isCurrentMonth))
@@ -261,30 +262,28 @@
                                 </div>
                             @endif
                         </td>
-                        <td class="px-4 py-4 text-center">
+                        <td class="px-3 py-4 text-center">
                             @if($bill['status'] === 'paid')
-                                <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-green-100 text-green-700">
+                                <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-semibold bg-green-100 text-green-700">
                                     <svg class="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>
                                     Paid
                                 </span>
                             @elseif($bill['status'] === 'overdue')
-                                <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-red-100 text-red-700">
+                                <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-semibold bg-red-100 text-red-700">
                                     <svg class="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/></svg>
                                     Overdue
                                 </span>
                             @elseif($isFutureMonth)
-                                <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-sky-50 text-sky-700">
-                                    <svg class="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+                                <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-semibold bg-sky-50 text-sky-700">
                                     Upcoming
                                 </span>
                             @else
-                                <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-yellow-100 text-yellow-700">
-                                    <svg class="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clip-rule="evenodd"/></svg>
+                                <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-semibold bg-yellow-100 text-yellow-700">
                                     Pending
                                 </span>
                             @endif
                         </td>
-                        <td class="px-4 py-4 text-center">
+                        <td class="px-2 py-4 text-center">
                             <div class="flex items-center justify-center gap-1">
                                 <!-- Add Charge Button -->
                                 @if($bill['status'] !== 'paid')
@@ -294,9 +293,17 @@
                                 </button>
                                 @endif
 
-                                <!-- View/Expand Bill Detail -->
-                                <button @click="toggleBillDetail({{ $index }})"
-                                    class="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition" title="View Bill Detail">
+                                <!-- View Charges Receipt -->
+                                @php
+                                $chargesJson = $bill['utilities']->map(fn($u) => [
+                                    'id'     => $u->id,
+                                    'type'   => $u->utility_type,
+                                    'amount' => (float) $u->charge_amount,
+                                    'paid'   => (bool) $u->paid_status,
+                                ])->values();
+                                @endphp
+                                <button @click="openChargesReceipt({{ $bill['rental']->id }}, '{{ addslashes($bill['tenant']->name ?? 'Tenant') }}', '{{ $bill['apartment']->apartment_number }}', {{ $chargesJson->toJson() }}, {{ $bill['monthly_rent'] }}, {{ $bill['total_fixed'] }})"
+                                    class="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition" title="View Charges">
                                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
                                 </button>
 
@@ -308,7 +315,7 @@
 
                                 <!-- Checkout / Pay -->
                                 @if($bill['status'] !== 'paid')
-                                <button @click="openCheckout({{ $bill['rental']->id }}, '{{ addslashes($bill['tenant']->name ?? 'Tenant') }}', '{{ $bill['apartment']->apartment_number }}', {{ $bill['monthly_rent'] }}, {{ $bill['total_utilities'] }}, {{ $bill['total_fixed'] }}, {{ $bill['total_bill'] }})"
+                                <button @click="openCheckout({{ $bill['rental']->id }}, '{{ addslashes($bill['tenant']->name ?? 'Tenant') }}', '{{ $bill['apartment']->apartment_number }}', {{ $bill['monthly_rent'] }}, {{ $bill['total_utility_only'] }}, {{ $bill['total_other_charges'] }}, {{ $bill['total_fixed'] }}, {{ $bill['total_bill'] }})"
                                     class="p-2 text-green-600 hover:bg-green-50 rounded-lg transition" title="Checkout & Pay">
                                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
                                 </button>
@@ -317,108 +324,6 @@
                         </td>
                     </tr>
 
-                    <!-- Expandable Bill Detail Row -->
-                    <tr x-show="expandedBill === {{ $index }}" x-transition
-                        class="bg-slate-50/50">
-                        <td colspan="8" class="px-6 py-4">
-                            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                                <!-- Rent Details -->
-                                <div class="bg-white rounded-lg p-4 border border-slate-100">
-                                    <h4 class="font-semibold text-slate-700 mb-3 flex items-center">
-                                        <svg class="w-4 h-4 mr-2 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>
-                                        Rent
-                                    </h4>
-                                    <div class="space-y-2">
-                                        <div class="flex justify-between text-sm">
-                                            <span class="text-slate-500">Monthly Rent</span>
-                                            <span class="font-medium">${{ number_format($bill['monthly_rent'], 2) }}</span>
-                                        </div>
-                                        <div class="flex justify-between text-sm">
-                                            <span class="text-slate-500">Due Date</span>
-                                            <span class="font-medium">{{ $bill['due_date']->format('M d, Y') }}</span>
-                                        </div>
-                                        <div class="flex justify-between text-sm">
-                                            <span class="text-slate-500">Status</span>
-                                            <span class="font-medium {{ $bill['paid_this_month'] ? 'text-emerald-600' : 'text-amber-600' }}">
-                                                {{ $bill['paid_this_month'] ? 'Paid' : 'Unpaid' }}
-                                            </span>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <!-- Utility Charges -->
-                                <div class="bg-white rounded-lg p-4 border border-slate-100">
-                                    <h4 class="font-semibold text-slate-700 mb-3 flex items-center">
-                                        <svg class="w-4 h-4 mr-2 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
-                                        Utility Charges
-                                    </h4>
-                                    @if($bill['utilities']->count() > 0)
-                                    <div class="space-y-2">
-                                        @foreach($bill['utilities'] as $utility)
-                                        <div class="flex justify-between items-center text-sm">
-                                            <div class="flex items-center">
-                                            <span class="text-slate-500 capitalize">{{ str_replace('_', ' ', $utility->utility_type) }}</span>
-                                                @if(!$utility->paid_status)
-                                                <form action="{{ route('admin.revenue_expense.remove_charge', $utility->id) }}" method="POST" class="inline ml-1">
-                                                    @csrf
-                                                    @method('DELETE')
-                                                    <button type="submit" class="text-red-400 hover:text-red-600" title="Remove" onclick="return confirm('Remove this charge?')">
-                                                        <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
-                                                    </button>
-                                                </form>
-                                                @endif
-                                            </div>
-                                            <span class="font-medium {{ $utility->paid_status ? 'text-emerald-600' : 'text-amber-600' }}">${{ number_format($utility->charge_amount, 2) }}</span>
-                                        </div>
-                                        @endforeach
-                                        <div class="pt-2 border-t border-slate-50 flex justify-between text-sm font-semibold">
-                                            <span>Total Utilities</span>
-                                            <span>${{ number_format($bill['total_utilities'], 2) }}</span>
-                                        </div>
-                                    </div>
-                                    @else
-                                    <p class="text-sm text-slate-400">No utility charges assigned</p>
-                                    @endif
-                                </div>
-
-                                <!-- Fixed Expenses & Total -->
-                                <div class="bg-white rounded-lg p-4 border border-slate-100">
-                                    <h4 class="font-semibold text-slate-700 mb-3 flex items-center">
-                                        <svg class="w-4 h-4 mr-2 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z"/></svg>
-                                        Fixed Expenses & Summary
-                                    </h4>
-                                    @if($bill['fixed_expenses']->count() > 0)
-                                    <div class="space-y-2 mb-3">
-                                        @foreach($bill['fixed_expenses'] as $expense)
-                                        <div class="flex justify-between text-sm">
-                                            <span class="text-slate-500">{{ $expense->expense_name }}</span>
-                                            <span class="font-medium">${{ number_format($expense->amount, 2) }}</span>
-                                        </div>
-                                        @endforeach
-                                    </div>
-                                    @endif
-                                    <div class="pt-3 border-t-2 border-slate-100 space-y-1">
-                                        <div class="flex justify-between text-sm">
-                                            <span class="text-slate-500">Rent</span>
-                                            <span>${{ number_format($bill['monthly_rent'], 2) }}</span>
-                                        </div>
-                                        <div class="flex justify-between text-sm">
-                                            <span class="text-slate-500">Utilities</span>
-                                            <span>${{ number_format($bill['total_utilities'], 2) }}</span>
-                                        </div>
-                                        <div class="flex justify-between text-sm">
-                                            <span class="text-slate-500">Fixed Charges</span>
-                                            <span>${{ number_format($bill['total_fixed'], 2) }}</span>
-                                        </div>
-                                        <div class="flex justify-between text-base font-bold pt-2 border-t border-slate-100">
-                                            <span class="text-slate-800">TOTAL BILL</span>
-                                            <span class="text-sky-600">${{ number_format($bill['total_bill'], 2) }}</span>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </td>
-                    </tr>
                     @endforeach
                 </tbody>
             </table>
@@ -436,6 +341,100 @@
     </div>
 
     <!-- ============================================ -->
+    <!-- CHARGES RECEIPT MODAL                        -->
+    <!-- ============================================ -->
+    <div x-show="showChargesReceipt" x-cloak class="fixed inset-0 z-50 overflow-y-auto" aria-modal="true">
+        <div class="flex items-center justify-center min-h-screen px-4">
+            <div class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm" @click="showChargesReceipt = false"></div>
+            <div class="bg-white rounded-2xl shadow-xl w-full max-w-sm relative z-10">
+                <!-- Header -->
+                <div class="px-5 py-4 flex items-center justify-between border-b border-slate-100">
+                    <div class="flex items-center gap-3">
+                        <div class="w-8 h-8 bg-amber-50 rounded-lg flex items-center justify-center">
+                            <svg class="w-4 h-4 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+                        </div>
+                        <div>
+                            <p class="font-semibold text-slate-800 text-sm" x-text="viewApt + ' — ' + viewTenant"></p>
+                            <p class="text-xs text-slate-400">Charge Receipt</p>
+                        </div>
+                    </div>
+                    <button @click="showChargesReceipt = false" class="text-slate-400 hover:text-slate-600 w-7 h-7 flex items-center justify-center rounded-lg hover:bg-slate-100 transition text-lg">&times;</button>
+                </div>
+
+                <!-- Charge list -->
+                <div class="px-5 py-4 space-y-1 max-h-72 overflow-y-auto">
+                    <!-- Rent row (read-only) -->
+                    <div class="flex items-center justify-between py-1.5 px-3 rounded-lg bg-sky-50/60">
+                        <span class="text-sm text-slate-600 font-medium">Rent</span>
+                        <span class="text-sm font-semibold text-slate-800" x-text="'$' + parseFloat(viewRent).toFixed(2)"></span>
+                    </div>
+
+                    <!-- Dynamic charges -->
+                    <template x-for="(c, i) in viewCharges" :key="i">
+                        <div class="flex items-center justify-between py-1.5 px-3 rounded-lg bg-slate-50 group">
+                            <div class="flex items-center gap-2">
+                                <span class="w-2 h-2 rounded-full flex-shrink-0"
+                                    :class="{
+                                        'bg-yellow-400': c.type === 'electricity',
+                                        'bg-blue-400': c.type === 'water',
+                                        'bg-purple-400': c.type === 'internet',
+                                        'bg-orange-400': c.type === 'parking',
+                                        'bg-teal-400': c.type === 'trash',
+                                        'bg-slate-400': c.type === 'other'
+                                    }"></span>
+                                <span class="text-sm text-slate-600 capitalize" x-text="c.type"></span>
+                                <span x-show="c.paid" class="text-[10px] font-medium text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded">paid</span>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <span class="text-sm font-semibold" :class="c.paid ? 'text-emerald-600' : 'text-amber-700'" x-text="'$' + parseFloat(c.amount).toFixed(2)"></span>
+                                <button x-show="!c.paid" @click="removeViewCharge(c.id, i)"
+                                    class="opacity-0 group-hover:opacity-100 w-5 h-5 flex items-center justify-center text-red-400 hover:text-red-600 rounded transition"
+                                    title="Remove charge">
+                                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                                </button>
+                            </div>
+                        </div>
+                    </template>
+
+                    <!-- Fixed charges -->
+                    <template x-if="viewFixed > 0">
+                        <div class="flex items-center justify-between py-1.5 px-3 rounded-lg bg-purple-50/60">
+                            <span class="text-sm text-slate-600">Fixed Charges</span>
+                            <span class="text-sm font-semibold text-slate-700" x-text="'$' + parseFloat(viewFixed).toFixed(2)"></span>
+                        </div>
+                    </template>
+
+                    <!-- Empty state -->
+                    <div x-show="viewCharges.length === 0 && viewFixed <= 0" class="text-center py-6 text-slate-400 text-sm">
+                        No charges added yet
+                    </div>
+                </div>
+
+                <!-- Total + actions -->
+                <div class="px-5 pt-3 pb-5 border-t border-slate-100 space-y-3">
+                    <div class="flex items-center justify-between">
+                        <span class="text-sm font-semibold text-slate-700">Total Bill</span>
+                        <span class="text-xl font-bold text-sky-600" x-text="'$' + viewBillTotal()"></span>
+                    </div>
+
+                    <!-- Delete all unpaid -->
+                    <button x-show="viewCharges.some(c => !c.paid)"
+                        @click="clearAllCharges()"
+                        class="w-full flex items-center justify-center gap-2 py-2 text-sm font-medium text-red-600 bg-red-50 hover:bg-red-100 rounded-lg transition">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                        Delete All Unpaid Charges
+                    </button>
+
+                    <button @click="showChargesReceipt = false"
+                        class="w-full py-2 text-sm font-medium text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-lg transition">
+                        Close
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ============================================ -->
     <!-- ADD CHARGE MODAL                             -->
     <!-- ============================================ -->
     <div x-show="showAddCharge" x-cloak class="fixed inset-0 z-50 overflow-y-auto" aria-modal="true">
@@ -450,55 +449,45 @@
                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
                     </button>
                 </div>
-                <form action="{{ route('admin.revenue_expense.add_charge') }}" method="POST" class="p-6 space-y-4">
+                <form @submit.prevent="saveDone" class="p-4 space-y-3">
                     @csrf
                     <input type="hidden" name="rental_id" x-model="chargeRentalId">
                     <input type="hidden" name="billing_month" value="{{ $currentMonth }}">
                     <input type="hidden" name="billing_year" value="{{ $currentYear }}">
 
-                    <p class="text-sm text-slate-500">Adding charge for <strong x-text="chargeTenant"></strong></p>
-
-                    <div>
-                        <label class="block text-sm font-medium text-slate-700 mb-1">Charge Type <span class="text-red-500">*</span></label>
-                        <select name="charge_type" required class="w-full px-4 py-2.5 border border-slate-200 rounded-lg focus:ring-2 focus:ring-sky-500 focus:border-sky-500">
-                            <option value="electricity">Electricity</option>
-                            <option value="water">Water</option>
-                            <option value="internet">Internet</option>
-                            <option value="parking">Parking</option>
-                            <option value="cleaning">Cleaning</option>
-                            <option value="other">Other</option>
-                        </select>
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center gap-3">
+                            <div class="w-7 h-7 rounded-full bg-sky-50 flex items-center justify-center text-sky-600 font-semibold"> <span x-text="stepIndex + 1"></span> </div>
+                            <div class="text-sm font-medium" x-text="currentStepLabel()"></div>
+                        </div>
+                        <div class="text-xs text-slate-400">Queued: <span x-text="collectedCharges.length"></span></div>
                     </div>
 
-                    <div class="grid grid-cols-2 gap-4">
-                        <div>
-                            <label class="block text-sm font-medium text-slate-700 mb-1">Meter In</label>
-                            <input type="number" name="meter_reading_in" step="0.01" min="0" placeholder="0" class="w-full px-4 py-2.5 border border-slate-200 rounded-lg focus:ring-2 focus:ring-sky-500 focus:border-sky-500">
+                    <div class="grid grid-cols-3 gap-2 items-end">
+                        <div class="col-span-1" x-show="['electricity','water'].includes(currentCharge.type)" x-cloak>
+                            <label class="sr-only">Meter In</label>
+                            <input type="number" x-model="currentCharge.meter_in" step="0.01" min="0" placeholder="In" class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm">
                         </div>
-                        <div>
-                            <label class="block text-sm font-medium text-slate-700 mb-1">Meter Out</label>
-                            <input type="number" name="meter_reading_out" step="0.01" min="0" placeholder="0" class="w-full px-4 py-2.5 border border-slate-200 rounded-lg focus:ring-2 focus:ring-sky-500 focus:border-sky-500">
+                        <div class="col-span-1" x-show="['electricity','water'].includes(currentCharge.type)" x-cloak>
+                            <label class="sr-only">Meter Out</label>
+                            <input type="number" x-model="currentCharge.meter_out" step="0.01" min="0" placeholder="Out" class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm">
+                        </div>
+                        <div class="col-span-1" :class="{'col-span-3 text-right': !['electricity','water'].includes(currentCharge.type)}">
+                            <label class="sr-only">Amount</label>
+                            <input type="number" x-model="currentCharge.amount" step="0.01" min="0.01" placeholder="Amount" class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm font-semibold text-right">
                         </div>
                     </div>
 
-                    <div>
-                        <label class="block text-sm font-medium text-slate-700 mb-1">Amount ($) <span class="text-red-500">*</span></label>
-                        <input type="number" name="charge_amount" step="0.01" min="0.01" required placeholder="0.00"
-                            class="w-full px-4 py-2.5 border border-slate-200 rounded-lg focus:ring-2 focus:ring-sky-500 focus:border-sky-500 text-lg font-semibold">
-                    </div>
-
-                    <div>
-                        <label class="block text-sm font-medium text-slate-700 mb-1">Note</label>
-                        <input type="text" name="note" placeholder="Optional note..." class="w-full px-4 py-2.5 border border-slate-200 rounded-lg focus:ring-2 focus:ring-sky-500 focus:border-sky-500">
-                    </div>
-
-                    <div class="flex items-center gap-3 pt-2">
-                        <button type="submit" class="flex-1 px-4 py-2.5 bg-amber-600 text-white rounded-lg hover:bg-amber-700 transition font-medium">
-                            Add Charge
+                    <div class="flex items-center gap-2">
+                        <button type="button" @click="addCurrentCharge(); if(!isLastStep()) nextStep();" class="px-3 py-2 bg-amber-600 text-white rounded-lg text-sm">Next</button>
+                        <button type="button" x-show="stepIndex > 0" @click="prevStep()" class="px-3 py-2 bg-slate-100 text-slate-600 rounded-lg text-sm">Back</button>
+                        <div class="flex-1"></div>
+                        <button type="button" @click="saveDone()" :disabled="isSubmitting"
+                            class="px-3 py-2 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-60 text-white rounded-lg text-sm font-medium flex items-center gap-1.5">
+                            <svg x-show="isSubmitting" class="w-3.5 h-3.5 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/></svg>
+                            <span x-text="isSubmitting ? 'Saving…' : 'Save'"></span>
                         </button>
-                        <button type="button" @click="showAddCharge = false" class="px-4 py-2.5 bg-slate-100 text-slate-600 rounded-lg hover:bg-slate-200 transition font-medium">
-                            Cancel
-                        </button>
+                        <button type="button" @click="showAddCharge = false" class="px-3 py-2 bg-transparent text-slate-500 rounded-lg text-sm">Cancel</button>
                     </div>
                 </form>
             </div>
@@ -509,91 +498,106 @@
     <!-- CHECKOUT / PAY MODAL                         -->
     <!-- ============================================ -->
     <div x-show="showCheckout" x-cloak class="fixed inset-0 z-50 overflow-y-auto" aria-modal="true">
-        <div class="flex items-center justify-center min-h-screen px-4">
-            <div class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm transition-opacity" @click="showCheckout = false"></div>
-            <div class="bg-white rounded-xl shadow-2xl w-full max-w-lg relative z-10 transform transition-all">
-                <div class="px-6 py-4 border-b border-slate-100 bg-emerald-50 rounded-t-xl">
-                    <h3 class="text-lg font-semibold text-slate-800 flex items-center">
-                        <svg class="w-5 h-5 mr-2 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
-                        Checkout — <span x-text="checkoutApt" class="text-sky-600 ml-1"></span>
-                    </h3>
-                    <p class="text-sm text-slate-500 mt-1">Tenant: <strong x-text="checkoutTenant"></strong></p>
+        <div class="flex items-center justify-center min-h-screen px-4 py-6">
+            <div class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm" @click="showCheckout = false"></div>
+            <div class="bg-white rounded-2xl shadow-xl w-full max-w-md relative z-10 flex flex-col" style="max-height:90dvh;max-height:90vh;">
+                <!-- Header -->
+                <div class="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
+                    <div class="flex items-center gap-3">
+                        <div class="w-9 h-9 bg-emerald-50 rounded-lg flex items-center justify-center">
+                            <svg class="w-5 h-5 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
+                        </div>
+                        <div>
+                            <p class="font-semibold text-slate-800"><span x-text="checkoutApt"></span> — <span x-text="checkoutTenant"></span></p>
+                            <p class="text-xs text-slate-400">Monthly Payment</p>
+                        </div>
+                    </div>
+                    <button @click="showCheckout = false" class="text-slate-400 hover:text-slate-600 p-1 rounded-lg hover:bg-slate-100 transition text-lg leading-none">&times;</button>
                 </div>
-                <form action="{{ route('admin.revenue_expense.checkout') }}" method="POST" class="p-6 space-y-4">
+                <form action="{{ route('admin.revenue_expense.checkout') }}" method="POST" class="p-5 space-y-4 overflow-y-auto flex-1">
                     @csrf
                     <input type="hidden" name="rental_id" x-model="checkoutRentalId">
                     <input type="hidden" name="rent_amount" x-model="checkoutRent">
-
-                    <!-- Bill Summary -->
-                    <div class="bg-slate-50/80 rounded-lg p-4 space-y-2">
-                        <h4 class="font-semibold text-slate-700 mb-2">Bill Summary</h4>
-                        <div class="flex justify-between text-sm">
-                            <label class="flex items-center text-slate-600">
-                                <input type="checkbox" name="pay_rent" value="1" checked x-model="payRent"
-                                    class="w-4 h-4 text-emerald-600 rounded focus:ring-emerald-500 mr-2">
-                                Monthly Rent
+                    <!-- Bill lines -->
+                    <div class="space-y-1.5">
+                        <div class="flex items-center justify-between py-2 px-3 rounded-lg bg-slate-50">
+                            <label class="flex items-center gap-2 text-sm text-slate-600 cursor-pointer select-none">
+                                <input type="checkbox" name="pay_rent" value="1" x-model="payRent" class="rounded border-slate-300 text-emerald-600 focus:ring-emerald-500">
+                                Rent
                             </label>
-                            <span class="font-medium" x-text="'$' + parseFloat(checkoutRent).toFixed(2)"></span>
+                            <span class="text-sm font-semibold text-slate-800" x-text="'$' + parseFloat(checkoutRent).toFixed(2)"></span>
                         </div>
-                        <div class="flex justify-between text-sm" x-show="checkoutUtilities > 0">
-                            <label class="flex items-center text-slate-600">
-                                <input type="checkbox" name="pay_utilities" value="1" checked x-model="payUtilities"
-                                    class="w-4 h-4 text-emerald-600 rounded focus:ring-emerald-500 mr-2">
-                                Utility Charges
+                        <div x-show="checkoutUtilities > 0 || checkoutOtherCharges > 0"
+                             class="flex items-center justify-between py-2 px-3 rounded-lg bg-slate-50">
+                            <label class="flex items-center gap-2 text-sm text-slate-600 cursor-pointer select-none">
+                                <input type="checkbox" name="pay_utilities" value="1" x-model="payUtilities" class="rounded border-slate-300 text-emerald-600 focus:ring-emerald-500">
+                                Charges
                             </label>
-                            <span class="font-medium" x-text="'$' + parseFloat(checkoutUtilities).toFixed(2)"></span>
+                            <span class="text-sm font-semibold text-slate-800" x-text="'$' + (parseFloat(checkoutUtilities) + parseFloat(checkoutOtherCharges)).toFixed(2)"></span>
                         </div>
-                        <div class="flex justify-between text-sm" x-show="checkoutFixed > 0">
-                            <span class="text-slate-500 ml-6">Fixed Charges (included)</span>
-                            <span class="font-medium" x-text="'$' + parseFloat(checkoutFixed).toFixed(2)"></span>
+                        <div x-show="checkoutUtilities > 0 && payUtilities" class="flex items-center justify-between py-1 px-3 pl-10">
+                            <span class="text-xs text-slate-400">↳ Utilities (Elec/Water)</span>
+                            <span class="text-xs text-slate-500" x-text="'$' + parseFloat(checkoutUtilities).toFixed(2)"></span>
                         </div>
-                        <div class="pt-2 border-t border-slate-100">
-                            <div class="flex justify-between items-center text-sm">
-                                <span class="text-slate-500">Late Fee ($)</span>
-                                <input type="number" name="late_fee" x-model="checkoutLateFee" step="0.01" min="0" value="0"
-                                    class="w-24 px-2 py-1 text-right border border-slate-200 rounded focus:ring-2 focus:ring-emerald-500 text-sm">
-                            </div>
+                        <div x-show="checkoutOtherCharges > 0 && payUtilities" class="flex items-center justify-between py-1 px-3 pl-10">
+                            <span class="text-xs text-slate-400">↳ Other (Internet/Parking…)</span>
+                            <span class="text-xs text-slate-500" x-text="'$' + parseFloat(checkoutOtherCharges).toFixed(2)"></span>
                         </div>
-                        <div class="pt-2 border-t-2 border-slate-200 flex justify-between font-bold text-lg">
-                            <span>TOTAL TO PAY</span>
-                            <span class="text-emerald-600" x-text="'$' + calculateCheckoutTotal()"></span>
+                        <div x-show="checkoutFixed > 0" class="flex items-center justify-between py-2 px-3 rounded-lg bg-slate-50">
+                            <span class="text-sm text-slate-500 pl-6">Fixed Charges</span>
+                            <span class="text-sm font-medium text-slate-700" x-text="'$' + parseFloat(checkoutFixed).toFixed(2)"></span>
+                        </div>
+                        <div class="flex items-center justify-between py-2 px-3 rounded-lg bg-slate-50">
+                            <span class="text-sm text-slate-500">Late Fee</span>
+                            <input type="number" name="late_fee" x-model="checkoutLateFee" step="0.01" min="0" value="0"
+                                class="w-20 text-right text-sm border border-slate-200 rounded-lg px-2 py-1 focus:ring-1 focus:ring-emerald-500 focus:border-emerald-500">
+                        </div>
+                        <div class="flex items-center justify-between pt-2 px-1 border-t border-slate-200">
+                            <span class="font-bold text-slate-700">Total</span>
+                            <span class="text-xl font-bold text-emerald-600" x-text="'$' + calculateCheckoutTotal()"></span>
                         </div>
                     </div>
-
-                    <!-- Payment Details -->
-                    <div class="grid grid-cols-2 gap-4">
-                        <div>
-                            <label class="block text-sm font-medium text-slate-700 mb-1">Payment Method <span class="text-red-500">*</span></label>
-                            <select name="payment_method" required class="w-full px-4 py-2.5 border border-slate-200 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500">
-                                <option value="cash">Cash</option>
-                                <option value="bank">Bank Transfer</option>
-                            </select>
+                    <!-- Payment method chips -->
+                    <div>
+                        <p class="text-xs text-slate-400 mb-1.5">Payment Method <span class="text-red-400">*</span></p>
+                        <div class="grid grid-cols-2 gap-2">
+                            <label class="flex items-center justify-center gap-2 py-2.5 border rounded-xl cursor-pointer text-sm transition select-none"
+                                :class="checkoutMethod === 'cash' ? 'bg-emerald-50 border-emerald-300 text-emerald-700 font-medium' : 'border-slate-200 text-slate-500 hover:border-slate-300'">
+                                <input type="radio" name="payment_method" value="cash" x-model="checkoutMethod" class="sr-only" required>
+                                💵 Cash
+                            </label>
+                            <label class="flex items-center justify-center gap-2 py-2.5 border rounded-xl cursor-pointer text-sm transition select-none"
+                                :class="checkoutMethod === 'bank' ? 'bg-sky-50 border-sky-300 text-sky-700 font-medium' : 'border-slate-200 text-slate-500 hover:border-slate-300'">
+                                <input type="radio" name="payment_method" value="bank" x-model="checkoutMethod" class="sr-only">
+                                🏦 Bank Transfer
+                            </label>
                         </div>
-                        <div>
-                            <label class="block text-sm font-medium text-slate-700 mb-1">Payment Date <span class="text-red-500">*</span></label>
+                    </div>
+                    <!-- Date + Reference -->
+                    <div class="grid grid-cols-1 gap-3">
+                        <div class="min-w-0">
+                            <label class="block text-xs text-slate-400 mb-1">Date <span class="text-red-400">*</span></label>
                             <input type="date" name="payment_date" required value="{{ date('Y-m-d') }}"
-                                class="w-full px-4 py-2.5 border border-slate-200 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 bg-white appearance-none h-10">
+                                style="max-width:100%;box-sizing:border-box;"
+                                class="w-full min-w-0 px-3 py-2 text-sm border border-slate-200 rounded-lg focus:ring-1 focus:ring-emerald-500 focus:border-emerald-500 bg-white">
+                        </div>
+                        <div class="min-w-0">
+                            <label class="block text-xs text-slate-400 mb-1">Reference</label>
+                            <input type="text" name="transaction_reference" placeholder="TXN-…"
+                                style="max-width:99%;box-sizing:border-box;"
+                                class="w-full min-w-0 px-3 py-2 text-sm border border-slate-200 rounded-lg focus:ring-1 focus:ring-emerald-500 focus:border-emerald-500">
                         </div>
                     </div>
-
-                    <div>
-                        <label class="block text-sm font-medium text-slate-700 mb-1">Reference Number</label>
-                        <input type="text" name="transaction_reference" placeholder="e.g. TXN-001234"
-                            class="w-full px-4 py-2.5 border border-slate-200 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500">
-                    </div>
-
-                    <div>
-                        <label class="block text-sm font-medium text-slate-700 mb-1">Note</label>
-                        <input type="text" name="note" placeholder="Optional note..."
-                            class="w-full px-4 py-2.5 border border-slate-200 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500">
-                    </div>
-
-                    <div class="flex items-center gap-3 pt-2">
-                        <button type="submit" class="flex-1 px-4 py-3 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition font-semibold text-lg flex items-center justify-center">
-                            <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                    <input type="text" name="note" placeholder="Note (optional)"
+                        class="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:ring-1 focus:ring-emerald-500 focus:border-emerald-500">
+                    <!-- Buttons -->
+                    <div class="flex gap-2 pt-1">
+                        <button type="submit"
+                            class="flex-1 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold rounded-lg transition">
                             Confirm Payment
                         </button>
-                        <button type="button" @click="showCheckout = false" class="px-4 py-3 bg-slate-100 text-slate-600 rounded-lg hover:bg-slate-200 transition font-medium">
+                        <button type="button" @click="showCheckout = false"
+                            class="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-600 text-sm font-medium rounded-lg transition">
                             Cancel
                         </button>
                     </div>
@@ -613,13 +617,26 @@ function billingManager() {
     return {
         filter: 'all',
         searchQuery: '',
-        expandedBill: null,
 
-        // Add Charge Modal
+        // Charges Receipt Modal
+        showChargesReceipt: false,
+        viewRentalId: null,
+        viewTenant: '',
+        viewApt: '',
+        viewCharges: [],
+        viewRent: 0,
+        viewFixed: 0,
+
+        // Add Charge Modal (stepper)
         showAddCharge: false,
         chargeRentalId: null,
         chargeTenant: '',
         chargeApt: '',
+        isSubmitting: false,
+        steps: ['electricity','water','internet','parking','trash','other'],
+        stepIndex: 0,
+        currentCharge: { type: 'electricity', meter_in: '', meter_out: '', amount: '', note: '' },
+        collectedCharges: [],
 
         // Checkout Modal
         showCheckout: false,
@@ -628,9 +645,11 @@ function billingManager() {
         checkoutApt: '',
         checkoutRent: 0,
         checkoutUtilities: 0,
+        checkoutOtherCharges: 0,
         checkoutFixed: 0,
         checkoutTotal: 0,
         checkoutLateFee: 0,
+        checkoutMethod: 'cash',
         payRent: true,
         payUtilities: true,
 
@@ -643,35 +662,197 @@ function billingManager() {
             return true;
         },
 
-        toggleBillDetail(index) {
-            this.expandedBill = this.expandedBill === index ? null : index;
+        openChargesReceipt(rentalId, tenant, apt, charges, rent, fixed) {
+            this.viewRentalId = rentalId;
+            this.viewTenant = tenant;
+            this.viewApt = apt;
+            this.viewCharges = charges;
+            this.viewRent = rent;
+            this.viewFixed = fixed;
+            this.showChargesReceipt = true;
+        },
+        viewBillTotal() {
+            const chargesSum = this.viewCharges.reduce((s, c) => s + (parseFloat(c.amount) || 0), 0);
+            return (parseFloat(this.viewRent) + parseFloat(this.viewFixed) + chargesSum).toFixed(2);
+        },
+        async removeViewCharge(chargeId, index) {
+            if (!confirm('Remove this charge?')) return;
+            const csrf = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+            try {
+                const res = await fetch('/admin/revenue-expense/remove-charge/' + chargeId, {
+                    method: 'DELETE',
+                    headers: { 'X-CSRF-TOKEN': csrf, 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' }
+                });
+                if (res.ok) {
+                    this.viewCharges.splice(index, 1);
+                } else {
+                    window.location.reload();
+                }
+            } catch(e) { window.location.reload(); }
+        },
+        async clearAllCharges() {
+            if (!confirm('Delete ALL unpaid charges for this tenant? This cannot be undone.')) return;
+            const csrf = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+            try {
+                await fetch('/admin/revenue-expense/clear-charges/' + this.viewRentalId, {
+                    method: 'DELETE',
+                    headers: { 'X-CSRF-TOKEN': csrf, 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' }
+                });
+                window.location.reload();
+            } catch(e) { window.location.reload(); }
         },
 
         openAddCharge(rentalId, tenant, apt) {
             this.chargeRentalId = rentalId;
             this.chargeTenant = tenant;
             this.chargeApt = apt;
+            this.stepIndex = 0;
+            this.currentCharge = { type: this.steps[0], meter_in: '', meter_out: '', amount: '', note: '' };
+            this.collectedCharges = [];
+            this.isSubmitting = false;
             this.showAddCharge = true;
         },
 
-        openCheckout(rentalId, tenant, apt, rent, utilities, fixed, total) {
+        // Stepper helpers
+        currentStepLabel() {
+            return this.formatLabel(this.steps[this.stepIndex]);
+        },
+        formatLabel(t) {
+            return (t || '').replace(/_/g, ' ').replace(/(^|\s)\S/g, s => s.toUpperCase());
+        },
+        isLastStep() {
+            return this.stepIndex >= this.steps.length - 1;
+        },
+        isFirstStep() {
+            return this.stepIndex <= 0;
+        },
+        nextStep() {
+            if (!this.isLastStep()) {
+                this.stepIndex++;
+                this.currentCharge.type = this.steps[this.stepIndex];
+                this.currentCharge.meter_in = '';
+                this.currentCharge.meter_out = '';
+                this.currentCharge.amount = '';
+                this.currentCharge.note = '';
+            }
+        },
+        prevStep() {
+            if (!this.isFirstStep()) {
+                this.stepIndex--;
+                this.currentCharge.type = this.steps[this.stepIndex];
+            }
+        },
+        skipStep() {
+            // simply move forward without adding
+            if (!this.isLastStep()) this.nextStep();
+            else this.showAddCharge = false;
+        },
+        addCurrentCharge() {
+            // ensure we have an amount
+            const amt = parseFloat(this.currentCharge.amount);
+            if (isNaN(amt) || amt <= 0) return;
+            const c = {
+                type: this.steps[this.stepIndex],
+                meter_in: this.currentCharge.meter_in || '',
+                meter_out: this.currentCharge.meter_out || '',
+                amount: amt.toFixed(2),
+                note: this.currentCharge.note || ''
+            };
+            // Prevent adding the exact same charge twice (type + amount + meters + note)
+            const exists = this.collectedCharges.some(existing =>
+                existing.type === c.type &&
+                existing.amount === c.amount &&
+                (existing.meter_in || '') === (c.meter_in || '') &&
+                (existing.meter_out || '') === (c.meter_out || '') &&
+                (existing.note || '') === (c.note || '')
+            );
+            if (!exists) {
+                this.collectedCharges.push(c);
+            }
+        },
+        removeCharge(i) {
+            this.collectedCharges.splice(i, 1);
+        },
+
+        openCheckout(rentalId, tenant, apt, rent, utilities, otherCharges, fixed, total) {
             this.checkoutRentalId = rentalId;
             this.checkoutTenant = tenant;
             this.checkoutApt = apt;
             this.checkoutRent = rent;
             this.checkoutUtilities = utilities;
+            this.checkoutOtherCharges = otherCharges;
             this.checkoutFixed = fixed;
             this.checkoutTotal = total;
             this.checkoutLateFee = 0;
+            this.checkoutMethod = 'cash';
             this.payRent = true;
             this.payUtilities = true;
             this.showCheckout = true;
         },
 
+        saveDone() {
+            // Add current charge if an amount was entered
+            this.addCurrentCharge();
+            if (this.collectedCharges.length === 0) {
+                alert('Please enter at least one charge amount before saving.');
+                return;
+            }
+            this.submitAllCharges();
+        },
+
+        async submitAllCharges() {
+            this.isSubmitting = true;
+            const addChargeUrl = '{{ route('admin.revenue_expense.add_charge') }}';
+            const csrf = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+            const failures = [];
+
+            for (const charge of this.collectedCharges) {
+                const form = new FormData();
+                form.append('_token', csrf);
+                form.append('rental_id', this.chargeRentalId);
+                form.append('billing_month', '{{ $currentMonth }}');
+                form.append('billing_year', '{{ $currentYear }}');
+                form.append('charge_type', charge.type);
+                form.append('meter_reading_in', charge.meter_in);
+                form.append('meter_reading_out', charge.meter_out);
+                form.append('charge_amount', charge.amount);
+                form.append('note', charge.note);
+
+                try {
+                    const res = await fetch(addChargeUrl, {
+                        method: 'POST',
+                        headers: {
+                            'X-CSRF-TOKEN': csrf,
+                            'X-Requested-With': 'XMLHttpRequest',
+                            'Accept': 'application/json'
+                        },
+                        body: form
+                    });
+                    if (!res.ok) {
+                        let msg = 'HTTP ' + res.status;
+                        try { const j = await res.json(); msg = j.message || JSON.stringify(j.errors) || msg; } catch(e) {}
+                        failures.push({ type: charge.type, msg });
+                    }
+                } catch (err) {
+                    failures.push({ type: charge.type, msg: err.message });
+                }
+            }
+
+            if (failures.length > 0) {
+                this.isSubmitting = false;
+                alert('Failed to save: ' + failures.map(f => f.type + ' (' + f.msg + ')').join(', '));
+            } else {
+                window.location.reload();
+            }
+        },
+
         calculateCheckoutTotal() {
             let total = 0;
             if (this.payRent) total += parseFloat(this.checkoutRent) || 0;
-            if (this.payUtilities) total += parseFloat(this.checkoutUtilities) || 0;
+            if (this.payUtilities) {
+                total += parseFloat(this.checkoutUtilities) || 0;
+                total += parseFloat(this.checkoutOtherCharges) || 0;
+            }
             total += parseFloat(this.checkoutFixed) || 0;
             total += parseFloat(this.checkoutLateFee) || 0;
             return total.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',');

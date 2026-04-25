@@ -100,7 +100,7 @@
     {{-- Summary Cards --}}
     <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {{-- Monthly Revenue --}}
-        <div class="bg-white rounded-xl border border-slate-100 p-5">
+        <div class="bg-white rounded-xl border border-slate-100 p-5 summary-card cursor-pointer" data-card="revenue">
             <div class="flex items-center gap-3">
                 <div class="w-10 h-10 rounded-lg bg-emerald-50 flex items-center justify-center">
                     <svg class="w-5 h-5 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
@@ -110,7 +110,7 @@
                     <p class="text-xl font-bold text-slate-800">${{ number_format($stats['revenue']['total_monthly'] ?? 0, 2) }}</p>
                 </div>
             </div>
-            <div>
+            <div class="summary-details hidden">
             <p class="text-[11px] text-slate-400 mt-2 space-y-0.5">
                 @php $byType = $stats['revenue']['by_type'] ?? []; @endphp
                 @if(($byType['rent'] ?? 0) > 0)
@@ -133,7 +133,7 @@
         </div>
 
         {{-- Monthly Expenses --}}
-        <div class="bg-white rounded-xl border border-slate-100 p-5">
+        <div class="bg-white rounded-xl border border-slate-100 p-5 summary-card cursor-pointer" data-card="expenses">
             <div class="flex items-center gap-3">
                 <div class="w-10 h-10 rounded-lg bg-red-50 flex items-center justify-center">
                     <svg class="w-5 h-5 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
@@ -143,7 +143,7 @@
                     <p class="text-xl font-bold text-slate-800">${{ number_format($stats['expenses']['monthly_total'] ?? 0, 2) }}</p>
                 </div>
             </div>
-            <div>
+            <div class="summary-details hidden">
             <p class="text-[11px] text-slate-400 mt-2 space-y-0.5">
                 @if(($stats['expenses']['utilities_total'] ?? 0) > 0)
                     <span class="flex justify-between"><span>Utilities</span><span class="font-medium text-red-400">-${{ number_format($stats['expenses']['utilities_total'], 2) }}</span></span>
@@ -161,7 +161,7 @@
         @php
             $netProfit = ($stats['revenue']['total_monthly'] ?? 0) - ($stats['expenses']['monthly_total'] ?? 0);
         @endphp
-        <div class="bg-white rounded-xl border border-slate-100 p-5">
+        <div class="bg-white rounded-xl border border-slate-100 p-5 summary-card cursor-pointer" data-card="netprofit">
             <div class="flex items-center gap-3">
                 <div class="w-10 h-10 rounded-lg {{ $netProfit >= 0 ? 'bg-sky-50' : 'bg-orange-50' }} flex items-center justify-center">
                     <svg class="w-5 h-5 {{ $netProfit >= 0 ? 'text-blue-600' : 'text-orange-600' }}" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"/></svg>
@@ -173,7 +173,7 @@
                     </p>
                 </div>
             </div>
-            <div>
+            <div class="summary-details hidden">
             <p class="text-[11px] text-slate-400 mt-2 space-y-0.5">
                 <span class="flex justify-between"><span>Revenue</span><span class="font-medium text-emerald-500">+${{ number_format($stats['revenue']['total_monthly'] ?? 0, 2) }}</span></span>
                 <span class="flex justify-between"><span>Expenses</span><span class="font-medium text-red-400">-${{ number_format($stats['expenses']['monthly_total'] ?? 0, 2) }}</span></span>
@@ -182,7 +182,7 @@
             </div>
 
         {{-- Occupancy --}}
-        <div class="bg-white rounded-xl border border-slate-100 p-5">
+        <div class="bg-white rounded-xl border border-slate-100 p-5 summary-card cursor-pointer" data-card="occupancy">
             <div class="flex items-center gap-3">
                 <div class="w-10 h-10 rounded-lg bg-purple-50 flex items-center justify-center">
                     <svg class="w-5 h-5 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>
@@ -192,7 +192,7 @@
                     <p class="text-xl font-bold text-slate-800">{{ $stats['apartments']['occupied'] }} / {{ $stats['apartments']['total'] }}</p>
                 </div>
             </div>
-            <div>
+            <div class="summary-details hidden">
             @php $occRate = $stats['apartments']['total'] > 0 ? round(($stats['apartments']['occupied'] / $stats['apartments']['total']) * 100, 1) : 0; @endphp
             <p class="text-[11px] text-slate-400 mt-2 space-y-0.5">
                 <span class="flex justify-between"><span>Occupancy Rate</span><span class="font-medium {{ $occRate >= 80 ? 'text-emerald-500' : ($occRate >= 50 ? 'text-amber-500' : 'text-red-500') }}">{{ $occRate }}%</span></span>
@@ -430,6 +430,37 @@
         renderMini('paymentsDonutPaid', paid, '#16a34a');
         renderMini('paymentsDonutPending', pending, '#f59e0b');
         renderMini('paymentsDonutOverdue', overdue, '#ef4444');
+    });
+    
+    // Toggle summary card details on click
+    document.addEventListener('DOMContentLoaded', function () {
+        var cards = document.querySelectorAll('.summary-card');
+        function hideAll() {
+            document.querySelectorAll('.summary-details').forEach(function (el) {
+                el.classList.add('hidden');
+            });
+        }
+
+        cards.forEach(function (card) {
+            card.addEventListener('click', function (e) {
+                var details = card.querySelector('.summary-details');
+                if (!details) return;
+                var isHidden = details.classList.contains('hidden');
+                // close others
+                hideAll();
+                if (isHidden) {
+                    details.classList.remove('hidden');
+                } else {
+                    details.classList.add('hidden');
+                }
+            });
+        });
+
+        // close when clicking outside
+        document.addEventListener('click', function (e) {
+            if (e.target.closest('.summary-card')) return;
+            hideAll();
+        });
     });
     </script>
     @endpush

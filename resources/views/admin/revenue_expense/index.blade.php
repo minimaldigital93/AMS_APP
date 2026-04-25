@@ -187,13 +187,21 @@
         $periodStart = \Carbon\Carbon::parse($activePeriod->opening_date);
         $periodEnd = \Carbon\Carbon::parse($activePeriod->closing_date);
         $today = now();
-        $totalDays = max(1, $periodStart->diffInDays($periodEnd));
-        $daysPassed = max(0, (int) $periodStart->diffInDays($today));
+        $totalDays = max(1, $periodStart->startOfDay()->diffInDays($periodEnd->endOfDay()) + 1);
+        $clampedToday = $today->lt($periodStart) ? $periodStart->copy() : ($today->gt($periodEnd) ? $periodEnd->copy() : $today->copy());
+        $daysPassed = max(0, (int) $periodStart->startOfDay()->diffInDays($clampedToday->endOfDay()) + 1);
         $periodPercent = min(100, max(0, round(($daysPassed / $totalDays) * 100, 1)));
         $percentLabel = $periodPercent . '%';
         $r = 40;
         $circ = 2 * pi() * $r;
         $offset = $circ * (1 - ($periodPercent / 100));
+
+        $collected = (float) ($totalRentCollected ?? ($income['rent_income'] ?? 0));
+        $expected = (float) ($expectedMonthlyRent ?? 0);
+        $collectionPercent = $expected > 0 ? min(100, round(($collected / $expected) * 100, 1)) : 0;
+        $rc = 36;
+        $rcCirc = 2 * pi() * $rc;
+        $rcOffset = $rcCirc * (1 - ($collectionPercent / 100));
     @endphp
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {{-- Fiscal Period Progress (condensed) --}}
@@ -223,18 +231,11 @@
         </div>
 
         {{-- Monthly Rent Collection (condensed) --}}
-        @if($expectedMonthlyRent > 0)
-        @php
-            $collected = $income['rent_income'] ?? 0;
-            $collectionPercent = $expectedMonthlyRent > 0 ? min(100, round(($collected / $expectedMonthlyRent) * 100, 1)) : 0;
-            $rc = 36;
-            $rcCirc = 2 * pi() * $rc;
-            $rcOffset = $rcCirc * (1 - ($collectionPercent / 100));
-        @endphp
         <div class="bg-white rounded-xl border border-slate-100 p-4 flex items-center justify-between">
             <div>
                 <p class="text-sm font-medium text-slate-700">Collected</p>
                 <p class="text-lg font-bold text-slate-800">${{ number_format($collected, 2) }}</p>
+                <p class="text-xs text-slate-400">Expected: ${{ number_format($expected, 2) }}</p>
             </div>
             <div class="flex items-center gap-4">
                 <div class="w-20 h-20">
@@ -257,9 +258,6 @@
                 </div>
             </div>
         </div>
-        @else
-        <div class="bg-white rounded-xl border border-slate-100 p-4 flex items-center justify-center text-slate-400 text-sm">No expected rent this month</div>
-        @endif
 
         
     </div>
@@ -320,8 +318,86 @@
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
             <div class="bg-white rounded-xl border border-slate-100 p-5">
                 <h2 class="text-sm font-semibold text-slate-800 mb-3">Income Breakdown</h2>
-                <div class="relative" style="height:260px;">
+                <div class="relative" style="height:220px;">
                     <canvas id="incomeChart"></canvas>
+                </div>
+                {{-- Per-type income legend rows --}}
+                <div class="mt-4 space-y-1 border-t border-slate-100 pt-3">
+                    {{-- Rent --}}
+                    @if(($income['rent_income'] ?? 0) > 0)
+                    <div class="flex items-center justify-between text-xs">
+                        <div class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full inline-block" style="background:#10B981"></span><span class="text-slate-500">Rent</span></div>
+                        <span class="font-semibold text-slate-700">${{ number_format($income['rent_income'], 2) }}</span>
+                    </div>
+                    @endif
+                    {{-- Utilities Income: electricity, water --}}
+                    @if(($income['total_utility_income'] ?? 0) > 0)
+                    <div class="flex items-center justify-between text-xs font-medium text-slate-600 pt-1">
+                        <span class="uppercase tracking-wider text-[10px] text-slate-400">Utilities Income</span>
+                        <span class="text-slate-500">${{ number_format($income['total_utility_income'], 2) }}</span>
+                    </div>
+                    @if(($income['utility_breakdown']['electricity'] ?? 0) > 0)
+                    <div class="flex items-center justify-between text-xs pl-3">
+                        <div class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full inline-block" style="background:#F59E0B"></span><span class="text-slate-500">Electricity</span></div>
+                        <span class="font-semibold text-slate-700">${{ number_format($income['utility_breakdown']['electricity'], 2) }}</span>
+                    </div>
+                    @endif
+                    @if(($income['utility_breakdown']['water'] ?? 0) > 0)
+                    <div class="flex items-center justify-between text-xs pl-3">
+                        <div class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full inline-block" style="background:#38BDF8"></span><span class="text-slate-500">Water</span></div>
+                        <span class="font-semibold text-slate-700">${{ number_format($income['utility_breakdown']['water'], 2) }}</span>
+                    </div>
+                    @endif
+                    @endif
+                    {{-- Other Income: internet, parking, trash, other --}}
+                    @if(($income['other_income'] ?? 0) > 0)
+                    <div class="flex items-center justify-between text-xs font-medium text-slate-600 pt-1">
+                        <span class="uppercase tracking-wider text-[10px] text-slate-400">Other Income</span>
+                        <span class="text-slate-500">${{ number_format($income['other_income'], 2) }}</span>
+                    </div>
+                    @if(($income['other_income_breakdown']['internet'] ?? 0) > 0)
+                    <div class="flex items-center justify-between text-xs pl-3">
+                        <div class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full inline-block" style="background:#8B5CF6"></span><span class="text-slate-500">Internet</span></div>
+                        <span class="font-semibold text-slate-700">${{ number_format($income['other_income_breakdown']['internet'], 2) }}</span>
+                    </div>
+                    @endif
+                    @if(($income['other_income_breakdown']['parking'] ?? 0) > 0)
+                    <div class="flex items-center justify-between text-xs pl-3">
+                        <div class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full inline-block" style="background:#F97316"></span><span class="text-slate-500">Parking</span></div>
+                        <span class="font-semibold text-slate-700">${{ number_format($income['other_income_breakdown']['parking'], 2) }}</span>
+                    </div>
+                    @endif
+                    @if(($income['other_income_breakdown']['trash'] ?? 0) > 0)
+                    <div class="flex items-center justify-between text-xs pl-3">
+                        <div class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full inline-block" style="background:#14B8A6"></span><span class="text-slate-500">Trash</span></div>
+                        <span class="font-semibold text-slate-700">${{ number_format($income['other_income_breakdown']['trash'], 2) }}</span>
+                    </div>
+                    @endif
+                    @if(($income['other_income_breakdown']['other'] ?? 0) > 0)
+                    <div class="flex items-center justify-between text-xs pl-3">
+                        <div class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full inline-block" style="background:#EC4899"></span><span class="text-slate-500">Other</span></div>
+                        <span class="font-semibold text-slate-700">${{ number_format($income['other_income_breakdown']['other'], 2) }}</span>
+                    </div>
+                    @endif
+                    @endif
+                    {{-- Deposits & Late Fees --}}
+                    @if(($income['deposit_income'] ?? 0) > 0)
+                    <div class="flex items-center justify-between text-xs">
+                        <div class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full inline-block" style="background:#6366F1"></span><span class="text-slate-500">Deposits</span></div>
+                        <span class="font-semibold text-slate-700">${{ number_format($income['deposit_income'], 2) }}</span>
+                    </div>
+                    @endif
+                    @if(($income['late_fees'] ?? 0) > 0)
+                    <div class="flex items-center justify-between text-xs">
+                        <div class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full inline-block" style="background:#EF4444"></span><span class="text-slate-500">Late Fees</span></div>
+                        <span class="font-semibold text-slate-700">${{ number_format($income['late_fees'], 2) }}</span>
+                    </div>
+                    @endif
+                    {{-- Total --}}
+                    <div class="flex items-center justify-between text-xs font-bold border-t border-slate-100 pt-2 mt-1">
+                        <span class="text-slate-700">Total Income</span>
+                        <span class="text-emerald-600">${{ number_format($income['total_income'], 2) }}</span>
+                    </div>
                 </div>
             </div>
             <div class="bg-white rounded-xl border border-slate-100 p-5">
@@ -376,62 +452,105 @@
                 <table class="w-full text-sm">
                     <thead>
                         <tr class="border-b bg-slate-50/80 text-[11px] text-slate-400 uppercase tracking-wider">
+                            <th class="text-center px-4 py-2 font-medium w-10">No</th>
                             <th class="text-left px-4 py-2 font-medium">Unit</th>
-                            <th class="text-left px-4 py-2 font-medium">Tenant</th>
-                            <th class="text-right px-4 py-2 font-medium">Rent</th>
-                            <th class="text-right px-4 py-2 font-medium">Income</th>
-                            <th class="text-right px-4 py-2 font-medium">Utilities</th>
-                            <th class="text-right px-4 py-2 font-medium" title="Income + Utilities = Total tenant pays to owner">Net Profit<br><span class="text-[9px] normal-case text-slate-400"></span></th>
+                            <th class="text-right px-4 py-2 font-medium">Rent Price</th>
+                            <th class="text-right px-4 py-2 font-medium" title="Electricity + Water charges">Utilities</th>
+                            <th class="text-right px-4 py-2 font-medium" title="Internet, Parking, Trash, and other service charges">Other Charge</th>
+                            <th class="text-right px-4 py-2 font-medium" title="Rent + Utilities + Other Charges">Net Profit</th>
                             <th class="text-center px-4 py-2 font-medium">Status</th>
                             <th class="text-center px-4 py-2 font-medium">Action</th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-slate-50">
                         @foreach($perApartment as $aptIdx => $apt)
+                        @php
+                            $utilitiesIncome = $apt['utilities_income'] ?? ($apt['expenses'] - ($apt['other_income'] ?? 0));
+                            $otherCharge     = $apt['other_income'] ?? 0;
+                            $netProfit       = $apt['monthly_rent'] + $utilitiesIncome + $otherCharge;
+                        @endphp
                         <tr class="{{ !$apt['has_active_rental'] ? 'text-slate-300' : 'text-slate-700' }}" x-show="showAll || {{ $apt['has_active_rental'] ? 'true' : 'false' }}">
-                            <td class="px-4 py-2 font-medium {{ $apt['has_active_rental'] ? 'text-slate-800' : '' }}">{{ $apt['apartment_number'] }}</td>
-                            <td class="px-4 py-2">{{ $apt['has_active_rental'] ? $apt['tenant'] : 'Vacant' }}</td>
+                            <td class="px-4 py-2 text-center text-slate-400 text-xs">{{ $loop->iteration }}</td>
+                            <td class="px-4 py-2">
+                                <div class="font-medium {{ $apt['has_active_rental'] ? 'text-slate-800' : '' }}">{{ $apt['apartment_number'] }}</div>
+                                @if($apt['has_active_rental'])
+                                <div class="text-[10px] text-slate-400 mt-0.5">{{ $apt['tenant'] }}</div>
+                                @else
+                                <div class="text-[10px] text-slate-300 mt-0.5">Vacant</div>
+                                @endif
+                            </td>
                             <td class="px-4 py-2 text-right">${{ number_format($apt['monthly_rent'], 2) }}</td>
-                            {{-- Income moved up; Status column added before Action --}}
-                            <td class="px-4 py-2 text-right {{ $apt['income'] > 0 ? 'text-emerald-600 font-medium' : '' }}">${{ number_format($apt['income'], 2) }}</td>
-                            <td class="px-4 py-2 text-right {{ $apt['expenses'] > 0 ? 'text-sky-600 font-medium' : '' }}">
-                                @if($apt['expenses'] > 0 && isset($apt['expense_breakdown']))
+                            {{-- Utilities = electricity + water only --}}
+                            <td class="px-4 py-2 text-right {{ $utilitiesIncome > 0 ? 'text-sky-600 font-medium' : '' }}">
+                                @if($utilitiesIncome > 0 && isset($apt['expense_breakdown']))
                                 <div x-data="{ showBreakdown: false }" class="relative inline-block">
                                     <button type="button" @click="showBreakdown = !showBreakdown" class="underline decoration-dotted cursor-pointer hover:text-sky-800">
-                                        ${{ number_format($apt['expenses'], 2) }}
+                                        ${{ number_format($utilitiesIncome, 2) }}
                                     </button>
                                     <div x-show="showBreakdown" x-cloak @click.away="showBreakdown = false"
-                                        class="absolute right-0 top-full mt-1 z-20 bg-white border border-slate-100 rounded-lg shadow-lg p-3 w-48 text-left">
-                                        <p class="text-[10px] font-semibold text-slate-400 uppercase mb-1.5">Expense Breakdown</p>
-                                        @foreach($apt['expense_breakdown'] as $type => $amount)
-                                            @if($amount > 0)
-                                            <div class="flex justify-between text-xs py-0.5">
-                                                <span class="text-slate-500">
-                                                    @switch($type)
-                                                        @case('electricity') ⚡ Electricity @break
-                                                        @case('water') 💧 Water @break
-                                                        @case('internet') 📡 Internet @break
-                                                        @case('parking') 🚗 Parking @break
-                                                        @default {{ ucfirst($type) }}
-                                                    @endswitch
-                                                </span>
-                                                <span class="font-medium text-sky-600">${{ number_format($amount, 2) }}</span>
-                                            </div>
-                                            @endif
-                                        @endforeach
-                                        <div class="border-t mt-1 pt-1 flex justify-between text-xs font-semibold">
-                                            <span>Total</span>
-                                            <span class="text-sky-700">${{ number_format($apt['expenses'], 2) }}</span>
+                                        class="absolute right-0 top-full mt-1 z-20 bg-white border border-slate-100 rounded-lg shadow-lg p-3 w-44 text-left">
+                                        <p class="text-[10px] font-semibold text-slate-400 uppercase mb-1.5">Utilities Detail</p>
+                                        @if(($apt['expense_breakdown']['electricity'] ?? 0) > 0)
+                                        <div class="flex justify-between text-xs py-0.5">
+                                            <span class="text-slate-500">⚡ Electricity</span>
+                                            <span class="font-medium text-sky-600">${{ number_format($apt['expense_breakdown']['electricity'], 2) }}</span>
                                         </div>
+                                        @endif
+                                        @if(($apt['expense_breakdown']['water'] ?? 0) > 0)
+                                        <div class="flex justify-between text-xs py-0.5">
+                                            <span class="text-slate-500">💧 Water</span>
+                                            <span class="font-medium text-sky-600">${{ number_format($apt['expense_breakdown']['water'], 2) }}</span>
+                                        </div>
+                                        @endif
                                     </div>
                                 </div>
                                 @else
-                                ${{ number_format($apt['expenses'], 2) }}
+                                ${{ number_format($utilitiesIncome, 2) }}
                                 @endif
                             </td>
-                            <td class="px-4 py-2 text-right font-semibold {{ ($apt['tenant_net'] ?? ($apt['income'] + $apt['expenses'])) >= 0 ? 'text-emerald-700' : 'text-red-600' }}">
-                                @php $tenantNet = $apt['tenant_net'] ?? ($apt['income'] + $apt['expenses']); @endphp
-                                ${{ number_format($tenantNet, 2) }}
+                            {{-- Other Charge = internet + parking + trash + other --}}
+                            <td class="px-4 py-2 text-right {{ $otherCharge > 0 ? 'text-purple-600 font-medium' : '' }}">
+                                @if($otherCharge > 0 && isset($apt['expense_breakdown']))
+                                <div x-data="{ showOther: false }" class="relative inline-block">
+                                    <button type="button" @click="showOther = !showOther" class="underline decoration-dotted cursor-pointer hover:text-purple-800">
+                                        ${{ number_format($otherCharge, 2) }}
+                                    </button>
+                                    <div x-show="showOther" x-cloak @click.away="showOther = false"
+                                        class="absolute right-0 top-full mt-1 z-20 bg-white border border-slate-100 rounded-lg shadow-lg p-3 w-44 text-left">
+                                        <p class="text-[10px] font-semibold text-slate-400 uppercase mb-1.5">Other Charges</p>
+                                        @if(($apt['expense_breakdown']['internet'] ?? 0) > 0)
+                                        <div class="flex justify-between text-xs py-0.5">
+                                            <span class="text-slate-500">📡 Internet</span>
+                                            <span class="font-medium text-purple-600">${{ number_format($apt['expense_breakdown']['internet'], 2) }}</span>
+                                        </div>
+                                        @endif
+                                        @if(($apt['expense_breakdown']['parking'] ?? 0) > 0)
+                                        <div class="flex justify-between text-xs py-0.5">
+                                            <span class="text-slate-500">🚗 Parking</span>
+                                            <span class="font-medium text-purple-600">${{ number_format($apt['expense_breakdown']['parking'], 2) }}</span>
+                                        </div>
+                                        @endif
+                                        @if(($apt['expense_breakdown']['trash'] ?? 0) > 0)
+                                        <div class="flex justify-between text-xs py-0.5">
+                                            <span class="text-slate-500">🗑️ Trash</span>
+                                            <span class="font-medium text-purple-600">${{ number_format($apt['expense_breakdown']['trash'], 2) }}</span>
+                                        </div>
+                                        @endif
+                                        @if(($apt['expense_breakdown']['other'] ?? 0) > 0)
+                                        <div class="flex justify-between text-xs py-0.5">
+                                            <span class="text-slate-500">📋 Other</span>
+                                            <span class="font-medium text-purple-600">${{ number_format($apt['expense_breakdown']['other'], 2) }}</span>
+                                        </div>
+                                        @endif
+                                    </div>
+                                </div>
+                                @else
+                                ${{ number_format($otherCharge, 2) }}
+                                @endif
+                            </td>
+                            {{-- Net Profit = Rent Price + Utilities + Other Charge --}}
+                            <td class="px-4 py-2 text-right font-semibold {{ $netProfit >= 0 ? 'text-emerald-700' : 'text-red-600' }}">
+                                ${{ number_format($netProfit, 2) }}
                             </td>
                             <td class="px-4 py-2 text-center">
                                 @if(!$apt['has_active_rental'])
@@ -532,14 +651,21 @@
                     </tbody>
                     <tfoot>
                         <tr class="border-t-2 bg-slate-50/80 font-semibold text-slate-800">
-                            <td class="px-4 py-2" colspan="3">Total</td>
-                            <td class="px-4 py-2 text-right text-emerald-600">${{ number_format(collect($perApartment)->sum('income'), 2) }}</td>
-                            <td class="px-4 py-2 text-right text-sky-600">${{ number_format(collect($perApartment)->sum('expenses'), 2) }}</td>
+                            <td class="px-4 py-2" colspan="2">Total</td>
+                            <td class="px-4 py-2 text-right">${{ number_format(collect($perApartment)->sum('monthly_rent'), 2) }}</td>
+                            <td class="px-4 py-2 text-right text-sky-600">
+                                ${{ number_format(collect($perApartment)->sum('utilities_income'), 2) }}
+                            </td>
+                            <td class="px-4 py-2 text-right text-purple-600">
+                                ${{ number_format(collect($perApartment)->sum('other_income'), 2) }}
+                            </td>
                             @php
-                                $totalTenantNet = collect($perApartment)->sum(fn($a) => $a['tenant_net'] ?? ($a['income'] + $a['expenses']));
+                                $totalNetProfit = collect($perApartment)->sum(fn($a) =>
+                                    $a['monthly_rent'] + ($a['utilities_income'] ?? ($a['expenses'] - ($a['other_income'] ?? 0))) + ($a['other_income'] ?? 0)
+                                );
                             @endphp
                             <td class="px-4 py-2 text-right text-emerald-700">
-                                ${{ number_format($totalTenantNet, 2) }}
+                                ${{ number_format($totalNetProfit, 2) }}
                             </td>
                             <td class="px-4 py-2"></td>
                             <td class="px-4 py-2"></td>
@@ -1447,17 +1573,25 @@ var expenseChartObj = null;
 var incomeData = {
     labels: [
         @if(($income['rent_income'] ?? 0) > 0) 'Rent', @endif
-        @if(($income['total_utility_income'] ?? 0) > 0) 'Utilities', @endif
+        @if(($income['utility_breakdown']['electricity'] ?? 0) > 0) 'Electricity', @endif
+        @if(($income['utility_breakdown']['water'] ?? 0) > 0) 'Water', @endif
+        @if(($income['other_income_breakdown']['internet'] ?? 0) > 0) 'Internet', @endif
+        @if(($income['other_income_breakdown']['parking'] ?? 0) > 0) 'Parking', @endif
+        @if(($income['other_income_breakdown']['trash'] ?? 0) > 0) 'Trash', @endif
+        @if(($income['other_income_breakdown']['other'] ?? 0) > 0) 'Other', @endif
         @if(($income['deposit_income'] ?? 0) > 0) 'Deposits', @endif
         @if(($income['late_fees'] ?? 0) > 0) 'Late Fees', @endif
-        @if(($income['other_income'] ?? 0) > 0) 'Other', @endif
     ],
     values: [
         @if(($income['rent_income'] ?? 0) > 0) {{ $income['rent_income'] }}, @endif
-        @if(($income['total_utility_income'] ?? 0) > 0) {{ $income['total_utility_income'] }}, @endif
+        @if(($income['utility_breakdown']['electricity'] ?? 0) > 0) {{ $income['utility_breakdown']['electricity'] }}, @endif
+        @if(($income['utility_breakdown']['water'] ?? 0) > 0) {{ $income['utility_breakdown']['water'] }}, @endif
+        @if(($income['other_income_breakdown']['internet'] ?? 0) > 0) {{ $income['other_income_breakdown']['internet'] }}, @endif
+        @if(($income['other_income_breakdown']['parking'] ?? 0) > 0) {{ $income['other_income_breakdown']['parking'] }}, @endif
+        @if(($income['other_income_breakdown']['trash'] ?? 0) > 0) {{ $income['other_income_breakdown']['trash'] }}, @endif
+        @if(($income['other_income_breakdown']['other'] ?? 0) > 0) {{ $income['other_income_breakdown']['other'] }}, @endif
         @if(($income['deposit_income'] ?? 0) > 0) {{ $income['deposit_income'] }}, @endif
         @if(($income['late_fees'] ?? 0) > 0) {{ $income['late_fees'] }}, @endif
-        @if(($income['other_income'] ?? 0) > 0) {{ $income['other_income'] }}, @endif
     ]
 };
 
@@ -1505,7 +1639,7 @@ function createOrUpdateCharts() {
         if (incomeChartObj) { incomeChartObj.destroy(); }
         incomeChartObj = new Chart(incomeCtx, {
             type: 'doughnut',
-            data: { labels: incomeData.labels, datasets: [{ data: incomeData.values, backgroundColor: ['#10B981','#F59E0B','#6366F1','#3B82F6','#8B5CF6'], borderWidth: 0, hoverOffset: 6 }] },
+            data: { labels: incomeData.labels, datasets: [{ data: incomeData.values, backgroundColor: ['#10B981','#F59E0B','#38BDF8','#8B5CF6','#F97316','#14B8A6','#EC4899','#6366F1','#EF4444'], borderWidth: 0, hoverOffset: 6 }] },
             options: chartOpts
         });
     }

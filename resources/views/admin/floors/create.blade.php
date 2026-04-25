@@ -15,9 +15,19 @@
         </a>
     </div>
 
+    @if ($errors->any())
+    <div class="bg-red-50 border border-red-100 rounded-lg px-4 py-3 text-red-600 text-sm">
+        <ul class="list-disc list-inside space-y-1">
+            @foreach ($errors->all() as $error)
+                <li>{{ $error }}</li>
+            @endforeach
+        </ul>
+    </div>
+    @endif
+
     <!-- Form -->
     <div class="bg-white rounded-xl border border-slate-100">
-        <form method="POST" action="{{ route('admin.floors.store') }}">
+        <form method="POST" action="{{ route('admin.floors.store') }}" id="createFloorForm">
             @csrf
 
             <!-- Floor Information -->
@@ -26,8 +36,8 @@
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
                         <label class="block text-xs font-medium text-slate-500 mb-1.5 uppercase tracking-wide">Floor Name <span class="text-red-400">*</span></label>
-                        <input type="text" name="floor_name" required
-                               value="{{ old('floor_name', session('floor_data')['floor_name'] ?? '') }}"
+                        <input type="text" name="floor_name" id="floor_name" required
+                               value="{{ old('floor_name') }}"
                                placeholder="e.g., 1st Floor, Ground Floor"
                                class="w-full px-3.5 py-2 text-sm border border-slate-200 rounded-lg bg-slate-50/50 placeholder-slate-300 focus:outline-none focus:ring-2 focus:ring-slate-300 focus:border-slate-300 transition @error('floor_name') border-red-300 ring-1 ring-red-200 @enderror">
                         @error('floor_name')
@@ -37,12 +47,9 @@
                     <div>
                         <label class="block text-xs font-medium text-slate-500 mb-1.5 uppercase tracking-wide">Description</label>
                         <input type="text" name="description"
-                               value="{{ old('description', session('floor_data')['description'] ?? '') }}"
+                               value="{{ old('description') }}"
                                placeholder="Optional description..."
-                               class="w-full px-3.5 py-2 text-sm border border-slate-200 rounded-lg bg-slate-50/50 placeholder-slate-300 focus:outline-none focus:ring-2 focus:ring-slate-300 focus:border-slate-300 transition @error('description') border-red-300 ring-1 ring-red-200 @enderror">
-                        @error('description')
-                            <p class="text-red-500 text-xs mt-1">{{ $message }}</p>
-                        @enderror
+                               class="w-full px-3.5 py-2 text-sm border border-slate-200 rounded-lg bg-slate-50/50 placeholder-slate-300 focus:outline-none focus:ring-2 focus:ring-slate-300 focus:border-slate-300 transition">
                     </div>
                 </div>
             </div>
@@ -54,98 +61,58 @@
             <div class="p-6 space-y-5">
                 <div class="flex items-center justify-between">
                     <h3 class="text-sm font-medium text-slate-500 uppercase tracking-wide">Apartment Units</h3>
-                    @if($tempApartments && count($tempApartments) > 0)
-                        <span class="text-xs font-medium text-slate-400">{{ count($tempApartments) }} unit(s) added</span>
-                    @endif
+                    <span id="unitCount" class="text-xs font-medium text-slate-400 hidden"></span>
                 </div>
 
-                <!-- Add Unit Row -->
-                <div class="grid grid-cols-1 md:grid-cols-1.5 gap-3 items-end">
+                <!-- Add Unit Inputs -->
+                <div class="grid grid-cols-2 gap-3">
                     <div>
                         <label class="block text-xs font-medium text-slate-500 mb-1.5 uppercase tracking-wide">Unit Number</label>
-                        <input type="text" name="apartment_number"
+                        <input type="text" id="input_unit_number"
                                placeholder="e.g., 101"
-                               value="{{ old('apartment_number') }}"
-                               class="w-full px-3.5 py-2 text-sm border border-slate-200 rounded-lg bg-slate-50/50 placeholder-slate-300 focus:outline-none focus:ring-2 focus:ring-slate-300 focus:border-slate-300 transition @error('apartment_number') border-red-300 ring-1 ring-red-200 @enderror">
-                        @error('apartment_number')
-                            <p class="text-red-500 text-xs mt-1">{{ $message }}</p>
-                        @enderror
+                               class="w-full px-3.5 py-2 text-sm border border-slate-200 rounded-lg bg-slate-50/50 placeholder-slate-300 focus:outline-none focus:ring-2 focus:ring-slate-300 focus:border-slate-300 transition">
+                        <p id="unitError" class="text-red-500 text-xs mt-1 hidden"></p>
                     </div>
                     <div>
                         <label class="block text-xs font-medium text-slate-500 mb-1.5 uppercase tracking-wide">Monthly Rent</label>
-                        <input type="number" name="monthly_rent" step="0.01" min="0"
+                        <input type="number" id="input_monthly_rent" step="0.01" min="0"
                                placeholder="0.00"
-                               value="{{ old('monthly_rent') }}"
                                class="w-full px-3.5 py-2 text-sm border border-slate-200 rounded-lg bg-slate-50/50 placeholder-slate-300 focus:outline-none focus:ring-2 focus:ring-slate-300 focus:border-slate-300 transition">
                     </div>
-                    <div>
-                        <input type="hidden" name="apartment_status" value="{{ old('apartment_status', 'available') }}">
-                    </div>
-                    <div>
-                        <button type="submit" name="action" value="add_apartment"
-                                class="w-full inline-flex items-center justify-center gap-1.5 bg-slate-100 hover:bg-slate-200 text-slate-600 text-sm font-medium py-2 px-4 rounded-lg transition">
-                            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/>
-                            </svg>
-                            Add Unit
-                        </button>
-                    </div>
                 </div>
+                <button type="button" id="addUnitBtn"
+                        class="inline-flex items-center gap-1.5 bg-slate-100 hover:bg-slate-200 text-slate-600 text-sm font-medium py-2 px-4 rounded-lg transition">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/>
+                    </svg>
+                    Add Unit
+                </button>
 
-                <!-- Added Units List -->
-                @if($tempApartments && count($tempApartments) > 0)
-                <div class="rounded-xl border border-slate-100 overflow-hidden">
+                <!-- Added Units Table -->
+                <div id="unitsTable" class="hidden rounded-xl border border-slate-100 overflow-hidden">
                     <table class="w-full">
                         <thead>
                             <tr class="bg-slate-50/80">
                                 <th class="px-4 py-2.5 text-left text-[11px] font-medium text-slate-400 uppercase tracking-wider">Unit #</th>
                                 <th class="px-4 py-2.5 text-left text-[11px] font-medium text-slate-400 uppercase tracking-wider">Monthly Rent</th>
                                 <th class="px-4 py-2.5 text-left text-[11px] font-medium text-slate-400 uppercase tracking-wider">Status</th>
+                                <th class="px-4 py-2.5"></th>
                             </tr>
                         </thead>
-                        <tbody class="divide-y divide-slate-50">
-                            @foreach($tempApartments as $index => $apt)
-                            <tr class="hover:bg-slate-50/50 transition">
-                                <td class="px-4 py-2.5">
-                                    <span class="text-sm font-medium text-slate-700">{{ $apt['apartment_number'] }}</span>
-                                </td>
-                                <td class="px-4 py-2.5">
-                                    <span class="text-sm text-slate-600">${{ number_format($apt['monthly_rent'] ?? 0, 2) }}</span>
-                                </td>
-                                <td class="px-4 py-2.5">
-                                    <span class="inline-flex items-center gap-1.5 text-xs font-medium
-                                        @if($apt['status'] === 'available') text-emerald-600
-                                        @elseif($apt['status'] === 'occupied') text-sky-600
-                                        @elseif($apt['status'] === 'maintenance') text-amber-600
-                                        @else text-slate-500
-                                        @endif">
-                                        <span class="w-1.5 h-1.5 rounded-full
-                                            @if($apt['status'] === 'available') bg-emerald-400
-                                            @elseif($apt['status'] === 'occupied') bg-sky-400
-                                            @elseif($apt['status'] === 'maintenance') bg-amber-400
-                                            @else bg-slate-300
-                                            @endif"></span>
-                                        {{ ucfirst($apt['status']) }}
-                                    </span>
-                                </td>
-                            </tr>
-                            <input type="hidden" name="apartments[{{ $index }}][apartment_number]" value="{{ $apt['apartment_number'] }}">
-                            <input type="hidden" name="apartments[{{ $index }}][monthly_rent]" value="{{ $apt['monthly_rent'] ?? 0 }}">
-                            <input type="hidden" name="apartments[{{ $index }}][status]" value="{{ $apt['status'] }}">
-                            @endforeach
-                        </tbody>
+                        <tbody id="unitsTableBody" class="divide-y divide-slate-50"></tbody>
                     </table>
                 </div>
-                @else
-                <div class="text-center py-10">
-                    <p class="text-slate-400 text-sm">No units added yet</p>
+                <div id="noUnitsMsg" class="text-center py-10">
+                    <p class="text-slate-400 text-sm">No units added yet. Add at least one unit above.</p>
                 </div>
-                @endif
+
+                <!-- Hidden inputs injected by JS -->
+                <div id="hiddenApartmentInputs"></div>
             </div>
 
             <!-- Footer Actions -->
             <div class="px-6 py-4 border-t border-slate-100 flex gap-3">
-                <button type="submit" name="action" value="create_floor" class="flex-1 bg-slate-800 hover:bg-slate-700 text-white text-sm font-medium py-2.5 px-5 rounded-lg transition">
+                <button type="submit" class="flex-1 bg-slate-800 hover:bg-slate-700 text-white text-sm font-medium py-2.5 px-5 rounded-lg transition">
                     Create Floor
                 </button>
                 <a href="{{ route('admin.floors.index') }}" class="flex-1 text-center text-slate-500 hover:text-slate-700 bg-slate-50 hover:bg-slate-100 text-sm font-medium py-2.5 px-5 rounded-lg transition">
@@ -155,4 +122,123 @@
         </form>
     </div>
 </div>
+
+<script>
+(function () {
+    let units = [];
+
+    const addUnitBtn      = document.getElementById('addUnitBtn');
+    const inputNumber     = document.getElementById('input_unit_number');
+    const inputRent       = document.getElementById('input_monthly_rent');
+    const unitError       = document.getElementById('unitError');
+    const unitCount       = document.getElementById('unitCount');
+    const unitsTable      = document.getElementById('unitsTable');
+    const noUnitsMsg      = document.getElementById('noUnitsMsg');
+    const tableBody       = document.getElementById('unitsTableBody');
+    const hiddenContainer = document.getElementById('hiddenApartmentInputs');
+
+    function escapeHtml(str) {
+        const div = document.createElement('div');
+        div.appendChild(document.createTextNode(String(str)));
+        return div.innerHTML;
+    }
+
+    function renderUnits() {
+        tableBody.innerHTML     = '';
+        hiddenContainer.innerHTML = '';
+
+        if (units.length > 0) {
+            unitsTable.classList.remove('hidden');
+            noUnitsMsg.classList.add('hidden');
+            unitCount.classList.remove('hidden');
+            unitCount.textContent = units.length + ' unit(s) added';
+        } else {
+            unitsTable.classList.add('hidden');
+            noUnitsMsg.classList.remove('hidden');
+            unitCount.classList.add('hidden');
+        }
+
+        units.forEach(function (unit, index) {
+            // Table row
+            const tr = document.createElement('tr');
+            tr.className = 'hover:bg-slate-50/50 transition';
+            tr.innerHTML =
+                '<td class="px-4 py-2.5">' +
+                    '<span class="text-sm font-medium text-slate-700">' + escapeHtml(unit.number) + '</span>' +
+                '</td>' +
+                '<td class="px-4 py-2.5">' +
+                    '<span class="text-sm text-slate-600">$' + parseFloat(unit.rent).toFixed(2) + '</span>' +
+                '</td>' +
+                '<td class="px-4 py-2.5">' +
+                    '<span class="inline-flex items-center gap-1.5 text-xs font-medium text-emerald-600">' +
+                        '<span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>Available' +
+                    '</span>' +
+                '</td>' +
+                '<td class="px-4 py-2.5 text-right">' +
+                    '<button type="button" data-index="' + index + '" class="remove-unit text-red-400 hover:text-red-600 text-xs font-medium transition">Remove</button>' +
+                '</td>';
+            tableBody.appendChild(tr);
+
+            // Hidden inputs for form submission
+            [
+                ['apartment_number', unit.number],
+                ['monthly_rent',     unit.rent],
+                ['status',           'available'],
+            ].forEach(function (pair) {
+                const inp = document.createElement('input');
+                inp.type  = 'hidden';
+                inp.name  = 'apartments[' + index + '][' + pair[0] + ']';
+                inp.value = pair[1];
+                hiddenContainer.appendChild(inp);
+            });
+        });
+    }
+
+    function addUnit() {
+        const number = inputNumber.value.trim();
+        const rent   = parseFloat(inputRent.value) || 0;
+
+        if (!number) {
+            unitError.textContent = 'Unit number is required.';
+            unitError.classList.remove('hidden');
+            inputNumber.focus();
+            return;
+        }
+
+        if (units.some(function (u) { return u.number === number; })) {
+            unitError.textContent = 'Unit "' + number + '" has already been added.';
+            unitError.classList.remove('hidden');
+            inputNumber.focus();
+            return;
+        }
+
+        unitError.classList.add('hidden');
+        units.push({ number: number, rent: rent });
+        renderUnits();
+
+        inputNumber.value = '';
+        inputRent.value   = '';
+        inputNumber.focus();
+    }
+
+    addUnitBtn.addEventListener('click', addUnit);
+
+    // Enter key on either input triggers Add Unit
+    [inputNumber, inputRent].forEach(function (el) {
+        el.addEventListener('keydown', function (e) {
+            if (e.key === 'Enter') { e.preventDefault(); addUnit(); }
+        });
+    });
+
+    // Remove button delegation
+    tableBody.addEventListener('click', function (e) {
+        const btn = e.target.closest('.remove-unit');
+        if (!btn) return;
+        units.splice(parseInt(btn.dataset.index, 10), 1);
+        renderUnits();
+    });
+
+    renderUnits();
+}());
+</script>
 @endsection

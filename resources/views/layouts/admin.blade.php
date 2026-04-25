@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>Admin Dashboard</title>
     <link href="{{ asset('css/app.css') }}" rel="stylesheet">
     <script src="https://cdn.tailwindcss.com"></script>
@@ -106,6 +107,23 @@
             display: none;
         }
 
+        /* Form submit spinner */
+        .spinner {
+            border: 2px solid rgba(0,0,0,0.08);
+            border-top-color: rgba(59,130,246,1);
+            border-radius: 9999px;
+            width: 1rem;
+            height: 1rem;
+            display: inline-block;
+            vertical-align: middle;
+            margin-right: 0.5rem;
+            animation: spin 0.9s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
         /* Smooth transitions for sidebar text */
         .sidebar-label {
             transition: opacity 0.2s ease-in-out;
@@ -178,14 +196,17 @@
 
                 <!-- Footer Section -->
                 <div class="p-4 border-t border-gray-200">
-                    <button class="w-full flex items-center gap-3 px-3 py-2.5 text-sm text-gray-700 hover:bg-red-50 hover:text-red-700 rounded-lg sidebar-link transition-all">
-                        <span class="inline-flex h-5 w-5 items-center justify-center flex-shrink-0">
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-                            </svg>
-                        </span>
-                        <span class="sidebar-label">{{ __('messages.logout') }}</span>
-                    </button>
+                    <form method="POST" action="{{ route('logout') }}">
+                        @csrf
+                        <button type="submit" class="w-full flex items-center gap-3 px-3 py-2.5 text-sm text-gray-700 hover:bg-red-50 hover:text-red-700 rounded-lg logout-button transition-all">
+                            <span class="inline-flex h-5 w-5 items-center justify-center flex-shrink-0">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                                </svg>
+                            </span>
+                            <span class="sidebar-label">{{ __('messages.logout') }}</span>
+                        </button>
+                    </form>
                 </div>
             </div>
         </aside>
@@ -230,6 +251,43 @@
                 }
             }
         }
+    </script>
+    <script>
+        // Global form submit handler: show spinner and disable submits
+        document.addEventListener('DOMContentLoaded', function () {
+            document.addEventListener('submit', function (e) {
+                try {
+                    var form = e.target;
+                    if (!(form instanceof HTMLFormElement)) return;
+                    // avoid double-handling
+                    if (form.dataset.submitting) return;
+
+                    // mark as submitting
+                    form.dataset.submitting = '1';
+
+                    // find the submitter (modern browsers set e.submitter)
+                    var submitter = e.submitter || form.querySelector('button[type="submit"], input[type="submit"]');
+
+                    // disable all submit buttons/inputs inside the form
+                    form.querySelectorAll('button[type="submit"], input[type="submit"]').forEach(function (btn) {
+                        try { btn.disabled = true; btn.setAttribute('aria-disabled', 'true'); } catch (ex) {}
+                    });
+
+                    if (submitter) {
+                        // add spinner if not present
+                        if (!submitter.querySelector('.spinner')) {
+                            var spinner = document.createElement('span');
+                            spinner.className = 'spinner';
+                            spinner.setAttribute('aria-hidden', 'true');
+                            submitter.prepend(spinner);
+                        }
+                    }
+
+                } catch (err) {
+                    console.error('Form submit spinner error', err);
+                }
+            }, { capture: true });
+        });
     </script>
     @stack('scripts')
 </body>

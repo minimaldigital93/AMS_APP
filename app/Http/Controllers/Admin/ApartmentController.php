@@ -9,6 +9,8 @@ use App\Models\Payments;
 use App\Models\Rentals;
 use App\Models\Tenants;
 use App\Models\User;
+use App\Models\Accounts;
+use App\Models\FiscalPeriods;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -260,7 +262,7 @@ class ApartmentController extends Controller
 
         // Auto-create Rental record (ongoing lease — end_date set when tenant leaves)
         $moveInDate = Carbon::parse($validated['move_in_date']);
-        Rentals::create([
+        $rental = Rentals::create([
             'apartment_id' => $apartment->id,
             'tenant_id' => $tenant->id,
             'start_date' => $moveInDate,
@@ -268,6 +270,33 @@ class ApartmentController extends Controller
             'rent_amount' => $apartment->monthly_rent,
             'deposit' => $validated['deposit'],
         ]);
+
+        // Record deposit as revenue (deposit income) in Accounts ledger
+        if (!empty($validated['deposit']) && $validated['deposit'] > 0) {
+            // Determine active fiscal period for this user
+            $activePeriod = FiscalPeriods::where('user_id', Auth::id())
+                ->where('status', 'open')
+                ->orderBy('opening_date', 'desc')
+                ->first();
+
+            $reference = 'deposit:rental:' . $rental->id;
+
+            Accounts::firstOrCreate(
+                ['reference_number' => $reference],
+                [
+                    'fiscal_period_id' => $activePeriod?->id,
+                    'payment_id' => null,
+                    'user_id' => Auth::id(),
+                    'account_type' => Accounts::TYPE_INCOME,
+                    'category' => Accounts::CAT_DEPOSIT_INCOME,
+                    'description' => 'Security deposit — Apt ' . ($apartment->apartment_number ?? 'N/A'),
+                    'amount' => $validated['deposit'],
+                    'transaction_date' => now()->toDateString(),
+                    'note' => 'Initial deposit collected on tenant assignment',
+                    'reference_number' => $reference,
+                ]
+            );
+        }
 
         return redirect()->route('admin.apartments.index')->with('success', 'Tenant assigned successfully with rental created.');
     }
