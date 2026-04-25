@@ -28,12 +28,12 @@
             <div>
                 <label for="opening_date" class="block text-sm font-medium text-gray-700 mb-1">Start Date</label>
                 <input type="date" id="opening_date" name="opening_date" value="{{ old('opening_date', $fiscalperiod->opening_date->format('Y-m-d')) }}" required
-                    class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none">
+                    class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none bg-white appearance-none h-10">
             </div>
             <div>
                 <label for="closing_date" class="block text-sm font-medium text-gray-700 mb-1">End Date</label>
                 <input type="date" id="closing_date" name="closing_date" value="{{ old('closing_date', $fiscalperiod->closing_date->format('Y-m-d')) }}" required
-                    class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none">
+                    class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none bg-white appearance-none h-10">
             </div>
         </div>
 

@@ -156,7 +156,7 @@
                     <label class="block text-xs text-gray-500 mb-1">Date</label>
                     <input type="date" name="as_of_date" value="{{ old('as_of_date') }}" required
                         min="{{ $fiscalperiod->opening_date->format('Y-m-d') }}" max="{{ $fiscalperiod->closing_date->format('Y-m-d') }}"
-                        class="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none">
+                        class="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none bg-white appearance-none h-10">
                 </div>
                 <div>
                     <label class="block text-xs text-gray-500 mb-1">Reference (optional)</label>

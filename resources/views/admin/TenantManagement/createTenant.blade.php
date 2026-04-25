@@ -87,7 +87,7 @@
                     <!-- Move In Date -->
                     <div>
                         <label for="move_in_date" class="block text-sm font-medium text-gray-700 mb-2">Move In Date *</label>
-                        <input type="date" id="move_in_date" name="move_in_date" required value="{{ old('move_in_date') }}" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent {{ $errors->has('move_in_date') ? 'border-red-500' : '' }}">
+                        <input type="date" id="move_in_date" name="move_in_date" required value="{{ old('move_in_date') }}" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white appearance-none h-10 {{ $errors->has('move_in_date') ? 'border-red-500' : '' }}">
                         @error('move_in_date')
                             <p class="text-red-500 text-sm mt-1">{{ $message }}</p>
                         @enderror
@@ -96,7 +96,7 @@
                     <!-- Move Out Date -->
                     <div>
                         <label for="move_out_date" class="block text-sm font-medium text-gray-700 mb-2">Move Out Date</label>
-                        <input type="date" id="move_out_date" name="move_out_date" value="{{ old('move_out_date') }}" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent {{ $errors->has('move_out_date') ? 'border-red-500' : '' }}">
+                        <input type="date" id="move_out_date" name="move_out_date" value="{{ old('move_out_date') }}" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white appearance-none h-10 {{ $errors->has('move_out_date') ? 'border-red-500' : '' }}">
                         @error('move_out_date')
                             <p class="text-red-500 text-sm mt-1">{{ $message }}</p>
                         @enderror
@@ -105,7 +105,7 @@
                     <!-- Date of Birth -->
                     <div>
                         <label for="date_of_birth" class="block text-sm font-medium text-gray-700 mb-2">Date of Birth</label>
-                        <input type="date" id="date_of_birth" name="date_of_birth" value="{{ old('date_of_birth') }}" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent {{ $errors->has('date_of_birth') ? 'border-red-500' : '' }}">
+                        <input type="date" id="date_of_birth" name="date_of_birth" value="{{ old('date_of_birth') }}" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white appearance-none h-10 {{ $errors->has('date_of_birth') ? 'border-red-500' : '' }}">
                         @error('date_of_birth')
                             <p class="text-red-500 text-sm mt-1">{{ $message }}</p>
                         @enderror

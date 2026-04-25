@@ -30,16 +30,16 @@
                 placeholder="e.g., Fiscal Year 2026">
         </div>
 
-        <div class="grid grid-cols-2 gap-4">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
                 <label for="opening_date" class="block text-sm font-medium text-gray-700 mb-1">Start Date</label>
                 <input type="date" id="opening_date" name="opening_date" value="{{ old('opening_date') }}" required
-                    class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none">
+                    class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white appearance-none h-10 focus:ring-2 focus:ring-blue-500 focus:outline-none">
             </div>
             <div>
                 <label for="closing_date" class="block text-sm font-medium text-gray-700 mb-1">End Date</label>
                 <input type="date" id="closing_date" name="closing_date" value="{{ old('closing_date') }}" required
-                    class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none">
+                    class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white appearance-none h-10 focus:ring-2 focus:ring-blue-500 focus:outline-none">
             </div>
         </div>
 
@@ -53,9 +53,7 @@
             </div>
         </div>
 
-        <div class="bg-blue-50 rounded-lg p-3 text-xs text-blue-700">
-            Monthly periods will be auto-created. After creating, you can add balance sheet items.
-        </div>
+   
 
         <div class="flex gap-3">
             <button type="submit" class="flex-1 bg-blue-600 text-white py-2.5 rounded-lg font-semibold hover:bg-blue-700 text-sm">

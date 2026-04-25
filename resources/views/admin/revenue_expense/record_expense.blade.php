@@ -168,7 +168,7 @@
                                 <label for="transaction_date" class="block text-sm font-medium text-slate-700 mb-1">Date <span class="text-red-500">*</span></label>
                                 <input type="date" name="transaction_date" id="transaction_date" required
                                     value="{{ old('transaction_date', date('Y-m-d')) }}"
-                                    class="w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500">
+                                    class="w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500 bg-white appearance-none h-10">
                             </div>
                         </div>
                         <div id="meter-readings" class="mt-4 p-3 bg-amber-50 rounded-lg border border-amber-200" style="display: none;">
@@ -233,7 +233,7 @@
                                 <label for="other_date" class="block text-sm font-medium text-slate-700 mb-1">Date <span class="text-red-500">*</span></label>
                                 <input type="date" name="transaction_date" id="other_date" required
                                     value="{{ old('transaction_date', date('Y-m-d')) }}"
-                                    class="w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500">
+                                    class="w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 bg-white appearance-none h-10">
                             </div>
                         </div>
                         <div class="mt-4 flex justify-end">
@@ -284,7 +284,7 @@
                                 <label for="biz_date" class="block text-sm font-medium text-slate-700 mb-1">Date <span class="text-red-500">*</span></label>
                                 <input type="date" name="expense_date" id="biz_date" required
                                     value="{{ old('expense_date', date('Y-m-d')) }}"
-                                    class="w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500">
+                                    class="w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 bg-white appearance-none h-10">
                             </div>
                             <div class="flex items-end pb-1">
                                 <label class="flex items-center gap-2 cursor-pointer">

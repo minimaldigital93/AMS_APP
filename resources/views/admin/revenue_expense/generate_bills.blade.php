@@ -58,7 +58,7 @@
                     <div>
                         <label for="billing_date" class="block text-sm font-medium text-gray-700 mb-1">Billing Date</label>
                         <input type="date" name="billing_date" id="billing_date" required value="{{ date('Y-m-d') }}"
-                            class="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                            class="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white appearance-none h-10">
                     </div>
                     <div class="text-center">
                         <p class="text-sm text-gray-500">Total Monthly Fixed Expenses</p>

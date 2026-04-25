@@ -60,7 +60,7 @@
                 </div>
 
                 <!-- Add Unit Row -->
-                <div class="grid grid-cols-1 md:grid-cols-4 gap-3 items-end">
+                <div class="grid grid-cols-1 md:grid-cols-1.5 gap-3 items-end">
                     <div>
                         <label class="block text-xs font-medium text-slate-500 mb-1.5 uppercase tracking-wide">Unit Number</label>
                         <input type="text" name="apartment_number"
@@ -79,13 +79,7 @@
                                class="w-full px-3.5 py-2 text-sm border border-slate-200 rounded-lg bg-slate-50/50 placeholder-slate-300 focus:outline-none focus:ring-2 focus:ring-slate-300 focus:border-slate-300 transition">
                     </div>
                     <div>
-                        <label class="block text-xs font-medium text-slate-500 mb-1.5 uppercase tracking-wide">Status</label>
-                        <select name="apartment_status" class="w-full px-3.5 py-2 text-sm border border-slate-200 rounded-lg bg-slate-50/50 text-slate-600 focus:outline-none focus:ring-2 focus:ring-slate-300 focus:border-slate-300 transition">
-                            <option value="">-- Optional --</option>
-                            <option value="available" {{ old('apartment_status') === 'available' ? 'selected' : '' }}>Available</option>
-                            <option value="occupied" {{ old('apartment_status') === 'occupied' ? 'selected' : '' }}>Occupied</option>
-                            <option value="maintenance" {{ old('apartment_status') === 'maintenance' ? 'selected' : '' }}>Maintenance</option>
-                        </select>
+                        <input type="hidden" name="apartment_status" value="{{ old('apartment_status', 'available') }}">
                     </div>
                     <div>
                         <button type="submit" name="action" value="add_apartment"

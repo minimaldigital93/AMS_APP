@@ -72,7 +72,7 @@
                         <input type="date" name="leave_date" id="leave_date" value="{{ old('leave_date', date('Y-m-d')) }}" required
                             x-model="leaveDate" @change="calculateProRata()"
                             min="{{ $tenant->move_in_date ? $tenant->move_in_date->format('Y-m-d') : '' }}"
-                            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent">
+                            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent bg-white appearance-none h-10">
                     </div>
                     <div class="flex items-end">
                         <div class="bg-blue-50 border border-blue-200 rounded-lg px-4 py-2 w-full">

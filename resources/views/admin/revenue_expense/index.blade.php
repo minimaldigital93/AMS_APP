@@ -504,7 +504,7 @@
                                     <div>
                                         <label class="block text-[10px] font-medium text-slate-400 mb-0.5">Date</label>
                                         <input type="date" name="transaction_date" value="{{ date('Y-m-d') }}" required
-                                            class="px-2 py-1.5 text-xs border border-slate-200 rounded-md focus:ring-orange-500 focus:border-orange-500 w-32">
+                                            class="px-2 py-1.5 text-xs border border-slate-200 rounded-md focus:ring-orange-500 focus:border-orange-500 w-32 bg-white appearance-none h-10">
                                     </div>
                                     <div>
                                         <label class="block text-[10px] font-medium text-slate-400 mb-0.5">Meter In</label>
@@ -691,7 +691,7 @@
                         <div class="grid grid-cols-2 gap-3 mb-4 p-3 bg-sky-50 rounded-lg">
                             <div>
                                 <label class="block text-xs font-medium text-slate-700 mb-1">Payment Date *</label>
-                                <input type="date" name="payment_date" required value="{{ date('Y-m-d') }}" class="w-full px-2 py-1.5 text-sm border border-slate-200 rounded focus:ring-sky-500 focus:border-sky-500">
+                                <input type="date" name="payment_date" required value="{{ date('Y-m-d') }}" class="w-full px-2 py-1.5 text-sm border border-slate-200 rounded focus:ring-sky-500 focus:border-sky-500 bg-white appearance-none h-10">
                             </div>
                             <div>
                                 <label class="block text-xs font-medium text-slate-700 mb-1">Payment Method *</label>
@@ -815,7 +815,7 @@
                             </div>
                             <div>
                                 <label class="block text-xs font-medium text-slate-700 mb-1">Date *</label>
-                                <input type="date" name="transaction_date" required value="{{ old('transaction_date', date('Y-m-d')) }}" class="w-full px-3 py-2 text-sm border rounded-lg focus:ring-green-500 focus:border-green-500">
+                                <input type="date" name="transaction_date" required value="{{ old('transaction_date', date('Y-m-d')) }}" class="w-full px-3 py-2 text-sm border rounded-lg focus:ring-green-500 focus:border-green-500 bg-white appearance-none h-10">
                             </div>
                             <div>
                                 <label class="block text-xs font-medium text-slate-700 mb-1">Late Fee ($)</label>
@@ -1130,7 +1130,7 @@
                 <div class="flex items-center gap-4">
                     <div>
                         <label class="block text-xs font-medium text-slate-700 mb-1">Billing Date</label>
-                        <input type="date" name="billing_date" required value="{{ date('Y-m-d') }}" class="px-3 py-1.5 text-sm border rounded-lg focus:ring-sky-500 focus:border-sky-500">
+                        <input type="date" name="billing_date" required value="{{ date('Y-m-d') }}" class="px-3 py-1.5 text-sm border rounded-lg focus:ring-sky-500 focus:border-sky-500 bg-white appearance-none h-10">
                     </div>
                     <div class="text-center">
                         <p class="text-xs text-slate-400">Total Monthly Fixed</p>

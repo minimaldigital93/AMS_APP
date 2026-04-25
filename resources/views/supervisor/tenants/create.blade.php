@@ -90,7 +90,7 @@
                     </div>
                     <div>
                         <label for="date_of_birth" class="block text-sm font-medium text-gray-700 mb-2">Date of Birth</label>
-                        <input type="date" name="date_of_birth" id="date_of_birth" value="{{ old('date_of_birth') }}" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent">
+                        <input type="date" name="date_of_birth" id="date_of_birth" value="{{ old('date_of_birth') }}" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent bg-white appearance-none h-10">
                     </div>
                     <div class="md:col-span-2">
                         <label for="address" class="block text-sm font-medium text-gray-700 mb-2">Address</label>
@@ -109,11 +109,11 @@
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
                         <label for="move_in_date" class="block text-sm font-medium text-gray-700 mb-2">Move In Date <span class="text-red-500">*</span></label>
-                        <input type="date" name="move_in_date" id="move_in_date" value="{{ old('move_in_date', date('Y-m-d')) }}" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent">
+                        <input type="date" name="move_in_date" id="move_in_date" value="{{ old('move_in_date', date('Y-m-d')) }}" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent bg-white appearance-none h-10">
                     </div>
                     <div>
                         <label for="move_out_date" class="block text-sm font-medium text-gray-700 mb-2">Move Out Date</label>
-                        <input type="date" name="move_out_date" id="move_out_date" value="{{ old('move_out_date') }}" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent">
+                        <input type="date" name="move_out_date" id="move_out_date" value="{{ old('move_out_date') }}" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent bg-white appearance-none h-10">
                     </div>
                     <div>
                         <label for="deposit" class="block text-sm font-medium text-gray-700 mb-2">Deposit Amount</label>
