@@ -220,7 +220,24 @@ class FiscalPeriodController extends Controller
         $html = $this->generateBalanceSheetHTML($fiscalperiod, $balanceSheetItems, $summary);
 
         // For now, return view that can be printed as PDF
-        return view('admin.fiscalperiod.export-pdf', compact('fiscalperiod', 'balanceSheetItems', 'summary', 'html'));
+        $periodFinancials = $this->calculatePeriodFinancials($fiscalperiod);
+        return view('admin.fiscalperiod.export-pdf', compact('fiscalperiod', 'balanceSheetItems', 'summary', 'html', 'periodFinancials'));
+    }
+
+    /**
+     * Print monthly period summary as PDF.
+     */
+    public function printMonthlyPDF(FiscalPeriods $fiscalperiod, MonthlyPeriod $monthlyPeriod)
+    {
+        $this->authorizeUser($fiscalperiod);
+
+        if ($monthlyPeriod->fiscal_period_id !== $fiscalperiod->id) {
+            abort(403);
+        }
+
+        $financials = $this->calculateMonthlyFinancials($fiscalperiod, $monthlyPeriod);
+
+        return view('admin.fiscalperiod.monthly-period-pdf', compact('fiscalperiod', 'monthlyPeriod', 'financials'));
     }
 
     /**

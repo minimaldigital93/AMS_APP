@@ -21,6 +21,12 @@
                 <a href="{{ route('admin.fiscalperiod.edit', $fiscalperiod->id) }}" class="text-sm bg-gray-100 text-gray-700 px-3 py-2 rounded-lg hover:bg-gray-200">Edit</a>
                 <a href="{{ route('admin.fiscalperiod.balance-sheet', $fiscalperiod->id) }}" class="text-sm bg-blue-600 text-white px-3 py-2 rounded-lg hover:bg-blue-700">Balance Sheet</a>
             @endif
+            {{-- Annual PDF Print --}}
+            <a href="{{ route('admin.fiscalperiod.exportPDF', $fiscalperiod->id) }}" target="_blank"
+               class="text-sm bg-gray-700 text-white px-3 py-2 rounded-lg hover:bg-gray-800 flex items-center gap-1.5" title="Print Annual Summary PDF">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>
+                Print Annual
+            </a>
             <a href="{{ route('admin.fiscalperiod.index') }}" class="text-sm bg-gray-100 text-gray-700 px-3 py-2 rounded-lg hover:bg-gray-200">← Back</a>
         </div>
     </div>
@@ -35,6 +41,8 @@
             <p class="text-red-800 text-sm">{{ session('error') }}</p>
         </div>
     @endif
+
+
 
     {{-- Financial Summary Cards --}}
     <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
@@ -136,7 +144,7 @@
                                     </span>
                                 </td>
                                 <td class="px-4 py-2.5 text-center">
-                                    <div class="flex items-center justify-center gap-1">
+                                    <div class="flex items-center justify-center gap-1.5">
                                         <a href="{{ route('admin.fiscalperiod.monthly-period.show', [$fiscalperiod->id, $month->id]) }}" class="text-blue-600 hover:underline text-xs">View</a>
                                         @if($month->canClose())
                                             <form method="POST" action="{{ route('admin.fiscalperiod.monthly-period.close', [$fiscalperiod->id, $month->id]) }}" onsubmit="return confirm('Close {{ $month->name }}?')" class="inline">
@@ -150,6 +158,10 @@
                                                 <button class="text-green-600 hover:underline text-xs ml-1">Reopen</button>
                                             </form>
                                         @endif
+                                        <a href="{{ route('admin.fiscalperiod.monthly-period.print', [$fiscalperiod->id, $month->id]) }}" target="_blank"
+                                           class="text-gray-500 hover:text-gray-700 ml-1" title="Print Monthly PDF">
+                                            <svg class="w-3.5 h-3.5 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>
+                                        </a>
                                     </div>
                                 </td>
                             </tr>
@@ -162,66 +174,14 @@
         @endif
     </div>
 
-    {{-- Balance Sheet Summary --}}
-    <div class="bg-white rounded-lg shadow p-5 mb-6">
-        <div class="flex items-center justify-between mb-4">
-            <h3 class="font-semibold">Balance Sheet</h3>
-            @if($fiscalperiod->status === 'open')
-                <a href="{{ route('admin.fiscalperiod.balance-sheet', $fiscalperiod->id) }}" class="text-xs text-blue-600 hover:underline">Manage Items →</a>
-            @endif
-        </div>
-        <div class="grid grid-cols-3 gap-4 text-center">
-            <div>
-                <p class="text-xs text-gray-500 uppercase">Assets</p>
-                <p class="text-lg font-bold text-blue-600">${{ number_format($balanceSummary['total_assets'], 2) }}</p>
-            </div>
-            <div>
-                <p class="text-xs text-gray-500 uppercase">Liabilities</p>
-                <p class="text-lg font-bold text-red-600">${{ number_format($balanceSummary['total_liabilities'], 2) }}</p>
-            </div>
-            <div>
-                <p class="text-xs text-gray-500 uppercase">Equity</p>
-                <p class="text-lg font-bold text-green-600">${{ number_format($balanceSummary['total_equity'], 2) }}</p>
-            </div>
-        </div>
-
-        {{-- Retained Earnings & Operating Performance --}}
-        <div class="mt-4 pt-4 border-t border-gray-100">
-            <h4 class="text-xs text-gray-500 uppercase font-semibold mb-2">Operating Performance (This Period)</h4>
-            <div class="grid grid-cols-4 gap-3 text-center text-sm">
-                <div>
-                    <p class="text-xs text-gray-400">Revenue</p>
-                    <p class="font-semibold text-green-600">${{ number_format($balanceSummary['total_income'], 2) }}</p>
-                </div>
-                <div>
-                    <p class="text-xs text-gray-400">Expenses</p>
-                    <p class="font-semibold text-red-600">${{ number_format($balanceSummary['total_expenses'], 2) }}</p>
-                </div>
-                <div>
-                    <p class="text-xs text-gray-400">Retained Earnings</p>
-                    <p class="font-semibold {{ $balanceSummary['retained_earnings'] >= 0 ? 'text-green-600' : 'text-red-600' }}">
-                        ${{ number_format($balanceSummary['retained_earnings'], 2) }}
-                    </p>
-                </div>
-                <div>
-                    <p class="text-xs text-gray-400">Adjusted Equity</p>
-                    <p class="font-semibold text-purple-600">${{ number_format($balanceSummary['adjusted_equity'], 2) }}</p>
-                </div>
-            </div>
-        </div>
 
         <div class="mt-3 text-center">
-            <span class="text-xs {{ $balanceSummary['balance_check'] ? 'text-green-600' : 'text-red-600' }}">
-                {{ $balanceSummary['balance_check'] ? '✓ Balanced (Assets = Liabilities + Adjusted Equity)' : '✗ Unbalanced — Assets ≠ Liabilities + Adjusted Equity' }}
-            </span>
-        </div>
-    </div>
+
 
     {{-- Close Period Section (only if open) --}}
     @if($fiscalperiod->status === 'open')
         <div class="bg-white rounded-lg shadow p-5 mb-6">
             <h3 class="font-semibold mb-3">Close This Period</h3>
-            <p class="text-sm text-gray-500 mb-4">Set the closing balance and mark the period as closed. You won't be able to edit after closing.</p>
             <form method="POST" action="{{ route('admin.fiscalperiod.closeperiod', $fiscalperiod->id) }}" onsubmit="return confirm('Close this fiscal period? This cannot be undone.')">
                 @csrf
                 <div class="flex items-end gap-3">

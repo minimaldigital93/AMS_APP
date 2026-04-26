@@ -406,7 +406,7 @@ class TenantController extends Controller
                         'fiscal_period_id' => $activePeriod->id,
                         'payment_id'       => $charge->id,
                         'user_id'          => Auth::id(),
-                        'account_type'     => 'income',
+                        'account_type'     => Accounts::TYPE_INCOME,
                         'category'         => $category,
                         'description'      => '[Apt ' . $apartmentNumber . '] Leave settlement - ' . ucfirst($charge->payment_type) . ': ' . ($charge->note ?: '-'),
                         'amount'           => $charge->amount,
@@ -414,6 +414,35 @@ class TenantController extends Controller
                         'reference_number' => null,
                         'note'             => 'Tenant: ' . $tenant->name,
                     ]);
+
+                    // Mirror expense for utility payments (matches checkoutTenant behavior)
+                    if ($charge->payment_type === 'utilities') {
+                        Accounts::create([
+                            'fiscal_period_id' => $activePeriod->id,
+                            'payment_id'       => $charge->id,
+                            'user_id'          => Auth::id(),
+                            'account_type'     => Accounts::TYPE_EXPENSE,
+                            'category'         => Accounts::CAT_UTILITIES_EXPENSE,
+                            'description'      => '[Apt ' . $apartmentNumber . '] Leave settlement - Utilities expense: ' . ($charge->note ?: '-'),
+                            'amount'           => $charge->amount,
+                            'transaction_date' => $leaveDate,
+                            'reference_number' => null,
+                            'note'             => 'Utility expense offset — Tenant: ' . $tenant->name,
+                        ]);
+                    } else {
+                        Accounts::create([
+                            'fiscal_period_id' => $activePeriod->id,
+                            'payment_id'       => $charge->id,
+                            'user_id'          => Auth::id(),
+                            'account_type'     => Accounts::TYPE_EXPENSE,
+                            'category'         => Accounts::CAT_OTHER_EXPENSE,
+                            'description'      => '[Apt ' . $apartmentNumber . '] Leave settlement - Other charge expense: ' . ($charge->note ?: '-'),
+                            'amount'           => $charge->amount,
+                            'transaction_date' => $leaveDate,
+                            'reference_number' => null,
+                            'note'             => 'Other charge expense offset — Tenant: ' . $tenant->name,
+                        ]);
+                    }
                 }
 
                 // 2b) Mark selected Utilities as paid and record income per utility type
@@ -432,7 +461,7 @@ class TenantController extends Controller
                         'fiscal_period_id' => $activePeriod->id,
                         'payment_id'       => null,
                         'user_id'          => Auth::id(),
-                        'account_type'     => 'income',
+                        'account_type'     => Accounts::TYPE_INCOME,
                         'category'         => $category,
                         'description'      => '[Apt ' . $apartmentNumber . '] Leave settlement - ' . ucfirst($util->utility_type) . ' ' . Carbon::create($util->billing_year, $util->billing_month)->format('M Y'),
                         'amount'           => $util->charge_amount,
@@ -440,6 +469,35 @@ class TenantController extends Controller
                         'reference_number' => null,
                         'note'             => 'Tenant: ' . $tenant->name,
                     ]);
+
+                    // Mirror expense for each utility charge (matches checkoutTenant behavior)
+                    if (in_array($util->utility_type, $utilityIncomeTypes)) {
+                        Accounts::create([
+                            'fiscal_period_id' => $activePeriod->id,
+                            'payment_id'       => null,
+                            'user_id'          => Auth::id(),
+                            'account_type'     => Accounts::TYPE_EXPENSE,
+                            'category'         => Accounts::CAT_UTILITIES_EXPENSE,
+                            'description'      => '[Apt ' . $apartmentNumber . '] Leave settlement - ' . ucfirst($util->utility_type) . ' expense ' . Carbon::create($util->billing_year, $util->billing_month)->format('M Y'),
+                            'amount'           => $util->charge_amount,
+                            'transaction_date' => $leaveDate,
+                            'reference_number' => null,
+                            'note'             => 'Utility expense offset — Tenant: ' . $tenant->name,
+                        ]);
+                    } else {
+                        Accounts::create([
+                            'fiscal_period_id' => $activePeriod->id,
+                            'payment_id'       => null,
+                            'user_id'          => Auth::id(),
+                            'account_type'     => Accounts::TYPE_EXPENSE,
+                            'category'         => Accounts::CAT_OTHER_EXPENSE,
+                            'description'      => '[Apt ' . $apartmentNumber . '] Leave settlement - ' . ucfirst($util->utility_type) . ' expense ' . Carbon::create($util->billing_year, $util->billing_month)->format('M Y'),
+                            'amount'           => $util->charge_amount,
+                            'transaction_date' => $leaveDate,
+                            'reference_number' => null,
+                            'note'             => 'Other charge expense offset — Tenant: ' . $tenant->name,
+                        ]);
+                    }
                 }
 
                 // 3) Record full deposit consumed as expense on tenant leave.
