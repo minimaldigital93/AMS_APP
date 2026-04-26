@@ -168,17 +168,22 @@
             </div>
             <p class="text-[11px] text-slate-400 mt-2">{{ $summary['profit_margin'] }}% margin</p>
         </div>
+        @php
+            $deposit_income = $income['deposit_income'] ?? 0;
+            $deposit_refunds = $expenses['deposit_expenses'] ?? 0;
+            $deposit_net = $deposit_income - $deposit_refunds;
+        @endphp
         <div class="bg-white rounded-xl border border-slate-100 p-5">
             <div class="flex items-center gap-3">
                 <div class="w-10 h-10 rounded-lg bg-purple-50 flex items-center justify-center">
                     <svg class="w-5 h-5 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/></svg>
                 </div>
                 <div>
-                    <p class="text-xs text-slate-400 font-medium">Occupancy</p>
-                    <p class="text-xl font-bold text-purple-600">{{ $occupiedCount }}/{{ $totalApartments }}</p>
+                    <p class="text-xs text-slate-400 font-medium">Deposits</p>
+                    <p class="text-xl font-bold {{ $deposit_net >= 0 ? 'text-emerald-600' : 'text-red-600' }}">{{ $deposit_net >= 0 ? '+' : '' }}${{ number_format($deposit_net, 2) }}</p>
                 </div>
             </div>
-            <p class="text-[11px] text-slate-400 mt-2">{{ $occupancyRate }}% occupied</p>
+            <p class="text-[11px] text-slate-400 mt-2">Received: ${{ number_format($deposit_income, 2) }} · Refunds: ${{ number_format($deposit_refunds, 2) }}</p>
         </div>
     </div>
 
@@ -451,27 +456,7 @@
             $depExpense = $expenses['deposit_expenses'] ?? 0;
             $depNet     = $depIncome - $depExpense;
         @endphp
-        @if($depIncome > 0 || $depExpense > 0)
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div class="bg-indigo-50/70 border border-indigo-100 rounded-xl p-4">
-                <p class="text-xs font-medium text-indigo-500 uppercase tracking-wide">Deposit Income</p>
-                <p class="text-2xl font-bold text-indigo-700 mt-1">${{ number_format($depIncome, 2) }}</p>
-                <p class="text-xs text-slate-400 mt-1">Received from tenants on move-in</p>
-            </div>
-            <div class="bg-rose-50/70 border border-rose-100 rounded-xl p-4">
-                <p class="text-xs font-medium text-rose-500 uppercase tracking-wide">Deposit Refunds</p>
-                <p class="text-2xl font-bold text-rose-700 mt-1">${{ number_format($depExpense, 2) }}</p>
-                <p class="text-xs text-slate-400 mt-1">Returned to tenants on leave</p>
-            </div>
-            <div class="bg-white border border-slate-100 rounded-xl p-4">
-                <p class="text-xs font-medium text-slate-500 uppercase tracking-wide">Deposit Net</p>
-                <p class="text-2xl font-bold {{ $depNet >= 0 ? 'text-emerald-600' : 'text-red-600' }} mt-1">
-                    {{ $depNet >= 0 ? '+' : '' }}${{ number_format($depNet, 2) }}
-                </p>
-                <p class="text-xs text-slate-400 mt-1">Income minus refunds</p>
-            </div>
-        </div>
-        @endif
+
 
         {{-- Per-Apartment Table with Grouping Toggle (now with sub-tabs) --}}
         @if(isset($perApartment) && count($perApartment) > 0)

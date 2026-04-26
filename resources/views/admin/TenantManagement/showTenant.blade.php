@@ -142,14 +142,7 @@
             </div>
         </div>
 
-        <!-- Action Button (Process Leave, right aligned) -->
-        <div class="flex justify-end items-center gap-3">
-            @if($tenant->status === 'active')
-                <a href="{{ route('admin.tenants.leave', $tenant->id) }}" class="inline-flex items-center gap-2 text-sm font-medium py-2.5 px-5 rounded-lg text-red-600 hover:text-red-700 border border-red-200 hover:border-red-300 hover:bg-red-50 transition" title="Process Leave">
-                    Process Leave
-                </a>
-            @endif
-        </div>
+     
     </div>
 </div>
 @endsection

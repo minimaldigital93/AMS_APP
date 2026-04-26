@@ -87,7 +87,7 @@
                     <div class="mt-4 pt-4 border-t-2 border-gray-100 flex items-center justify-between">
                         <div id="unitCounter" class="text-sm font-semibold">
                             <span class="inline-block bg-gradient-to-r from-emerald-100 to-green-100 text-emerald-700 px-3 py-1 rounded-full">
-                                📍 <span class="font-bold">0 units</span> added
+                                 <span class="font-bold">0 units</span> added
                             </span>
                         </div>
                         <p class="text-xs text-gray-500">💡 Press Enter or click Add Unit button</p>

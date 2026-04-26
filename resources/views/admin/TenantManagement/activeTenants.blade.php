@@ -65,8 +65,6 @@
                         class="px-3 py-1.5 rounded-lg text-sm font-medium transition">All</button>
                     <button @click="filter = 'paid'" :class="filter === 'paid' ? 'bg-emerald-600 text-white' : 'bg-slate-50 text-slate-600 hover:bg-slate-100'"
                         class="px-3 py-1.5 rounded-lg text-sm font-medium transition">Paid</button>
-                    <button @click="filter = 'paying'" :class="filter === 'paying' ? 'bg-yellow-600 text-white' : 'bg-slate-50 text-slate-600 hover:bg-slate-100'"
-                        class="px-3 py-1.5 rounded-lg text-sm font-medium transition">Paying</button>
                     <button @click="filter = 'overdue'" :class="filter === 'overdue' ? 'bg-red-600 text-white' : 'bg-slate-50 text-slate-600 hover:bg-slate-100'"
                         class="px-3 py-1.5 rounded-lg text-sm font-medium transition">Overdue</button>
                     <button @click="filter = 'unpaid'" :class="filter === 'unpaid' ? 'bg-gray-800 text-white' : 'bg-slate-50 text-slate-600 hover:bg-slate-100'"
@@ -88,6 +86,7 @@
                             <th class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Floor / Apartment</th>
                             <th class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Progress</th>
                             <th class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Status</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Deposit</th>
                             <th class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Actions</th>
                         </tr>
                     </thead>
@@ -126,7 +125,12 @@
                                     <div class="w-28">
                                         <div class="flex items-center justify-between mb-0.5">
                                             <span class="text-[10px] font-semibold {{ $textColor }}">{{ $dp }}%</span>
-                                            <span class="text-[10px] text-gray-400">${{ number_format($rp['paid'], 0) }}/${{ number_format($rp['rent'], 0) }}</span>
+                                            @php
+                                                $periodDays = $rp['period_days'] ?? 30;
+                                                $daysElapsed = (int) round(($dp / 100) * $periodDays);
+                                                $daysRemaining = max(0, $periodDays - $daysElapsed);
+                                            @endphp
+                                            <span class="text-[10px] text-gray-400">{{ $daysRemaining }} day{{ $daysRemaining !== 1 ? 's' : '' }} left</span>
                                         </div>
                                         <div class="w-full rounded-full h-1.5 {{ $trackColor }}">
                                             <div class="h-1.5 rounded-full {{ $barColor }}" style="width: {{ $dp }}%"></div>
@@ -136,6 +140,8 @@
                                     <span class="text-[10px] text-gray-300">—</span>
                                     @endif
                                 </td>
+
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${{ number_format($tenant->deposit ?? 0, 2) }}</td>
 
                                 <td class="px-6 py-4 whitespace-nowrap">
                                     @if(isset($rp))
@@ -202,7 +208,6 @@ function tenantFilter(){
             if(q && !((name || '').toLowerCase().includes(q) || (apartment || '').toLowerCase().includes(q))) return false;
             if(this.filter === 'all') return true;
             if(this.filter === 'paid') return status === 'paid';
-            if(this.filter === 'paying') return status === 'partial';
             if(this.filter === 'overdue') return status === 'overdue' || (Number(dayPercent) >= 80);
             if(this.filter === 'unpaid') return status !== 'paid' && status !== 'partial' && Number(dayPercent) < 80;
             return true;

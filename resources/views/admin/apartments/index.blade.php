@@ -10,12 +10,7 @@
             <h1 class="text-2xl font-semibold text-slate-800 tracking-tight">Apartment Management</h1>
             <p class="text-slate-400 text-sm mt-1">Manage apartment units across all floors</p>
         </div>
-        <a href="{{ route('admin.apartments.create') }}" class="inline-flex items-center gap-2 bg-slate-800 hover:bg-slate-700 text-white text-sm font-medium py-2.5 px-5 rounded-lg transition">
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" />
-            </svg>
-            Add Apartment
-        </a>
+     
     </div>
 
     <!-- Flash Messages -->
@@ -98,18 +93,22 @@
                                 <span class="text-sm text-slate-600">${{ number_format($apartment->monthly_rent, 2) }}</span>
                             </td>
                             <td class="px-4 py-3">
-                                <span class="inline-flex items-center gap-1.5 text-xs font-medium
-                                    @if($apartment->status === 'available') text-emerald-600
-                                    @elseif($apartment->status === 'occupied') text-sky-600
-                                    @elseif($apartment->status === 'maintenance') text-amber-600
-                                    @else text-slate-500
-                                    @endif">
-                                    <span class="w-1.5 h-1.5 rounded-full
-                                        @if($apartment->status === 'available') bg-emerald-400
-                                        @elseif($apartment->status === 'occupied') bg-sky-400
-                                        @elseif($apartment->status === 'maintenance') bg-amber-400
-                                        @else bg-slate-300
-                                        @endif"></span>
+                                @php
+                                    $statusTextClass = match($apartment->status) {
+                                        'available' => 'text-emerald-600',
+                                        'occupied' => 'text-sky-600',
+                                        'maintenance' => 'text-amber-600',
+                                        default => 'text-slate-500',
+                                    };
+                                    $statusBgClass = match($apartment->status) {
+                                        'available' => 'bg-emerald-400',
+                                        'occupied' => 'bg-sky-400',
+                                        'maintenance' => 'bg-amber-400',
+                                        default => 'bg-slate-300',
+                                    };
+                                @endphp
+                                <span class="inline-flex items-center gap-1.5 text-xs font-medium {{ $statusTextClass }}">
+                                    <span class="w-1.5 h-1.5 rounded-full {{ $statusBgClass }}"></span>
                                     {{ ucfirst($apartment->status) }}
                                 </span>
                             </td>
@@ -235,28 +234,8 @@
                             </td>
                             <td class="px-4 py-3 text-right">
                                 <div class="flex items-center justify-end gap-1">
-                                    <a href="{{ route('admin.apartments.show', $apartment->id) }}" 
-                                       title="View apartment"
-                                       class="text-slate-600 hover:text-slate-800 p-1.5 rounded-lg hover:bg-slate-50 transition">
-                                        <svg class="w-[16px] h-[16px]" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z" />
-                                            <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                                        </svg>
-                                    </a>
-                                    
                                     @php $tenant = $apartment->tenants()->whereNull('deleted_at')->latest()->first(); @endphp
 
-                                    @if($tenant && $tenant->status === 'active')
-                                    <button type="button" 
-                                            onclick="processLeaveClick(event, {{ $tenant->id }}, '{{ $tenant->name }}')"
-                                            title="Process tenant leave"
-                                            class="leave-tenant-btn text-amber-500 hover:text-amber-600 p-1.5 rounded-lg bg-amber-50/20 hover:bg-amber-50 transition">
-                                        <svg class="w-[16px] h-[16px]" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-                                        </svg>
-                                    </button>
-                                    @endif
-                                    
                                     @if(!$tenant || $tenant->status !== 'active')
                                     <button type="button" 
                                             data-apartment-id="{{ $apartment->id }}"
@@ -268,7 +247,16 @@
                                         </svg>
                                     </button>
                                     @endif
-                                    
+
+                                    <a href="{{ route('admin.apartments.show', $apartment->id) }}" 
+                                       title="View apartment"
+                                       class="text-slate-600 hover:text-slate-800 p-1.5 rounded-lg hover:bg-slate-50 transition">
+                                        <svg class="w-[16px] h-[16px]" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z" />
+                                            <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                        </svg>
+                                    </a>
+
                                     <a href="{{ route('admin.apartments.edit', $apartment->id) }}" 
                                        title="Edit apartment"
                                        class="text-sky-600 hover:text-sky-700 p-1.5 rounded-lg bg-sky-50/20 hover:bg-slate-50 transition">
