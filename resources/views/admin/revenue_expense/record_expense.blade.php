@@ -1,7 +1,7 @@
 @extends('layouts.admin')
 
 @section('content')
-<div class="max-w-6xl mx-auto space-y-8" x-data="{ activeForm: 'utility', showForm: false, activeTab: 'apartment' }">
+<div class="max-w-6xl mx-auto space-y-8" x-data="{ showForm: false, activeTab: 'apartment' }">
     <!-- Header -->
     <div class="flex items-center justify-between">
         <div>
@@ -121,220 +121,121 @@
             </div>
 
             <div class="p-6">
-                <!-- Form Type Selector -->
-                <div class="flex gap-2 mb-6">
-                    <button @click="activeForm = 'utility'" :class="activeForm === 'utility' ? 'bg-amber-600 text-white' : 'bg-slate-50 text-slate-600 hover:bg-slate-100'"
-                        class="px-4 py-2 rounded-lg text-sm font-medium transition">Utility Expense</button>
-                    <button @click="activeForm = 'other'" :class="activeForm === 'other' ? 'bg-purple-600 text-white' : 'bg-slate-50 text-slate-600 hover:bg-slate-100'"
-                        class="px-4 py-2 rounded-lg text-sm font-medium transition">Other Expense</button>
-                    <button @click="activeForm = 'business'" :class="activeForm === 'business' ? 'bg-orange-600 text-white' : 'bg-slate-50 text-slate-600 hover:bg-slate-100'"
-                        class="px-4 py-2 rounded-lg text-sm font-medium transition">Business Expense</button>
-                </div>
-
-                <!-- Utility Expense Form -->
-                <div x-show="activeForm === 'utility'">
-                    <form action="{{ route('admin.revenue_expense.store_expense') }}" method="POST">
-                        @csrf
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div>
-                                <label for="rental_id" class="block text-sm font-medium text-slate-700 mb-1">Apartment <span class="text-red-500">*</span></label>
-                                <select name="rental_id" id="rental_id" required class="w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500">
-                                    <option value="">-- Select apartment --</option>
-                                    @foreach($apartments as $apartment)
-                                        @foreach($apartment->rentals as $rental)
-                                        <option value="{{ $rental->id }}" {{ old('rental_id') == $rental->id ? 'selected' : '' }}>
-                                            {{ $apartment->apartment_number }} — {{ $rental->tenant->name ?? 'N/A' }}
-                                        </option>
-                                        @endforeach
-                                    @endforeach
-                                </select>
-                            </div>
-                            <div>
-                                <label for="utility_type" class="block text-sm font-medium text-slate-700 mb-1">Utility Type <span class="text-red-500">*</span></label>
-                                <select name="utility_type" id="utility_type" required class="w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500">
-                                    <option value="">-- Select type --</option>
-                                    @foreach($utilityTypes as $key => $label)
-                                                                        <option value="{{ $key }}" {{ old('utility_type') == $key ? 'selected' : '' }}>{{ $key === 'trash' ? 'Trash Services' : $label }}</option>
-                                    @endforeach
-                                </select>
-                            </div>
-                            <div>
-                                <label for="charge_amount" class="block text-sm font-medium text-slate-700 mb-1">Amount ($) <span class="text-red-500">*</span></label>
-                                <input type="number" name="charge_amount" id="charge_amount" step="0.01" min="0.01" required
-                                    value="{{ old('charge_amount') }}" placeholder="0.00"
-                                    class="w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500">
-                            </div>
-                            <div>
-                                <label for="transaction_date" class="block text-sm font-medium text-slate-700 mb-1">Date <span class="text-red-500">*</span></label>
-                                <input type="date" name="transaction_date" id="transaction_date" required
-                                    value="{{ old('transaction_date', date('Y-m-d')) }}"
-                                    class="w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500 bg-white appearance-none h-10">
-                            </div>
-                        </div>
-                        <div id="meter-readings" class="mt-4 p-3 bg-amber-50 rounded-lg border border-amber-200" style="display: none;">
-                            <p class="text-sm font-semibold text-amber-800 mb-2">Meter Readings</p>
-                            <div class="grid grid-cols-2 gap-4">
-                                <div>
-                                    <label for="meter_reading_in" class="block text-xs text-slate-500 mb-1">Meter In (Previous)</label>
-                                    <input type="number" name="meter_reading_in" id="meter_reading_in" step="0.01" min="0"
-                                        value="{{ old('meter_reading_in') }}" placeholder="0.00"
-                                        class="w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-amber-500">
-                                </div>
-                                <div>
-                                    <label for="meter_reading_out" class="block text-xs text-slate-500 mb-1">Meter Out (Current)</label>
-                                    <input type="number" name="meter_reading_out" id="meter_reading_out" step="0.01" min="0"
-                                        value="{{ old('meter_reading_out') }}" placeholder="0.00"
-                                        class="w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-amber-500">
-                                </div>
-                            </div>
-                        </div>
-                        <div class="mt-4">
-                            <label for="note" class="block text-sm font-medium text-slate-700 mb-1">Note</label>
-                            <input type="text" name="note" id="note" value="{{ old('note') }}" placeholder="Optional note..."
-                                class="w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500">
-                        </div>
-                        <div class="mt-4 flex justify-end">
-                            <button type="button" @click="showForm = false" class="mr-2 px-4 py-2 rounded-lg border border-slate-200 text-slate-600">Cancel</button>
-                            <button type="submit" class="inline-flex items-center px-5 py-2.5 bg-amber-600 text-white rounded-lg hover:bg-amber-700 transition font-medium text-sm">
-                                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/></svg>
-                                Record Utility Expense
-                            </button>
-                        </div>
-                    </form>
-                </div>
-
-                <!-- Other Expense Form -->
-                <div x-show="activeForm === 'other'" x-cloak>
-                    <form action="{{ route('admin.revenue_expense.store_other_expense') }}" method="POST">
-                        @csrf
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div>
-                                <label for="other_category" class="block text-sm font-medium text-slate-700 mb-1">Category <span class="text-red-500">*</span></label>
-                                <select name="category" id="other_category" required class="w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500">
-                                    <option value="">-- Select category --</option>
-                                    @foreach($otherExpenseCategories as $key => $label)
-                                    <option value="{{ $key }}" {{ old('category') == $key ? 'selected' : '' }}>{{ $label }}</option>
-                                    @endforeach
-                                </select>
-                            </div>
-                            <div>
-                                <label for="other_amount" class="block text-sm font-medium text-slate-700 mb-1">Amount ($) <span class="text-red-500">*</span></label>
-                                <input type="number" name="amount" id="other_amount" step="0.01" min="0.01" required
-                                    value="{{ old('amount') }}" placeholder="0.00"
-                                    class="w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500">
-                            </div>
-                            <div>
-                                <label for="other_description" class="block text-sm font-medium text-slate-700 mb-1">Description <span class="text-red-500">*</span></label>
-                                <input type="text" name="description" id="other_description" required
-                                    value="{{ old('description') }}" placeholder="e.g. Roof repair, pest control..."
-                                    class="w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500">
-                            </div>
-                            <div>
-                                <label for="other_date" class="block text-sm font-medium text-slate-700 mb-1">Date <span class="text-red-500">*</span></label>
-                                <input type="date" name="transaction_date" id="other_date" required
-                                    value="{{ old('transaction_date', date('Y-m-d')) }}"
-                                    class="w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 bg-white appearance-none h-10">
-                            </div>
-                        </div>
-                        <div class="mt-4 flex justify-end">
-                            <button type="button" @click="showForm = false" class="mr-2 px-4 py-2 rounded-lg border border-slate-200 text-slate-600">Cancel</button>
-                            <button type="submit" class="inline-flex items-center px-5 py-2.5 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition font-medium text-sm">
-                                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/></svg>
-                                Add Other Expense
-                            </button>
-                        </div>
-                    </form>
-                </div>
-
                 <!-- Business Expense Form -->
-                <div x-show="activeForm === 'business'" x-cloak>
-                    <form action="{{ route('admin.revenue_expense.store_business_expense') }}" method="POST">
-                        @csrf
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div>
-                                <label for="biz_expense_name" class="block text-sm font-medium text-slate-700 mb-1">Expense Name <span class="text-red-500">*</span></label>
-                                <input type="text" name="expense_name" id="biz_expense_name" required
-                                    value="{{ old('expense_name') }}" placeholder="e.g. Building Insurance..."
-                                    class="w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500">
-                            </div>
-                            <div>
-                                <label for="biz_cost_type" class="block text-sm font-medium text-slate-700 mb-1">Cost Type <span class="text-red-500">*</span></label>
-                                <select name="cost_type" id="biz_cost_type" required class="w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500">
-                                    <option value="">-- Select type --</option>
-                                    <option value="fixed" {{ old('cost_type') == 'fixed' ? 'selected' : '' }}>Fixed</option>
-                                    <option value="variable" {{ old('cost_type') == 'variable' ? 'selected' : '' }}>Variable</option>
-                                </select>
-                            </div>
-                            <div>
-                                <label for="biz_category" class="block text-sm font-medium text-slate-700 mb-1">Category <span class="text-red-500">*</span></label>
-                                <select name="category" id="biz_category" required class="w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500">
-                                    <option value="">-- Select category --</option>
-                                    @foreach($businessCategories as $key => $label)
-                                    <option value="{{ $key }}" {{ old('category') == $key ? 'selected' : '' }}>{{ $label }}</option>
-                                    @endforeach
-                                </select>
-                            </div>
-                            <div>
-                                <label for="biz_amount" class="block text-sm font-medium text-slate-700 mb-1">Amount ($) <span class="text-red-500">*</span></label>
-                                <input type="number" name="amount" id="biz_amount" step="0.01" min="0.01" required
-                                    value="{{ old('amount') }}" placeholder="0.00"
-                                    class="w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500">
-                            </div>
-                            <div>
-                                <label for="biz_date" class="block text-sm font-medium text-slate-700 mb-1">Date <span class="text-red-500">*</span></label>
-                                <input type="date" name="expense_date" id="biz_date" required
-                                    value="{{ old('expense_date', date('Y-m-d')) }}"
-                                    class="w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 bg-white appearance-none h-10">
-                            </div>
-                            <div class="flex items-end pb-1">
-                                <label class="flex items-center gap-2 cursor-pointer">
-                                    <input type="checkbox" name="is_recurring" value="1" {{ old('is_recurring') ? 'checked' : '' }}
-                                        class="w-4 h-4 rounded border-slate-200 text-orange-600 focus:ring-orange-500">
-                                    <span class="text-sm text-slate-600">Recurring monthly</span>
-                                </label>
-                            </div>
+                <form action="{{ route('admin.revenue_expense.store_business_expense') }}" method="POST">
+                    @csrf
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label for="biz_expense_name" class="block text-sm font-medium text-slate-700 mb-1">Expense Name <span class="text-red-500">*</span></label>
+                            <input type="text" name="expense_name" id="biz_expense_name" required
+                                value="{{ old('expense_name') }}" placeholder="e.g. Building Insurance..."
+                                class="w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500">
                         </div>
-                        <div class="mt-4 flex justify-end">
-                            <button type="button" @click="showForm = false" class="mr-2 px-4 py-2 rounded-lg border border-slate-200 text-slate-600">Cancel</button>
-                            <button type="submit" class="inline-flex items-center px-5 py-2.5 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition font-medium text-sm">
-                                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/></svg>
-                                Add Business Expense
-                            </button>
+                        <div>
+                            <label for="biz_cost_type" class="block text-sm font-medium text-slate-700 mb-1">Cost Type <span class="text-red-500">*</span></label>
+                            <select name="cost_type" id="biz_cost_type" required class="w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500">
+                                <option value="">-- Select type --</option>
+                                <option value="fixed" {{ old('cost_type') == 'fixed' ? 'selected' : '' }}>Fixed</option>
+                                <option value="variable" {{ old('cost_type') == 'variable' ? 'selected' : '' }}>Variable</option>
+                            </select>
                         </div>
-                    </form>
-                </div>
+                        <div>
+                            <label for="biz_category" class="block text-sm font-medium text-slate-700 mb-1">Category <span class="text-red-500">*</span></label>
+                            <select name="category" id="biz_category" required class="w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500">
+                                <option value="">-- Select category --</option>
+                                @foreach($businessCategories as $key => $label)
+                                <option value="{{ $key }}" {{ old('category') == $key ? 'selected' : '' }}>{{ $label }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                        <div>
+                            <label for="biz_amount" class="block text-sm font-medium text-slate-700 mb-1">Amount ($) <span class="text-red-500">*</span></label>
+                            <input type="number" name="amount" id="biz_amount" step="0.01" min="0.01" required
+                                value="{{ old('amount') }}" placeholder="0.00"
+                                class="w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500">
+                        </div>
+                        <div>
+                            <label for="biz_date" class="block text-sm font-medium text-slate-700 mb-1">Date <span class="text-red-500">*</span></label>
+                            <input type="date" name="expense_date" id="biz_date" required
+                                value="{{ old('expense_date', date('Y-m-d')) }}"
+                                class="w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 bg-white appearance-none h-10">
+                        </div>
+                    </div>
+                    <div class="mt-4 flex justify-end">
+                        <button type="button" @click="showForm = false" class="mr-2 px-4 py-2 rounded-lg border border-slate-200 text-slate-600">Cancel</button>
+                        <button type="submit" class="inline-flex items-center px-5 py-2.5 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition font-medium text-sm">
+                            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/></svg>
+                            Add Business Expense
+                        </button>
+                    </div>
+                </form>
             </div>
         </div>
     </div>
 
     <!-- Summary Cards -->
-    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div class="bg-white rounded-xl border border-slate-100 p-5">
-            <div class="flex items-center gap-3">
+    @php
+        $allExp = collect($apartmentExpensesAll);
+        $sumElec    = $allExp->sum('electricity');
+        $sumWater   = $allExp->sum('water');
+        $sumNet     = $allExp->sum('internet');
+        $sumParking = $allExp->sum('parking');
+        $sumTrash   = $allExp->sum('trash');
+        $sumOther   = $allExp->sum('other');
+        $sumFixed   = $allExp->sum('fixed_total');
+    @endphp
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div x-data="{ expanded: false }" @click="expanded = !expanded"
+            class="bg-white rounded-xl border border-slate-100 p-5 cursor-pointer transition hover:shadow-sm">
+            <div class="flex items-center gap-3 mb-3">
                 <div class="w-10 h-10 rounded-lg bg-amber-50 flex items-center justify-center">
                     <svg class="w-5 h-5 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
                 </div>
                 <div>
                     <p class="text-xs text-slate-400 font-medium">Apartment Utilities</p>
-                    <p class="text-xl font-bold text-amber-600">${{ number_format(collect($apartmentExpensesAll)->sum('total'), 2) }}</p>
+                    <p class="text-xl font-bold text-amber-600">${{ number_format($allExp->sum('total'), 2) }}</p>
+                </div>
+                <div class="ml-auto text-right text-xs text-slate-500"></div>
+            </div>
+            <div x-show="expanded" x-cloak class="mt-4 space-y-3">
+                <div class="rounded-xl bg-slate-50 p-4 border border-slate-100">
+                    <div class="flex items-center justify-between text-sm text-slate-600">
+                        <span>Fixed total</span>
+                        <span class="font-semibold text-indigo-600">${{ number_format($sumFixed, 2) }}</span>
+                    </div>
+                </div>
+                <div class="grid grid-cols-3 gap-2">
+                    <div class="bg-amber-50 rounded-lg px-2 py-1.5 text-center">
+                        <p class="text-[10px] text-amber-500 font-medium uppercase">Electric</p>
+                        <p class="text-sm font-bold text-amber-700">${{ number_format($sumElec, 2) }}</p>
+                    </div>
+                    <div class="bg-sky-50 rounded-lg px-2 py-1.5 text-center">
+                        <p class="text-[10px] text-sky-500 font-medium uppercase">Water</p>
+                        <p class="text-sm font-bold text-sky-700">${{ number_format($sumWater, 2) }}</p>
+                    </div>
+                    <div class="bg-purple-50 rounded-lg px-2 py-1.5 text-center">
+                        <p class="text-[10px] text-purple-500 font-medium uppercase">Internet</p>
+                        <p class="text-sm font-bold text-purple-700">${{ number_format($sumNet, 2) }}</p>
+                    </div>
+                    <div class="bg-orange-50 rounded-lg px-2 py-1.5 text-center">
+                        <p class="text-[10px] text-orange-500 font-medium uppercase">Parking</p>
+                        <p class="text-sm font-bold text-orange-700">${{ number_format($sumParking, 2) }}</p>
+                    </div>
+                    <div class="bg-green-50 rounded-lg px-2 py-1.5 text-center">
+                        <p class="text-[10px] text-green-500 font-medium uppercase">Trash</p>
+                        <p class="text-sm font-bold text-green-700">${{ number_format($sumTrash, 2) }}</p>
+                    </div>
+                    <div class="bg-slate-50 rounded-lg px-2 py-1.5 text-center">
+                        <p class="text-[10px] text-slate-500 font-medium uppercase">Other</p>
+                        <p class="text-sm font-bold text-slate-700">${{ number_format($sumOther, 2) }}</p>
+                    </div>
                 </div>
             </div>
-            <p class="text-[11px] text-slate-400 mt-2">+ Fixed: ${{ number_format(collect($apartmentExpensesAll)->sum('fixed_total'), 2) }}</p>
         </div>
-        <div class="bg-white rounded-xl border border-slate-100 p-5">
-            <div class="flex items-center gap-3">
-                <div class="w-10 h-10 rounded-lg bg-purple-50 flex items-center justify-center">
-                    <svg class="w-5 h-5 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
-                </div>
-                <div>
-                    <p class="text-xs text-slate-400 font-medium">Other Expenses</p>
-                    <p class="text-xl font-bold text-purple-600">${{ number_format($totalOtherExpenses, 2) }}</p>
-                </div>
-            </div>
-            <p class="text-[11px] text-slate-400 mt-2">{{ $otherExpenses->count() }} item(s)</p>
-        </div>
-        <div class="bg-white rounded-xl border border-slate-100 p-5">
-            <div class="flex items-center gap-3">
+
+        <div x-data="{ expanded: false }" @click="expanded = !expanded"
+            class="bg-white rounded-xl border border-slate-100 p-5 cursor-pointer transition hover:shadow-sm">
+            <div class="flex items-center gap-3 mb-3">
                 <div class="w-10 h-10 rounded-lg bg-orange-50 flex items-center justify-center">
                     <svg class="w-5 h-5 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5"/></svg>
                 </div>
@@ -342,11 +243,26 @@
                     <p class="text-xs text-slate-400 font-medium">Business Expenses</p>
                     <p class="text-xl font-bold text-orange-600">${{ number_format($businessTotal, 2) }}</p>
                 </div>
+                <div class="ml-auto text-right text-xs text-slate-500"></div>
             </div>
-            <p class="text-[11px] text-slate-400 mt-2">Fixed: ${{ number_format($businessFixedTotal, 2) }} | Variable: ${{ number_format($businessVariableTotal, 2) }}</p>
+            <div x-show="expanded" x-cloak class="mt-4 space-y-2 text-sm text-slate-600">
+                <div class="rounded-xl bg-slate-50 p-4 border border-slate-100">
+                    <div class="flex items-center justify-between">
+                        <span>Fixed total</span>
+                        <span class="font-semibold text-green-600">${{ number_format($businessFixedTotal, 2) }}</span>
+                    </div>
+                </div>
+                <div class="rounded-xl bg-slate-50 p-4 border border-slate-100">
+                    <div class="flex items-center justify-between">
+                        <span>Variable total</span>
+                        <span class="font-semibold text-amber-600">${{ number_format($businessVariableTotal, 2) }}</span>
+                    </div>
+                </div>
+            </div>
         </div>
-        <div class="bg-white rounded-xl border border-slate-100 p-5">
-            <div class="flex items-center gap-3">
+        <div x-data="{ expanded: false }" @click="expanded = !expanded"
+            class="bg-white rounded-xl border border-slate-100 p-5 cursor-pointer transition hover:shadow-sm md:col-span-2">
+            <div class="flex items-center gap-3 mb-3">
                 <div class="w-10 h-10 rounded-lg bg-red-50 flex items-center justify-center">
                     <svg class="w-5 h-5 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
                 </div>
@@ -354,8 +270,28 @@
                     <p class="text-xs text-slate-400 font-medium">Grand Total</p>
                     <p class="text-xl font-bold text-red-600">${{ number_format($grandTotalExpenses, 2) }}</p>
                 </div>
+                <div class="ml-auto text-right text-xs text-slate-500"></div>
             </div>
-            <p class="text-[11px] text-slate-400 mt-2">All expenses combined</p>
+            <div x-show="expanded" x-cloak class="mt-4 space-y-2 text-sm text-slate-600">
+                <div class="rounded-xl bg-slate-50 p-4 border border-slate-100">
+                    <div class="flex items-center justify-between">
+                        <span>Apartment utilities</span>
+                        <span class="font-semibold">${{ number_format($allExp->sum('total') + $sumFixed, 2) }}</span>
+                    </div>
+                </div>
+                <div class="rounded-xl bg-slate-50 p-4 border border-slate-100">
+                    <div class="flex items-center justify-between">
+                        <span>Other expenses</span>
+                        <span class="font-semibold">${{ number_format($totalOtherExpenses, 2) }}</span>
+                    </div>
+                </div>
+                <div class="rounded-xl bg-slate-50 p-4 border border-slate-100">
+                    <div class="flex items-center justify-between">
+                        <span>Business expenses</span>
+                        <span class="font-semibold">${{ number_format($businessTotal, 2) }}</span>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -390,19 +326,25 @@
             <table class="min-w-full">
                 <thead class="bg-slate-50/80">
                     <tr>
+                        <th class="px-3 py-3 text-center text-[11px] font-medium text-slate-400 uppercase tracking-wider w-10">#</th>
                         <th class="px-4 py-3 text-left text-[11px] font-medium text-slate-400 uppercase tracking-wider">Apartment</th>
                         <th class="px-4 py-3 text-center text-[11px] font-medium text-slate-400 uppercase tracking-wider">Status</th>
                         <th class="px-4 py-3 text-right text-[11px] font-medium text-slate-400 uppercase tracking-wider">Electric</th>
                         <th class="px-4 py-3 text-right text-[11px] font-medium text-slate-400 uppercase tracking-wider">Water</th>
                         <th class="px-4 py-3 text-right text-[11px] font-medium text-slate-400 uppercase tracking-wider">Internet</th>
                         <th class="px-4 py-3 text-right text-[11px] font-medium text-slate-400 uppercase tracking-wider">Parking</th>
+                        <th class="px-4 py-3 text-right text-[11px] font-medium text-slate-400 uppercase tracking-wider">Trash</th>
+                        <th class="px-4 py-3 text-right text-[11px] font-medium text-slate-400 uppercase tracking-wider">Other</th>
                         <th class="px-4 py-3 text-right text-[11px] font-medium text-slate-400 uppercase tracking-wider">Fixed</th>
                         <th class="px-4 py-3 text-right text-[11px] font-medium text-slate-400 uppercase tracking-wider">Total</th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-slate-50">
+                    @php $rowNo = ($apartmentExpenses->currentPage() - 1) * $apartmentExpenses->perPage(); @endphp
                     @foreach($apartmentExpenses as $aptExp)
+                    @php $rowNo++ @endphp
                     <tr class="hover:bg-slate-50/50" x-data="{ showFixed: false }">
+                        <td class="px-3 py-3 text-center text-xs text-slate-400 font-medium">{{ $rowNo }}</td>
                         <td class="px-4 py-3">
                             <span class="font-semibold text-slate-800">{{ $aptExp['apartment']->apartment_number }}</span>
                             <span class="text-xs text-slate-400 block">Floor {{ $aptExp['apartment']->floor->floor_number ?? 'N/A' }}</span>
@@ -416,6 +358,8 @@
                         <td class="px-4 py-3 text-right text-sm {{ $aptExp['water'] > 0 ? 'font-semibold text-sky-600' : 'text-slate-400' }}">${{ number_format($aptExp['water'], 2) }}</td>
                         <td class="px-4 py-3 text-right text-sm {{ $aptExp['internet'] > 0 ? 'font-semibold text-purple-600' : 'text-slate-400' }}">${{ number_format($aptExp['internet'], 2) }}</td>
                         <td class="px-4 py-3 text-right text-sm {{ $aptExp['parking'] > 0 ? 'font-semibold text-orange-600' : 'text-slate-400' }}">${{ number_format($aptExp['parking'], 2) }}</td>
+                        <td class="px-4 py-3 text-right text-sm {{ $aptExp['trash'] > 0 ? 'font-semibold text-green-600' : 'text-slate-400' }}">${{ number_format($aptExp['trash'], 2) }}</td>
+                        <td class="px-4 py-3 text-right text-sm {{ $aptExp['other'] > 0 ? 'font-semibold text-slate-600' : 'text-slate-400' }}">${{ number_format($aptExp['other'], 2) }}</td>
                         <td class="px-4 py-3 text-right text-sm">
                             @if($aptExp['fixed_total'] > 0)
                             <button @click="showFixed = !showFixed" class="font-semibold text-indigo-600 hover:text-indigo-800">
@@ -430,7 +374,7 @@
                     </tr>
                     @if($aptExp['fixed_items']->count() > 0)
                     <tr x-show="showFixed" x-cloak class="bg-indigo-50">
-                        <td colspan="8" class="px-6 py-2">
+                        <td colspan="11" class="px-6 py-2">
                             <div class="flex flex-wrap gap-2">
                                 @foreach($aptExp['fixed_items'] as $fi)
                                 <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-indigo-100 text-indigo-700">
@@ -445,12 +389,15 @@
                 </tbody>
                 <tfoot class="bg-slate-50/80">
                     <tr>
+                        <td class="px-3 py-3"></td>
                         <td class="px-4 py-3 font-bold text-slate-800" colspan="2">Total</td>
-                        <td class="px-4 py-3 text-right font-bold text-amber-600">${{ number_format(collect($apartmentExpensesAll)->sum('electricity'), 2) }}</td>
-                        <td class="px-4 py-3 text-right font-bold text-sky-600">${{ number_format(collect($apartmentExpensesAll)->sum('water'), 2) }}</td>
-                        <td class="px-4 py-3 text-right font-bold text-purple-600">${{ number_format(collect($apartmentExpensesAll)->sum('internet'), 2) }}</td>
-                        <td class="px-4 py-3 text-right font-bold text-orange-600">${{ number_format(collect($apartmentExpensesAll)->sum('parking'), 2) }}</td>
-                        <td class="px-4 py-3 text-right font-bold text-indigo-600">${{ number_format(collect($apartmentExpensesAll)->sum('fixed_total'), 2) }}</td>
+                        <td class="px-4 py-3 text-right font-bold text-amber-600">${{ number_format($sumElec, 2) }}</td>
+                        <td class="px-4 py-3 text-right font-bold text-sky-600">${{ number_format($sumWater, 2) }}</td>
+                        <td class="px-4 py-3 text-right font-bold text-purple-600">${{ number_format($sumNet, 2) }}</td>
+                        <td class="px-4 py-3 text-right font-bold text-orange-600">${{ number_format($sumParking, 2) }}</td>
+                        <td class="px-4 py-3 text-right font-bold text-green-600">${{ number_format($sumTrash, 2) }}</td>
+                        <td class="px-4 py-3 text-right font-bold text-slate-600">${{ number_format($sumOther, 2) }}</td>
+                        <td class="px-4 py-3 text-right font-bold text-indigo-600">${{ number_format($sumFixed, 2) }}</td>
                         <td class="px-4 py-3 text-right font-bold text-red-600">${{ number_format($totalExpenses, 2) }}</td>
                     </tr>
                 </tfoot>
@@ -551,12 +498,4 @@
     </div>
 </div>
 
-<script>
-    document.getElementById('utility_type').addEventListener('change', function() {
-        document.getElementById('meter-readings').style.display = this.value === 'electricity' ? 'block' : 'none';
-    });
-    if (document.getElementById('utility_type').value === 'electricity') {
-        document.getElementById('meter-readings').style.display = 'block';
-    }
-</script>
 @endsection

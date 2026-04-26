@@ -2059,12 +2059,16 @@ class RevenueExpenseController extends Controller
 
         $periodMonths = $this->buildPeriodMonths($activePeriod);
 
-        // Get all apartments with rentals and their utilities for the selected month
+        // Get all apartments with rentals and their utilities for the selected month.
+        // Filter utilities by billing_month/billing_year so tenant-charged utilities
+        // (stored with paid_at = null from record_income) are included alongside
+        // expense-side utilities that carry a paid_at date.
         $apartments = $this->scopeApartments()
-            ->with(['floor', 'activeFixedExpenses', 'rentals' => function ($q) use ($startDate, $endDate) {
+            ->with(['floor', 'activeFixedExpenses', 'rentals' => function ($q) use ($filterMonth, $filterYear) {
                 $q->orderBy('start_date', 'desc')
-                    ->with(['tenant', 'utilities' => function ($uq) use ($startDate, $endDate) {
-                        $uq->whereBetween('paid_at', [$startDate, $endDate]);
+                    ->with(['tenant', 'utilities' => function ($uq) use ($filterMonth, $filterYear) {
+                        $uq->where('billing_month', $filterMonth)
+                           ->where('billing_year', $filterYear);
                     }]);
             }])
             ->get();
@@ -2080,6 +2084,8 @@ class RevenueExpenseController extends Controller
                 'water' => 0,
                 'internet' => 0,
                 'parking' => 0,
+                'trash' => 0,
+                'other' => 0,
                 'fixed_total' => $apartment->activeFixedExpenses->sum('amount'),
                 'fixed_items' => $apartment->activeFixedExpenses,
                 'total' => 0,
@@ -2134,6 +2140,7 @@ class RevenueExpenseController extends Controller
             'internet' => 'Internet',
             'parking' => 'Parking',
             'trash' => 'Trash',
+            'other' => 'Other',
         ];
 
         // Other expense categories (non-utility)
@@ -2233,7 +2240,7 @@ class RevenueExpenseController extends Controller
 
         $validated = $request->validate([
             'rental_id' => 'required|exists:rentals,id',
-            'utility_type' => 'required|in:electricity,water,internet,parking,trash',
+            'utility_type' => 'required|in:electricity,water,internet,parking,trash,other',
             'charge_amount' => 'required|numeric|min:0.01',
             'transaction_date' => 'required|date',
             'meter_reading_in' => 'nullable|numeric|min:0',
