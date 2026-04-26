@@ -545,6 +545,7 @@ class DashboardController extends Controller
                 'monthly_total' => round($monthlyExpensesTotal, 2),
                 'utilities_total' => round($monthlyUtilities, 2),
                 'account_total' => round($monthlyAccountExpenses, 2),
+                'deposit_refunds' => round($monthlyExpenseAccounts->where('category', Accounts::CAT_DEPOSIT_EXPENSE)->sum('amount'), 2),
                 'utility_breakdown' => $utilityBreakdown,
                 'account_breakdown' => Accounts::where('user_id', Auth::id())
                     ->where('account_type', Accounts::TYPE_EXPENSE)

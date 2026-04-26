@@ -29,6 +29,7 @@ class Accounts extends Model
     public const CAT_PROPERTY_TAX       = 'property_tax';
     public const CAT_MANAGEMENT         = 'management';
     public const CAT_OTHER_EXPENSE      = 'other_expense';
+    public const CAT_DEPOSIT_EXPENSE    = 'deposit_expense';
 
     /**
      * Map a payment_type (from Payments table) to an income category.

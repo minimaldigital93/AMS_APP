@@ -402,13 +402,77 @@
             </div>
             <div class="bg-white rounded-xl border border-slate-100 p-5">
                 <h2 class="text-sm font-semibold text-slate-800 mb-3">Expense Breakdown</h2>
-                <div class="relative" style="height:260px;">
+                <div class="relative" style="height:220px;">
                     <canvas id="expenseChart"></canvas>
+                </div>
+                {{-- Expense legend rows --}}
+                <div class="mt-4 space-y-1 border-t border-slate-100 pt-3">
+                    @if(($expenses['fixed_expenses'] ?? 0) > 0)
+                    <div class="flex items-center justify-between text-xs">
+                        <div class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full inline-block" style="background:#EF4444"></span><span class="text-slate-500">Fixed</span></div>
+                        <span class="font-semibold text-slate-700">${{ number_format($expenses['fixed_expenses'], 2) }}</span>
+                    </div>
+                    @endif
+                    @if(($expenses['variable_expenses'] ?? 0) > 0)
+                    <div class="flex items-center justify-between text-xs">
+                        <div class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full inline-block" style="background:#F97316"></span><span class="text-slate-500">Variable</span></div>
+                        <span class="font-semibold text-slate-700">${{ number_format($expenses['variable_expenses'], 2) }}</span>
+                    </div>
+                    @endif
+                    @if(($expenses['utility_expenses'] ?? 0) > 0)
+                    <div class="flex items-center justify-between text-xs">
+                        <div class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full inline-block" style="background:#6366F1"></span><span class="text-slate-500">Utilities</span></div>
+                        <span class="font-semibold text-slate-700">${{ number_format($expenses['utility_expenses'], 2) }}</span>
+                    </div>
+                    @endif
+                    @if(($expenses['deposit_expenses'] ?? 0) > 0)
+                    <div class="flex items-center justify-between text-xs">
+                        <div class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full inline-block" style="background:#EC4899"></span><span class="text-slate-500">Deposit Refunds</span></div>
+                        <span class="font-semibold text-slate-700">${{ number_format($expenses['deposit_expenses'], 2) }}</span>
+                    </div>
+                    @endif
+                    @if(($expenses['other_expenses'] ?? 0) > 0)
+                    <div class="flex items-center justify-between text-xs">
+                        <div class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full inline-block" style="background:#64748B"></span><span class="text-slate-500">Other</span></div>
+                        <span class="font-semibold text-slate-700">${{ number_format($expenses['other_expenses'], 2) }}</span>
+                    </div>
+                    @endif
+                    <div class="flex items-center justify-between text-xs font-bold border-t border-slate-100 pt-2 mt-1">
+                        <span class="text-slate-700">Total Expenses</span>
+                        <span class="text-red-600">${{ number_format($expenses['total_expenses'], 2) }}</span>
+                    </div>
                 </div>
             </div>
         </div>
 
-       
+        {{-- Deposit Income vs Refund Tracking --}}
+        @php
+            $depIncome  = $income['deposit_income'] ?? 0;
+            $depExpense = $expenses['deposit_expenses'] ?? 0;
+            $depNet     = $depIncome - $depExpense;
+        @endphp
+        @if($depIncome > 0 || $depExpense > 0)
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div class="bg-indigo-50/70 border border-indigo-100 rounded-xl p-4">
+                <p class="text-xs font-medium text-indigo-500 uppercase tracking-wide">Deposit Income</p>
+                <p class="text-2xl font-bold text-indigo-700 mt-1">${{ number_format($depIncome, 2) }}</p>
+                <p class="text-xs text-slate-400 mt-1">Received from tenants on move-in</p>
+            </div>
+            <div class="bg-rose-50/70 border border-rose-100 rounded-xl p-4">
+                <p class="text-xs font-medium text-rose-500 uppercase tracking-wide">Deposit Refunds</p>
+                <p class="text-2xl font-bold text-rose-700 mt-1">${{ number_format($depExpense, 2) }}</p>
+                <p class="text-xs text-slate-400 mt-1">Returned to tenants on leave</p>
+            </div>
+            <div class="bg-white border border-slate-100 rounded-xl p-4">
+                <p class="text-xs font-medium text-slate-500 uppercase tracking-wide">Deposit Net</p>
+                <p class="text-2xl font-bold {{ $depNet >= 0 ? 'text-emerald-600' : 'text-red-600' }} mt-1">
+                    {{ $depNet >= 0 ? '+' : '' }}${{ number_format($depNet, 2) }}
+                </p>
+                <p class="text-xs text-slate-400 mt-1">Income minus refunds</p>
+            </div>
+        </div>
+        @endif
+
         {{-- Per-Apartment Table with Grouping Toggle (now with sub-tabs) --}}
         @if(isset($perApartment) && count($perApartment) > 0)
         @php
@@ -1600,12 +1664,14 @@ var expenseData = {
         @if(($expenses['fixed_expenses'] ?? 0) > 0) 'Fixed', @endif
         @if(($expenses['variable_expenses'] ?? 0) > 0) 'Variable', @endif
         @if(($expenses['utility_expenses'] ?? 0) > 0) 'Utilities', @endif
+        @if(($expenses['deposit_expenses'] ?? 0) > 0) 'Deposit Refunds', @endif
         @if(($expenses['other_expenses'] ?? 0) > 0) 'Other', @endif
     ],
     values: [
         @if(($expenses['fixed_expenses'] ?? 0) > 0) {{ $expenses['fixed_expenses'] }}, @endif
         @if(($expenses['variable_expenses'] ?? 0) > 0) {{ $expenses['variable_expenses'] }}, @endif
         @if(($expenses['utility_expenses'] ?? 0) > 0) {{ $expenses['utility_expenses'] }}, @endif
+        @if(($expenses['deposit_expenses'] ?? 0) > 0) {{ $expenses['deposit_expenses'] }}, @endif
         @if(($expenses['other_expenses'] ?? 0) > 0) {{ $expenses['other_expenses'] }}, @endif
     ]
 };

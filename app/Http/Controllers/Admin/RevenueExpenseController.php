@@ -647,12 +647,14 @@ class RevenueExpenseController extends Controller
         $fixedExpenses    = $records->where('category', Accounts::CAT_BUSINESS_FIXED)->sum('amount');
         $variableExpenses = $records->where('category', Accounts::CAT_BUSINESS_VARIABLE)->sum('amount');
         $utilityExpenses  = $records->where('category', Accounts::CAT_UTILITIES_EXPENSE)->sum('amount');
+        $depositExpenses  = $records->where('category', Accounts::CAT_DEPOSIT_EXPENSE)->sum('amount');
         $otherExpenses    = $records->whereNotIn('category', [
             Accounts::CAT_BUSINESS_FIXED,
             Accounts::CAT_BUSINESS_VARIABLE,
             Accounts::CAT_UTILITIES_EXPENSE,
+            Accounts::CAT_DEPOSIT_EXPENSE,
         ])->sum('amount');
-        $totalExpenses = $fixedExpenses + $variableExpenses + $utilityExpenses + $otherExpenses;
+        $totalExpenses = $fixedExpenses + $variableExpenses + $utilityExpenses + $depositExpenses + $otherExpenses;
 
         // Group by category for detailed breakdown
         $byCategory = $records->groupBy('category')->map(fn($items) => round($items->sum('amount'), 2))->toArray();
@@ -661,6 +663,7 @@ class RevenueExpenseController extends Controller
             'fixed_expenses'    => round($fixedExpenses, 2),
             'variable_expenses' => round($variableExpenses, 2),
             'utility_expenses'  => round($utilityExpenses, 2),
+            'deposit_expenses'  => round($depositExpenses, 2),
             'other_expenses'    => round($otherExpenses, 2),
             'by_category'       => $byCategory,
             'total_expenses'    => round($totalExpenses, 2),
