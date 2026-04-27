@@ -1,264 +1,397 @@
 @extends('layouts.supervisor')
 
+@section('title', 'My Apartments')
+
 @section('content')
-<div class="min-h-screen bg-gray-50 py-8">
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        {{-- Header --}}
-        <div class="mb-8">
-            <h1 class="text-3xl font-bold text-gray-900">My Apartments</h1>
-            <p class="text-sm text-gray-500 mt-1">Apartments assigned to you, grouped by floor</p>
+<div class="max-w-6xl mx-auto space-y-8">
+    <!-- Header -->
+    <div class="flex items-center justify-between">
+        <div>
+            <h1 class="text-2xl font-semibold text-slate-800 tracking-tight">My Apartments</h1>
+            <p class="text-slate-400 text-sm mt-1">Apartments assigned to you, grouped by floor</p>
         </div>
+     
+    </div>
 
-        {{-- Flash Messages --}}
-        @if(session('success'))
-        <div class="bg-green-50 border border-green-200 text-green-800 px-4 py-3 rounded-lg mb-6 flex items-center gap-2">
-            <svg class="w-5 h-5 text-green-500 shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/></svg>
-            <span class="text-sm font-medium">{{ session('success') }}</span>
-        </div>
-        @endif
+    <!-- Flash Messages -->
+    @if ($message = Session::get('success'))
+    <div class="bg-emerald-50 border border-emerald-100 rounded-lg px-4 py-3 text-emerald-700 text-sm flex items-center gap-2.5">
+        <svg class="w-4 h-4 shrink-0" fill="currentColor" viewBox="0 0 20 20">
+            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
+        </svg>
+        {{ $message }}
+    </div>
+    @endif
 
-        @if(session('error'))
-        <div class="bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded-lg mb-6 text-sm">{{ session('error') }}</div>
-        @endif
+    @if ($message = Session::get('error'))
+    <div class="bg-red-50 border border-red-100 rounded-lg px-4 py-3 text-red-600 text-sm flex items-center gap-2.5">
+        <svg class="w-4 h-4 shrink-0" fill="currentColor" viewBox="0 0 20 20">
+            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd" />
+        </svg>
+        {{ $message }}
+    </div>
+    @endif
 
-        {{-- Filters --}}
-        <div class="bg-white rounded-lg shadow-md mb-6 p-6">
-            <form method="GET" action="{{ route('supervisor.apartments.index') }}" class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-2">Search</label>
-                    <input type="text" name="search" placeholder="Search apartment number..." value="{{ request('search') }}" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent">
-                </div>
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-2">Status</label>
-                    <select name="status" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent">
-                        <option value="">All Status</option>
-                        @foreach($statuses as $key => $label)
-                            <option value="{{ $key }}" {{ request('status') === $key ? 'selected' : '' }}>{{ $label }}</option>
-                        @endforeach
-                    </select>
-                </div>
-                <div class="flex items-end gap-2">
-                    <button type="submit" class="flex-1 px-4 py-2 border border-emerald-300 rounded-lg text-emerald-600 hover:bg-emerald-50 transition font-medium">Filter</button>
-                    <a href="{{ route('supervisor.apartments.index') }}" class="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition font-medium text-center">Reset</a>
-                </div>
-            </form>
-        </div>
+    <!-- Apartments Grouped by Floor -->
+    <div class="space-y-5">
+    @forelse($apartmentsByFloor as $floorId => $apartmentsInFloor)
+        @php
+            $floor = $apartmentsInFloor->first()->floor;
+        @endphp
 
-        {{-- Summary Cards --}}
-        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-            <div class="bg-white rounded-lg shadow-md p-4 text-center">
-                <p class="text-2xl font-bold text-gray-900">{{ $apartments->count() }}</p>
-                <p class="text-xs text-gray-500 mt-1">Total Rooms</p>
-            </div>
-            <div class="bg-white rounded-lg shadow-md p-4 text-center">
-                <p class="text-2xl font-bold text-green-600">{{ $apartments->where('status', 'available')->count() }}</p>
-                <p class="text-xs text-gray-500 mt-1">Available</p>
-            </div>
-            <div class="bg-white rounded-lg shadow-md p-4 text-center">
-                <p class="text-2xl font-bold text-blue-600">{{ $apartments->where('status', 'occupied')->count() }}</p>
-                <p class="text-xs text-gray-500 mt-1">Occupied</p>
-            </div>
-            <div class="bg-white rounded-lg shadow-md p-4 text-center">
-                <p class="text-2xl font-bold text-orange-600">{{ $apartments->where('status', 'maintenance')->count() }}</p>
-                <p class="text-xs text-gray-500 mt-1">Maintenance</p>
-            </div>
-        </div>
-
-        {{-- Apartments list view --}}
-        @if($apartments->isEmpty())
-            <div class="bg-white rounded-lg shadow-md p-12 text-center text-gray-400">
-                <svg class="w-16 h-16 mx-auto text-gray-300 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/></svg>
-                <p class="text-lg font-medium">No apartments found.</p>
-                <p class="text-sm mt-1">Try adjusting filters or contact an administrator.</p>
-            </div>
-        @else
-            @foreach($apartmentsByFloor as $floorId => $floorApartments)
-                @php $floor = $floors->firstWhere('id', $floorId); @endphp
-                <div class="mb-6">
-                    <div class="flex items-center justify-between mb-3">
-                        <h2 class="text-lg font-bold text-gray-900">{{ $floor?->floor_name ?? 'Floor ' . $floorId }}</h2>
-                        <span class="text-sm text-gray-500">({{ $floorApartments->count() }} rooms)</span>
+        <div class="bg-white rounded-xl border border-slate-100 overflow-hidden hover:border-slate-200 transition">
+            <details class="group">
+                <summary class="flex items-center justify-between cursor-pointer px-6 py-4 hover:bg-slate-50/50 transition">
+                    <div class="flex items-center gap-3">
+                        <div class="w-9 h-9 rounded-lg bg-slate-100 flex items-center justify-center">
+                            <svg class="w-4.5 h-4.5 text-slate-500" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M2.25 21h19.5m-18-18v18m10.5-18v18m6-13.5V21M6.75 6.75h.75m-.75 3h.75m-.75 3h.75m3-6h.75m-.75 3h.75m-.75 3h.75M6.75 21v-3.375c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21M3 3h12m-.75 4.5H21m-3.75 3H21m-3.75 3H21M6.75 7.364V3h-3v18m3-13.636l10.5-3.819" />
+                            </svg>
+                        </div>
+                        <h2 class="text-base font-semibold text-slate-800">{{ $floor->floor_name }}</h2>
                     </div>
+                    <div class="flex items-center gap-3">
+                        <span class="text-xs text-slate-400 font-medium">{{ $apartmentsInFloor->where('status', 'occupied')->count() }}/{{ $apartmentsInFloor->count() }} apartments</span>
+                        <svg class="w-4 h-4 text-slate-400 group-open:rotate-90 transition-transform" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7" />
+                    </svg>
+                </summary>
 
-                    <div class="bg-white rounded-lg shadow-md overflow-hidden mb-4">
-                        <table class="min-w-full divide-y divide-gray-200">
-                            <thead class="bg-gray-50">
-                                <tr>
-                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Apartment</th>
-                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Monthly Rent</th>
-                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Photo</th>
-                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tenant</th>
-                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Progress</th>
-                                    <th class="px-6 py-3"></th>
-                                </tr>
-                            </thead>
-                            <tbody class="bg-white divide-y divide-gray-200">
-                                @foreach($floorApartments as $apartment)
+                <!-- Apartments Table -->
+                <div class="overflow-x-auto border-t border-slate-50">
+                <table class="w-full">
+                    <thead>
+                        <tr class="bg-slate-50/80">
+                            <th class="px-4 py-3 text-left text-[11px] font-medium text-slate-400 uppercase tracking-wider">No</th>
+                            <th class="px-4 py-3 text-left text-[11px] font-medium text-slate-400 uppercase tracking-wider">Apartment</th>
+                            <th class="px-4 py-3 text-left text-[11px] font-medium text-slate-400 uppercase tracking-wider">Monthly Rent</th>
+                            <th class="px-4 py-3 text-left text-[11px] font-medium text-slate-400 uppercase tracking-wider">Status</th>
+                            <th class="px-4 py-3 text-left text-[11px] font-medium text-slate-400 uppercase tracking-wider">Tenant</th>
+                            <th class="px-4 py-3 text-left text-[11px] font-medium text-slate-400 uppercase tracking-wider">Stay Duration</th>
+                            <th class="px-4 py-3 text-left text-[11px] font-medium text-slate-400 uppercase tracking-wider">Supervisor</th>
+                            <th class="px-4 py-3 text-right text-[11px] font-medium text-slate-400 uppercase tracking-wider">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-50">
+                        @foreach($apartmentsInFloor as $apartment)
+                        <tr class="hover:bg-slate-50/50 transition">
+                            <td class="px-4 py-3 text-sm text-slate-500">{{ $loop->iteration }}</td>
+                            <td class="px-4 py-3">
+                                <div class="flex items-center gap-2">
                                     @php
-                                        $activeTenant = $apartment->tenants->where('status', 'active')->first();
-                                        $photoPath = $activeTenant?->photo_path ?? null;
-                                        $photoIsPdf = $photoPath && str_ends_with($photoPath, '.pdf');
+                                        $tenant = $apartment->tenants()->whereNull('deleted_at')->latest()->first();
+                                        $tenantStatus = $tenant ? $tenant->status : null;
+                                    @endphp
+                                    <span class="w-1.5 h-1.5 rounded-full {{ 
+                                        $tenantStatus === 'active' ? 'bg-sky-400' : 
+                                        ($tenantStatus === 'pending' ? 'bg-amber-400' : 'bg-emerald-400') 
+                                    }}"></span>
+                                    <span class="text-sm font-medium text-slate-700">{{ $apartment->apartment_number }}</span>
+                                </div>
+                            </td>
+                            <td class="px-4 py-3">
+                                <span class="text-sm text-slate-600">${{ number_format($apartment->monthly_rent, 2) }}</span>
+                            </td>
+                            <td class="px-4 py-3">
+                                @php
+                                    $statusTextClass = match($apartment->status) {
+                                        'available' => 'text-emerald-600',
+                                        'occupied' => 'text-sky-600',
+                                        'maintenance' => 'text-amber-600',
+                                        default => 'text-slate-500',
+                                    };
+                                    $statusBgClass = match($apartment->status) {
+                                        'available' => 'bg-emerald-400',
+                                        'occupied' => 'bg-sky-400',
+                                        'maintenance' => 'bg-amber-400',
+                                        default => 'bg-slate-300',
+                                    };
+                                @endphp
+                                <span class="inline-flex items-center gap-1.5 text-xs font-medium {{ $statusTextClass }}">
+                                    <span class="w-1.5 h-1.5 rounded-full {{ $statusBgClass }}"></span>
+                                    {{ ucfirst($apartment->status) }}
+                                </span>
+                            </td>
+                            <td class="px-4 py-3">
+                                @php
+                                    $tenant = $apartment->tenants()->whereNull('deleted_at')->latest()->first();
+                                @endphp
+                                @if($tenant)
+                                    <div class="flex items-center gap-2.5">
+                                        @if($tenant->photo_path && !str_ends_with($tenant->photo_path, '.pdf'))
+                                            <img src="{{ asset('storage/' . $tenant->photo_path) }}" alt="{{ $tenant->name }}" class="h-7 w-7 rounded-full object-cover border border-slate-200">
+                                        @else
+                                            <div class="h-7 w-7 rounded-full bg-slate-100 flex items-center justify-center text-xs font-medium text-slate-500">
+                                                {{ strtoupper(substr($tenant->name, 0, 1)) }}
+                                            </div>
+                                        @endif
+                                        <div>
+                                            <div class="text-sm font-medium text-slate-700">{{ $tenant->name }}</div>
+                                            <div class="text-[11px] text-slate-400">{{ $tenant->email }}</div>
+                                        </div>
+                                    </div>
+                                @else
+                                    <span class="text-slate-300 text-sm">—</span>
+                                @endif
+                            </td>
+                            <td class="px-4 py-3">
+                                @php
+                                    $tenant = $apartment->tenants()->whereNull('deleted_at')->latest()->first();
+                                    $hasLease = false;
+                                    $hasMonthlyPeriod = false;
 
-                                        // billing and payment calculations for current billing period
-                                        $periodPct = null;
-                                        $expected = 0;
-                                        $paid = 0.0;
-                                        $payPct = 0;
+                                    if($tenant && $tenant->move_in_date) {
+                                        $moveInDate = \Carbon\Carbon::parse($tenant->move_in_date);
+                                        $today = now();
+                                        $stayDays = $moveInDate->diffInDays($today);
+                                        $stayMonths = $moveInDate->diffInMonths($today);
 
-                                        if ($activeTenant && $activeTenant->move_in_date) {
-                                            $moveIn = \Carbon\Carbon::parse($activeTenant->move_in_date);
-                                            $today = now();
-                                            $billingDay = $moveIn->day;
-                                            if ($today->day >= $billingDay) {
-                                                $pStart = $today->copy()->day($billingDay)->startOfDay();
-                                            } else {
-                                                $prev = $today->copy()->subMonth();
-                                                $pStart = $prev->day(min($billingDay, $prev->daysInMonth))->startOfDay();
-                                            }
-                                            $pEnd = $pStart->copy()->addMonth()->subDay()->endOfDay();
-                                            $periodTotal = max(1, $pStart->diffInDays($pEnd));
-                                            $periodPassed = max(0, min($periodTotal, $pStart->diffInDays($today)));
-                                            $periodPct = min(100, max(0, round(($periodPassed / $periodTotal) * 100, 1)));
+                                        if ($tenant->move_out_date) {
+                                            $moveOutDate = \Carbon\Carbon::parse($tenant->move_out_date);
+                                            $totalDays = $moveInDate->diffInDays($moveOutDate);
+                                            $daysPassed = $moveInDate->diffInDays($today);
+                                            $percentagePassed = ($totalDays > 0) ? min(100, max(0, ($daysPassed / $totalDays) * 100)) : 0;
+                                            $daysRemaining = max(0, $today->diffInDays($moveOutDate, false));
+                                            $hasLease = true;
+                                        }
 
-                                            $rental = $apartment->rentals()->where('tenant_id', $activeTenant->id)->latest()->first();
-                                            $expected = $rental->rent_amount ?? $apartment->monthly_rent ?? 0;
-                                            if ($expected > 0 && $rental) {
-                                                $paid = (float) $rental->payments()->whereNotNull('paid_at')->whereBetween('due_date', [$pStart->toDateString(), $pEnd->toDateString()])->sum('amount');
-                                                $payPct = min(100, max(0, round(($paid / $expected) * 100, 1)));
+                                        $billingDay = $moveInDate->day;
+                                        if ($today->day >= $billingDay) {
+                                            $periodStart = $today->copy()->day($billingDay)->startOfDay();
+                                        } else {
+                                            $prevMonth = $today->copy()->subMonth();
+                                            $periodStart = $prevMonth->day(min($billingDay, $prevMonth->daysInMonth))->startOfDay();
+                                        }
+                                        $periodEnd = $periodStart->copy()->addMonth()->subDay()->endOfDay();
+                                        if ($periodStart->lt($moveInDate)) $periodStart = $moveInDate->copy();
+                                        if ($tenant->move_out_date && $periodEnd->gt($moveOutDate)) $periodEnd = $moveOutDate->copy()->endOfDay();
+
+                                        $periodTotalDays = max(1, $periodStart->diffInDays($periodEnd));
+                                        $periodDaysPassed = max(0, min($periodTotalDays, $periodStart->diffInDays($today)));
+                                        $periodPercent = min(100, max(0, round(($periodDaysPassed / $periodTotalDays) * 100, 1)));
+                                        $periodDaysLeft = max(0, (int)$today->diffInDays($periodEnd, false));
+
+                                        if ($periodPercent >= 80) {
+                                            $monthBarColor = 'bg-red-400';
+                                            $monthTextColor = 'text-red-500';
+                                        } elseif ($periodPercent >= 50) {
+                                            $monthBarColor = 'bg-amber-400';
+                                            $monthTextColor = 'text-amber-500';
+                                        } else {
+                                            $monthBarColor = 'bg-sky-400';
+                                            $monthTextColor = 'text-sky-500';
+                                        }
+
+                                        $rental = $apartment->rentals()->where('tenant_id', $tenant->id)->latest()->first();
+                                        $expectedAmount = $rental->rent_amount ?? $apartment->monthly_rent ?? 0;
+                                        $paidAmount = 0.0;
+                                        $paymentPercent = 0;
+
+                                        if ($expectedAmount > 0 && $rental) {
+                                            try {
+                                                $paidAmount = (float) $rental->payments()
+                                                    ->whereNotNull('paid_at')
+                                                    ->whereBetween('due_date', [$periodStart->toDateString(), $periodEnd->toDateString()])
+                                                    ->sum('amount');
+                                                $paymentPercent = min(100, max(0, round(($paidAmount / $expectedAmount) * 100, 1)));
+                                            } catch (\Exception $e) {
+                                                $paidAmount = 0.0;
+                                                $paymentPercent = 0;
                                             }
                                         }
-                                    @endphp
 
-                                    <tr>
-                                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{{ $apartment->apartment_number }}</td>
-                                        <td class="px-6 py-4 whitespace-nowrap">
-                                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium
-                                                {{ $apartment->status === 'available' ? 'bg-green-100 text-green-800' :
-                                                   ($apartment->status === 'occupied' ? 'bg-blue-100 text-blue-800' : 'bg-orange-100 text-orange-800') }}">
-                                                {{ ucfirst($apartment->status) }}
-                                            </span>
-                                        </td>
-                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${{ number_format($apartment->monthly_rent, 2) }}</td>
+                                        $hasMonthlyPeriod = true;
+                                    }
+                                @endphp
+                                
+                                @if($tenant && $tenant->move_in_date)
+                                    <div class="min-w-[100px]">
+                                        @if($hasMonthlyPeriod)
+                                        <div class="w-full bg-slate-100 rounded-full h-1 overflow-hidden" title="{{ $periodStart->format('M d') }}–{{ $periodEnd->format('M d') }} ({{ $periodPercent }}%)">
+                                            <div class="{{ $monthBarColor }} h-full rounded-full" style="width: {{ $periodPercent }}%"></div>
+                                        </div>
+                                        <div class="flex items-center justify-between mt-1 text-[11px]">
+                                            <span class="{{ $monthTextColor }} font-medium">{{ $periodPercent }}%</span>
+                                            <span class="text-slate-400">{{ $periodDaysLeft }}d left</span>
+                                        </div>
+                                        @endif
+                                    </div>
+                                @else
+                                    <span class="text-slate-300 text-xs">—</span>
+                                @endif
+                            </td>
+                            <td class="px-4 py-3">
+                                @php
+                                    $tenant = $apartment->tenants()->whereNull('deleted_at')->latest()->first();
+                                    $tenantManager = $tenant?->manager ?? null;
+                                    $displaySupervisor = $tenantManager ?? $apartment->supervisor;
+                                @endphp
+                                @if($displaySupervisor)
+                                    <span class="text-sm text-slate-600">{{ $displaySupervisor->name }}</span>
+                                @else
+                                    <span class="text-slate-300 text-sm">—</span>
+                                @endif
+                            </td>
+                            <td class="px-4 py-3 text-right">
+                                <div class="flex items-center justify-end gap-1">
+                                    @php $tenant = $apartment->tenants()->whereNull('deleted_at')->latest()->first(); @endphp
 
-                                        {{-- Photo column --}}
-                                        <td class="px-6 py-4 whitespace-nowrap text-sm">
-                                            @if($activeTenant)
-                                                @if($photoPath && !$photoIsPdf)
-                                                    <img src="{{ asset('storage/' . $photoPath) }}" alt="{{ $activeTenant->name }}" class="h-10 w-10 rounded-full object-cover border border-gray-300">
-                                                @elseif($photoPath && $photoIsPdf)
-                                                    <a href="{{ asset('storage/' . $photoPath) }}" target="_blank" class="h-10 w-10 rounded-full bg-red-100 flex items-center justify-center text-xs font-semibold text-red-600 border border-red-300" title="View PDF">
-                                                        <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4z" clip-rule="evenodd"/></svg>
-                                                    </a>
-                                                @else
-                                                    <div class="h-10 w-10 rounded-full bg-emerald-100 flex items-center justify-center text-sm font-semibold text-emerald-600">
-                                                        {{ strtoupper(substr($activeTenant->name ?? '-', 0, 1)) }}
-                                                    </div>
-                                                @endif
-                                            @else
-                                                -
-                                            @endif
-                                        </td>
+                                    @if(!$tenant || $tenant->status !== 'active')
+                                    <button type="button" 
+                                            data-apartment-id="{{ $apartment->id }}"
+                                            data-apartment-number="{{ $apartment->apartment_number }}"
+                                            class="assign-tenant-btn text-emerald-600 hover:text-emerald-700 p-1.5 rounded-lg bg-emerald-50/20 hover:bg-emerald-50 transition"
+                                            title="Assign tenant">
+                                        <svg class="w-[16px] h-[16px]" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" />
+                                        </svg>
+                                    </button>
+                                    @endif
 
-                                        {{-- Tenant info --}}
-                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{{ $activeTenant?->name ?? '-' }}<div class="text-xs text-gray-500">{{ $activeTenant?->email ?? '' }}</div></td>
+                                    <a href="{{ route('supervisor.apartments.show', $apartment->id) }}" 
+                                       title="View apartment"
+                                       class="text-slate-600 hover:text-slate-800 p-1.5 rounded-lg hover:bg-slate-50 transition">
+                                        <svg class="w-[16px] h-[16px]" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z" />
+                                            <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                        </svg>
+                                    </a>
 
-                                        {{-- Progress column --}}
-                                        <td class="px-6 py-4 whitespace-nowrap text-sm">
-                                            @if(isset($periodPct))
-                                                @php
-                                                    $daysLeft = max(0, (int) now()->diffInDays($pEnd, false));
-                                                    if ($periodPct >= 80) {
-                                                        $simpleBar = 'from-red-400 to-red-600';
-                                                        $simpleText = 'text-red-600';
-                                                    } elseif ($periodPct >= 50) {
-                                                        $simpleBar = 'from-yellow-400 to-orange-500';
-                                                        $simpleText = 'text-orange-600';
-                                                    } else {
-                                                        $simpleBar = 'from-blue-400 to-blue-600';
-                                                        $simpleText = 'text-blue-600';
-                                                    }
-                                                @endphp
-                                                <div class="w-full bg-gray-200 rounded-full h-1.5 overflow-hidden" title="{{ $pStart->format('M d') }}–{{ $pEnd->format('M d') }} ({{ $periodPct }}%)">
-                                                    <div class="bg-gradient-to-r {{ $simpleBar }} h-full rounded-full" style="width: {{ $periodPct }}%"></div>
-                                                </div>
-                                                <div class="flex items-center justify-between mt-1 text-[11px]">
-                                                    <div class="{{ $simpleText }} font-medium">{{ $periodPct }}%</div>
-                                                    <div class="text-gray-500">{{ $daysLeft }}d left</div>
-                                                </div>
-                                            @else
-                                                -
-                                            @endif
-                                        </td>
+                                </div>
+                            </td>
+                        </tr>
+                        @endforeach
+                    </tbody>
+                </table>
+                </div>
+            </details>
+        </div>
+    @empty
+    <div class="bg-white rounded-xl border border-slate-100 p-16 text-center">
+        <div class="w-14 h-14 rounded-xl bg-slate-50 flex items-center justify-center mx-auto mb-4">
+            <svg class="w-7 h-7 text-slate-300" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M8.25 21v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21m0 0h4.5V3.545M12.75 21h7.5V10.75M2.25 21h1.5m18 0h-18M2.25 9l4.5-1.636M18.75 3l-1.5.545m0 6.205l3 1m1.5.5l-1.5-.5M6.75 7.364V3h-3v18m3-13.636l10.5-3.819" />
+            </svg>
+        </div>
+        <p class="font-medium text-slate-600">No apartments found.</p>
+        <p class="text-slate-400 text-sm mt-1">Contact an administrator.</p>
+    </div>
+    @endforelse
+    </div>
+</div>
 
-                                        <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                                            <a href="{{ route('supervisor.apartments.show', $apartment) }}" class="text-emerald-600 hover:text-emerald-800" title="View">
-                                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
-                                            </a>
-                                            @if($apartment->status === 'available')
-                                            <a href="{{ route('supervisor.tenants.create') }}?apartment_id={{ $apartment->id }}" class="ml-4 text-blue-600 hover:text-blue-800" title="Assign">
-                                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
-                                            </a>
-                                            @endif
-                                        </td>
-                                    </tr>
-                                @endforeach
-                            </tbody>
-                        </table>
+<!-- Assign Tenant Modal -->
+<div id="assignTenantModal" class="hidden fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4 overflow-y-auto">
+    <div class="bg-white rounded-2xl shadow-xl max-w-lg w-full my-8">
+        <div class="px-6 py-4 border-b border-slate-100 flex justify-between items-center rounded-t-2xl">
+            <div>
+                <h3 id="modalTitle" class="text-base font-semibold text-slate-800">Assign Tenant to <span id="apartmentNumberDisplay"></span></h3>
+                <p class="text-slate-400 text-xs mt-0.5">Fill in tenant details below</p>
+            </div>
+            <button type="button" class="close-modal text-slate-300 hover:text-slate-500 p-1 transition">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+            </button>
+        </div>
+
+        <!-- Tab Navigation -->
+        <div id="tabNavigation" class="px-6 pt-3 border-b border-slate-100 hidden">
+            <div class="flex gap-4">
+                <button type="button" id="existingTenantTab" class="tab-button active px-3 py-2 text-sm font-medium text-slate-800 border-b-2 border-slate-800 hover:text-slate-900">
+                    Existing Tenant
+                </button>
+                <button type="button" id="newTenantTab" class="tab-button px-3 py-2 text-sm font-medium text-slate-400 border-b-2 border-transparent hover:text-slate-600">
+                    Create New Tenant
+                </button>
+            </div>
+        </div>
+
+        <form id="assignTenantForm" method="POST" enctype="multipart/form-data" class="p-6 space-y-4">
+            @csrf
+            <input type="hidden" id="apartmentId" name="apartment_id">
+            <input type="hidden" id="tenantOption" name="tenant_option" value="existing">
+
+            <!-- Existing Tenant Tab -->
+            <div id="existingTenantContent" class="tab-content space-y-4 hidden">
+                <div>
+                    <label for="tenant_id" class="block text-xs font-medium text-slate-500 mb-1.5 uppercase tracking-wide">Select Tenant</label>
+                    <select id="tenant_id" name="tenant_id" class="w-full px-3.5 py-2 text-sm border border-slate-200 rounded-lg bg-slate-50/50 focus:outline-none focus:ring-2 focus:ring-slate-300 focus:border-slate-300 transition">
+                        <option value="">-- Choose an unassigned tenant --</option>
+                        @foreach($availableTenants as $tenant)
+                            <option value="{{ $tenant->id }}">{{ $tenant->name }} ({{ $tenant->email }})</option>
+                        @endforeach
+                    </select>
+                    @if($availableTenants->isEmpty())
+                        <p class="text-xs text-amber-600 mt-1.5">No unassigned tenants available. Create a new tenant instead.</p>
+                    @endif
+                </div>
+            </div>
+
+            <!-- New Tenant Tab -->
+            <div id="newTenantContent" class="tab-content space-y-5">
+                <!-- Personal Information -->
+                <div class="space-y-3">
+                    <h4 class="text-xs font-medium text-slate-500 uppercase tracking-wide">Personal Information</h4>
+                    <div class="grid grid-cols-2 gap-3">
+                        <div class="col-span-2">
+                            <label for="name" class="block text-xs font-medium text-slate-500 mb-1 uppercase tracking-wide">Full Name <span class="text-red-400">*</span></label>
+                            <input type="text" id="name" name="name" required class="w-full px-3.5 py-2 text-sm border border-slate-200 rounded-lg bg-slate-50/50 placeholder-slate-300 focus:outline-none focus:ring-2 focus:ring-slate-300 focus:border-slate-300 transition">
+                        </div>
+                        <div>
+                            <label for="email" class="block text-xs font-medium text-slate-500 mb-1 uppercase tracking-wide">Email <span class="text-red-400">*</span></label>
+                            <input type="email" id="email" name="email" required class="w-full px-3.5 py-2 text-sm border border-slate-200 rounded-lg bg-slate-50/50 placeholder-slate-300 focus:outline-none focus:ring-2 focus:ring-slate-300 focus:border-slate-300 transition">
+                        </div>
+                        <div>
+                            <label for="phone" class="block text-xs font-medium text-slate-500 mb-1 uppercase tracking-wide">Phone <span class="text-red-400">*</span></label>
+                            <input type="tel" id="phone" name="phone" required class="w-full px-3.5 py-2 text-sm border border-slate-200 rounded-lg bg-slate-50/50 placeholder-slate-300 focus:outline-none focus:ring-2 focus:ring-slate-300 focus:border-slate-300 transition">
+                        </div>
+                        <div class="col-span-2">
+                            <label for="address" class="block text-xs font-medium text-slate-500 mb-1 uppercase tracking-wide">Address</label>
+                            <input type="text" id="address" name="address" class="w-full px-3.5 py-2 text-sm border border-slate-200 rounded-lg bg-slate-50/50 placeholder-slate-300 focus:outline-none focus:ring-2 focus:ring-slate-300 focus:border-slate-300 transition">
+                        </div>
+                        <div class="col-span-2">
+                            <label for="date_of_birth" class="block text-xs font-medium text-slate-500 mb-1 uppercase tracking-wide">Date of Birth</label>
+                            <input type="date" id="date_of_birth" name="date_of_birth" class="w-full px-3.5 py-2 text-sm border border-slate-200 rounded-lg bg-slate-50/50 text-slate-600 focus:outline-none focus:ring-2 focus:ring-slate-300 focus:border-slate-300 transition bg-white appearance-none h-10">
+                        </div>
+                        <div class="col-span-2">
+                            <label for="attached_photo" class="block text-xs font-medium text-slate-500 mb-1 uppercase tracking-wide">Attached Photo</label>
+                            <input type="file" id="attached_photo" name="attached_photo" accept="image/*,.pdf" class="w-full px-3.5 py-2 text-sm border border-slate-200 rounded-lg bg-slate-50/50 text-slate-600 focus:outline-none focus:ring-2 focus:ring-slate-300 transition file:mr-3 file:py-1 file:px-3 file:rounded-md file:border-0 file:text-xs file:font-medium file:bg-slate-100 file:text-slate-600">
+                            <p class="text-[11px] text-slate-400 mt-1">JPG, PNG, GIF, PDF</p>
+                        </div>
+                        <div class="col-span-2">
+                            <label for="id_pdf" class="block text-xs font-medium text-slate-500 mb-1 uppercase tracking-wide">Attached ID PDF</label>
+                            <input type="file" id="id_pdf" name="id_pdf" accept=".pdf,image/*" class="w-full px-3.5 py-2 text-sm border border-slate-200 rounded-lg bg-slate-50/50 text-slate-600 focus:outline-none focus:ring-2 focus:ring-slate-300 transition file:mr-3 file:py-1 file:px-3 file:rounded-md file:border-0 file:text-xs file:font-medium file:bg-slate-100 file:text-slate-600">
+                            <p class="text-[11px] text-slate-400 mt-1">PDF, JPG, PNG, GIF</p>
+                        </div>
                     </div>
                 </div>
-            @endforeach
 
-            @php
-                $noFloor = $apartments->filter(function($a) { return $a->floor === null; });
-            @endphp
-
-            @if($noFloor->isNotEmpty())
-                <div class="mb-6">
-                    <div class="flex items-center justify-between mb-3">
-                        <h2 class="text-lg font-bold text-gray-900">Unassigned Floor</h2>
-                        <span class="text-sm text-gray-500">({{ $noFloor->count() }} rooms)</span>
-                    </div>
-
-                    <div class="bg-white rounded-lg shadow-md overflow-hidden mb-4">
-                        <table class="min-w-full divide-y divide-gray-200">
-                            <thead class="bg-gray-50">
-                                <tr>
-                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Apartment</th>
-                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Monthly Rent</th>
-                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tenant</th>
-                                    <th class="px-6 py-3"></th>
-                                </tr>
-                            </thead>
-                            <tbody class="bg-white divide-y divide-gray-200">
-                                @foreach($noFloor as $apartment)
-                                    @php $activeTenant = $apartment->tenants->where('status', 'active')->first(); @endphp
-                                    <tr>
-                                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{{ $apartment->apartment_number }}</td>
-                                        <td class="px-6 py-4 whitespace-nowrap">
-                                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium
-                                                {{ $apartment->status === 'available' ? 'bg-green-100 text-green-800' :
-                                                   ($apartment->status === 'occupied' ? 'bg-blue-100 text-blue-800' : 'bg-orange-100 text-orange-800') }}">
-                                                {{ ucfirst($apartment->status) }}
-                                            </span>
-                                        </td>
-                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${{ number_format($apartment->monthly_rent, 2) }}</td>
-                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{{ $activeTenant?->name ?? '-' }}</td>
-                                        <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                                            <a href="{{ route('supervisor.apartments.show', $apartment) }}" class="text-emerald-600 hover:text-emerald-800">View</a>
-                                            @if($apartment->status === 'available')
-                                            <a href="{{ route('supervisor.tenants.create') }}?apartment_id={{ $apartment->id }}" class="ml-4 text-blue-600 hover:text-blue-800">Assign</a>
-                                            @endif
-                                        </td>
-                                    </tr>
-                                @endforeach
-                            </tbody>
-                        </table>
+                <!-- Rent Information -->
+                <div class="space-y-3 pt-4 border-t border-slate-100">
+                    <h4 class="text-xs font-medium text-slate-500 uppercase tracking-wide">Rent Information</h4>
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label for="move_in_date" class="block text-xs font-medium text-slate-500 mb-1 uppercase tracking-wide">Move In Date <span class="text-red-400">*</span></label>
+                            <input type="date" id="move_in_date" name="move_in_date" required class="w-full px-3.5 py-2 text-sm border border-slate-200 rounded-lg bg-slate-50/50 text-slate-600 focus:outline-none focus:ring-2 focus:ring-slate-300 focus:border-slate-300 transition bg-white appearance-none h-10">
+                        </div>
+                        <div>
+                            <label for="deposit" class="block text-xs font-medium text-slate-500 mb-1 uppercase tracking-wide">Deposit <span class="text-red-400">*</span></label>
+                            <input type="number" id="deposit" name="deposit" min="0" step="0.01" required class="w-full px-3.5 py-2 text-sm border border-slate-200 rounded-lg bg-slate-50/50 placeholder-slate-300 focus:outline-none focus:ring-2 focus:ring-slate-300 focus:border-slate-300 transition" placeholder="0.00">
+                        </div>
                     </div>
                 </div>
-            @endif
-        @endif
+            </div>
+
+            <div class="flex gap-3 pt-4 border-t border-slate-100">
+                <button type="button" class="close-modal flex-1 text-slate-500 hover:text-slate-700 bg-slate-50 hover:bg-slate-100 text-sm font-medium py-2.5 px-4 rounded-lg transition">
+                    Cancel
+                </button>
+                <button type="submit" id="submitBtn" class="flex-1 bg-slate-800 hover:bg-slate-700 text-white text-sm font-medium py-2.5 px-4 rounded-lg transition">
+                    Assign Tenant
+                </button>
+            </div>
+        </form>
     </div>
 </div>
 @endsection
