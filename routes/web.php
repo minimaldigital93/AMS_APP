@@ -12,7 +12,8 @@ use App\Http\Controllers\Admin\SettingsController;
 use App\Http\Controllers\Supervisor\DashboardController as SupervisorDashboardController;
 use App\Http\Controllers\Supervisor\TenantController as SupervisorTenantController;
 use App\Http\Controllers\Supervisor\ApartmentController as SupervisorApartmentController;
-use App\Http\Controllers\Supervisor\PaymentController as SupervisorPaymentController;
+use App\Http\Controllers\Supervisor\RevenueExpenseController as SupervisorRevenueExpenseController;
+use App\Http\Controllers\Supervisor\SettingsController as SupervisorSettingsController;
 use App\Http\Controllers\Tenant\DashboardController as TenantDashboardController;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
@@ -215,13 +216,39 @@ Route::middleware(['auth', 'role:supervisor'])->prefix('supervisor')->group(func
     Route::get('/apartments/{apartment}', [SupervisorApartmentController::class, 'show'])->name('supervisor.apartments.show');
     Route::post('/apartments/{apartment}/assign-tenant', [SupervisorApartmentController::class, 'assignTenant'])->name('supervisor.apartments.assignTenant');
 
-    // Payment Management
-    Route::get('/payments', [SupervisorPaymentController::class, 'index'])->name('supervisor.payments.index');
-    Route::get('/payments/create', [SupervisorPaymentController::class, 'create'])->name('supervisor.payments.create');
-    Route::post('/payments', [SupervisorPaymentController::class, 'store'])->name('supervisor.payments.store');
-    Route::get('/payments/{payment}', [SupervisorPaymentController::class, 'show'])->name('supervisor.payments.show');
-    // Donate view
-    Route::view('/donate', 'supervisor.donate')->name('supervisor.donate');
+    // Revenue & Expense
+    Route::get('/revenue-expense', [SupervisorRevenueExpenseController::class, 'index'])->name('supervisor.revenue_expense.index');
+    Route::get('/revenue-expense/record-income', [SupervisorRevenueExpenseController::class, 'recordIncome'])->name('supervisor.revenue_expense.record_income');
+    Route::post('/revenue-expense/record-income', [SupervisorRevenueExpenseController::class, 'storeIncome'])->name('supervisor.revenue_expense.store_income');
+    Route::post('/revenue-expense/record-income-bulk', [SupervisorRevenueExpenseController::class, 'storeBulkIncome'])->name('supervisor.revenue_expense.store_income_bulk');
+    Route::post('/revenue-expense/add-charge', [SupervisorRevenueExpenseController::class, 'addTenantCharge'])->name('supervisor.revenue_expense.add_charge');
+    Route::delete('/revenue-expense/remove-charge/{charge}', [SupervisorRevenueExpenseController::class, 'removeTenantCharge'])->name('supervisor.revenue_expense.remove_charge');
+    Route::delete('/revenue-expense/clear-charges/{rental}', [SupervisorRevenueExpenseController::class, 'clearTenantCharges'])->name('supervisor.revenue_expense.clear_charges');
+    Route::post('/revenue-expense/checkout', [SupervisorRevenueExpenseController::class, 'checkoutTenant'])->name('supervisor.revenue_expense.checkout');
+    Route::get('/revenue-expense/print-bill/{rental}', [SupervisorRevenueExpenseController::class, 'printTenantBill'])->name('supervisor.revenue_expense.print_bill');
+    Route::get('/revenue-expense/record-expense', [SupervisorRevenueExpenseController::class, 'recordExpense'])->name('supervisor.revenue_expense.record_expense');
+    Route::post('/revenue-expense/record-expense', [SupervisorRevenueExpenseController::class, 'storeExpense'])->name('supervisor.revenue_expense.store_expense');
+    Route::post('/revenue-expense/other-expense', [SupervisorRevenueExpenseController::class, 'storeOtherExpense'])->name('supervisor.revenue_expense.store_other_expense');
+    Route::delete('/revenue-expense/other-expense/{expense}', [SupervisorRevenueExpenseController::class, 'deleteOtherExpense'])->name('supervisor.revenue_expense.delete_other_expense');
+    Route::post('/revenue-expense/business-expense', [SupervisorRevenueExpenseController::class, 'storeBusinessExpense'])->name('supervisor.revenue_expense.store_business_expense');
+    Route::delete('/revenue-expense/business-expense/{businessExpense}', [SupervisorRevenueExpenseController::class, 'deleteBusinessExpense'])->name('supervisor.revenue_expense.delete_business_expense');
+    Route::get('/revenue-expense/fixed-expenses', [SupervisorRevenueExpenseController::class, 'fixedExpenses'])->name('supervisor.revenue_expense.fixed_expenses');
+    Route::post('/revenue-expense/fixed-expenses', [SupervisorRevenueExpenseController::class, 'storeFixedExpense'])->name('supervisor.revenue_expense.store_fixed_expense');
+    Route::patch('/revenue-expense/fixed-expenses/{fixedExpense}/toggle', [SupervisorRevenueExpenseController::class, 'toggleFixedExpense'])->name('supervisor.revenue_expense.toggle_fixed_expense');
+    Route::delete('/revenue-expense/fixed-expenses/{fixedExpense}', [SupervisorRevenueExpenseController::class, 'deleteFixedExpense'])->name('supervisor.revenue_expense.delete_fixed_expense');
+    Route::get('/revenue-expense/generate-bills', [SupervisorRevenueExpenseController::class, 'generateMonthlyBills'])->name('supervisor.revenue_expense.generate_bills');
+    Route::post('/revenue-expense/generate-bills', [SupervisorRevenueExpenseController::class, 'processMonthlyBills'])->name('supervisor.revenue_expense.process_bills');
+    Route::post('/revenue-expense/generate-bills/auto', [SupervisorRevenueExpenseController::class, 'autoProcessMonthlyBills'])->name('supervisor.revenue_expense.process_bills_auto');
+    Route::get('/revenue-expense/apartment-summary-pdf', [SupervisorRevenueExpenseController::class, 'apartmentSummaryPdf'])->name('supervisor.revenue_expense.apartment_summary_pdf');
+    Route::get('/revenue-expense/apartment-summary-preview', [SupervisorRevenueExpenseController::class, 'apartmentSummaryPreview'])->name('supervisor.revenue_expense.apartment_summary_preview');
+    Route::get('/revenue-expense/monthly-calendar', [SupervisorRevenueExpenseController::class, 'monthlyCalendar'])->name('supervisor.revenue_expense.monthly_calendar');
+    Route::get('/revenue-expense/income-statement', [SupervisorRevenueExpenseController::class, 'incomeStatement'])->name('supervisor.revenue_expense.income_statement');
+    Route::get('/revenue-expense/break-even', [SupervisorRevenueExpenseController::class, 'breakEvenPoint'])->name('supervisor.revenue_expense.break_even');
+
+    // System Settings
+    Route::get('/settings', [SupervisorSettingsController::class, 'index'])->name('supervisor.settings.index');
+    Route::put('/settings/batch', [SupervisorSettingsController::class, 'updateBatch'])->name('supervisor.settings.updateBatch');
+    Route::delete('/settings/reset', [SupervisorSettingsController::class, 'reset'])->name('supervisor.settings.reset');
 });
 
 require __DIR__.'/auth.php';

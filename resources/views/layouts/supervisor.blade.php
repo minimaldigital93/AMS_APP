@@ -10,7 +10,7 @@
     <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
     <style>
         * { scroll-behavior: smooth; }
-        body { margin: 0; padding: 0; background: linear-gradient(135deg, #f0fdf4 0%, #ecfdf5 100%); }
+        body { margin: 0; padding: 0; background: #fafafa; }
         .sidebar-container {
             background: linear-gradient(180deg, #ffffff 0%, #f8f9fa 50%, #f3f4f6 100%);
             box-shadow: 3px 0 12px rgba(15, 23, 42, 0.1);
@@ -43,7 +43,7 @@
         @keyframes heightGrow { to { height: 100%; } }
     </style>
 </head>
-<body class="bg-gray-50 flex flex-col h-screen" x-data="sidebarState()" @init="init()">
+<body class="flex flex-col h-screen" style="background:#fafafa;" x-data="sidebarState()" @init="init()">
     <!-- Top Bar -->
     @include('layouts.topbar')
     
