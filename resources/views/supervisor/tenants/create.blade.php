@@ -1,142 +1,206 @@
 @extends('layouts.supervisor')
 
 @section('content')
-<div class="min-h-screen bg-gray-50 py-8">
-    <div class="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
-        {{-- Header --}}
-        <div class="flex items-center gap-4 mb-8">
-            <a href="{{ route('supervisor.tenants.index') }}" class="text-emerald-600 hover:text-emerald-800">
-                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/></svg>
-            </a>
-            <div>
-                <h1 class="text-3xl font-bold text-gray-900">Register New Tenant</h1>
-                <p class="text-sm text-gray-500 mt-1">Add a tenant to one of your assigned apartments</p>
-            </div>
+<div class="max-w-xl mx-auto px-4 py-6 space-y-6">
+
+    <!-- Header -->
+    <div class="flex items-center justify-between">
+        <div>
+            <h1 class="text-xl font-semibold text-slate-800">Register New Tenant</h1>
+            <p class="text-sm text-slate-400 mt-0.5">Add a tenant to one of your assigned apartments</p>
         </div>
+        <a href="{{ route('supervisor.tenants.index') }}" class="inline-flex items-center gap-1.5 text-slate-500 hover:text-slate-700 text-sm font-medium py-2 px-4 rounded-lg border border-slate-200 hover:border-slate-300 transition">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
+            Back
+        </a>
+    </div>
 
-        @if(session('error'))
-        <div class="bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded-lg mb-6 text-sm">{{ session('error') }}</div>
-        @endif
+    @if(session('error'))
+    <div class="bg-red-50 border border-red-100 rounded-lg px-4 py-3 text-red-600 text-sm">{{ session('error') }}</div>
+    @endif
 
-        @if($errors->any())
-        <div class="bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded-lg mb-6">
-            <ul class="list-disc pl-4 text-sm">
-                @foreach($errors->all() as $error)
-                    <li>{{ $error }}</li>
-                @endforeach
-            </ul>
-        </div>
-        @endif
+    @if($errors->any())
+    <div class="bg-red-50 border border-red-100 rounded-lg px-4 py-3 text-red-600 text-sm">
+        <ul class="list-disc list-inside space-y-0.5">
+            @foreach($errors->all() as $error)<li>{{ $error }}</li>@endforeach
+        </ul>
+    </div>
+    @endif
 
-        <form method="POST" action="{{ route('supervisor.tenants.store') }}" enctype="multipart/form-data" class="space-y-6">
+    <!-- Form Card -->
+    <div class="bg-white rounded-xl border border-slate-100 p-5">
+        <form action="{{ route('supervisor.tenants.store') }}" method="POST" enctype="multipart/form-data" class="space-y-4">
             @csrf
 
-            {{-- Apartment Selection --}}
-            <div class="bg-white rounded-lg shadow-md p-6">
-                <h2 class="text-lg font-bold text-gray-900 mb-4">Apartment Assignment</h2>
+            <!-- Photo Upload -->
+            <div>
+                <label class="block text-xs font-medium text-slate-500 mb-1.5">Photo (optional)</label>
+                <label for="photo" class="flex items-center gap-3 w-full px-4 py-3 border border-dashed border-slate-200 rounded-lg cursor-pointer bg-slate-50 hover:bg-slate-100 transition">
+                    <svg class="w-5 h-5 text-slate-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+                    <span class="text-sm text-slate-500">Click to upload photo</span>
+                    <input id="photo" type="file" name="photo" class="hidden" accept="image/*" onchange="previewPhoto(event)">
+                </label>
+                <div id="photoPreview" class="mt-2"></div>
+                @error('photo')<p class="text-red-500 text-xs mt-1">{{ $message }}</p>@enderror
+            </div>
+
+            <div class="grid grid-cols-1 gap-4">
+
+                <!-- Apartment -->
                 <div>
+                    <label for="apartment_id" class="block text-xs font-medium text-slate-500 mb-1.5">Apartment <span class="text-red-400">*</span></label>
                     @php
                         $selectedApt = null;
                         if(request()->has('apartment_id')) {
                             $selectedApt = $apartments->firstWhere('id', request('apartment_id'));
                         }
                     @endphp
-
-                    <label for="apartment_id" class="block text-sm font-medium text-gray-700 mb-2">Assigned Apartment <span class="text-red-500">*</span></label>
-
                     @if($selectedApt)
-                        <div class="flex items-center justify-between gap-4 p-3 border border-gray-200 rounded-lg bg-gray-50">
-                            <div>
-                                <div class="text-sm font-medium text-gray-900">{{ $selectedApt->apartment_number }}</div>
-                                <div class="text-xs text-gray-500">${{ number_format($selectedApt->monthly_rent, 2) }} / mo</div>
-                            </div>
-                            <div class="text-sm text-gray-600">Room ID: {{ $selectedApt->id }}</div>
+                        <div class="flex items-center justify-between gap-4 p-3 border border-slate-200 rounded-lg bg-slate-50 text-sm">
+                            <span class="font-medium text-slate-800">{{ $selectedApt->apartment_number }}</span>
+                            <span class="text-slate-500">${{ number_format($selectedApt->monthly_rent, 2) }}/mo</span>
                         </div>
                         <input type="hidden" name="apartment_id" value="{{ $selectedApt->id }}">
+                    @elseif($apartments->count() > 0)
+                        <select id="apartment_id" name="apartment_id" required
+                            class="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:ring-1 focus:ring-slate-400 focus:border-slate-400 bg-white {{ $errors->has('apartment_id') ? 'border-red-400' : '' }}">
+                            <option value="">Select apartment</option>
+                            @foreach($apartments as $apartment)
+                                <option value="{{ $apartment->id }}" {{ old('apartment_id') == $apartment->id ? 'selected' : '' }}>
+                                    {{ $apartment->apartment_number }} — ${{ number_format($apartment->monthly_rent, 2) }}/mo
+                                </option>
+                            @endforeach
+                        </select>
+                        @error('apartment_id')<p class="text-red-500 text-xs mt-1">{{ $message }}</p>@enderror
                     @else
-                        @if($apartments->count() > 0)
-                            <select name="apartment_id" id="apartment_id" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent">
-                                <option value="">Select an apartment...</option>
-                                @foreach($apartments as $apt)
-                                    <option value="{{ $apt->id }}" {{ old('apartment_id') == $apt->id ? 'selected' : '' }}>
-                                        {{ $apt->apartment_number }} — ${{ number_format($apt->monthly_rent, 2) }}/mo
-                                    </option>
-                                @endforeach
-                            </select>
-                        @else
-                            <div class="bg-yellow-50 border border-yellow-200 px-4 py-3 rounded-lg text-yellow-800 text-sm">
-                                No available apartments. All your assigned apartments are currently occupied or under maintenance.
-                            </div>
-                        @endif
+                        <div class="bg-yellow-50 border border-yellow-200 px-4 py-3 rounded-lg text-yellow-800 text-sm">
+                            No available apartments. All your assigned apartments are currently occupied or under maintenance.
+                        </div>
                     @endif
                 </div>
-            </div>
 
-            {{-- Personal Information --}}
-            <div class="bg-white rounded-lg shadow-md p-6">
-                <h2 class="text-lg font-bold text-gray-900 mb-4">Personal Information</h2>
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                        <label for="name" class="block text-sm font-medium text-gray-700 mb-2">Full Name <span class="text-red-500">*</span></label>
-                        <input type="text" name="name" id="name" value="{{ old('name') }}" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent">
-                    </div>
-                    <div>
-                        <label for="email" class="block text-sm font-medium text-gray-700 mb-2">Email <span class="text-red-500">*</span></label>
-                        <input type="email" name="email" id="email" value="{{ old('email') }}" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent">
-                    </div>
-                    <div>
-                        <label for="phone" class="block text-sm font-medium text-gray-700 mb-2">Phone <span class="text-red-500">*</span></label>
-                        <input type="text" name="phone" id="phone" value="{{ old('phone') }}" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent">
-                    </div>
-                    <div>
-                        <label for="date_of_birth" class="block text-sm font-medium text-gray-700 mb-2">Date of Birth</label>
-                        <input type="date" name="date_of_birth" id="date_of_birth" value="{{ old('date_of_birth') }}" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent bg-white appearance-none h-10">
-                    </div>
-                    <div class="md:col-span-2">
-                        <label for="address" class="block text-sm font-medium text-gray-700 mb-2">Address</label>
-                        <textarea name="address" id="address" rows="2" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent">{{ old('address') }}</textarea>
-                    </div>
-                    <div class="md:col-span-2">
-                        <label for="photo" class="block text-sm font-medium text-gray-700 mb-2">Photo</label>
-                        <input type="file" name="photo" id="photo" accept="image/*" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent file:mr-4 file:py-1 file:px-3 file:rounded file:border-0 file:text-sm file:bg-emerald-50 file:text-emerald-700">
-                    </div>
+                <!-- Tenant Name -->
+                <div>
+                    <label for="name" class="block text-xs font-medium text-slate-500 mb-1.5">Full Name <span class="text-red-400">*</span></label>
+                    <input type="text" id="name" name="name" required placeholder="Full name" value="{{ old('name') }}"
+                        class="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:ring-1 focus:ring-slate-400 focus:border-slate-400 {{ $errors->has('name') ? 'border-red-400' : '' }}">
+                    @error('name')<p class="text-red-500 text-xs mt-1">{{ $message }}</p>@enderror
                 </div>
-            </div>
 
-            {{-- Lease Details --}}
-            <div class="bg-white rounded-lg shadow-md p-6">
-                <h2 class="text-lg font-bold text-gray-900 mb-4">Lease Details</h2>
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                        <label for="move_in_date" class="block text-sm font-medium text-gray-700 mb-2">Move In Date <span class="text-red-500">*</span></label>
-                        <input type="date" name="move_in_date" id="move_in_date" value="{{ old('move_in_date', date('Y-m-d')) }}" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent bg-white appearance-none h-10">
-                    </div>
-                    <div>
-                        <label for="move_out_date" class="block text-sm font-medium text-gray-700 mb-2">Move Out Date</label>
-                        <input type="date" name="move_out_date" id="move_out_date" value="{{ old('move_out_date') }}" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent bg-white appearance-none h-10">
-                    </div>
-                    <div>
-                        <label for="deposit" class="block text-sm font-medium text-gray-700 mb-2">Deposit Amount</label>
-                        <input type="number" name="deposit" id="deposit" value="{{ old('deposit', 0) }}" min="0" step="0.01" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent">
-                    </div>
-                    <div>
-                        <label for="status" class="block text-sm font-medium text-gray-700 mb-2">Status <span class="text-red-500">*</span></label>
-                        <select name="status" id="status" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent">
-                            <option value="active" {{ old('status') === 'active' ? 'selected' : '' }}>Active</option>
-                            <option value="pending" {{ old('status') === 'pending' ? 'selected' : '' }}>Pending</option>
-                        </select>
-                    </div>
+                <!-- Email -->
+                <div>
+                    <label for="email" class="block text-xs font-medium text-slate-500 mb-1.5">Email <span class="text-red-400">*</span></label>
+                    <input type="email" id="email" name="email" required placeholder="email@example.com" value="{{ old('email') }}"
+                        class="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:ring-1 focus:ring-slate-400 focus:border-slate-400 {{ $errors->has('email') ? 'border-red-400' : '' }}">
+                    @error('email')<p class="text-red-500 text-xs mt-1">{{ $message }}</p>@enderror
                 </div>
+
+                <!-- Phone -->
+                <div>
+                    <label for="phone" class="block text-xs font-medium text-slate-500 mb-1.5">Phone <span class="text-red-400">*</span></label>
+                    <input type="tel" id="phone" name="phone" required placeholder="Phone number" value="{{ old('phone') }}"
+                        class="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:ring-1 focus:ring-slate-400 focus:border-slate-400 {{ $errors->has('phone') ? 'border-red-400' : '' }}">
+                    @error('phone')<p class="text-red-500 text-xs mt-1">{{ $message }}</p>@enderror
+                </div>
+
+                <!-- Move In Date -->
+                <div>
+                    <label for="move_in_date" class="block text-xs font-medium text-slate-500 mb-1.5">Move In Date <span class="text-red-400">*</span></label>
+                    <input type="date" id="move_in_date" name="move_in_date" required value="{{ old('move_in_date', date('Y-m-d')) }}"
+                        style="max-width:100%;box-sizing:border-box;"
+                        class="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:ring-1 focus:ring-slate-400 focus:border-slate-400 bg-white {{ $errors->has('move_in_date') ? 'border-red-400' : '' }}">
+                    @error('move_in_date')<p class="text-red-500 text-xs mt-1">{{ $message }}</p>@enderror
+                </div>
+
+                <!-- Move Out Date -->
+                <div>
+                    <label for="move_out_date" class="block text-xs font-medium text-slate-500 mb-1.5">Move Out Date <span class="text-slate-300">(optional)</span></label>
+                    <input type="date" id="move_out_date" name="move_out_date" value="{{ old('move_out_date') }}"
+                        style="max-width:100%;box-sizing:border-box;"
+                        class="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:ring-1 focus:ring-slate-400 focus:border-slate-400 bg-white {{ $errors->has('move_out_date') ? 'border-red-400' : '' }}">
+                    @error('move_out_date')<p class="text-red-500 text-xs mt-1">{{ $message }}</p>@enderror
+                </div>
+
+                <!-- Date of Birth -->
+                <div>
+                    <label for="date_of_birth" class="block text-xs font-medium text-slate-500 mb-1.5">Date of Birth <span class="text-slate-300">(optional)</span></label>
+                    <input type="date" id="date_of_birth" name="date_of_birth" value="{{ old('date_of_birth') }}"
+                        style="max-width:100%;box-sizing:border-box;"
+                        class="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:ring-1 focus:ring-slate-400 focus:border-slate-400 bg-white {{ $errors->has('date_of_birth') ? 'border-red-400' : '' }}">
+                    @error('date_of_birth')<p class="text-red-500 text-xs mt-1">{{ $message }}</p>@enderror
+                </div>
+
+                <!-- Status -->
+                <div>
+                    <label for="status" class="block text-xs font-medium text-slate-500 mb-1.5">Status <span class="text-red-400">*</span></label>
+                    <select id="status" name="status" required
+                        class="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:ring-1 focus:ring-slate-400 focus:border-slate-400 bg-white {{ $errors->has('status') ? 'border-red-400' : '' }}">
+                        <option value="">Select status</option>
+                        <option value="active" {{ old('status') === 'active' ? 'selected' : '' }}>Active</option>
+                        <option value="pending" {{ old('status') === 'pending' ? 'selected' : '' }}>Pending</option>
+                    </select>
+                    @error('status')<p class="text-red-500 text-xs mt-1">{{ $message }}</p>@enderror
+                </div>
+
+                <!-- Deposit -->
+                <div>
+                    <label for="deposit" class="block text-xs font-medium text-slate-500 mb-1.5">Deposit Amount <span class="text-slate-300">(optional)</span></label>
+                    <input type="number" id="deposit" name="deposit" step="0.01" min="0" placeholder="0.00" value="{{ old('deposit', 0) }}"
+                        class="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:ring-1 focus:ring-slate-400 focus:border-slate-400 {{ $errors->has('deposit') ? 'border-red-400' : '' }}">
+                    @error('deposit')<p class="text-red-500 text-xs mt-1">{{ $message }}</p>@enderror
+                </div>
+
+                <!-- Address -->
+                <div>
+                    <label for="address" class="block text-xs font-medium text-slate-500 mb-1.5">Address <span class="text-slate-300">(optional)</span></label>
+                    <textarea id="address" name="address" rows="2" placeholder="Tenant address"
+                        class="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:ring-1 focus:ring-slate-400 focus:border-slate-400 {{ $errors->has('address') ? 'border-red-400' : '' }}">{{ old('address') }}</textarea>
+                    @error('address')<p class="text-red-500 text-xs mt-1">{{ $message }}</p>@enderror
+                </div>
+
+                <!-- Notes -->
+                <div>
+                    <label for="notes" class="block text-xs font-medium text-slate-500 mb-1.5">Notes <span class="text-slate-300">(optional)</span></label>
+                    <textarea id="notes" name="notes" rows="2" placeholder="Any additional notes"
+                        class="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:ring-1 focus:ring-slate-400 focus:border-slate-400 {{ $errors->has('notes') ? 'border-red-400' : '' }}">{{ old('notes') }}</textarea>
+                    @error('notes')<p class="text-red-500 text-xs mt-1">{{ $message }}</p>@enderror
+                </div>
+
             </div>
 
-            {{-- Submit --}}
-            <div class="flex items-center justify-end gap-3">
-                <a href="{{ route('supervisor.tenants.index') }}" class="px-6 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition text-sm font-medium">Cancel</a>
-                <button type="submit" class="px-6 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition text-sm font-medium" {{ $apartments->count() === 0 ? 'disabled' : '' }}>
+            <!-- Buttons -->
+            <div class="flex gap-2 pt-2">
+                <button type="submit" {{ $apartments->count() === 0 && !isset($selectedApt) ? 'disabled' : '' }}
+                    class="flex-1 py-2.5 bg-slate-800 hover:bg-slate-700 text-white text-sm font-semibold rounded-lg transition disabled:opacity-50 disabled:cursor-not-allowed">
                     Register Tenant
                 </button>
+                <a href="{{ route('supervisor.tenants.index') }}" class="px-5 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-600 text-sm font-medium rounded-lg transition text-center">
+                    Cancel
+                </a>
             </div>
         </form>
     </div>
+
 </div>
+
+<script>
+function previewPhoto(event) {
+    const file = event.target.files[0];
+    const preview = document.getElementById('photoPreview');
+    if (file) {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            preview.innerHTML = `<div class="relative inline-block">
+                <img src="${e.target.result}" alt="Preview" class="h-20 w-20 object-cover rounded-lg border border-slate-200">
+                <button type="button" onclick="clearPhoto()" class="absolute -top-1 -right-1 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs hover:bg-red-600 transition">&times;</button>
+            </div>`;
+        };
+        reader.readAsDataURL(file);
+    }
+}
+function clearPhoto() {
+    document.getElementById('photo').value = '';
+    document.getElementById('photoPreview').innerHTML = '';
+}
+</script>
 @endsection

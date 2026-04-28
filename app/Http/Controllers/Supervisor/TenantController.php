@@ -9,14 +9,17 @@ use App\Models\Rentals;
 use App\Models\Apartments;
 use App\Models\Floors;
 use App\Models\Payments;
+use App\Models\Utilities;
 use App\Models\Accounts;
 use App\Models\FiscalPeriods;
+use App\Models\User;
 use App\Services\TenantLeaveCalculator;
 use Illuminate\Http\Request;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\View\View;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Carbon\Carbon;
@@ -222,7 +225,7 @@ class TenantController extends Controller
         $validated = $request->validate([
             'apartment_id' => 'required|exists:apartments,id',
             'name' => 'required|string|max:255',
-            'email' => 'required|email|unique:tenants|max:255',
+            'email' => 'required|email|unique:tenants|unique:users|max:255',
             'phone' => 'required|string|max:20',
             'address' => 'nullable|string',
             'date_of_birth' => 'nullable|date',
@@ -242,7 +245,16 @@ class TenantController extends Controller
             }
         }
 
+        // Create a user account for the tenant with default password
+        $tenantUser = User::create([
+            'name'     => $validated['name'],
+            'email'    => $validated['email'],
+            'password' => Hash::make('12345678'),
+        ]);
+        $tenantUser->assignRole('tenant');
+
         $validated['managed_by'] = Auth::id();
+        $validated['user_id'] = $tenantUser->id;
         $tenant = Tenants::create($validated);
 
         // Update apartment status to occupied
@@ -287,7 +299,42 @@ class TenantController extends Controller
             $rental->end_date = null;
         }
 
-        return view('supervisor.tenants.leave', compact('tenant', 'rental'));
+        $pendingCharges = collect();
+        if ($rental && $rental->id) {
+            $pendingPayments = Payments::where('rental_id', $rental->id)
+                ->whereIn('payment_type', ['utilities', 'other'])
+                ->whereIn('payment_status', ['pending', 'overdue'])
+                ->orderBy('due_date')
+                ->get()
+                ->map(fn($p) => (object)[
+                    'id'          => 'payment_' . $p->id,
+                    'source'      => 'payment',
+                    'description' => $p->note ?: ucfirst($p->payment_type) . ' charge',
+                    'type'        => $p->payment_type,
+                    'amount'      => $p->amount,
+                    'due_date'    => $p->due_date,
+                ]);
+
+            $unpaidUtils = Utilities::where('rental_id', $rental->id)
+                ->where('paid_status', false)
+                ->orderBy('billing_year')
+                ->orderBy('billing_month')
+                ->get()
+                ->map(fn($u) => (object)[
+                    'id'          => 'utility_' . $u->id,
+                    'source'      => 'utility',
+                    'description' => ucfirst($u->utility_type) . ' — ' . Carbon::create($u->billing_year, $u->billing_month)->format('M Y'),
+                    'type'        => 'utilities',
+                    'amount'      => $u->charge_amount,
+                    'due_date'    => Carbon::create($u->billing_year, $u->billing_month)->endOfMonth(),
+                ]);
+
+            $pendingCharges = $pendingPayments->concat($unpaidUtils)
+                ->sortBy('due_date')
+                ->values();
+        }
+
+        return view('supervisor.tenants.leave', compact('tenant', 'rental', 'pendingCharges'));
     }
 
     /**
@@ -320,23 +367,54 @@ class TenantController extends Controller
             }
 
             $validated = $request->validate([
-                'leave_date' => 'required|date|after_or_equal:' . $tenant->move_in_date->format('Y-m-d'),
-                'electricity_charge' => 'nullable|numeric|min:0',
-                'water_charge' => 'nullable|numeric|min:0',
-                'internet_charge' => 'nullable|numeric|min:0',
-                'parking_charge' => 'nullable|numeric|min:0',
-                'notes' => 'nullable|string',
+                'leave_date'        => 'required|date|after_or_equal:' . $tenant->move_in_date->format('Y-m-d'),
+                'charge_full_month' => 'nullable|boolean',
+                'charge_ids'        => 'nullable|array',
+                'charge_ids.*'      => 'string',
+                'notes'             => 'nullable|string',
             ]);
 
             $leaveDate = Carbon::parse($validated['leave_date']);
-            $proRataRent = $this->leaveCalculator->calculateProRataRent($rental, $leaveDate);
+
+            $chargeFullMonth = $request->boolean('charge_full_month');
+            $proRataRent = $chargeFullMonth
+                ? (float) $rental->rent_amount
+                : $this->leaveCalculator->calculateProRataRent($rental, $leaveDate);
+
+            $paymentIds = [];
+            $utilityIds = [];
+            foreach ($validated['charge_ids'] ?? [] as $chargeId) {
+                if (str_starts_with($chargeId, 'payment_')) {
+                    $paymentIds[] = (int) substr($chargeId, 8);
+                } elseif (str_starts_with($chargeId, 'utility_')) {
+                    $utilityIds[] = (int) substr($chargeId, 8);
+                }
+            }
+
+            $selectedPayments = collect();
+            if (!empty($paymentIds)) {
+                $selectedPayments = Payments::whereIn('id', $paymentIds)
+                    ->whereIn('payment_type', ['utilities', 'other'])
+                    ->get();
+            }
+
+            $selectedUtilities = collect();
+            if (!empty($utilityIds)) {
+                $selectedUtilities = Utilities::whereIn('id', $utilityIds)
+                    ->where('paid_status', false)
+                    ->get();
+            }
+
+            $utilitiesTotal = $selectedPayments->where('payment_type', 'utilities')->sum('amount')
+                            + $selectedUtilities->sum('charge_amount');
+            $otherTotal     = $selectedPayments->where('payment_type', 'other')->sum('amount');
 
             $charges = [
                 'pro_rata_rent' => $proRataRent,
-                'electricity' => $validated['electricity_charge'] ?? 0,
-                'water' => $validated['water_charge'] ?? 0,
-                'internet' => $validated['internet_charge'] ?? 0,
-                'parking' => $validated['parking_charge'] ?? 0,
+                'electricity'   => $utilitiesTotal,
+                'water'         => 0,
+                'internet'      => 0,
+                'parking'       => $otherTotal,
             ];
 
             $settlement = $this->leaveCalculator->calculateSettlement(

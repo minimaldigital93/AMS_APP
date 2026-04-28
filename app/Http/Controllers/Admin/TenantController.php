@@ -12,12 +12,14 @@ use App\Models\Payments;
 use App\Models\Utilities;
 use App\Models\Accounts;
 use App\Models\FiscalPeriods;
+use App\Models\User;
 use App\Services\TenantLeaveCalculator;
 use Illuminate\Http\Request;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\View\View;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Carbon\Carbon;
@@ -614,7 +616,7 @@ class TenantController extends Controller
         $validated = $request->validate([
             'apartment_id' => 'required|exists:apartments,id',
             'name' => 'required|string|max:255',
-            'email' => 'required|email|unique:tenants|max:255',
+            'email' => 'required|email|unique:tenants|unique:users|max:255',
             'phone' => 'required|string|max:20',
             'address' => 'nullable|string',
             'date_of_birth' => 'nullable|date',
@@ -637,6 +639,15 @@ class TenantController extends Controller
             }
         }
 
+        // Create a user account for the tenant with default password
+        $tenantUser = User::create([
+            'name'     => $validated['name'],
+            'email'    => $validated['email'],
+            'password' => Hash::make('12345678'),
+        ]);
+        $tenantUser->assignRole('tenant');
+
+        $validated['user_id'] = $tenantUser->id;
         $tenant = Tenants::create($validated);
 
         // Auto-record deposit income when a deposit amount is set

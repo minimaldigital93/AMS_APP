@@ -11,7 +11,8 @@
       "Bash(sed -i '' \"s|route\\('admin\\\\.dashboard'|route\\('supervisor.dashboard'|g\" /Users/moniodom/AMS_APP/resources/views/supervisor/dashboard.blade.php)",
       "Bash(php -l /Users/moniodom/AMS_APP/app/Http/Controllers/Supervisor/DashboardController.php)",
       "Bash(grep -ohE '\\\\$[a-zA-Z_]+' /Users/moniodom/AMS_APP/resources/views/supervisor/dashboard.blade.php)",
-      "Bash(grep -c '$__TRACKED_VAR__' /Users/moniodom/AMS_APP/resources/views/supervisor/dashboard.blade.php)"
+      "Bash(grep -c '$__TRACKED_VAR__' /Users/moniodom/AMS_APP/resources/views/supervisor/dashboard.blade.php)",
+      "Bash(php -l /Users/sarotmoniodom/AMS_APP/app/Http/Controllers/Supervisor/TenantController.php)"
     ]
   }
 }

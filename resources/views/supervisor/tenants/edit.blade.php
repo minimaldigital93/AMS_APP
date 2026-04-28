@@ -29,22 +29,20 @@
             @method('PUT')
 
             {{-- Photo Upload --}}
-            <div class="bg-white rounded-lg shadow-md p-6">
+            <div class="bg-white rounded-xl border border-slate-100 p-6">
                 <h2 class="text-lg font-bold text-gray-900 mb-4">Tenant Photo</h2>
                 <div class="flex items-start gap-6">
-                    @unless(auth()->user()->hasRole('supervisor'))
-                        @if($tenant->photo_path && !str_ends_with($tenant->photo_path, '.pdf'))
+                    @if($tenant->photo_path && !str_ends_with($tenant->photo_path, '.pdf'))
                         <div class="flex-shrink-0">
                             <img src="{{ asset('storage/' . $tenant->photo_path) }}" alt="{{ $tenant->name }}" class="h-32 w-32 object-cover rounded-lg shadow-md">
                         </div>
-                        @elseif($tenant->photo_path && str_ends_with($tenant->photo_path, '.pdf'))
+                    @elseif($tenant->photo_path && str_ends_with($tenant->photo_path, '.pdf'))
                         <div class="flex-shrink-0">
                             <a href="{{ asset('storage/' . $tenant->photo_path) }}" target="_blank" class="h-32 w-32 rounded-lg bg-red-50 flex items-center justify-center text-red-600 border border-red-200">
                                 <svg class="w-8 h-8" fill="currentColor" viewBox="0 0 20 20"><path d="M4 2h7l5 5v11a2 2 0 01-2 2H4a2 2 0 01-2-2V4a2 2 0 012-2z"/></svg>
                             </a>
                         </div>
-                        @endif
-                    @endunless
+                    @endif
                     @if($tenant->document_path)
                     <div class="flex-shrink-0">
                         <a href="{{ asset('storage/' . $tenant->document_path) }}" target="_blank" class="inline-flex items-center px-3 py-2 bg-gray-50 text-gray-700 rounded-lg border border-gray-200 hover:bg-gray-100">
@@ -72,7 +70,7 @@
             </div>
 
             {{-- Apartment Selection --}}
-            <div class="bg-white rounded-lg shadow-md p-6">
+            <div class="bg-white rounded-xl border border-slate-100 p-6">
                 <h2 class="text-lg font-bold text-gray-900 mb-4">Apartment Assignment</h2>
                 <div>
                     <label for="apartment_id" class="block text-sm font-medium text-gray-700 mb-2">Apartment <span class="text-red-500">*</span></label>
@@ -91,7 +89,7 @@
             </div>
 
             {{-- Personal Information --}}
-            <div class="bg-white rounded-lg shadow-md p-6">
+            <div class="bg-white rounded-xl border border-slate-100 p-6">
                 <h2 class="text-lg font-bold text-gray-900 mb-4">Personal Information</h2>
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
@@ -137,7 +135,7 @@
             </div>
 
             {{-- Lease Details --}}
-            <div class="bg-white rounded-lg shadow-md p-6">
+            <div class="bg-white rounded-xl border border-slate-100 p-6">
                 <h2 class="text-lg font-bold text-gray-900 mb-4">Lease Details</h2>
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
@@ -187,7 +185,7 @@
 
             {{-- Buttons --}}
             <div class="flex gap-3">
-                <button type="submit" class="flex-1 px-6 py-2.5 bg-emerald-600 text-white font-medium rounded-lg hover:bg-emerald-700 transition text-center">
+                <button type="submit" class="flex-1 px-6 py-2.5 bg-slate-800 text-white font-medium rounded-lg hover:bg-slate-700 transition text-center">
                     Update Tenant
                 </button>
                 <a href="{{ route('supervisor.tenants.show', $tenant->id) }}" class="flex-1 px-6 py-2.5 border border-gray-300 text-gray-700 font-medium rounded-lg hover:bg-gray-50 transition text-center">

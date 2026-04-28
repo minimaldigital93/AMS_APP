@@ -15,7 +15,7 @@
         </div>
 
         {{-- Tenant Info Card --}}
-        <div class="bg-white rounded-lg shadow-md p-6 mb-6">
+        <div class="bg-white rounded-xl border border-slate-100 p-6 mb-6">
             <div class="flex flex-col sm:flex-row items-start gap-6">
                 <div class="h-20 w-20 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-700 font-bold text-2xl shrink-0">
                     {{ strtoupper(substr($tenant->name, 0, 1)) }}
@@ -52,7 +52,7 @@
         </div>
 
         {{-- Apartment Info --}}
-        <div class="bg-white rounded-lg shadow-md p-6 mb-6">
+        <div class="bg-white rounded-xl border border-slate-100 p-6 mb-6">
             <h2 class="text-lg font-bold text-gray-900 mb-4">Apartment Information</h2>
             @if($tenant->apartment)
             <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -87,7 +87,7 @@
         </div>
 
         {{-- Rental History --}}
-        <div class="bg-white rounded-lg shadow-md p-6 mb-6">
+        <div class="bg-white rounded-xl border border-slate-100 p-6 mb-6">
             <h2 class="text-lg font-bold text-gray-900 mb-4">Rental History</h2>
             @if($tenant->rentals && $tenant->rentals->count() > 0)
             <div class="overflow-x-auto">
@@ -125,7 +125,7 @@
 
         {{-- Utilities --}}
         @if($tenant->utilities && $tenant->utilities->count() > 0)
-        <div class="bg-white rounded-lg shadow-md p-6 mb-6">
+        <div class="bg-white rounded-xl border border-slate-100 p-6 mb-6">
             <h2 class="text-lg font-bold text-gray-900 mb-4">Utility Records</h2>
             <div class="overflow-x-auto">
                 <table class="min-w-full divide-y divide-gray-200">

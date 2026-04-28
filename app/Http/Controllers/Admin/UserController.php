@@ -16,7 +16,7 @@ class UserController extends Controller
 
     public function index(Request $request): View
     {
-        $query = User::with('roles', 'permissions');
+        $query = User::with('roles', 'permissions', 'tenants.apartment');
 
         // Filter by role
         if ($request->filled('role')) {
