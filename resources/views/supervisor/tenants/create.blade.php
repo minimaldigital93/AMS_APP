@@ -6,12 +6,11 @@
     <!-- Header -->
     <div class="flex items-center justify-between">
         <div>
-            <h1 class="text-xl font-semibold text-slate-800">Register New Tenant</h1>
-            <p class="text-sm text-slate-400 mt-0.5">Add a tenant to one of your assigned apartments</p>
+            <h1 class="text-2xl font-semibold text-slate-800 tracking-tight">Register New Tenant</h1>
+            <p class="text-slate-400 text-sm mt-1">Add a tenant to one of your assigned apartments</p>
         </div>
-        <a href="{{ route('supervisor.tenants.index') }}" class="inline-flex items-center gap-1.5 text-slate-500 hover:text-slate-700 text-sm font-medium py-2 px-4 rounded-lg border border-slate-200 hover:border-slate-300 transition">
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
-            Back
+        <a href="{{ route('supervisor.tenants.index') }}" class="text-slate-400 hover:text-slate-600 text-sm font-medium py-2 px-4 rounded-lg border border-slate-200 hover:border-slate-300 transition">
+            Back to Tenants
         </a>
     </div>
 

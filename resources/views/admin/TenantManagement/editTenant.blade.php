@@ -4,14 +4,14 @@
 <div class="max-w-4xl mx-auto space-y-6">
     <div class="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8">
         <!-- Header -->
-        <div class="mb-8">
-            <a href="{{ route('admin.tenants.show', $tenant->id) }}" class="text-slate-500 hover:text-slate-700 flex items-center mb-4">
-                <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
-                </svg>
+        <div class="flex items-center justify-between mb-8">
+            <div>
+                <h1 class="text-2xl font-semibold text-slate-800 tracking-tight">Edit Tenant</h1>
+                <p class="text-slate-400 text-sm mt-1">Update tenant information</p>
+            </div>
+            <a href="{{ route('admin.tenants.show', $tenant->id) }}" class="text-slate-400 hover:text-slate-600 text-sm font-medium py-2 px-4 rounded-lg border border-slate-200 hover:border-slate-300 transition">
                 Back to Details
             </a>
-            <h1 class="text-2xl font-semibold text-slate-800">Edit Tenant</h1>
         </div>
 
         <!-- Form Card -->

@@ -74,14 +74,14 @@
                     </thead>
                     <tbody class="divide-y divide-slate-50">
                         @foreach($apartmentsInFloor as $apartment)
+                        @php
+                            $tenant = $apartment->tenants->whereNull('deleted_at')->sortByDesc('id')->first();
+                            $tenantStatus = $tenant?->status;
+                        @endphp
                         <tr class="hover:bg-slate-50/50 transition">
                             <td class="px-4 py-3 text-sm text-slate-500">{{ $loop->iteration }}</td>
                             <td class="px-4 py-3">
                                 <div class="flex items-center gap-2">
-                                    @php
-                                        $tenant = $apartment->tenants()->whereNull('deleted_at')->latest()->first();
-                                        $tenantStatus = $tenant ? $tenant->status : null;
-                                    @endphp
                                     <span class="w-1.5 h-1.5 rounded-full {{
                                         $tenantStatus === 'active' ? 'bg-sky-400' :
                                         ($tenantStatus === 'pending' ? 'bg-amber-400' : 'bg-emerald-400')
@@ -113,9 +113,6 @@
                                 </span>
                             </td>
                             <td class="px-4 py-3">
-                                @php
-                                    $tenant = $apartment->tenants()->whereNull('deleted_at')->latest()->first();
-                                @endphp
                                 @if($tenant)
                                     <div class="flex items-center gap-2.5">
                                         @if($tenant->photo_path && !str_ends_with($tenant->photo_path, '.pdf'))
@@ -136,7 +133,6 @@
                             </td>
                             <td class="px-4 py-3">
                                 @php
-                                    $tenant = $apartment->tenants()->whereNull('deleted_at')->latest()->first();
                                     $hasLease = false;
                                     $hasMonthlyPeriod = false;
 
@@ -222,7 +218,6 @@
                             </td>
                             <td class="px-4 py-3">
                                 @php
-                                    $tenant = $apartment->tenants()->whereNull('deleted_at')->latest()->first();
                                     $tenantManager = $tenant?->manager ?? null;
                                     $displaySupervisor = $tenantManager ?? $apartment->supervisor;
                                 @endphp
@@ -234,8 +229,6 @@
                             </td>
                             <td class="px-4 py-3 text-right">
                                 <div class="flex items-center justify-end gap-1">
-                                    @php $tenant = $apartment->tenants()->whereNull('deleted_at')->latest()->first(); @endphp
-
                                     @if(!$tenant || $tenant->status !== 'active')
                                     <button type="button"
                                             data-apartment-id="{{ $apartment->id }}"

@@ -15,6 +15,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
+use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 
 class ApartmentController extends Controller
@@ -59,13 +60,7 @@ class ApartmentController extends Controller
 
         $apartment->load('floor', 'supervisor');
 
-        // Get admin's active fiscal period
-        $activePeriod = FiscalPeriods::where('status', 'open')
-            ->whereHas('user', function ($q) {
-                $q->role('admin');
-            })
-            ->orderBy('opening_date', 'desc')
-            ->first();
+        $activePeriod = $this->activeAdminFiscalPeriod();
 
         $activeRental = Rentals::where('apartment_id', $apartment->id)
             ->where(function ($q) {
@@ -160,130 +155,147 @@ class ApartmentController extends Controller
     {
         $this->authorizeApartment($apartment);
 
-        if ($apartment->status !== 'available') {
-            return back()->with('error', 'This apartment is not available for assignment.');
-        }
-
         $validated = $request->validate([
             'tenant_option' => 'required|in:existing,new',
             'tenant_id' => 'nullable|required_if:tenant_option,existing|exists:tenants,id',
             'name' => 'nullable|required_if:tenant_option,new|string|max:255',
-            'email' => 'nullable|required_if:tenant_option,new|email|max:255',
-            'phone' => 'nullable|string|max:20',
+            'email' => [
+                'nullable',
+                'required_if:tenant_option,new',
+                'email',
+                'max:255',
+                Rule::unique('users', 'email')->where(fn ($q) => $request->input('tenant_option') === 'new'),
+                Rule::unique('tenants', 'email')->where(fn ($q) => $request->input('tenant_option') === 'new'),
+            ],
+            'phone' => 'required_if:tenant_option,new|nullable|string|max:20',
             'address' => 'nullable|string',
-            'date_of_birth' => 'nullable|date',
+            'date_of_birth' => 'nullable|date|before:today',
             'attached_photo' => 'nullable|file|mimes:jpeg,jpg,png,gif,pdf|max:5120',
             'id_pdf' => 'nullable|file|mimes:pdf,jpeg,jpg,png,gif|max:5120',
-            'move_in_date' => 'required|date',
+            'move_in_date' => 'required|date|before_or_equal:today',
             'deposit' => 'required|numeric|min:0',
         ]);
 
-        $photoPath = null;
-        $documentPath = null;
+        return DB::transaction(function () use ($request, $apartment, $validated) {
+            // Lock the apartment row so two concurrent assignments can't both succeed.
+            $apartment = Apartments::whereKey($apartment->id)->lockForUpdate()->firstOrFail();
 
-        if ($request->hasFile('attached_photo')) {
-            $photoPath = $request->file('attached_photo')->store('tenants', 'public');
-        }
-
-        if ($request->hasFile('id_pdf')) {
-            $documentPath = $request->file('id_pdf')->store('tenants/id_documents', 'public');
-        }
-
-        if ($validated['tenant_option'] === 'existing') {
-            $tenant = Tenants::findOrFail($validated['tenant_id']);
-
-            // If this existing tenant has no user account yet, create one now
-            if (!$tenant->user_id && $tenant->email) {
-                $existingUser = User::where('email', $tenant->email)->first();
-                if (!$existingUser) {
-                    $existingUser = User::create([
-                        'name'     => $tenant->name,
-                        'email'    => $tenant->email,
-                        'password' => '12345678',
-                    ]);
-                    $existingUser->assignRole('tenant');
-                }
-                $tenant->update(['user_id' => $existingUser->id]);
+            if ($apartment->status !== 'available') {
+                return back()->with('error', 'This apartment is not available for assignment.');
             }
-        } else {
-            // Create a user account first, then create the tenant linked to it
-            $tenantUser = User::create([
-                'name'     => $validated['name'],
-                'email'    => $validated['email'],
-                'password' => '12345678',
+
+            $photoPath = null;
+            $documentPath = null;
+
+            // Only accept uploads when creating a new tenant — prevents accidental
+            // overwrite of an existing tenant's photo/document via crafted requests.
+            if ($validated['tenant_option'] === 'new') {
+                if ($request->hasFile('attached_photo')) {
+                    $photoPath = $request->file('attached_photo')->store('tenants', 'public');
+                }
+                if ($request->hasFile('id_pdf')) {
+                    $documentPath = $request->file('id_pdf')->store('tenants/id_documents', 'public');
+                }
+            }
+
+            if ($validated['tenant_option'] === 'existing') {
+                $tenant = Tenants::findOrFail($validated['tenant_id']);
+
+                if (!$tenant->user_id && $tenant->email) {
+                    $existingUser = User::firstOrCreate(
+                        ['email' => $tenant->email],
+                        [
+                            'name'     => $tenant->name,
+                            'password' => Str::random(16),
+                        ]
+                    );
+                    if (!$existingUser->hasRole('tenant')) {
+                        $existingUser->assignRole('tenant');
+                    }
+                    $tenant->update(['user_id' => $existingUser->id]);
+                }
+            } else {
+                $tenantUser = User::create([
+                    'name'     => $validated['name'],
+                    'email'    => $validated['email'],
+                    'password' => Str::random(16),
+                ]);
+                $tenantUser->assignRole('tenant');
+
+                $tenant = Tenants::create([
+                    'name'          => $validated['name'],
+                    'email'         => $validated['email'],
+                    'phone'         => $validated['phone'] ?? null,
+                    'address'       => $validated['address'] ?? null,
+                    'date_of_birth' => $validated['date_of_birth'] ?? null,
+                    'photo_path'    => $photoPath,
+                    'document_path' => $documentPath,
+                    'apartment_id'  => $apartment->id,
+                    'status'        => 'active',
+                    'managed_by'    => Auth::id(),
+                    'user_id'       => $tenantUser->id,
+                ]);
+            }
+
+            $updateData = [
+                'apartment_id' => $apartment->id,
+                'move_in_date' => $validated['move_in_date'],
+                'deposit' => $validated['deposit'],
+                'status' => 'active',
+                'managed_by' => Auth::id(),
+            ];
+
+            if ($photoPath) $updateData['photo_path'] = $photoPath;
+            if ($documentPath) $updateData['document_path'] = $documentPath;
+
+            $tenant->update($updateData);
+            $apartment->update(['status' => 'occupied']);
+
+            $moveInDate = Carbon::parse($validated['move_in_date']);
+            $rental = Rentals::create([
+                'apartment_id' => $apartment->id,
+                'tenant_id' => $tenant->id,
+                'start_date' => $moveInDate,
+                'end_date' => null,
+                'rent_amount' => $apartment->monthly_rent,
+                'deposit' => $validated['deposit'],
             ]);
-            $tenantUser->assignRole('tenant');
 
-            $tenant = Tenants::create([
-                'name'          => $validated['name'],
-                'email'         => $validated['email'],
-                'phone'         => $validated['phone'] ?? null,
-                'address'       => $validated['address'] ?? null,
-                'date_of_birth' => $validated['date_of_birth'] ?? null,
-                'photo_path'    => $photoPath,
-                'document_path' => $documentPath,
-                'apartment_id'  => $apartment->id,
-                'status'        => 'active',
-                'managed_by'    => Auth::id(),
-                'user_id'       => $tenantUser->id,
-            ]);
-        }
+            if (!empty($validated['deposit']) && $validated['deposit'] > 0) {
+                $activePeriod = $this->activeAdminFiscalPeriod();
 
-        $updateData = [
-            'apartment_id' => $apartment->id,
-            'move_in_date' => $validated['move_in_date'],
-            'deposit' => $validated['deposit'],
-            'status' => 'active',
-            'managed_by' => Auth::id(),
-        ];
+                $reference = 'deposit:rental:' . $rental->id;
 
-        if ($photoPath) $updateData['photo_path'] = $photoPath;
-        if ($documentPath) $updateData['document_path'] = $documentPath;
+                Accounts::firstOrCreate(
+                    ['reference_number' => $reference],
+                    [
+                        'fiscal_period_id' => $activePeriod?->id,
+                        'payment_id' => null,
+                        'user_id' => Auth::id(),
+                        'account_type' => Accounts::TYPE_INCOME,
+                        'category' => Accounts::CAT_DEPOSIT_INCOME,
+                        'description' => 'Security deposit — Apt ' . ($apartment->apartment_number ?? 'N/A'),
+                        'amount' => $validated['deposit'],
+                        'transaction_date' => now()->toDateString(),
+                        'note' => 'Initial deposit collected on tenant assignment',
+                        'reference_number' => $reference,
+                    ]
+                );
+            }
 
-        $tenant->update($updateData);
-        $apartment->update(['status' => 'occupied']);
+            return redirect()->route('supervisor.apartments.index')
+                ->with('success', 'Tenant assigned successfully with rental created.');
+        });
+    }
 
-        $moveInDate = Carbon::parse($validated['move_in_date']);
-        $rental = Rentals::create([
-            'apartment_id' => $apartment->id,
-            'tenant_id' => $tenant->id,
-            'start_date' => $moveInDate,
-            'end_date' => null,
-            'rent_amount' => $apartment->monthly_rent,
-            'deposit' => $validated['deposit'],
-        ]);
-
-        // Record deposit as revenue (deposit income) in Accounts ledger.
-        // Supervisors share the admin fiscal period — see project memory.
-        if (!empty($validated['deposit']) && $validated['deposit'] > 0) {
-            $activePeriod = FiscalPeriods::where('status', 'open')
-                ->whereHas('user', function ($q) {
-                    $q->role('admin');
-                })
-                ->orderBy('opening_date', 'desc')
-                ->first();
-
-            $reference = 'deposit:rental:' . $rental->id;
-
-            Accounts::firstOrCreate(
-                ['reference_number' => $reference],
-                [
-                    'fiscal_period_id' => $activePeriod?->id,
-                    'payment_id' => null,
-                    'user_id' => Auth::id(),
-                    'account_type' => Accounts::TYPE_INCOME,
-                    'category' => Accounts::CAT_DEPOSIT_INCOME,
-                    'description' => 'Security deposit — Apt ' . ($apartment->apartment_number ?? 'N/A'),
-                    'amount' => $validated['deposit'],
-                    'transaction_date' => now()->toDateString(),
-                    'note' => 'Initial deposit collected on tenant assignment',
-                    'reference_number' => $reference,
-                ]
-            );
-        }
-
-        return redirect()->route('supervisor.apartments.index')
-            ->with('success', 'Tenant assigned successfully with rental created.');
+    private function activeAdminFiscalPeriod(): ?FiscalPeriods
+    {
+        return FiscalPeriods::where('status', 'open')
+            ->whereHas('user', function ($q) {
+                $q->role('admin');
+            })
+            ->orderBy('opening_date', 'desc')
+            ->first();
     }
 
     /**

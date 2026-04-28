@@ -2,7 +2,16 @@
 
 @section('content')
 <div class="container mx-auto py-8 max-w-lg">
-    <h1 class="text-2xl font-bold mb-6">Edit Period</h1>
+    <!-- Header -->
+    <div class="flex items-center justify-between mb-6">
+        <div>
+            <h1 class="text-2xl font-semibold text-slate-800 tracking-tight">Edit Period</h1>
+            <p class="text-slate-400 text-sm mt-1">Update fiscal period details</p>
+        </div>
+        <a href="{{ route('admin.fiscalperiod.show', $fiscalperiod->id) }}" class="text-slate-400 hover:text-slate-600 text-sm font-medium py-2 px-4 rounded-lg border border-slate-200 hover:border-slate-300 transition">
+            Back to Period
+        </a>
+    </div>
 
     @if($errors->any())
         <div class="bg-red-50 border border-red-200 rounded-lg p-3 mb-4">
