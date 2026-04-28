@@ -173,24 +173,36 @@ class TenantController extends Controller
 
         $query = Tenants::onlyTrashed()
             ->whereIn('apartment_id', $apartmentIds)
-            ->with(['apartment', 'leaves']);
+            ->with(['apartment.floor', 'leaves']);
 
-        if ($request->filled('search')) {
-            $search = $request->search;
+        if ($search = $request->input('search')) {
             $query->where(function (Builder $q) use ($search) {
                 $q->where('name', 'like', "%{$search}%")
                   ->orWhere('email', 'like', "%{$search}%");
             });
         }
 
-        if ($request->filled('apartment')) {
-            $query->where('apartment_id', $request->apartment);
+        if ($floorId = $request->input('floor')) {
+            $query->whereHas('apartment.floor', function (Builder $q) use ($floorId) {
+                $q->where('id', $floorId);
+            });
         }
 
-        $tenants = $query->orderBy('deleted_at', 'desc')->paginate(15);
-        $apartments = Apartments::whereIn('id', $apartmentIds)->get();
+        $tenants = $query->orderBy('deleted_at', 'desc')->paginate(7)->withQueryString();
+        $floors = Floors::orderBy('floor_name')->get();
 
-        return view('supervisor.tenants.archived', compact('tenants', 'apartments'));
+        $archivedScope = Tenants::onlyTrashed()->whereIn('apartment_id', $apartmentIds);
+        $archivedTenantCount = (clone $archivedScope)->count();
+        $recentlyArchivedCount = (clone $archivedScope)->where('deleted_at', '>=', now()->subDays(30))->count();
+        $totalDeposits = (clone $archivedScope)->sum('deposit');
+
+        return view('supervisor.tenants.archived', compact(
+            'tenants',
+            'floors',
+            'archivedTenantCount',
+            'recentlyArchivedCount',
+            'totalDeposits'
+        ));
     }
 
     /**

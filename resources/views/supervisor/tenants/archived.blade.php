@@ -3,111 +3,326 @@
 @section('content')
 <div class="min-h-screen bg-gray-50 py-8">
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        {{-- Header --}}
+        <!-- Header Section -->
         <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-8">
             <div>
-                <h1 class="text-3xl font-bold text-gray-900">Departed Tenants</h1>
-                <p class="text-sm text-gray-500 mt-1">Archived tenants from your assigned apartments</p>
+                <h1 class="text-3xl font-bold text-gray-900">Archived Tenants Management</h1>
             </div>
-            <a href="{{ route('supervisor.tenants.index') }}" class="mt-3 sm:mt-0 inline-flex items-center gap-2 text-emerald-600 hover:text-emerald-800 text-sm font-medium">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/></svg>
-                Back to Active Tenants
-            </a>
         </div>
 
-        {{-- Filters --}}
-        <div class="bg-white rounded-xl border border-slate-100 mb-6 p-6">
-            <form method="GET" action="{{ route('supervisor.tenants.archived') }}" class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-2">Search</label>
-                    <input type="text" name="search" placeholder="Search by name or email..." value="{{ request('search') }}" class="w-full h-10 px-3 text-sm border border-slate-200 rounded-lg focus:ring-2 focus:ring-slate-300 focus:border-transparent">
+        <!-- Statistics Section -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+            <div class="bg-white rounded-xl border border-slate-100 p-6">
+                <div class="flex items-center">
+                    <div class="p-3 rounded-full bg-slate-50">
+                        <svg class="w-6 h-6 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.856-1.487M15 10a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                        </svg>
+                    </div>
+                    <div class="ml-4">
+                        <p class="text-slate-500 text-sm">Total Archived</p>
+                        <p class="text-2xl font-bold text-slate-800">{{ $archivedTenantCount }}</p>
+                    </div>
                 </div>
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-2">Apartment</label>
-                    <select name="apartment" class="w-full h-10 px-3 text-sm border border-slate-200 rounded-lg focus:ring-2 focus:ring-slate-300 focus:border-transparent">
-                        <option value="">All Apartments</option>
-                        @foreach($apartments as $apt)
-                            <option value="{{ $apt->id }}" {{ request('apartment') == $apt->id ? 'selected' : '' }}>{{ $apt->apartment_number }}</option>
+            </div>
+            <div class="bg-white rounded-xl border border-slate-100 p-6">
+                <div class="flex items-center">
+                    <div class="p-3 rounded-full bg-slate-50">
+                        <svg class="w-6 h-6 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                        </svg>
+                    </div>
+                    <div class="ml-4">
+                        <p class="text-slate-500 text-sm">Recently Archived</p>
+                        <p class="text-2xl font-bold text-slate-800">{{ $recentlyArchivedCount }}</p>
+                    </div>
+                </div>
+            </div>
+            <div class="bg-white rounded-xl border border-slate-100 p-6">
+                <div class="flex items-center">
+                    <div class="p-3 rounded-full bg-slate-50">
+                        <svg class="w-6 h-6 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                        </svg>
+                    </div>
+                    <div class="ml-4">
+                        <p class="text-slate-500 text-sm">Total Deposits</p>
+                        <p class="text-2xl font-bold text-slate-800">${{ number_format($totalDeposits, 2) }}</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Filters / Search Section -->
+        <div class="bg-white rounded-xl border border-slate-100 mb-6 p-6">
+            <form method="GET" action="{{ route('supervisor.tenants.archived') }}" class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div class="md:col-span-2">
+                    <label class="block text-sm font-medium text-slate-500 mb-2">Search by Name or Email</label>
+                    <input type="text" name="search" placeholder="Search archived tenants..." value="{{ request('search') }}" class="w-full h-10 px-3 text-sm border border-slate-200 rounded-lg focus:ring-2 focus:ring-slate-300 focus:border-transparent">
+                </div>
+                <div class="md:col-span-1">
+                    <label class="block text-sm font-medium text-slate-500 mb-2">Sort by Floor</label>
+                    <select name="floor" class="w-full h-10 px-3 text-sm border border-slate-200 rounded-lg focus:ring-2 focus:ring-slate-300 focus:border-transparent">
+                        <option value="">All Floors</option>
+                        @foreach($floors ?? [] as $floor)
+                            <option value="{{ $floor->id }}" {{ request('floor') == $floor->id ? 'selected' : '' }}>{{ $floor->floor_name }}</option>
                         @endforeach
                     </select>
                 </div>
-                <div class="flex items-end gap-2">
-                    <button type="submit" class="flex-1 px-4 py-2 border border-emerald-300 rounded-lg text-emerald-600 hover:bg-emerald-50 transition font-medium">Filter</button>
-                    <a href="{{ route('supervisor.tenants.archived') }}" class="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition font-medium text-center">Reset</a>
+                <div class="flex items-end justify-center md:col-span-1">
+                    <a href="{{ route('supervisor.tenants.archived') }}" class="inline-flex items-center h-10 px-3 whitespace-nowrap border border-slate-200 rounded-md text-slate-700 hover:bg-slate-50 transition font-medium text-center text-sm">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 mr-2 text-slate-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v6h6M20 20v-6h-6M4 10a8 8 0 0116 0M20 14a8 8 0 01-16 0" />
+                        </svg>
+                        Reset
+                    </a>
                 </div>
             </form>
         </div>
 
-        {{-- Archived Tenant Table --}}
+        <!-- Tenants Table -->
         <div class="bg-white rounded-xl border border-slate-100 overflow-hidden">
-            <div class="overflow-x-auto">
+            <div class="p-6 overflow-x-auto">
                 <table class="min-w-full divide-y divide-gray-200">
                     <thead class="bg-gray-50">
                         <tr>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Tenant</th>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Apartment</th>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Move In</th>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Departed</th>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Duration</th>
-                            <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Actions</th>
+                            <th class="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">No</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Tenant Name</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Floor / Apartment</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Tenancy Duration</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Actions</th>
                         </tr>
                     </thead>
                     <tbody class="bg-white divide-y divide-gray-200">
-                        @forelse($tenants as $tenant)
-                        <tr class="hover:bg-gray-50">
-                            <td class="px-6 py-4 whitespace-nowrap">
-                                <div class="flex items-center">
-                                    <div class="h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-bold text-sm">
-                                        {{ strtoupper(substr($tenant->name, 0, 1)) }}
+                        @forelse ($tenants as $tenant)
+                            <tr class="hover:bg-gray-50 transition">
+                                <td class="px-4 py-4 whitespace-nowrap text-sm text-gray-600">
+                                    {{ $tenants->firstItem() ? $tenants->firstItem() + $loop->index : $loop->iteration }}
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap">
+                                    <div class="flex items-center">
+                                        @if($tenant->photo_path && !str_ends_with($tenant->photo_path, '.pdf'))
+                                            <img src="{{ asset('storage/' . $tenant->photo_path) }}" alt="{{ $tenant->name }}" class="h-10 w-10 rounded-full object-cover border border-gray-300" onerror="this.style.display='none'">
+                                        @else
+                                            <div class="h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center">
+                                                <span class="text-blue-600 font-semibold text-sm">{{ strtoupper(substr($tenant->name, 0, 1)) }}</span>
+                                            </div>
+                                        @endif
+                                        <div class="ml-4">
+                                            <p class="font-medium text-gray-900">{{ $tenant->name }}</p>
+                                            <p class="text-sm text-gray-500">{{ $tenant->deleted_at?->format('M d, Y') ?? 'N/A' }}</p>
+                                        </div>
                                     </div>
-                                    <div class="ml-4">
-                                        <div class="text-sm font-medium text-gray-900">{{ $tenant->name }}</div>
-                                        <div class="text-sm text-gray-500">{{ $tenant->email }}</div>
-                                    </div>
-                                </div>
-                            </td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                                {{ $tenant->apartment?->apartment_number ?? 'N/A' }}
-                            </td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                {{ $tenant->move_in_date ? $tenant->move_in_date->format('M d, Y') : 'N/A' }}
-                            </td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                {{ $tenant->deleted_at ? $tenant->deleted_at->format('M d, Y') : 'N/A' }}
-                            </td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                @if($tenant->move_in_date && $tenant->deleted_at)
-                                    {{ $tenant->move_in_date->diffForHumans($tenant->deleted_at, true) }}
-                                @else
-                                    N/A
-                                @endif
-                            </td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium flex items-center space-x-3 mt-3">
-                                <a href="{{ route('supervisor.tenants.show', $tenant) }}" title="View Details" class="inline-flex items-center justify-center h-8 w-8 rounded-md text-sky-600 bg-sky-50 hover:bg-sky-100 transition" aria-label="View">
-                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
-                                    </svg>
-                                </a>
-                            </td>
-                        </tr>
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{ $tenant->apartment?->floor?->floor_name ?? 'N/A' }} / {{ $tenant->apartment?->apartment_number ?? 'N/A' }}</td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                                    @if($tenant->leaves->last() && $tenant->move_in_date)
+                                        {{ $tenant->leaves->last()->stay_days }} days
+                                    @else
+                                        N/A
+                                    @endif
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium flex items-center space-x-3 mt-3">
+                                    <button onclick="viewTenantSettlement('{{ $tenant->id }}', '{{ addslashes($tenant->name) }}')" title="View Settlement" class="inline-flex items-center justify-center h-8 w-8 rounded-md text-sky-600 bg-sky-50 hover:bg-sky-100 transition" aria-label="View Settlement">
+                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
+                                        </svg>
+                                    </button>
+                                    @if($tenant->document_path)
+                                        <a href="{{ asset('storage/' . $tenant->document_path) }}" target="_blank" title="View Document" class="inline-flex items-center justify-center h-8 w-8 rounded-md text-red-600 bg-red-50 hover:bg-red-100 transition" aria-label="Document">
+                                            <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                                                <path d="M4 2h7l5 5v11a2 2 0 01-2 2H4a2 2 0 01-2-2V4a2 2 0 012-2z" />
+                                            </svg>
+                                        </a>
+                                    @endif
+                                </td>
+                            </tr>
                         @empty
-                        <tr>
-                            <td colspan="6" class="px-6 py-12 text-center text-gray-400">
-                                <svg class="w-12 h-12 mx-auto text-gray-300 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4"/></svg>
-                                <p class="text-sm">No departed tenants found.</p>
-                            </td>
-                        </tr>
+                            <tr>
+                                <td colspan="5" class="px-6 py-4 text-center text-gray-500">
+                                    No archived tenants found
+                                </td>
+                            </tr>
                         @endforelse
                     </tbody>
                 </table>
             </div>
+            <!-- Pagination -->
             @if($tenants->hasPages())
-            <div class="px-6 py-4 border-t border-gray-200">
-                {{ $tenants->withQueryString()->links() }}
+            <div class="bg-white px-6 py-4 border-t border-gray-200">
+                {{ $tenants->links() }}
             </div>
             @endif
         </div>
     </div>
 </div>
+
+<!-- View Tenant Details Modal -->
+<div id="viewTenantModal" class="hidden fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+    <div class="bg-white rounded-lg shadow-lg max-w-3xl w-full max-h-screen overflow-y-auto">
+        <div class="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex justify-between items-center">
+            <h2 class="text-lg font-semibold text-gray-900">Archived Tenant Details</h2>
+            <button onclick="closeViewTenantModal()" class="text-gray-400 hover:text-gray-600">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                </svg>
+            </button>
+        </div>
+
+        <div id="tenantDetailsContent" class="p-6">
+            <!-- Details will be populated here -->
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+    const searchInput = document.querySelector('input[name="search"]');
+    const floorSelect = document.querySelector('select[name="floor"]');
+    if(!searchInput) return;
+
+    const form = searchInput.closest('form');
+    let timer = null;
+
+    searchInput.addEventListener('input', function(){
+        clearTimeout(timer);
+        timer = setTimeout(function(){
+            form.submit();
+        }, 400);
+    });
+
+    if(floorSelect){
+        floorSelect.addEventListener('change', function(){
+            form.submit();
+        });
+    }
+});
+
+let allArchivedTenants = [
+    @foreach($tenants as $tenant)
+        {
+            id: {{ $tenant->id }},
+            name: '{{ addslashes($tenant->name) }}',
+            email: '{{ $tenant->email }}',
+            phone: '{{ $tenant->phone ?? "" }}',
+            date_of_birth: '{{ $tenant->date_of_birth }}',
+            notes: '{{ addslashes($tenant->notes ?? "") }}',
+            apartment: '{{ $tenant->apartment?->apartment_number ?? "N/A" }}',
+            apartment_id: {{ $tenant->apartment_id ?? "null" }},
+            move_in_date: '{{ $tenant->move_in_date }}',
+            move_out_date: '{{ $tenant->leaves->last()?->leave_date ?? $tenant->move_out_date ?? "" }}',
+            archived_at: '{{ $tenant->archived_at }}',
+            deposit: {{ $tenant->deposit ?? 0 }},
+            stay_days: {{ $tenant->leaves->last()?->stay_days ?? 0 }},
+            photo_path: '{{ $tenant->photo_path ?? "" }}',
+            document_path: '{{ $tenant->document_path ?? "" }}'
+        },
+    @endforeach
+];
+
+function calculateDuration(moveInDate, moveOutDate) {
+    const months = Math.floor((moveOutDate - moveInDate) / (1000 * 60 * 60 * 24) / 30.44);
+    const days = Math.floor(((moveOutDate - moveInDate) / (1000 * 60 * 60 * 24)) % 30.44);
+    let duration = '';
+    if (months > 0) duration += months + ' month' + (months > 1 ? 's' : '') + ' ';
+    if (days > 0) duration += days + ' day' + (days > 1 ? 's' : '');
+    return duration || '0 days';
+}
+
+function viewTenantSettlement(tenantId, tenantName) {
+    try {
+        const tenant = allArchivedTenants.find(t => t.id == tenantId);
+        if (!tenant) { alert('Tenant not found'); return; }
+
+        const t = tenant;
+        const moveInDate = new Date(t.move_in_date);
+        const moveOutDate = t.move_out_date ? new Date(t.move_out_date) : new Date();
+        const duration = calculateDuration(moveInDate, moveOutDate);
+
+        const content = `
+            <div class="space-y-6">
+                <div class="grid grid-cols-2 gap-6">
+                    <div>
+                        <h3 class="text-sm font-medium text-gray-600 mb-4">Personal Information</h3>
+                        <div class="space-y-3">
+                            <div class="flex items-center gap-4">
+                                ${t.photo_path ? `<img src="${t.photo_path.startsWith('/') ? t.photo_path : ('/storage/' + t.photo_path)}" alt="${t.name}" class="h-20 w-20 rounded-lg object-cover border border-gray-300">` : `<div class="h-20 w-20 rounded-lg bg-red-50 flex items-center justify-center text-xl font-semibold text-red-600">${t.name.charAt(0).toUpperCase()}</div>`}
+                                <div>
+                                    <p class="text-xs text-gray-500">Full Name</p>
+                                    <p class="text-sm font-medium text-gray-900">${t.name}</p>
+                                    <p class="text-xs text-gray-500 mt-2">Email</p>
+                                    <p class="text-sm font-medium text-gray-900">${t.email}</p>
+                                    <p class="text-xs text-gray-500 mt-2">Phone</p>
+                                    <p class="text-sm font-medium text-gray-900">${t.phone}</p>
+                                </div>
+                            </div>
+                            <div>
+                                <p class="text-xs text-gray-500">Date of Birth</p>
+                                <p class="text-sm font-medium text-gray-900">${t.date_of_birth || 'Not provided'}</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div>
+                        <h3 class="text-sm font-medium text-gray-600 mb-4">Tenancy Information</h3>
+                        <div class="space-y-3">
+                            <div>
+                                <p class="text-xs text-gray-500">Apartment</p>
+                                <p class="text-sm font-medium text-gray-900">${t.apartment || 'N/A'}</p>
+                            </div>
+                            <div>
+                                <p class="text-xs text-gray-500">Move In Date</p>
+                                <p class="text-sm font-medium text-gray-900">${t.move_in_date}</p>
+                            </div>
+                            <div>
+                                <p class="text-xs text-gray-500">Move Out Date</p>
+                                <p class="text-sm font-medium text-gray-900">${t.move_out_date || 'N/A'}</p>
+                            </div>
+                            <div>
+                                <p class="text-xs text-gray-500">Duration</p>
+                                <p class="text-sm font-medium text-gray-900">${duration}</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-gray-50 rounded-lg p-4">
+                    <h3 class="text-sm font-medium text-gray-600 mb-4">Settlement Information</h3>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <p class="text-xs text-gray-500">Deposit Amount</p>
+                            <p class="text-lg font-semibold text-gray-900">$${parseFloat(t.deposit || 0).toFixed(2)}</p>
+                        </div>
+                        <div>
+                            <p class="text-xs text-gray-500">Status</p>
+                            <span class="inline-block px-3 py-1 text-xs font-semibold rounded-full bg-red-100 text-red-800">Archived</span>
+                        </div>
+                    </div>
+                </div>
+
+                ${t.notes ? `<div class="border-t border-gray-200 pt-4">
+                    <p class="text-sm font-medium text-gray-600">Additional Notes</p>
+                    <p class="mt-2 text-sm text-gray-700">${t.notes}</p>
+                </div>` : ''}
+                ${t.document_path ? `<div class="mt-4"><a href="${t.document_path.startsWith('/') ? t.document_path : ('/storage/' + t.document_path)}" target="_blank" class="inline-flex items-center px-3 py-2 bg-gray-50 text-gray-700 rounded-lg border border-gray-200 hover:bg-gray-100"><svg class="w-4 h-4 mr-2 text-red-600" fill="currentColor" viewBox="0 0 20 20"><path d="M4 2h7l5 5v11a2 2 0 01-2 2H4a2 2 0 01-2-2V4a2 2 0 012-2z"/></svg>View Document</a></div>` : '' }
+
+                <button onclick="closeViewTenantModal()" class="w-full px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition font-medium">
+                    Close
+                </button>
+            </div>
+        `;
+
+        document.getElementById('tenantDetailsContent').innerHTML = content;
+        document.getElementById('viewTenantModal').classList.remove('hidden');
+    } catch (error) {
+        console.error('Error loading tenant details:', error);
+        alert('Error loading tenant details');
+    }
+}
+
+function closeViewTenantModal() {
+    document.getElementById('viewTenantModal').classList.add('hidden');
+}
+</script>
+
 @endsection
