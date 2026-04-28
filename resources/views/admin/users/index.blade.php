@@ -47,6 +47,7 @@
                         <th class="px-6 py-3 text-left text-sm font-semibold text-gray-900">Name</th>
                         <th class="px-6 py-3 text-left text-sm font-semibold text-gray-900">Email</th>
                         <th class="px-6 py-3 text-left text-sm font-semibold text-gray-900">Role</th>
+                        <th class="px-6 py-3 text-left text-sm font-semibold text-gray-900">Apartment</th>
                         <th class="px-6 py-3 text-left text-sm font-semibold text-gray-900">Status</th>
                         <th class="px-6 py-3 text-left text-sm font-semibold text-gray-900">Assigned Roles</th>
                         <th class="px-6 py-3 text-left text-sm font-semibold text-gray-900">Actions</th>
@@ -60,6 +61,20 @@
                         <td class="px-6 py-4 text-gray-600">{{ $user->email }}</td>
                         <td class="px-6 py-4">
                             <span class="px-3 py-1 text-sm font-semibold rounded-full bg-blue-100 text-blue-700">{{ ucfirst($user->roles->first()?->name ?? 'N/A') }}</span>
+                        </td>
+                        <td class="px-6 py-4">
+                            @php
+                                $tenantRecord = $user->roles->first()?->name === 'tenant'
+                                    ? $user->tenants->whereIn('status', ['active', 'pending'])->first()
+                                    : null;
+                            @endphp
+                            @if($tenantRecord?->apartment)
+                                <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-indigo-50 text-indigo-700">
+                                    {{ $tenantRecord->apartment->apartment_number }}
+                                </span>
+                            @else
+                                <span class="text-gray-400 text-xs">—</span>
+                            @endif
                         </td>
                         <td class="px-6 py-4">
                             <span class="px-3 py-1 text-sm font-semibold rounded-full {{ $user->status === 'active' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-700' }}">{{ ucfirst($user->status ?? 'unknown') }}</span>
@@ -133,7 +148,7 @@
                     if (row.querySelectorAll('td').length === 1) return;
                     const name = normalize(row.children[1].innerText);
                     const email = normalize(row.children[2].innerText);
-                    const roleText = normalize(row.children[3].innerText);
+                    const roleText = normalize(row.children[3].innerText); // col 3 = Role
 
                     const matchesQuery = q === '' || name.includes(q) || email.includes(q);
                     const matchesRole = role === '' || roleText === role;

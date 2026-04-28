@@ -219,20 +219,41 @@ class ApartmentController extends Controller
         }
 
         if ($validated['tenant_option'] === 'existing') {
-            // Use existing tenant
             $tenant = Tenants::findOrFail($validated['tenant_id']);
+
+            // If this existing tenant has no user account yet, create one now
+            if (!$tenant->user_id && $tenant->email) {
+                $existingUser = User::where('email', $tenant->email)->first();
+                if (!$existingUser) {
+                    $existingUser = User::create([
+                        'name'     => $tenant->name,
+                        'email'    => $tenant->email,
+                        'password' => '12345678',
+                    ]);
+                    $existingUser->assignRole('tenant');
+                }
+                $tenant->update(['user_id' => $existingUser->id]);
+            }
         } else {
-            // Create new tenant
+            // Create a user account first, then create the tenant linked to it
+            $tenantUser = User::create([
+                'name'     => $validated['name'],
+                'email'    => $validated['email'],
+                'password' => '12345678',
+            ]);
+            $tenantUser->assignRole('tenant');
+
             $tenant = Tenants::create([
-                'name' => $validated['name'],
-                'email' => $validated['email'],
-                'phone' => $validated['phone'] ?? null,
-                'address' => $validated['address'] ?? null,
+                'name'          => $validated['name'],
+                'email'         => $validated['email'],
+                'phone'         => $validated['phone'] ?? null,
+                'address'       => $validated['address'] ?? null,
                 'date_of_birth' => $validated['date_of_birth'] ?? null,
-                'photo_path' => $photoPath,
+                'photo_path'    => $photoPath,
                 'document_path' => $documentPath,
-                'apartment_id' => $apartment->id,
-                'status' => 'active',
+                'apartment_id'  => $apartment->id,
+                'status'        => 'active',
+                'user_id'       => $tenantUser->id,
             ]);
         }
         

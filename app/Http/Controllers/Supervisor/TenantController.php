@@ -19,7 +19,6 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\View\View;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Carbon\Carbon;
@@ -246,10 +245,11 @@ class TenantController extends Controller
         }
 
         // Create a user account for the tenant with default password
+        // Do NOT call Hash::make() here — the User model's 'hashed' cast handles it
         $tenantUser = User::create([
             'name'     => $validated['name'],
             'email'    => $validated['email'],
-            'password' => Hash::make('12345678'),
+            'password' => '12345678',
         ]);
         $tenantUser->assignRole('tenant');
 
