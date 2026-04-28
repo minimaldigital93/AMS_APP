@@ -13,7 +13,10 @@
       "Bash(grep -ohE '\\\\$[a-zA-Z_]+' /Users/moniodom/AMS_APP/resources/views/supervisor/dashboard.blade.php)",
       "Bash(grep -c '$__TRACKED_VAR__' /Users/moniodom/AMS_APP/resources/views/supervisor/dashboard.blade.php)",
       "Bash(php -l /Users/sarotmoniodom/AMS_APP/app/Http/Controllers/Supervisor/TenantController.php)",
-      "Bash(xargs cat *)"
+      "Bash(xargs cat *)",
+      "Bash(awk '/Supervisor Management Routes/,0' /Users/moniodom/AMS_APP/routes/web.php)",
+      "Bash(php -l app/Http/Controllers/Supervisor/ApartmentController.php)",
+      "Bash(php -l resources/views/supervisor/apartments/index.blade.php)"
     ]
   }
 }

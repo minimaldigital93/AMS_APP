@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Supervisor;
 
 use App\Http\Controllers\Controller;
+use App\Models\Accounts;
 use App\Models\Apartments;
 use App\Models\FiscalPeriods;
 use App\Models\Floors;
@@ -12,6 +13,8 @@ use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 use Illuminate\View\View;
 
 class ApartmentController extends Controller
@@ -21,7 +24,7 @@ class ApartmentController extends Controller
      */
     public function index(Request $request): View
     {
-        $query = Apartments::with(['floor', 'tenants']);
+        $query = Apartments::with(['floor', 'tenants', 'supervisor']);
 
         if ($request->filled('search')) {
             $query->where('apartment_number', 'like', '%' . $request->search . '%');
@@ -54,7 +57,7 @@ class ApartmentController extends Controller
     {
         $this->authorizeApartment($apartment);
 
-        $apartment->load('floor');
+        $apartment->load('floor', 'supervisor');
 
         // Get admin's active fiscal period
         $activePeriod = FiscalPeriods::where('status', 'open')
@@ -241,7 +244,7 @@ class ApartmentController extends Controller
         $apartment->update(['status' => 'occupied']);
 
         $moveInDate = Carbon::parse($validated['move_in_date']);
-        Rentals::create([
+        $rental = Rentals::create([
             'apartment_id' => $apartment->id,
             'tenant_id' => $tenant->id,
             'start_date' => $moveInDate,
@@ -249,6 +252,35 @@ class ApartmentController extends Controller
             'rent_amount' => $apartment->monthly_rent,
             'deposit' => $validated['deposit'],
         ]);
+
+        // Record deposit as revenue (deposit income) in Accounts ledger.
+        // Supervisors share the admin fiscal period — see project memory.
+        if (!empty($validated['deposit']) && $validated['deposit'] > 0) {
+            $activePeriod = FiscalPeriods::where('status', 'open')
+                ->whereHas('user', function ($q) {
+                    $q->role('admin');
+                })
+                ->orderBy('opening_date', 'desc')
+                ->first();
+
+            $reference = 'deposit:rental:' . $rental->id;
+
+            Accounts::firstOrCreate(
+                ['reference_number' => $reference],
+                [
+                    'fiscal_period_id' => $activePeriod?->id,
+                    'payment_id' => null,
+                    'user_id' => Auth::id(),
+                    'account_type' => Accounts::TYPE_INCOME,
+                    'category' => Accounts::CAT_DEPOSIT_INCOME,
+                    'description' => 'Security deposit — Apt ' . ($apartment->apartment_number ?? 'N/A'),
+                    'amount' => $validated['deposit'],
+                    'transaction_date' => now()->toDateString(),
+                    'note' => 'Initial deposit collected on tenant assignment',
+                    'reference_number' => $reference,
+                ]
+            );
+        }
 
         return redirect()->route('supervisor.apartments.index')
             ->with('success', 'Tenant assigned successfully with rental created.');

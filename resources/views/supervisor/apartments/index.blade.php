@@ -1,16 +1,16 @@
 @extends('layouts.supervisor')
 
-@section('title', 'My Apartments')
+@section('title', 'Apartment Management')
 
 @section('content')
 <div class="max-w-6xl mx-auto space-y-8">
     <!-- Header -->
     <div class="flex items-center justify-between">
         <div>
-            <h1 class="text-2xl font-semibold text-slate-800 tracking-tight">My Apartments</h1>
-            <p class="text-slate-400 text-sm mt-1">Apartments assigned to you, grouped by floor</p>
+            <h1 class="text-2xl font-semibold text-slate-800 tracking-tight">Apartment Management</h1>
+            <p class="text-slate-400 text-sm mt-1">Manage apartment units across all floors</p>
         </div>
-     
+
     </div>
 
     <!-- Flash Messages -->
@@ -45,7 +45,7 @@
                     <div class="flex items-center gap-3">
                         <div class="w-9 h-9 rounded-lg bg-slate-100 flex items-center justify-center">
                             <svg class="w-4.5 h-4.5 text-slate-500" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" d="M2.25 21h19.5m-18-18v18m10.5-18v18m6-13.5V21M6.75 6.75h.75m-.75 3h.75m-.75 3h.75m3-6h.75m-.75 3h.75m-.75 3h.75M6.75 21v-3.375c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21M3 3h12m-.75 4.5H21m-3.75 3H21m-3.75 3H21M6.75 7.364V3h-3v18m3-13.636l10.5-3.819" />
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M2.25 21h19.5m-18-18v18m10.5-18v18m6-13.5V21M6.75 6.75h.75m-.75 3h.75m-.75 3h.75m3-6h.75m-.75 3h.75m-.75 3h.75M6.75 21v-3.375c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21M3 3h12m-.75 4.5H21m-3.75 3H21m-3.75 3H21" />
                             </svg>
                         </div>
                         <h2 class="text-base font-semibold text-slate-800">{{ $floor->floor_name }}</h2>
@@ -82,9 +82,9 @@
                                         $tenant = $apartment->tenants()->whereNull('deleted_at')->latest()->first();
                                         $tenantStatus = $tenant ? $tenant->status : null;
                                     @endphp
-                                    <span class="w-1.5 h-1.5 rounded-full {{ 
-                                        $tenantStatus === 'active' ? 'bg-sky-400' : 
-                                        ($tenantStatus === 'pending' ? 'bg-amber-400' : 'bg-emerald-400') 
+                                    <span class="w-1.5 h-1.5 rounded-full {{
+                                        $tenantStatus === 'active' ? 'bg-sky-400' :
+                                        ($tenantStatus === 'pending' ? 'bg-amber-400' : 'bg-emerald-400')
                                     }}"></span>
                                     <span class="text-sm font-medium text-slate-700">{{ $apartment->apartment_number }}</span>
                                 </div>
@@ -203,7 +203,7 @@
                                         $hasMonthlyPeriod = true;
                                     }
                                 @endphp
-                                
+
                                 @if($tenant && $tenant->move_in_date)
                                     <div class="min-w-[100px]">
                                         @if($hasMonthlyPeriod)
@@ -237,7 +237,7 @@
                                     @php $tenant = $apartment->tenants()->whereNull('deleted_at')->latest()->first(); @endphp
 
                                     @if(!$tenant || $tenant->status !== 'active')
-                                    <button type="button" 
+                                    <button type="button"
                                             data-apartment-id="{{ $apartment->id }}"
                                             data-apartment-number="{{ $apartment->apartment_number }}"
                                             class="assign-tenant-btn text-emerald-600 hover:text-emerald-700 p-1.5 rounded-lg bg-emerald-50/20 hover:bg-emerald-50 transition"
@@ -248,7 +248,7 @@
                                     </button>
                                     @endif
 
-                                    <a href="{{ route('supervisor.apartments.show', $apartment->id) }}" 
+                                    <a href="{{ route('supervisor.apartments.show', $apartment->id) }}"
                                        title="View apartment"
                                        class="text-slate-600 hover:text-slate-800 p-1.5 rounded-lg hover:bg-slate-50 transition">
                                         <svg class="w-[16px] h-[16px]" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
@@ -256,7 +256,6 @@
                                             <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
                                         </svg>
                                     </a>
-
                                 </div>
                             </td>
                         </tr>
@@ -273,8 +272,8 @@
                 <path stroke-linecap="round" stroke-linejoin="round" d="M8.25 21v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21m0 0h4.5V3.545M12.75 21h7.5V10.75M2.25 21h1.5m18 0h-18M2.25 9l4.5-1.636M18.75 3l-1.5.545m0 6.205l3 1m1.5.5l-1.5-.5M6.75 7.364V3h-3v18m3-13.636l10.5-3.819" />
             </svg>
         </div>
-        <p class="font-medium text-slate-600">No apartments found.</p>
-        <p class="text-slate-400 text-sm mt-1">Contact an administrator.</p>
+        <p class="font-medium text-slate-600">No apartments found</p>
+        <p class="text-slate-400 text-sm mt-1">Contact an administrator to add apartments</p>
     </div>
     @endforelse
     </div>
@@ -394,4 +393,101 @@
         </form>
     </div>
 </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const modal = document.getElementById('assignTenantModal');
+    const form = document.getElementById('assignTenantForm');
+    const apartmentIdInput = document.getElementById('apartmentId');
+    const apartmentNumberDisplay = document.getElementById('apartmentNumberDisplay');
+    const tenantOptionInput = document.getElementById('tenantOption');
+    const tabNavigation = document.getElementById('tabNavigation');
+
+    const existingTenantTab = document.getElementById('existingTenantTab');
+    const newTenantTab = document.getElementById('newTenantTab');
+    const existingTenantContent = document.getElementById('existingTenantContent');
+    const newTenantContent = document.getElementById('newTenantContent');
+    const tabButtons = document.querySelectorAll('.tab-button');
+
+    function switchToExistingTab() {
+        tenantOptionInput.value = 'existing';
+        existingTenantContent.classList.remove('hidden');
+        newTenantContent.classList.add('hidden');
+        tabButtons.forEach(btn => { btn.classList.remove('text-slate-800', 'border-slate-800'); btn.classList.add('text-slate-400', 'border-transparent'); });
+        existingTenantTab.classList.add('text-slate-800', 'border-slate-800');
+        existingTenantTab.classList.remove('text-slate-400', 'border-transparent');
+    }
+
+    function switchToNewTab() {
+        tenantOptionInput.value = 'new';
+        existingTenantContent.classList.add('hidden');
+        newTenantContent.classList.remove('hidden');
+        tabButtons.forEach(btn => { btn.classList.remove('text-slate-800', 'border-slate-800'); btn.classList.add('text-slate-400', 'border-transparent'); });
+        newTenantTab.classList.add('text-slate-800', 'border-slate-800');
+        newTenantTab.classList.remove('text-slate-400', 'border-transparent');
+    }
+
+    existingTenantTab.addEventListener('click', switchToExistingTab);
+    newTenantTab.addEventListener('click', switchToNewTab);
+
+    document.querySelectorAll('.assign-tenant-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+            const apartmentId = this.dataset.apartmentId;
+            const apartmentNumber = this.dataset.apartmentNumber;
+            apartmentIdInput.value = apartmentId;
+            apartmentNumberDisplay.textContent = apartmentNumber;
+            form.action = `/supervisor/apartments/${apartmentId}/assign-tenant`;
+            document.getElementById('modalTitle').innerHTML = 'Assign Tenant to <span id="apartmentNumberDisplay">' + apartmentNumber + '</span>';
+            document.getElementById('submitBtn').textContent = 'Assign Tenant';
+            tabNavigation.classList.add('hidden');
+            existingTenantContent.classList.add('hidden');
+            newTenantContent.classList.remove('hidden');
+            tenantOptionInput.value = 'new';
+            form.reset();
+            modal.classList.remove('hidden');
+            document.body.style.overflow = 'hidden';
+        });
+    });
+
+    document.querySelectorAll('.close-modal').forEach(btn => {
+        btn.addEventListener('click', function() {
+            modal.classList.add('hidden');
+            document.body.style.overflow = '';
+        });
+    });
+
+    modal.addEventListener('click', function(e) {
+        if (e.target === modal) {
+            modal.classList.add('hidden');
+            document.body.style.overflow = '';
+        }
+    });
+
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape' && !modal.classList.contains('hidden')) {
+            modal.classList.add('hidden');
+            document.body.style.overflow = '';
+        }
+    });
+
+    window.processLeaveClick = function(event, tenantId, tenantName) {
+        event.preventDefault();
+        if (confirm(`Are you sure you want to process leave for tenant "${tenantName}"?\n\nThis will:\n- Archive the tenant\n- Calculate final settlement\n- Mark apartment as available`)) {
+            window.location.href = `/supervisor/tenants/${tenantId}/leave`;
+        }
+    };
+
+    (function() {
+        const floorDetails = document.querySelectorAll('details.group');
+        if (!floorDetails || floorDetails.length === 0) return;
+        floorDetails.forEach(detail => {
+            detail.addEventListener('toggle', function() {
+                if (detail.open) {
+                    floorDetails.forEach(d => { if (d !== detail) d.open = false; });
+                }
+            });
+        });
+    })();
+});
+</script>
 @endsection
