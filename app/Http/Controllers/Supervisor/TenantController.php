@@ -56,7 +56,6 @@ class TenantController extends Controller
             ->first();
 
         $query = Tenants::whereIn('status', ['active', 'pending'])
-            ->whereIn('apartment_id', $apartmentIds)
             ->with(['apartment.floor']);
 
         if ($request->filled('search')) {
@@ -75,8 +74,15 @@ class TenantController extends Controller
             $query->where('status', $request->status);
         }
 
+        if ($request->filled('floor')) {
+            $floorId = $request->floor;
+            $query->whereHas('apartment', function (Builder $q) use ($floorId) {
+                $q->where('floor_id', $floorId);
+            });
+        }
+
         $tenants = $query->orderBy('id', 'desc')->paginate(15);
-        $apartments = Apartments::whereIn('id', $apartmentIds)->with('floor')->get();
+        $apartments = Apartments::with('floor')->get();
 
         // Build rent progress for each tenant (within fiscal period or current month fallback)
         $currentMonth = now()->month;
@@ -159,8 +165,13 @@ class TenantController extends Controller
         // Floor data
         $floors = Floors::whereHas('apartments')->orderBy('floor_name')->get();
 
+        $activeTenantCount = Tenants::whereIn('status', ['active', 'pending'])->count();
+        $archivedTenantCount = Tenants::onlyTrashed()->count();
+        $totalDeposits = Tenants::whereIn('status', ['active', 'pending'])->sum('deposit');
+
         return view('supervisor.tenants.index', compact(
-            'tenants', 'apartments', 'rentProgressMap', 'activePeriod', 'incomeStats', 'floors'
+            'tenants', 'apartments', 'rentProgressMap', 'activePeriod', 'incomeStats', 'floors',
+            'activeTenantCount', 'archivedTenantCount', 'totalDeposits'
         ));
     }
 
@@ -169,10 +180,7 @@ class TenantController extends Controller
      */
     public function archived(Request $request): View
     {
-        $apartmentIds = $this->allApartmentIds();
-
         $query = Tenants::onlyTrashed()
-            ->whereIn('apartment_id', $apartmentIds)
             ->with(['apartment.floor', 'leaves']);
 
         if ($search = $request->input('search')) {
@@ -191,10 +199,9 @@ class TenantController extends Controller
         $tenants = $query->orderBy('deleted_at', 'desc')->paginate(7)->withQueryString();
         $floors = Floors::orderBy('floor_name')->get();
 
-        $archivedScope = Tenants::onlyTrashed()->whereIn('apartment_id', $apartmentIds);
-        $archivedTenantCount = (clone $archivedScope)->count();
-        $recentlyArchivedCount = (clone $archivedScope)->where('deleted_at', '>=', now()->subDays(30))->count();
-        $totalDeposits = (clone $archivedScope)->sum('deposit');
+        $archivedTenantCount = Tenants::onlyTrashed()->count();
+        $recentlyArchivedCount = Tenants::onlyTrashed()->where('deleted_at', '>=', now()->subDays(30))->count();
+        $totalDeposits = Tenants::onlyTrashed()->sum('deposit');
 
         return view('supervisor.tenants.archived', compact(
             'tenants',

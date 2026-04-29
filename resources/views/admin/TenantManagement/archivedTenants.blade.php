@@ -208,6 +208,7 @@ let allArchivedTenants = [
             phone: '{{ $tenant->phone ?? "" }}',
             date_of_birth: '{{ $tenant->date_of_birth }}',
             notes: '{{ addslashes($tenant->notes ?? "") }}',
+            floor: '{{ $tenant->apartment?->floor?->floor_name ?? "N/A" }}',
             apartment: '{{ $tenant->apartment?->apartment_number ?? "N/A" }}',
             apartment_id: {{ $tenant->apartment_id ?? "null" }},
             move_in_date: '{{ $tenant->move_in_date }}',
@@ -267,8 +268,8 @@ function viewTenantSettlement(tenantId, tenantName) {
                         <h3 class="text-sm font-medium text-gray-600 mb-4">Tenancy Information</h3>
                         <div class="space-y-3">
                             <div>
-                                <p class="text-xs text-gray-500">Apartment</p>
-                                <p class="text-sm font-medium text-gray-900">${t.apartment || 'N/A'}</p>
+                                <p class="text-xs text-gray-500">Floor / Apartment</p>
+                                <p class="text-sm font-medium text-gray-900">${t.floor} / ${t.apartment || 'N/A'}</p>
                             </div>
                             <div>
                                 <p class="text-xs text-gray-500">Move In Date</p>
