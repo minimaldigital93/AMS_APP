@@ -118,23 +118,17 @@
                                     @if($rp)
                                     @php
                                         $dp = $rp['day_percent'];
-                                        $barColor  = $dp >= 80 ? 'bg-red-400'    : ($dp >= 50 ? 'bg-yellow-400' : 'bg-blue-400');
-                                        $trackColor = $dp >= 80 ? 'bg-red-100'   : ($dp >= 50 ? 'bg-yellow-100' : 'bg-blue-100');
-                                        $textColor  = $dp >= 80 ? 'text-red-500' : ($dp >= 50 ? 'text-yellow-600' : 'text-blue-500');
+                                        $periodDays = $rp['period_days'] ?? 30;
+                                        $daysElapsed = (int) round(($dp / 100) * $periodDays);
+                                        $daysRemaining = max(0, $periodDays - $daysElapsed);
                                     @endphp
                                     <div class="w-28">
-                                        <div class="flex items-center justify-between mb-0.5">
-                                            <span class="text-[10px] font-semibold {{ $textColor }}">{{ $dp }}%</span>
-                                            @php
-                                                $periodDays = $rp['period_days'] ?? 30;
-                                                $daysElapsed = (int) round(($dp / 100) * $periodDays);
-                                                $daysRemaining = max(0, $periodDays - $daysElapsed);
-                                            @endphp
-                                            <span class="text-[10px] text-gray-400">{{ $daysRemaining }} day{{ $daysRemaining !== 1 ? 's' : '' }} left</span>
+                                        <div class="w-full bg-slate-200 rounded-full h-1.5">
+                                            <div class="h-1.5 rounded-full {{ $dp > 75 ? 'bg-amber-500' : 'bg-sky-500' }}" style="width: {{ $dp }}%"></div>
                                         </div>
-                                        <div class="w-full rounded-full h-1.5 {{ $trackColor }}">
-                                            <div class="h-1.5 rounded-full {{ $barColor }}" style="width: {{ $dp }}%"></div>
-                                        </div>
+                                        <p class="text-xs {{ $daysRemaining <= 5 ? 'text-amber-500' : 'text-sky-500' }} font-medium mt-0.5">
+                                            {{ $daysRemaining }} day{{ $daysRemaining !== 1 ? 's' : '' }} left
+                                        </p>
                                     </div>
                                     @else
                                     <span class="text-[10px] text-gray-300">—</span>
