@@ -15,7 +15,7 @@
         .sidebar-container {
             background: linear-gradient(180deg, #ffffff 0%, #f8f9fa 50%, #f3f4f6 100%);
             box-shadow: 3px 0 12px rgba(15, 23, 42, 0.1);
-            transition: width 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+            transition: width 0.35s cubic-bezier(0.4, 0, 0.2, 1), transform 0.3s ease;
             position: relative;
             overflow: hidden;
         }
@@ -26,8 +26,25 @@
             height: 1px;
             background: linear-gradient(90deg, transparent, rgba(16, 185, 129, 0.2), transparent);
         }
-        .sidebar-collapsed { width: 80px; }
-        .sidebar-expanded { width: 280px; }
+        @media (min-width: 768px) {
+            .sidebar-collapsed { width: 80px; }
+            .sidebar-expanded { width: 240px; }
+        }
+        @media (min-width: 1024px) {
+            .sidebar-expanded { width: 280px; }
+        }
+        @media (max-width: 767px) {
+            .sidebar-container {
+                position: fixed;
+                top: 0; bottom: 0; left: 0;
+                width: 84vw;
+                max-width: 320px;
+                z-index: 50;
+                transform: translateX(-100%);
+            }
+            .sidebar-container.mobile-open { transform: translateX(0); }
+            .sidebar-container .sidebar-label { opacity: 1 !important; width: auto !important; overflow: visible !important; margin: inherit !important; }
+        }
         .sidebar-label { transition: opacity 0.2s ease-in-out; }
         .sidebar-collapsed .sidebar-label { opacity: 0; width: 0; overflow: hidden; margin: 0; }
         .sidebar-expanded .sidebar-label { opacity: 1; }
@@ -47,20 +64,37 @@
 <body class="flex flex-col h-screen" style="background:#fafafa;" x-data="sidebarState()" @init="init()">
     <!-- Top Bar -->
     @include('layouts.topbar')
-    
-    <div class="flex flex-1 overflow-hidden">
+
+    <div class="flex flex-1 overflow-hidden relative">
+        <!-- Mobile backdrop -->
+        <div
+            x-show="mobileOpen"
+            x-cloak
+            x-transition.opacity
+            @click="mobileOpen = false"
+            class="md:hidden fixed inset-0 bg-black/50 z-40"></div>
+
         <!-- Sidebar -->
-        <aside class="sidebar-container" :class="[isCollapsed ? 'sidebar-collapsed' : 'sidebar-expanded']">
-            <div class="bg-white shadow-lg h-full flex flex-col sticky top-0 overflow-y-auto">
+        <aside
+            class="sidebar-container"
+            :class="[isCollapsed ? 'sidebar-collapsed' : 'sidebar-expanded', mobileOpen ? 'mobile-open' : '']">
+            <div class="bg-white shadow-lg h-full flex flex-col overflow-y-auto">
                 <div class="p-4 border-b border-gray-200 flex items-center justify-between">
-                    <h2 class="font-bold text-xl text-emerald-700 sidebar-label" :class="{'hidden': isCollapsed}">
+                    <h2 class="font-bold text-xl text-emerald-700 sidebar-label" :class="{'md:hidden': isCollapsed}">
                         Supervisor
                     </h2>
                     <button @click="toggleSidebar()"
-                        class="p-2 hover:bg-gray-100 rounded-lg transition-all duration-300"
+                        class="hidden md:inline-flex p-2 hover:bg-gray-100 rounded-lg transition-all duration-300"
                         :class="{'justify-center w-full': isCollapsed}">
                         <svg class="w-5 h-5 text-gray-600 transition-transform duration-300" :class="{'rotate-180': isCollapsed}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 5l7 7m0 0l-7 7m7-7H6" />
+                        </svg>
+                    </button>
+                    <button @click="mobileOpen = false"
+                        class="md:hidden p-2 hover:bg-gray-100 rounded-lg"
+                        aria-label="Close menu">
+                        <svg class="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
                         </svg>
                     </button>
                 </div>
@@ -86,7 +120,7 @@
         </aside>
 
         <!-- Main Content -->
-        <main class="flex-1 p-8 overflow-auto h-full">
+        <main class="flex-1 p-3 sm:p-4 md:p-6 lg:p-8 overflow-auto h-full w-full min-w-0">
             @yield('content')
         </main>
     </div>
@@ -95,14 +129,27 @@
         function sidebarState() {
             return {
                 isCollapsed: true,
+                mobileOpen: false,
                 expandedSections: { 'Rooms': false, 'Tenant': false, 'Payments': false },
                 toggleSidebar() {
                     this.isCollapsed = !this.isCollapsed;
                     localStorage.setItem('supervisorSidebarCollapsed', this.isCollapsed);
                 },
+                toggleSection(section) {
+                    this.expandedSections[section] = !this.expandedSections[section];
+                },
+                handleResize() {
+                    if (window.matchMedia('(min-width: 768px)').matches) {
+                        this.mobileOpen = false;
+                    }
+                },
                 init() {
                     const collapsed = localStorage.getItem('supervisorSidebarCollapsed');
                     if (collapsed !== null) this.isCollapsed = collapsed === 'true';
+                    document.addEventListener('keydown', (e) => {
+                        if (e.key === 'Escape' && this.mobileOpen) this.mobileOpen = false;
+                    });
+                    window.addEventListener('resize', () => this.handleResize());
                 }
             }
         }

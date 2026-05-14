@@ -252,15 +252,3 @@ Route::middleware(['auth', 'role:supervisor'])->prefix('supervisor')->group(func
 });
 
 require __DIR__.'/auth.php';
-
-// DEV-ONLY: Temporary unauthenticated endpoint to generate apartment summary PDF for local testing.
-// Remove this route after verification.
-Route::get('/dev/generate-apartment-summary-pdf', [RevenueExpenseController::class, 'apartmentSummaryPdf']);
-
-// DEV-ONLY: Simple test form to verify global submit spinner (no CSRF middleware)
-Route::view('/dev/test-form', 'dev.test-form');
-Route::post('/dev/test-submit', function (\Illuminate\Http\Request $request) {
-    // simulate short processing
-    sleep(1);
-    return redirect('/dev/test-form')->with('success', 'Form submitted');
-})->withoutMiddleware([\App\Http\Middleware\VerifyCsrfToken::class]);
