@@ -118,9 +118,9 @@
                                     @if($rp)
                                     @php
                                         $dp = $rp['day_percent'];
-                                        $periodDays = $rp['period_days'] ?? 30;
-                                        $daysElapsed = (int) round(($dp / 100) * $periodDays);
-                                        $daysRemaining = max(0, $periodDays - $daysElapsed);
+                                        $totalDays = $rp['total_days'] ?? 30;
+                                        $daysStayed = $rp['days_stayed'] ?? 0;
+                                        $daysRemaining = max(0, $totalDays - $daysStayed);
                                     @endphp
                                     <div class="w-28">
                                         <div class="w-full bg-slate-200 rounded-full h-1.5">
@@ -147,12 +147,10 @@
                                             <span class="px-2 py-1 text-xs font-semibold rounded-md bg-emerald-100 text-emerald-700">Paid</span>
                                         @elseif($status === 'partial')
                                             <span class="px-2 py-1 text-xs font-semibold rounded-md bg-yellow-100 text-yellow-700">Paying</span>
+                                        @elseif($status === 'overdue')
+                                            <span class="px-2 py-1 text-xs font-semibold rounded-md bg-red-100 text-red-700">Overdue</span>
                                         @else
-                                            @if($dayPercent >= 80)
-                                                <span class="px-2 py-1 text-xs font-semibold rounded-md bg-red-100 text-red-700">Overdue</span>
-                                            @else
-                                                <span class="px-2 py-1 text-xs font-semibold rounded-md bg-gray-100 text-gray-700">Unpaid</span>
-                                            @endif
+                                            <span class="px-2 py-1 text-xs font-semibold rounded-md bg-gray-100 text-gray-700">Unpaid</span>
                                         @endif
                                     @else
                                         <span class="text-[10px] text-gray-300">—</span>
@@ -202,8 +200,8 @@ function tenantFilter(){
             if(q && !((name || '').toLowerCase().includes(q) || (apartment || '').toLowerCase().includes(q))) return false;
             if(this.filter === 'all') return true;
             if(this.filter === 'paid') return status === 'paid';
-            if(this.filter === 'overdue') return status === 'overdue' || (Number(dayPercent) >= 80);
-            if(this.filter === 'unpaid') return status !== 'paid' && status !== 'partial' && Number(dayPercent) < 80;
+            if(this.filter === 'overdue') return status === 'overdue';
+            if(this.filter === 'unpaid') return status === 'unpaid';
             return true;
         }
     }

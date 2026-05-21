@@ -100,21 +100,38 @@ class TenantController extends Controller
                 $rentalStart = Carbon::parse($rental->start_date)->startOfDay();
                 $stayStart = $rentalStart->gt($monthStart) ? $rentalStart : $monthStart;
                 $stayEnd = now()->gt($monthEnd) ? $monthEnd : now();
-                $daysStayed = max($stayStart->diffInDays($stayEnd) + 1, 0);
+                $daysStayed = max((int) $stayStart->diffInDays($stayEnd) + 1, 0);
                 $daysStayed = min($daysStayed, $totalDaysInMonth);
 
                 $dayPercent = $totalDaysInMonth > 0 ? round(($daysStayed / $totalDaysInMonth) * 100) : 0;
                 $payPercent = $monthlyRent > 0 ? min(round(($paidAmount / $monthlyRent) * 100, 1), 100) : 0;
 
+                // Rent due date for the current month: rental start day-of-month
+                $dueDay = min($rentalStart->day, $totalDaysInMonth);
+                $dueDate = Carbon::create($currentYear, $currentMonth, $dueDay)->endOfDay();
+                $isFirstMonth = ($rentalStart->month === $currentMonth && $rentalStart->year === $currentYear);
+                $isPastDue = now()->gt($dueDate);
+
+                if ($payPercent >= 100) {
+                    $status = 'paid';
+                } elseif ($payPercent > 0) {
+                    $status = 'partial';
+                } elseif ($isPastDue && !$isFirstMonth) {
+                    $status = 'overdue';
+                } else {
+                    $status = 'unpaid';
+                }
+
                 $rentProgressMap[$tenant->id] = [
                     'rent' => $monthlyRent,
                     'paid' => $paidAmount,
                     'percent' => $payPercent,
-                    'status' => $payPercent >= 100 ? 'paid' : ($payPercent > 0 ? 'partial' : 'unpaid'),
+                    'status' => $status,
                     'paid_date' => $paidDate ? Carbon::parse($paidDate)->format('M d') : null,
                     'days_stayed' => $daysStayed,
                     'total_days' => $totalDaysInMonth,
                     'day_percent' => $dayPercent,
+                    'due_date' => $dueDate,
                 ];
             }
         }

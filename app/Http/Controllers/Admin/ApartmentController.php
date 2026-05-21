@@ -89,6 +89,10 @@ class ApartmentController extends Controller
                 : now()->endOfMonth();
             $monthlyRent = $activeRental->rent_amount;
 
+            $rentalStartDay = Carbon::parse($activeRental->start_date)->day;
+            $rentalStartMonth = Carbon::parse($activeRental->start_date)->month;
+            $rentalStartYear = Carbon::parse($activeRental->start_date)->year;
+
             $current = $startDate->copy();
             while ($current->lte($endDate)) {
                 $month = $current->month;
@@ -105,7 +109,11 @@ class ApartmentController extends Controller
                 $paidDate = $monthPayments->first()?->paid_at;
                 $percent = $monthlyRent > 0 ? min(round(($paidAmount / $monthlyRent) * 100, 1), 100) : 0;
 
-                $isPast = $current->copy()->endOfMonth()->lt(now());
+                // Due date is the rental start day-of-month within the current month
+                $dueDay = min($rentalStartDay, $current->copy()->daysInMonth);
+                $dueDate = Carbon::create($year, $month, $dueDay)->endOfDay();
+                $isFirstMonth = ($month === $rentalStartMonth && $year === $rentalStartYear);
+                $isPastDue = now()->gt($dueDate);
                 $isCurrent = $current->month === now()->month && $current->year === now()->year;
 
                 $status = 'upcoming';
@@ -113,7 +121,7 @@ class ApartmentController extends Controller
                     $status = 'paid';
                 } elseif ($percent > 0) {
                     $status = 'partial';
-                } elseif ($isPast) {
+                } elseif ($isPastDue && !$isFirstMonth) {
                     $status = 'overdue';
                 } elseif ($isCurrent) {
                     $status = 'due';

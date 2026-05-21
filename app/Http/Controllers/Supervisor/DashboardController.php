@@ -197,7 +197,21 @@ class DashboardController extends Controller
     {
         $currentMonth = $referenceMonth->month;
         $currentYear = $referenceMonth->year;
-        $referenceDate = $referenceMonth->isPast() ? $endDate->copy()->endOfDay() : now();
+
+        // Reference date for overdue comparison:
+        // - Current month: use now() (don't roll forward to end-of-month, or unpaid rents whose
+        //   due date hasn't arrived yet would be wrongly flagged as overdue)
+        // - Past month:    use end of that month
+        // - Future month:  use start of that month (nothing should be overdue yet)
+        $isCurrentMonth = $referenceMonth->year === now()->year && $referenceMonth->month === now()->month;
+        $isFutureMonth  = $referenceMonth->copy()->startOfMonth()->gt(now()->copy()->startOfMonth());
+        if ($isCurrentMonth) {
+            $referenceDate = now();
+        } elseif ($isFutureMonth) {
+            $referenceDate = $referenceMonth->copy()->startOfMonth();
+        } else {
+            $referenceDate = $endDate->copy()->endOfDay();
+        }
 
         $paidCount = $pendingCount = $overdueCount = 0;
         $totalPendingAmount = 0;

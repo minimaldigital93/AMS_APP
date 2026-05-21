@@ -765,7 +765,17 @@ class RevenueExpenseController extends Controller
                     $rentStatus = 'none';
                 } else {
                     $rentPercent = $rentDue > 0 ? min(round(($rentPaid / $rentDue) * 100, 1), 100) : 0;
-                    $rentStatus = $rentPaid >= $rentDue ? 'paid' : ($rentPercent > 0 ? 'partial' : 'unpaid');
+                    if ($rentPaid >= $rentDue) {
+                        $rentStatus = 'paid';
+                    } elseif ($rentPercent > 0) {
+                        $rentStatus = 'partial';
+                    } else {
+                        // Overdue when unpaid and past the rental's due date in the range's month
+                        $dueDay = min($rentPeriodStart->day, $rangeStart->copy()->daysInMonth);
+                        $dueDate = Carbon::create($rangeStart->year, $rangeStart->month, $dueDay)->endOfDay();
+                        $isFirstMonth = ($rentPeriodStart->month === $rangeStart->month && $rentPeriodStart->year === $rangeStart->year);
+                        $rentStatus = (now()->gt($dueDate) && !$isFirstMonth) ? 'overdue' : 'unpaid';
+                    }
                 }
 
                 // Occupancy percent (how many days in the selected range the rental was occupied)

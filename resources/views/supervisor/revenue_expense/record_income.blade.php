@@ -231,32 +231,34 @@
                                 <p class="text-xs text-red-500 font-medium">{{ (int) ($isPastMonth ? $selectedDate->copy()->endOfMonth() : now())->diffInDays($bill['due_date']) }} days late</p>
                             @elseif($bill['status'] === 'pending' && ($isFutureMonth || $isCurrentMonth))
                                 @php
-                                    // Occupancy-based progress: proportion of days in the selected month the rental is occupied
-                                    $rangeStart = $selectedDate->copy()->startOfMonth()->startOfDay();
-                                    $rangeEnd = $selectedDate->copy()->endOfMonth()->endOfDay();
-                                    $rentStart = \Carbon\Carbon::parse($bill['rental']->start_date)->startOfDay();
-                                    $rentEnd = $bill['rental']->end_date ? \Carbon\Carbon::parse($bill['rental']->end_date)->endOfDay() : null;
-                                    $ovStart = $rentStart->greaterThan($rangeStart) ? $rentStart : $rangeStart;
-                                    $ovEnd = $rentEnd ? ($rentEnd->lessThan($rangeEnd) ? $rentEnd : $rangeEnd) : $rangeEnd;
-                                    $overlapDays = 0;
-                                    if ($ovStart->lte($ovEnd)) {
-                                        $overlapDays = $ovStart->diffInDays($ovEnd) + 1;
+                                    // Time-elapsed progress (matches Active Tenants): days elapsed in the selected month / total days in month
+                                    $monthStart = $selectedDate->copy()->startOfMonth()->startOfDay();
+                                    $monthEnd = $monthStart->copy()->endOfMonth();
+                                    $totalDaysInMonth = $monthStart->daysInMonth;
+
+                                    if ($isFutureMonth) {
+                                        $progressPct = 0;
+                                        $daysRemaining = $totalDaysInMonth;
+                                    } else {
+                                        $rentalStart = \Carbon\Carbon::parse($bill['rental']->start_date)->startOfDay();
+                                        $stayStart = $rentalStart->greaterThan($monthStart) ? $rentalStart : $monthStart;
+                                        $stayEnd = now()->greaterThan($monthEnd) ? $monthEnd : now();
+                                        $daysStayed = $stayEnd->greaterThanOrEqualTo($stayStart)
+                                            ? min((int) $stayStart->diffInDays($stayEnd) + 1, $totalDaysInMonth)
+                                            : 0;
+                                        $progressPct = $totalDaysInMonth > 0 ? round(($daysStayed / $totalDaysInMonth) * 100) : 0;
+                                        $daysRemaining = max(0, $totalDaysInMonth - $daysStayed);
                                     }
-                                    $daysInRange = $rangeStart->diffInDays($rangeEnd) + 1;
-                                    $progressPct = $daysInRange > 0 ? min(100, round(($overlapDays / $daysInRange) * 100)) : 0;
                                 @endphp
                                 <div class="mt-1.5 w-full">
                                     <div class="w-full bg-slate-200 rounded-full h-1.5">
                                         <div class="h-1.5 rounded-full {{ $progressPct > 75 ? 'bg-amber-500' : 'bg-sky-500' }}" style="width: {{ $progressPct }}%"></div>
                                     </div>
-                                    @php
-                                        $daysUntilDue = (int) now()->diffInDays($bill['due_date'], false);
-                                    @endphp
-                                    <p class="text-xs {{ $daysUntilDue <= 5 && $isCurrentMonth ? 'text-amber-500' : 'text-sky-500' }} font-medium mt-0.5">
+                                    <p class="text-xs {{ $daysRemaining <= 5 && $isCurrentMonth ? 'text-amber-500' : 'text-sky-500' }} font-medium mt-0.5">
                                         @if($isFutureMonth)
                                             Upcoming
                                         @else
-                                            {{ $daysUntilDue }} days left
+                                            {{ $daysRemaining }} day{{ $daysRemaining !== 1 ? 's' : '' }} left
                                         @endif
                                     </p>
                                 </div>
