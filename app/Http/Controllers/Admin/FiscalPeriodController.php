@@ -12,6 +12,7 @@ use App\Models\Payments;
 use App\Models\Utilities;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Carbon\Carbon;
 
 class FiscalPeriodController extends Controller
@@ -444,23 +445,25 @@ class FiscalPeriodController extends Controller
 
         $closingBalance = $monthlyPeriod->opening_balance + $financials['net_income'];
 
-        // Update this month
-        $monthlyPeriod->update([
-            'total_income' => $financials['total_income'],
-            'total_expenses' => $financials['total_expenses'],
-            'net_income' => $financials['net_income'],
-            'closing_balance' => $closingBalance,
-            'status' => 'closed',
-            'closed_at' => now(),
-        ]);
-
-        // Carry forward: set next month's opening balance
-        $nextMonth = $fiscalperiod->nextMonthlyPeriod($monthlyPeriod);
-        if ($nextMonth && $nextMonth->isOpen()) {
-            $nextMonth->update([
-                'opening_balance' => $closingBalance,
+        $nextMonth = DB::transaction(function () use ($fiscalperiod, $monthlyPeriod, $financials, $closingBalance) {
+            $monthlyPeriod->update([
+                'total_income' => $financials['total_income'],
+                'total_expenses' => $financials['total_expenses'],
+                'net_income' => $financials['net_income'],
+                'closing_balance' => $closingBalance,
+                'status' => 'closed',
+                'closed_at' => now(),
             ]);
-        }
+
+            $next = $fiscalperiod->nextMonthlyPeriod($monthlyPeriod);
+            if ($next && $next->isOpen()) {
+                $next->update([
+                    'opening_balance' => $closingBalance,
+                ]);
+            }
+
+            return $next;
+        });
 
         return back()->with('success', $monthlyPeriod->name . ' closed. Closing balance: $' . number_format($closingBalance, 2) . ($nextMonth ? ' carried forward to ' . $nextMonth->name : '') . '.');
     }
@@ -501,25 +504,28 @@ class FiscalPeriodController extends Controller
     {
         $this->authorizeUser($fiscalperiod);
 
-        $monthlyPeriods = $fiscalperiod->monthlyPeriods()->orderBy('start_date')->get();
-        $carryForward = $fiscalperiod->opening_balance;
+        $carryForward = DB::transaction(function () use ($fiscalperiod) {
+            $monthlyPeriods = $fiscalperiod->monthlyPeriods()->orderBy('start_date')->get();
+            $running = $fiscalperiod->opening_balance;
 
-        foreach ($monthlyPeriods as $month) {
-            $financials = $this->calculateMonthlyFinancials($fiscalperiod, $month);
+            foreach ($monthlyPeriods as $month) {
+                $financials = $this->calculateMonthlyFinancials($fiscalperiod, $month);
 
-            $month->update([
-                'opening_balance' => $carryForward,
-                'total_income' => $financials['total_income'],
-                'total_expenses' => $financials['total_expenses'],
-                'net_income' => $financials['net_income'],
-                'closing_balance' => $carryForward + $financials['net_income'],
-            ]);
+                $month->update([
+                    'opening_balance' => $running,
+                    'total_income' => $financials['total_income'],
+                    'total_expenses' => $financials['total_expenses'],
+                    'net_income' => $financials['net_income'],
+                    'closing_balance' => $running + $financials['net_income'],
+                ]);
 
-            $carryForward = $month->closing_balance;
-        }
+                $running = $month->closing_balance;
+            }
 
-        // Update fiscal period closing balance
-        $fiscalperiod->update(['closing_balance' => $carryForward]);
+            $fiscalperiod->update(['closing_balance' => $running]);
+
+            return $running;
+        });
 
         return back()->with('success', 'All monthly balances recalculated. Fiscal period closing balance: $' . number_format($carryForward, 2));
     }
@@ -575,168 +581,88 @@ class FiscalPeriodController extends Controller
 
     /**
      * Calculate financial data for a specific monthly period.
+     *
+     * Source of truth: the Accounts ledger. Every paid Payment creates a matching
+     * Accounts.income row, so reading from Accounts gives a complete picture
+     * without double-counting payments + accruals.
      */
     protected function calculateMonthlyFinancials(FiscalPeriods $fiscalperiod, MonthlyPeriod $month): array
     {
-        $userId = $fiscalperiod->user_id;
-
-        // Revenue from rent payments
-        $rentIncome = Payments::whereHas('rental', function($query) use ($userId) {
-            $query->whereHas('apartment', function($subQuery) use ($userId) {
-                $subQuery->where('supervisor_id', $userId);
-            });
-        })
-        ->where('payment_status', 'paid')
-        ->whereBetween('paid_at', [$month->start_date, $month->end_date])
-        ->sum('amount');
-
-        // Late fees
-        $lateFees = Payments::whereHas('rental', function($query) use ($userId) {
-            $query->whereHas('apartment', function($subQuery) use ($userId) {
-                $subQuery->where('supervisor_id', $userId);
-            });
-        })
-        ->where('payment_status', 'paid')
-        ->whereBetween('paid_at', [$month->start_date, $month->end_date])
-        ->sum('late_fee');
-
-        // Payment count
-        $paymentCount = Payments::whereHas('rental', function($query) use ($userId) {
-            $query->whereHas('apartment', function($subQuery) use ($userId) {
-                $subQuery->where('supervisor_id', $userId);
-            });
-        })
-        ->where('payment_status', 'paid')
-        ->whereBetween('paid_at', [$month->start_date, $month->end_date])
-        ->count();
-
-        $totalIncome = $rentIncome + $lateFees;
-
-        // Expenses from utilities
-        $utilitiesData = Utilities::whereHas('rental', function($query) use ($userId) {
-            $query->whereHas('apartment', function($subQuery) use ($userId) {
-                $subQuery->where('supervisor_id', $userId);
-            });
-        })
-        ->where('paid_status', true)
-        ->whereBetween('paid_at', [$month->start_date, $month->end_date])
-        ->get();
-
-        $expenses = [];
-        $totalExpenses = 0;
-        foreach ($utilitiesData->groupBy('utility_type') as $type => $items) {
-            $typeTotal = $items->sum('charge_amount');
-            $expenses[$type] = $typeTotal;
-            $totalExpenses += $typeTotal;
-        }
-
-        // Fixed expenses from accounts table
-        $fixedExpenses = $fiscalperiod->accounts()
-            ->where('account_type', Accounts::TYPE_EXPENSE)
-            ->whereBetween('transaction_date', [$month->start_date, $month->end_date])
-            ->sum('amount');
-
-        $totalExpenses += $fixedExpenses;
-
-        // Account-based income (non-rent)
-        $otherIncome = $fiscalperiod->accounts()
-            ->where('account_type', Accounts::TYPE_INCOME)
-            ->whereBetween('transaction_date', [$month->start_date, $month->end_date])
-            ->sum('amount');
-
-        $totalIncome += $otherIncome;
-
-        $netIncome = $totalIncome - $totalExpenses;
-
-        return [
-            'rent_income' => $rentIncome,
-            'late_fees' => $lateFees,
-            'other_income' => $otherIncome,
-            'total_income' => $totalIncome,
-            'utility_expenses' => $expenses,
-            'fixed_expenses' => $fixedExpenses,
-            'total_expenses' => $totalExpenses,
-            'net_income' => $netIncome,
-            'payment_count' => $paymentCount,
-            'is_profitable' => $netIncome >= 0,
-        ];
+        return $this->financialsFromAccounts(
+            $fiscalperiod,
+            Carbon::parse($month->start_date),
+            Carbon::parse($month->end_date)
+        );
     }
 
     /**
-     * Calculate total period financials.
+     * Calculate total period financials from the Accounts ledger.
      */
     protected function calculatePeriodFinancials(FiscalPeriods $fiscalperiod): array
     {
-        $userId = $fiscalperiod->user_id;
+        return $this->financialsFromAccounts(
+            $fiscalperiod,
+            Carbon::parse($fiscalperiod->opening_date),
+            Carbon::parse($fiscalperiod->closing_date)
+        );
+    }
 
-        $rentIncome = Payments::whereHas('rental', function($query) use ($userId) {
-            $query->whereHas('apartment', function($subQuery) use ($userId) {
-                $subQuery->where('supervisor_id', $userId);
-            });
-        })
-        ->where('payment_status', 'paid')
-        ->whereBetween('paid_at', [$fiscalperiod->opening_date, $fiscalperiod->closing_date])
-        ->sum('amount');
+    /**
+     * Shared accounting computation used by both monthly and period totals.
+     */
+    private function financialsFromAccounts(FiscalPeriods $fiscalperiod, Carbon $start, Carbon $end): array
+    {
+        $start = $start->copy()->startOfDay();
+        $end   = $end->copy()->endOfDay();
 
-        $lateFees = Payments::whereHas('rental', function($query) use ($userId) {
-            $query->whereHas('apartment', function($subQuery) use ($userId) {
-                $subQuery->where('supervisor_id', $userId);
-            });
-        })
-        ->where('payment_status', 'paid')
-        ->whereBetween('paid_at', [$fiscalperiod->opening_date, $fiscalperiod->closing_date])
-        ->sum('late_fee');
+        $incomeRecords = $fiscalperiod->accounts()
+            ->where('account_type', Accounts::TYPE_INCOME)
+            ->whereBetween('transaction_date', [$start, $end])
+            ->get();
 
-        $paymentCount = Payments::whereHas('rental', function($query) use ($userId) {
-            $query->whereHas('apartment', function($subQuery) use ($userId) {
-                $subQuery->where('supervisor_id', $userId);
-            });
-        })
-        ->where('payment_status', 'paid')
-        ->whereBetween('paid_at', [$fiscalperiod->opening_date, $fiscalperiod->closing_date])
-        ->count();
+        $expenseRecords = $fiscalperiod->accounts()
+            ->where('account_type', Accounts::TYPE_EXPENSE)
+            ->whereBetween('transaction_date', [$start, $end])
+            ->get();
 
-        $utilExpenses = Utilities::whereHas('rental', function($query) use ($userId) {
-            $query->whereHas('apartment', function($subQuery) use ($userId) {
-                $subQuery->where('supervisor_id', $userId);
-            });
-        })
-        ->where('paid_status', true)
-        ->whereBetween('paid_at', [$fiscalperiod->opening_date, $fiscalperiod->closing_date])
-        ->get();
+        $rentIncome = $incomeRecords->where('category', Accounts::CAT_RENT_INCOME)->sum('amount');
+        $lateFees   = $incomeRecords->where('category', Accounts::CAT_LATE_FEE_INCOME)->sum('amount');
+        $otherIncome = $incomeRecords->whereIn('category', [
+            Accounts::CAT_UTILITY_INCOME,
+            Accounts::CAT_OTHER_INCOME,
+            Accounts::CAT_DEPOSIT_INCOME,
+        ])->sum('amount');
+        $totalIncome = $incomeRecords->sum('amount');
 
-        $expensesByType = [];
-        $totalUtilExpenses = 0;
-        foreach ($utilExpenses->groupBy('utility_type') as $type => $items) {
-            $typeTotal = $items->sum('charge_amount');
-            $expensesByType[$type] = $typeTotal;
-            $totalUtilExpenses += $typeTotal;
+        $utilityExpensesTotal = $expenseRecords->where('category', Accounts::CAT_UTILITIES_EXPENSE)->sum('amount');
+        $fixedExpenses = $expenseRecords->where('category', '!=', Accounts::CAT_UTILITIES_EXPENSE)->sum('amount');
+        $totalExpenses = $expenseRecords->sum('amount');
+
+        $utilityExpensesByCategory = $expenseRecords
+            ->where('category', Accounts::CAT_UTILITIES_EXPENSE)
+            ->groupBy('description')
+            ->map(fn ($items) => round($items->sum('amount'), 2))
+            ->toArray();
+        if (empty($utilityExpensesByCategory) && $utilityExpensesTotal > 0) {
+            $utilityExpensesByCategory = ['utilities' => round($utilityExpensesTotal, 2)];
         }
 
-        $fixedExpenses = $fiscalperiod->accounts()
-            ->where('account_type', Accounts::TYPE_EXPENSE)
-            ->sum('amount');
+        $paymentCount = $incomeRecords->whereNotNull('payment_id')->pluck('payment_id')->unique()->count();
 
-        $otherIncome = $fiscalperiod->accounts()
-            ->where('account_type', Accounts::TYPE_INCOME)
-            ->sum('amount');
-
-        $totalIncome = $rentIncome + $lateFees + $otherIncome;
-        $totalExpenses = $totalUtilExpenses + $fixedExpenses;
         $netIncome = $totalIncome - $totalExpenses;
 
         return [
-            'rent_income' => $rentIncome,
-            'late_fees' => $lateFees,
-            'other_income' => $otherIncome,
-            'total_income' => $totalIncome,
-            'utility_expenses' => $expensesByType,
-            'total_util_expenses' => $totalUtilExpenses,
-            'fixed_expenses' => $fixedExpenses,
-            'total_expenses' => $totalExpenses,
-            'net_income' => $netIncome,
-            'is_profitable' => $netIncome >= 0,
-            'payment_count' => $paymentCount,
+            'rent_income'         => round($rentIncome, 2),
+            'late_fees'           => round($lateFees, 2),
+            'other_income'        => round($otherIncome, 2),
+            'total_income'        => round($totalIncome, 2),
+            'utility_expenses'    => $utilityExpensesByCategory,
+            'total_util_expenses' => round($utilityExpensesTotal, 2),
+            'fixed_expenses'      => round($fixedExpenses, 2),
+            'total_expenses'      => round($totalExpenses, 2),
+            'net_income'          => round($netIncome, 2),
+            'is_profitable'       => $netIncome >= 0,
+            'payment_count'       => $paymentCount,
         ];
     }
 

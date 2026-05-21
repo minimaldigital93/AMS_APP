@@ -43,9 +43,6 @@ class DashboardController extends Controller
                     $q2->whereNull('end_date')->orWhere('end_date', '>=', now());
                 })->with('tenant');
             }])
-            ->where(function ($q) {
-                $q->where('supervisor_id', Auth::id())->orWhereNull('supervisor_id');
-            })
             ->where('status', 'occupied')
             ->orderBy('apartment_number')
             ->get();
@@ -381,10 +378,6 @@ class DashboardController extends Controller
                         $q2->whereNull('end_date')->orWhere('end_date', '>=', $startDate);
                     });
             })
-            ->whereHas('apartment', function ($q) {
-                $q->where('supervisor_id', Auth::id())
-                  ->orWhereNull('supervisor_id');
-            })
             ->get();
 
         foreach ($activeRentals as $rental) {
@@ -449,13 +442,7 @@ class DashboardController extends Controller
         $monthlyExpensesTotal = $monthlyExpenseAccounts->sum('amount');
 
         // -- Utility breakdown (current month, all consumption regardless of payment status) --
-        $utilityBreakdown = Utilities::whereHas('rental', function ($query) {
-                $query->whereHas('apartment', function ($subQuery) {
-                    $subQuery->where('supervisor_id', Auth::id())
-                             ->orWhereNull('supervisor_id');
-                });
-            })
-            ->where(function ($query) use ($startDate, $endDate) {
+        $utilityBreakdown = Utilities::where(function ($query) use ($startDate, $endDate) {
                 $query->whereBetween('paid_at', [$startDate->copy()->startOfDay(), $endDate->copy()->endOfDay()])
                     ->orWhere(function ($query2) use ($startDate, $endDate) {
                         $query2->whereRaw('(billing_year * 100 + billing_month) >= ?', [$startDate->year * 100 + $startDate->month])
@@ -482,10 +469,6 @@ class DashboardController extends Controller
         $expiringSoon = Rentals::with(['tenant', 'apartment'])
             ->whereNotNull('end_date')
             ->whereBetween('end_date', [now(), now()->addDays(30)])
-            ->whereHas('apartment', function ($q) {
-                $q->where('supervisor_id', Auth::id())
-                  ->orWhereNull('supervisor_id');
-            })
             ->orderBy('end_date')
             ->get();
 
@@ -517,13 +500,7 @@ class DashboardController extends Controller
                 'paid' => $paidCount,
                 'pending' => $pendingCount,
                 'overdue' => $overdueCount,
-                'total_collected' => Payments::whereHas('rental', function ($q) {
-                        $q->whereHas('apartment', function ($sq) {
-                            $sq->where('supervisor_id', Auth::id())
-                               ->orWhereNull('supervisor_id');
-                        });
-                    })
-                    ->where('payment_status', 'paid')
+                'total_collected' => Payments::where('payment_status', 'paid')
                     ->whereBetween('paid_at', [$startDate->copy()->startOfDay(), $endDate->copy()->endOfDay()])
                     ->sum('amount'),
                 'total_pending' => $totalPendingAmount,
@@ -571,9 +548,7 @@ class DashboardController extends Controller
         $currentYear = $selectedMonth->year;
 
         $floors = Floors::with(['apartments' => function ($q) {
-                $q->where(function ($q2) {
-                    $q2->where('supervisor_id', Auth::id())->orWhereNull('supervisor_id');
-                })->select('id', 'floor_id', 'apartment_number', 'monthly_rent', 'status')
+                $q->select('id', 'floor_id', 'apartment_number', 'monthly_rent', 'status')
                   ->orderBy('apartment_number');
             }])
             ->orderBy('id')

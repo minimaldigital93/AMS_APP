@@ -539,6 +539,11 @@ class TenantController extends Controller
 
             $tenant->delete();
 
+            // Suspend the linked user account so the ex-tenant can no longer log in
+            if ($tenant->user_id) {
+                User::where('id', $tenant->user_id)->update(['status' => 'suspended']);
+            }
+
             return redirect()
                 ->route('supervisor.tenants.archived')
                 ->with('success', 'Tenant leave processed successfully.');

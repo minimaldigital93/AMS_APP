@@ -34,17 +34,5 @@
                 {{ __('Sign In') }}
             </x-primary-button>
         </div>
-
-        <div class="divider">
-            <span>or</span>
-        </div>
-
-        <!-- Register -->
-        <div class="text-center">
-            <span class="form-text text-sm">Don't have an account?</span>
-            <a href="{{ route('register') }}" class="form-link text-sm font-semibold ml-1">
-                {{ __('Create Account') }}
-            </a>
-        </div>
     </form>
 </x-guest-layout>
