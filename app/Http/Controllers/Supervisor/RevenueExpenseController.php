@@ -13,6 +13,15 @@ use App\Models\TenantLeave;
 use App\Models\Utilities;
 use App\Models\Rentals;
 use App\Models\Apartments;
+use App\Http\Requests\RevenueExpense\AddTenantChargeRequest;
+use App\Http\Requests\RevenueExpense\CheckoutTenantRequest;
+use App\Http\Requests\RevenueExpense\ProcessMonthlyBillsRequest;
+use App\Http\Requests\RevenueExpense\RecordBulkIncomeRequest;
+use App\Http\Requests\RevenueExpense\RecordIncomeRequest;
+use App\Http\Requests\RevenueExpense\StoreBusinessExpenseRequest;
+use App\Http\Requests\RevenueExpense\StoreFixedExpenseRequest;
+use App\Http\Requests\RevenueExpense\StoreOtherExpenseRequest;
+use App\Http\Requests\RevenueExpense\StoreUtilityExpenseRequest;
 use App\Services\RevenueExpense\BreakEvenService;
 use App\Services\RevenueExpense\ExpenseRecordingService;
 use App\Services\RevenueExpense\IncomeRecordingService;
@@ -738,19 +747,9 @@ class RevenueExpenseController extends Controller
     /**
      * Add a charge (utility/expense) to a tenant's current month bill.
      */
-    public function addTenantCharge(Request $request)
+    public function addTenantCharge(AddTenantChargeRequest $request)
     {
-        $validated = $request->validate([
-            'rental_id'         => 'required|exists:rentals,id',
-            'charge_type'       => 'required|in:electricity,water,internet,parking,trash,other',
-            'charge_amount'     => 'required|numeric|min:0.01',
-            'meter_reading_in'  => 'nullable|numeric|min:0',
-            'meter_reading_out' => 'nullable|numeric|min:0',
-            'billing_month'     => 'nullable|integer|min:1|max:12',
-            'billing_year'      => 'nullable|integer|min:2000|max:2100',
-            'note'              => 'nullable|string|max:500',
-        ]);
-
+        $validated = $request->validated();
         $rental = Rentals::with('tenant')->findOrFail($validated['rental_id']);
         $period = $this->getActiveFiscalPeriod();
         if ($period) {
@@ -803,7 +802,7 @@ class RevenueExpenseController extends Controller
         return redirect()->back()->with('success', 'All unpaid charges cleared.');
     }
 
-    public function checkoutTenant(Request $request)
+    public function checkoutTenant(CheckoutTenantRequest $request)
     {
         $activePeriod = $this->getActiveFiscalPeriod();
         if (!$activePeriod) {
@@ -811,18 +810,7 @@ class RevenueExpenseController extends Controller
                 ->with('warning', 'Please create a fiscal period first.');
         }
 
-        $validated = $request->validate([
-            'rental_id'             => 'required|exists:rentals,id',
-            'payment_method'        => 'required|in:cash,bank',
-            'payment_date'          => 'required|date',
-            'rent_amount'           => 'required|numeric|min:0',
-            'late_fee'              => 'nullable|numeric|min:0',
-            'pay_rent'              => 'nullable|boolean',
-            'pay_utilities'         => 'nullable|boolean',
-            'transaction_reference' => 'nullable|string|max:255',
-            'note'                  => 'nullable|string|max:1000',
-        ]);
-
+        $validated = $request->validated();
         $rental = Rentals::with(['apartment', 'tenant'])->findOrFail($validated['rental_id']);
         $result = $this->incomeService($activePeriod)->checkout($rental, $validated);
 
@@ -905,7 +893,7 @@ class RevenueExpenseController extends Controller
         return view('supervisor.revenue_expense.tenant_bill_print', $billData);
     }
 
-    public function storeIncome(Request $request)
+    public function storeIncome(RecordIncomeRequest $request)
     {
         $activePeriod = $this->getActiveFiscalPeriod();
         if (!$activePeriod) {
@@ -913,17 +901,7 @@ class RevenueExpenseController extends Controller
                 ->with('warning', 'Please create a fiscal period first.');
         }
 
-        $validated = $request->validate([
-            'rental_id'             => 'required|exists:rentals,id',
-            'amount'                => 'required|numeric|min:0.01',
-            'payment_method'        => 'required|in:cash,bank',
-            'payment_type'          => 'required|in:rent,utilities,deposit,other',
-            'transaction_date'      => 'required|date',
-            'transaction_reference' => 'nullable|string|max:255',
-            'late_fee'              => 'nullable|numeric|min:0',
-            'note'                  => 'nullable|string|max:1000',
-        ]);
-
+        $validated = $request->validated();
         $rental = Rentals::with('apartment')->findOrFail($validated['rental_id']);
         $this->incomeService($activePeriod)->recordPayment($rental, $validated);
 
@@ -934,7 +912,7 @@ class RevenueExpenseController extends Controller
         );
     }
 
-    public function storeBulkIncome(Request $request)
+    public function storeBulkIncome(RecordBulkIncomeRequest $request)
     {
         $activePeriod = $this->getActiveFiscalPeriod();
         if (!$activePeriod) {
@@ -942,16 +920,7 @@ class RevenueExpenseController extends Controller
                 ->with('warning', 'Please create a fiscal period first.');
         }
 
-        $validated = $request->validate([
-            'payment_date'           => 'required|date',
-            'payment_method'         => 'required|in:cash,bank',
-            'apartments'             => 'required|array|min:1',
-            'apartments.*.rental_id' => 'required|exists:rentals,id',
-            'apartments.*.amount'    => 'required|numeric|min:0.01',
-            'apartments.*.late_fee'  => 'nullable|numeric|min:0',
-            'apartments.*.selected'  => 'nullable|boolean',
-        ]);
-
+        $validated = $request->validated();
         $result = $this->incomeService($activePeriod)->recordBulkRent(
             $validated['payment_date'],
             $validated['payment_method'],
@@ -1156,7 +1125,7 @@ class RevenueExpenseController extends Controller
         ));
     }
 
-    public function storeExpense(Request $request)
+    public function storeExpense(StoreUtilityExpenseRequest $request)
     {
         $activePeriod = $this->getActiveFiscalPeriod();
         if (!$activePeriod) {
@@ -1164,16 +1133,7 @@ class RevenueExpenseController extends Controller
                 ->with('warning', 'Please create a fiscal period first.');
         }
 
-        $validated = $request->validate([
-            'rental_id'         => 'required|exists:rentals,id',
-            'utility_type'      => 'required|in:electricity,water,internet,parking,trash,other',
-            'charge_amount'     => 'required|numeric|min:0.01',
-            'transaction_date'  => 'required|date',
-            'meter_reading_in'  => 'nullable|numeric|min:0',
-            'meter_reading_out' => 'nullable|numeric|min:0',
-            'note'              => 'nullable|string|max:1000',
-        ]);
-
+        $validated = $request->validated();
         $rental = Rentals::with('tenant', 'apartment')->findOrFail($validated['rental_id']);
         $this->expenseService($activePeriod)->recordUtilityExpense($rental, $validated);
 
@@ -1184,7 +1144,7 @@ class RevenueExpenseController extends Controller
         );
     }
 
-    public function storeOtherExpense(Request $request)
+    public function storeOtherExpense(StoreOtherExpenseRequest $request)
     {
         $activePeriod = $this->getActiveFiscalPeriod();
         if (!$activePeriod) {
@@ -1192,20 +1152,7 @@ class RevenueExpenseController extends Controller
                 ->with('warning', 'Please create a fiscal period first.');
         }
 
-        $allowedCategories = [
-            'maintenance', 'repairs', 'insurance', 'property_tax', 'management',
-            'cleaning', 'security', 'landscaping', 'supplies', 'marketing',
-            'legal', 'miscellaneous', 'salaries', 'taxes', 'other_expense',
-        ];
-
-        $validated = $request->validate([
-            'category'         => 'required|string|in:' . implode(',', $allowedCategories),
-            'description'      => 'required|string|max:500',
-            'amount'           => 'required|numeric|min:0.01',
-            'transaction_date' => 'required|date',
-            'note'             => 'nullable|string|max:1000',
-        ]);
-
+        $validated = $request->validated();
         $this->expenseService($activePeriod)->recordOtherExpense($validated);
 
         return redirect()->back()->with(
@@ -1227,7 +1174,7 @@ class RevenueExpenseController extends Controller
         return redirect()->back()->with('success', 'Expense "' . $desc . '" has been removed.');
     }
 
-    public function storeBusinessExpense(Request $request)
+    public function storeBusinessExpense(StoreBusinessExpenseRequest $request)
     {
         $activePeriod = $this->getActiveFiscalPeriod();
         if (!$activePeriod) {
@@ -1235,16 +1182,7 @@ class RevenueExpenseController extends Controller
                 ->with('warning', 'Please create a fiscal period first.');
         }
 
-        $validated = $request->validate([
-            'expense_name' => 'required|string|max:255',
-            'category'     => 'required|in:electricity,water,trash,internet,legal_fee,tax,loan_payment,salary,other',
-            'amount'       => 'required|numeric|min:0.01',
-            'expense_date' => 'required|date',
-            'is_recurring' => 'nullable|boolean',
-            'note'         => 'nullable|string|max:1000',
-            'attachment'   => 'nullable|file|mimes:pdf|max:10240',
-        ]);
-
+        $validated = $request->validated();
         $attachmentPath = $request->hasFile('attachment')
             ? $request->file('attachment')->store('business_expenses', 'public')
             : null;
@@ -1283,16 +1221,9 @@ class RevenueExpenseController extends Controller
         return view('supervisor.revenue_expense.fixed_expenses', compact('apartments'));
     }
 
-    public function storeFixedExpense(Request $request)
+    public function storeFixedExpense(StoreFixedExpenseRequest $request)
     {
-        $validated = $request->validate([
-            'apartment_id' => 'required|exists:apartments,id',
-            'expense_name' => 'required|string|max:255',
-            'expense_type' => 'required|in:parking,internet,trash,other',
-            'amount'       => 'required|numeric|min:0.01',
-            'note'         => 'nullable|string|max:1000',
-        ]);
-
+        $validated = $request->validated();
         $this->expenseService()->recordFixedExpense($validated);
 
         return redirect()->back()->with(
@@ -1408,7 +1339,7 @@ class RevenueExpenseController extends Controller
     /**
      * Process bulk monthly expense generation for all selected apartments.
      */
-    public function processMonthlyBills(Request $request)
+    public function processMonthlyBills(ProcessMonthlyBillsRequest $request)
     {
         $activePeriod = $this->getActiveFiscalPeriod();
         if (!$activePeriod) {
@@ -1416,17 +1347,7 @@ class RevenueExpenseController extends Controller
                 ->with('warning', 'Please create a fiscal period first.');
         }
 
-        $validated = $request->validate([
-            'billing_date'                  => 'required|date',
-            'bills'                         => 'required|array|min:1',
-            'bills.*.rental_id'             => 'required|exists:rentals,id',
-            'bills.*.selected'              => 'nullable|boolean',
-            'bills.*.expenses'              => 'nullable|array',
-            'bills.*.expenses.*.expense_id' => 'required|exists:apartment_fixed_expenses,id',
-            'bills.*.expenses.*.amount'     => 'required|numeric|min:0',
-            'bills.*.expenses.*.selected'   => 'nullable|boolean',
-        ]);
-
+        $validated = $request->validated();
         $result = $this->billingService($activePeriod)->processSelected(
             $validated['bills'],
             Carbon::parse($validated['billing_date']),
