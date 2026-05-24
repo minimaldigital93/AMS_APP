@@ -1,20 +1,42 @@
 @extends('layouts.admin')
 
 @section('content')
-<div class="max-w-5xl mx-auto space-y-6">
+<div class="max-w-5xl mx-auto space-y-5">
 
     @php
-        $coveragePercent = (isset($break_even_revenue) && $break_even_revenue > 0)
-            ? min(($current_revenue / $break_even_revenue) * 100, 100)
-            : 0;
+        $break_even_feasible = $break_even_feasible ?? true;
+        $extraUnitProfit   = max(0, $contribution_margin_per_unit);
+        $vacantUnits       = max(0, $total_apartments - $current_occupancy);
+        $maxPossibleProfit = ($total_apartments * $avg_rent_per_apartment)
+                           - ($total_apartments * $variable_cost_per_unit)
+                           - $business_expenses;
+        $unitsAhead        = $break_even_feasible
+                             ? max(0, $current_occupancy - (int) ceil($break_even_units))
+                             : 0;
+
+        $totalVariableCost = $current_occupancy * $variable_cost_per_unit;
+        $totalCosts        = $business_expenses + $totalVariableCost;
+        $maxBar            = max($current_revenue, $totalCosts, 0.01);
+        $revenuePct        = ($current_revenue / $maxBar) * 100;
+        $bizExpensePct     = ($business_expenses / $maxBar) * 100;
+        $varCostPct        = ($totalVariableCost / $maxBar) * 100;
+
+        $breakEvenPct      = $total_apartments > 0 ? min(100, ($break_even_units / $total_apartments) * 100) : 0;
+        $occupancyPct      = $total_apartments > 0 ? min(100, ($current_occupancy / $total_apartments) * 100) : 0;
+
+        $rentBase          = max($avg_rent_per_apartment, 0.01);
+        $costShare         = min(100, ($variable_cost_per_unit / $rentBase) * 100);
+        $marginShare       = max(0, 100 - $costShare);
+
+        $palette    = ['bg-orange-500','bg-amber-500','bg-rose-500','bg-pink-500','bg-fuchsia-500','bg-violet-500','bg-indigo-500','bg-sky-500'];
+        $varPalette = ['bg-purple-500','bg-violet-500','bg-fuchsia-500','bg-pink-500','bg-indigo-500'];
+        $bizTotal   = max(array_sum(array_column($business_expense_breakdown, 'amount')), 0.01);
+        $varTotal   = max(array_sum(array_column($variable_cost_breakdown, 'amount')), 0.01);
     @endphp
 
-    {{-- ── Header ─────────────────────────────────────────────── --}}
+    {{-- Header --}}
     <div class="flex items-center justify-between">
-        <div>
-            <h1 class="text-xl font-bold text-slate-800 tracking-tight">Break-Even Analysis</h1>
-            <p class="text-xs text-slate-400 mt-0.5">How many units you need to rent to cover all costs</p>
-        </div>
+        <h1 class="text-xl font-bold text-slate-800 tracking-tight">Break-Even Analysis</h1>
         <a href="{{ route('admin.revenue_expense.index') }}"
            class="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm bg-slate-100 text-slate-600 rounded-lg hover:bg-slate-200 transition">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -24,317 +46,332 @@
         </a>
     </div>
 
-    {{-- ── Hero Status + Key Metrics ───────────────────────────── --}}
-    <div class="rounded-2xl overflow-hidden border {{ $is_above_break_even ? 'border-emerald-200' : 'border-red-200' }}">
-        {{-- Status bar --}}
-        <div class="{{ $is_above_break_even ? 'bg-emerald-600' : 'bg-red-600' }} px-6 py-4 flex items-center justify-between text-white">
-            <div class="flex items-center gap-3">
-                <div class="w-9 h-9 rounded-full {{ $is_above_break_even ? 'bg-emerald-500' : 'bg-red-500' }} flex items-center justify-center text-lg font-bold">
-                    {{ $is_above_break_even ? '✓' : '✗' }}
-                </div>
-                <div>
-                    <p class="font-bold text-lg leading-tight">{{ $is_above_break_even ? 'Profitable' : 'Not Yet Profitable' }}</p>
-                    <p class="text-xs {{ $is_above_break_even ? 'text-emerald-200' : 'text-red-200' }}">
-                        Need <strong>{{ $break_even_units }}</strong> units to break even &mdash; {{ $current_occupancy }}/{{ $total_apartments }} currently occupied
-                    </p>
-                </div>
-            </div>
-            <div class="text-right">
-                <p class="text-xs {{ $is_above_break_even ? 'text-emerald-200' : 'text-red-200' }}">
-                    {{ $is_above_break_even ? 'Surplus above BEP' : 'Still needed' }}
-                </p>
-                <p class="text-2xl font-extrabold">
-                    @if($is_above_break_even)
-                        +${{ number_format($safety_margin, 2) }}
-                    @else
-                        -${{ number_format($amount_needed, 2) }}
-                    @endif
-                </p>
-                @if(!$is_above_break_even)
-                    <p class="text-xs text-red-200">{{ $units_needed }} more unit(s) required</p>
-                @endif
-            </div>
+    {{-- Month navigation --}}
+    <div class="bg-white rounded-2xl border border-slate-100 p-3 flex items-center justify-between gap-2">
+        @if($hasPrev)
+            <a href="{{ route('admin.revenue_expense.break_even', ['month' => $prevMonth, 'year' => $prevYear]) }}"
+               class="inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-slate-600 bg-slate-50 hover:bg-slate-100 rounded-lg transition"
+               title="{{ \Carbon\Carbon::create($prevYear, $prevMonth, 1)->format('F Y') }}">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+                </svg>
+                <span class="hidden sm:inline">{{ \Carbon\Carbon::create($prevYear, $prevMonth, 1)->format('M Y') }}</span>
+            </a>
+        @else
+            <span class="inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-slate-300 bg-slate-50 rounded-lg cursor-not-allowed">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+                </svg>
+            </span>
+        @endif
+
+        <div class="flex items-center gap-2">
+            <svg class="w-5 h-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+            </svg>
+            <span class="text-base font-bold text-slate-800">{{ $selectedDate->format('F Y') }}</span>
+            @if($selectedMonth === now()->month && $selectedYear === now()->year)
+                <span class="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-700 uppercase">Current</span>
+            @endif
         </div>
 
-        {{-- 4 key metrics --}}
-        <div class="grid grid-cols-2 md:grid-cols-4 divide-x divide-y md:divide-y-0 divide-slate-100 bg-white">
-            <div class="px-5 py-4">
-                <p class="text-[11px] text-slate-400 uppercase tracking-wide font-medium">Break-Even Point</p>
-                <p class="text-2xl font-extrabold text-amber-500 mt-1">{{ $break_even_units }}<span class="text-sm font-medium text-slate-400 ml-1">units</span></p>
-                <p class="text-[11px] text-slate-400 mt-0.5">${{ number_format($break_even_revenue, 2) }} required revenue</p>
-            </div>
-            <div class="px-5 py-4">
-                <p class="text-[11px] text-slate-400 uppercase tracking-wide font-medium">Current Revenue</p>
-                <p class="text-2xl font-extrabold text-emerald-600 mt-1">${{ number_format($current_revenue, 2) }}</p>
-                <p class="text-[11px] text-slate-400 mt-0.5">{{ $current_occupancy }} of {{ $total_apartments }} units rented</p>
-            </div>
-            <div class="px-5 py-4">
-                <p class="text-[11px] text-slate-400 uppercase tracking-wide font-medium">Monthly Costs</p>
-                <p class="text-2xl font-extrabold text-orange-500 mt-1">${{ number_format($fixed_costs, 2) }}</p>
-                <p class="text-[11px] text-slate-400 mt-0.5">recurring regardless of occupancy</p>
-            </div>
-            <div class="px-5 py-4">
-                <p class="text-[11px] text-slate-400 uppercase tracking-wide font-medium">Safety Margin</p>
-                <p class="text-2xl font-extrabold {{ $is_above_break_even ? 'text-emerald-600' : 'text-red-500' }} mt-1">{{ $safety_margin_percent }}%</p>
-                <p class="text-[11px] text-slate-400 mt-0.5">${{ number_format(abs($safety_margin), 2) }} {{ $is_above_break_even ? 'above' : 'below' }} BEP</p>
-            </div>
-        </div>
+        @if($hasNext)
+            <a href="{{ route('admin.revenue_expense.break_even', ['month' => $nextMonth, 'year' => $nextYear]) }}"
+               class="inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-slate-600 bg-slate-50 hover:bg-slate-100 rounded-lg transition"
+               title="{{ \Carbon\Carbon::create($nextYear, $nextMonth, 1)->format('F Y') }}">
+                <span class="hidden sm:inline">{{ \Carbon\Carbon::create($nextYear, $nextMonth, 1)->format('M Y') }}</span>
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+                </svg>
+            </a>
+        @else
+            <span class="inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-slate-300 bg-slate-50 rounded-lg cursor-not-allowed">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+                </svg>
+            </span>
+        @endif
     </div>
 
-    {{-- ── Donut Charts ─────────────────────────────────────────── --}}
-    <div class="grid grid-cols-1 md:grid-cols-3 gap-5">
-
-        {{-- 1. Occupancy Progress --}}
-        <div class="bg-white rounded-2xl border border-slate-100 p-5 flex flex-col items-center">
-            <p class="text-sm font-semibold text-slate-700">Occupancy Progress</p>
-            <p class="text-[11px] text-slate-400 mt-0.5 mb-4">Units occupied vs break-even target</p>
-            <div class="relative w-44 h-44">
-                <canvas id="occupancyChart"></canvas>
-                <div class="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-                    <span class="text-xl font-extrabold text-slate-800">{{ $current_occupancy }}<span class="text-slate-400 font-normal text-sm">/{{ $total_apartments }}</span></span>
-                    <span class="text-[11px] text-slate-400">occupied</span>
-                </div>
-            </div>
-            <div class="flex flex-wrap justify-center gap-3 mt-4 text-[11px]">
-                <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-full bg-emerald-400 inline-block"></span>Rented</span>
-                <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-full bg-amber-400 inline-block"></span>BEP target</span>
-                <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-full bg-slate-200 inline-block"></span>Vacant</span>
-            </div>
-        </div>
-
-        {{-- 2. Cost Composition --}}
-        <div class="bg-white rounded-2xl border border-slate-100 p-5 flex flex-col items-center">
-            <p class="text-sm font-semibold text-slate-700">Cost Composition</p>
-            <p class="text-[11px] text-slate-400 mt-0.5 mb-4">Monthly vs per-unit (at current occupancy)</p>
-            <div class="relative w-44 h-44">
-                <canvas id="costCompositionChart"></canvas>
-                <div class="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-                    <span class="text-xl font-extrabold text-slate-800">${{ number_format($fixed_costs + $variable_cost_per_unit * $current_occupancy, 0) }}</span>
-                    <span class="text-[11px] text-slate-400">total costs</span>
-                </div>
-            </div>
-            <div class="flex flex-wrap justify-center gap-3 mt-4 text-[11px]">
-                <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-full bg-orange-400 inline-block"></span>Monthly</span>
-                <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-full bg-purple-400 inline-block"></span>Per-Unit</span>
-            </div>
-        </div>
-
-        {{-- 3. Revenue Coverage --}}
-        <div class="bg-white rounded-2xl border border-slate-100 p-5 flex flex-col items-center">
-            <p class="text-sm font-semibold text-slate-700">Revenue Coverage</p>
-            <p class="text-[11px] text-slate-400 mt-0.5 mb-4">How much of break-even revenue is covered</p>
-            <div class="relative w-44 h-44">
-                <canvas id="revenueChart"></canvas>
-                <div class="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-                        <span class="text-xl font-extrabold {{ $is_above_break_even ? 'text-emerald-600' : 'text-red-500' }}">
-                            <?php echo e(number_format($coveragePercent, 0)); ?>%
-                        </span>
-                    <span class="text-[11px] text-slate-400">covered</span>
-                </div>
-            </div>
-            <div class="flex flex-wrap justify-center gap-3 mt-4 text-[11px]">
-                <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-full bg-sky-400 inline-block"></span>Revenue</span>
-                <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-full bg-rose-300 inline-block"></span>Gap</span>
-            </div>
-        </div>
-    </div>
-
-    {{-- ── Cost Details + Formula ───────────────────────────────── --}}
-    <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
-
-        {{-- Monthly & Per-Unit cost lists --}}
-        <div class="bg-white rounded-2xl border border-slate-100 overflow-hidden">
-            <div class="px-5 py-3 border-b border-slate-100 flex items-center gap-2">
-                <span class="w-2.5 h-2.5 rounded-full bg-orange-400"></span>
-                <span class="text-sm font-semibold text-slate-700">Monthly Costs</span>
-                <span class="ml-auto text-sm font-bold text-orange-500">${{ number_format($fixed_costs, 2) }}</span>
-            </div>
-            <div class="px-5 py-3 space-y-1.5">
-                @forelse($fixed_cost_breakdown as $item)
-                    <div class="flex justify-between text-xs text-slate-500">
-                        <span>{{ $item['label'] }}</span>
-                        <span class="font-medium text-slate-700">${{ number_format($item['amount'], 2) }}</span>
-                    </div>
-                @empty
-                    <p class="text-xs text-slate-400 italic">No monthly costs recorded</p>
-                @endforelse
-            </div>
-            <div class="px-5 py-3 border-t border-slate-100 flex items-center gap-2 mt-1">
-                <span class="w-2.5 h-2.5 rounded-full bg-purple-400"></span>
-                <span class="text-sm font-semibold text-slate-700">Per-Unit Costs</span>
-                <span class="ml-auto text-sm font-bold text-purple-500">${{ number_format($variable_cost_per_unit, 2) }}<span class="text-slate-400 font-normal text-[11px] ml-0.5">/unit</span></span>
-            </div>
-            <div class="px-5 pb-4 space-y-1.5">
-                @forelse($variable_cost_breakdown as $item)
-                    <div class="flex justify-between text-xs text-slate-500">
-                        <span>{{ $item['label'] }}</span>
-                        <span class="font-medium text-slate-700">${{ number_format($item['amount'], 2) }}</span>
-                    </div>
-                @empty
-                    <p class="text-xs text-slate-400 italic">No per-unit costs recorded</p>
-                @endforelse
-            </div>
-        </div>
-
-        {{-- Break-Even Formula --}}
-        <div class="bg-white rounded-2xl border border-slate-100 p-5 flex flex-col justify-between">
+    {{-- Hero --}}
+    <div class="rounded-2xl p-6 text-white {{ $is_above_break_even ? 'bg-gradient-to-br from-emerald-500 to-emerald-600' : 'bg-gradient-to-br from-red-500 to-rose-600' }}">
+        <div class="flex items-center justify-between gap-4">
             <div>
-                <p class="text-sm font-semibold text-slate-700 mb-4">Break-Even Formula</p>
-                {{-- Formula visual --}}
-                <div class="flex items-center justify-center gap-2 text-sm mb-5 flex-wrap">
-                    <div class="text-center">
-                        <div class="bg-orange-50 text-orange-600 font-semibold px-3 py-1.5 rounded-lg text-xs">${{ number_format($fixed_costs, 2) }}</div>
-                        <div class="text-[10px] text-slate-400 mt-1">Monthly Costs</div>
-                    </div>
-                    <span class="text-slate-300 text-lg">÷</span>
-                    <div class="text-center">
-                        <div class="bg-sky-50 text-sky-600 font-semibold px-3 py-1.5 rounded-lg text-xs">${{ number_format($contribution_margin_per_unit, 2) }}</div>
-                        <div class="text-[10px] text-slate-400 mt-1">Contribution Margin</div>
-                    </div>
-                    <span class="text-slate-300 text-lg">=</span>
-                    <div class="text-center">
-                        <div class="bg-amber-50 text-amber-600 font-bold px-3 py-1.5 rounded-lg text-xs">{{ $break_even_units }} units</div>
-                        <div class="text-[10px] text-slate-400 mt-1">Break-Even Point</div>
-                    </div>
+                <div class="text-[11px] uppercase tracking-wider opacity-80">
+                    {{ $is_above_break_even ? 'Profit this month' : 'Short this month' }}
                 </div>
-                <div class="text-[11px] text-center text-slate-400 mb-4">
-                    Contribution Margin = Avg Rent (${{ number_format($avg_rent_per_apartment, 2) }}) − Per-unit cost (${{ number_format($variable_cost_per_unit, 2) }})
+                <div class="text-4xl font-extrabold mt-1 leading-none">
+                    {{ $is_above_break_even ? '+' : '−' }}${{ number_format(abs($is_above_break_even ? $safety_margin : $amount_needed), 2) }}
+                </div>
+                <div class="text-sm opacity-90 mt-2">
+                    @if(!$break_even_feasible)
+                        Variable cost per unit exceeds rent — break-even not reachable
+                    @elseif($is_above_break_even)
+                        {{ $unitsAhead }} unit(s) ahead of break-even
+                    @else
+                        {{ $units_needed }} more unit(s) to break even
+                    @endif
                 </div>
             </div>
-            {{-- Step summary --}}
-            <div class="space-y-2 border-t border-slate-100 pt-4">
-                <div class="flex justify-between text-xs">
-                    <span class="text-slate-500">Avg rent / unit</span>
-                    <span class="font-semibold text-emerald-600">${{ number_format($avg_rent_per_apartment, 2) }}</span>
-                </div>
-                <div class="flex justify-between text-xs">
-                    <span class="text-slate-500">Per-unit cost</span>
-                    <span class="font-semibold text-slate-700">${{ number_format($variable_cost_per_unit, 2) }}</span>
-                </div>
-                <div class="flex justify-between text-xs">
-                    <span class="text-slate-500">Contribution margin / unit</span>
-                    <span class="font-semibold text-sky-600">${{ number_format($contribution_margin_per_unit, 2) }}</span>
-                </div>
-                <div class="flex justify-between text-xs pt-2 border-t border-slate-100">
-                    <span class="font-semibold text-slate-700">Break-Even Revenue</span>
-                    <span class="font-bold text-amber-600">${{ number_format($break_even_revenue, 2) }}</span>
+            <div class="w-16 h-16 rounded-full bg-white/20 flex items-center justify-center text-3xl font-bold shrink-0">
+                {{ $is_above_break_even ? '✓' : '!' }}
+            </div>
+        </div>
+    </div>
+
+    {{-- ── 3 Donut Charts ──────────────────────────────────── --}}
+    @php
+        // Occupancy donut
+        $occColor    = $is_above_break_even ? '#10b981' : '#ef4444';
+        $beAngle     = $break_even_feasible && $total_apartments > 0
+                       ? min(360, ($break_even_units / $total_apartments) * 360)
+                       : 0;
+
+        // Money flow donut: slices sum to 100% of revenue (or costs if loss)
+        $mfDenom     = $is_above_break_even ? max($current_revenue, 0.01) : max($totalCosts, 0.01);
+        $mfBizPct    = ($business_expenses / $mfDenom) * 100;
+        $mfVarPct    = ($totalVariableCost / $mfDenom) * 100;
+        $mfNetPct    = $is_above_break_even ? max(0, 100 - $mfBizPct - $mfVarPct) : 0;
+        $netAmount   = $current_revenue - $totalCosts;
+
+        // Per-apartment donut
+        $paCostPct   = min(100, ($variable_cost_per_unit / $rentBase) * 100);
+        $paMarginPct = max(0, 100 - $paCostPct);
+    @endphp
+
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+
+        {{-- Occupancy Donut --}}
+        <div class="bg-white rounded-2xl border border-slate-100 p-5">
+            <p class="text-sm font-semibold text-slate-700 mb-3 text-center">Occupancy vs Break-Even</p>
+
+            <div class="relative w-40 h-40 mx-auto">
+                <svg viewBox="0 0 36 36" class="w-full h-full">
+                    <circle cx="18" cy="18" r="15.9155" fill="none" stroke="#e2e8f0" stroke-width="3.8"/>
+                    <circle cx="18" cy="18" r="15.9155" fill="none"
+                            stroke="{{ $occColor }}" stroke-width="3.8"
+                            stroke-dasharray="{{ $occupancyPct }} 100"
+                            transform="rotate(-90 18 18)" stroke-linecap="butt"/>
+                    {{-- Break-even tick (hidden when not feasible) --}}
+                    @if($break_even_feasible)
+                        <line x1="18" y1="0.3" x2="18" y2="3.9"
+                              stroke="#f59e0b" stroke-width="1.2"
+                              transform="rotate({{ $beAngle }} 18 18)"/>
+                    @endif
+                </svg>
+                <div class="absolute inset-0 flex flex-col items-center justify-center">
+                    <div class="text-3xl font-extrabold {{ $is_above_break_even ? 'text-emerald-600' : 'text-red-500' }} leading-none">
+                        {{ $current_occupancy }}
+                    </div>
+                    <div class="text-[10px] text-slate-500 uppercase mt-1">of {{ $total_apartments }}</div>
                 </div>
             </div>
+
+            <div class="mt-4 space-y-1.5 text-xs">
+                <div class="flex items-center gap-2">
+                    <span class="w-2.5 h-2.5 rounded-sm" style="background:{{ $occColor }}"></span>
+                    <span class="text-slate-600 flex-1">Rented</span>
+                    <span class="font-semibold text-slate-700">{{ $current_occupancy }}</span>
+                </div>
+                <div class="flex items-center gap-2">
+                    <span class="w-2.5 h-2.5 rounded-sm bg-slate-200"></span>
+                    <span class="text-slate-600 flex-1">Vacant</span>
+                    <span class="font-semibold text-slate-700">{{ $vacantUnits }}</span>
+                </div>
+                <div class="flex items-center gap-2 pt-1.5 border-t border-slate-100">
+                    <span class="w-2.5 h-0.5 bg-amber-500"></span>
+                    <span class="text-slate-600 flex-1">Break-even</span>
+                    <span class="font-semibold text-amber-600">
+                        {{ $break_even_feasible ? $break_even_units : '—' }}
+                    </span>
+                </div>
+            </div>
+        </div>
+
+        {{-- Money Flow Donut --}}
+        <div class="bg-white rounded-2xl border border-slate-100 p-5">
+            <p class="text-sm font-semibold text-slate-700 mb-3 text-center">Money Flow This Month</p>
+
+            <div class="relative w-40 h-40 mx-auto">
+                <svg viewBox="0 0 36 36" class="w-full h-full">
+                    <circle cx="18" cy="18" r="15.9155" fill="none" stroke="#e2e8f0" stroke-width="3.8"/>
+                    {{-- Business expense slice --}}
+                    <circle cx="18" cy="18" r="15.9155" fill="none"
+                            stroke="#f97316" stroke-width="3.8"
+                            stroke-dasharray="{{ $mfBizPct }} 100"
+                            stroke-dashoffset="0"
+                            transform="rotate(-90 18 18)" stroke-linecap="butt"/>
+                    {{-- Variable cost slice --}}
+                    <circle cx="18" cy="18" r="15.9155" fill="none"
+                            stroke="#a855f7" stroke-width="3.8"
+                            stroke-dasharray="{{ $mfVarPct }} 100"
+                            stroke-dashoffset="{{ -$mfBizPct }}"
+                            transform="rotate(-90 18 18)" stroke-linecap="butt"/>
+                    {{-- Profit slice (only if above break-even) --}}
+                    @if($mfNetPct > 0)
+                        <circle cx="18" cy="18" r="15.9155" fill="none"
+                                stroke="#10b981" stroke-width="3.8"
+                                stroke-dasharray="{{ $mfNetPct }} 100"
+                                stroke-dashoffset="{{ -($mfBizPct + $mfVarPct) }}"
+                                transform="rotate(-90 18 18)" stroke-linecap="butt"/>
+                    @endif
+                </svg>
+                <div class="absolute inset-0 flex flex-col items-center justify-center">
+                    <div class="text-[10px] text-slate-500 uppercase">Net</div>
+                    <div class="text-xl font-extrabold {{ $netAmount >= 0 ? 'text-emerald-600' : 'text-red-500' }} leading-none mt-0.5">
+                        {{ $netAmount >= 0 ? '+' : '−' }}${{ number_format(abs($netAmount), 0) }}
+                    </div>
+                </div>
+            </div>
+
+            <div class="mt-4 space-y-1.5 text-xs">
+                <div class="flex items-center gap-2">
+                    <span class="w-2.5 h-2.5 rounded-sm bg-orange-500"></span>
+                    <span class="text-slate-600 flex-1">Business</span>
+                    <span class="font-semibold text-slate-700">${{ number_format($business_expenses, 0) }}</span>
+                </div>
+                <div class="flex items-center gap-2">
+                    <span class="w-2.5 h-2.5 rounded-sm bg-purple-500"></span>
+                    <span class="text-slate-600 flex-1">Variable</span>
+                    <span class="font-semibold text-slate-700">${{ number_format($totalVariableCost, 0) }}</span>
+                </div>
+                <div class="flex items-center gap-2 pt-1.5 border-t border-slate-100">
+                    <span class="w-2.5 h-2.5 rounded-sm bg-emerald-500"></span>
+                    <span class="text-slate-600 flex-1">Revenue</span>
+                    <span class="font-semibold text-emerald-700">${{ number_format($current_revenue, 0) }}</span>
+                </div>
+            </div>
+        </div>
+
+        {{-- Per-Apartment Donut --}}
+        <div class="bg-white rounded-2xl border border-slate-100 p-5">
+            <p class="text-sm font-semibold text-slate-700 mb-3 text-center">Each Apartment Contributes</p>
+
+            <div class="relative w-40 h-40 mx-auto">
+                <svg viewBox="0 0 36 36" class="w-full h-full">
+                    <circle cx="18" cy="18" r="15.9155" fill="none" stroke="#e2e8f0" stroke-width="3.8"/>
+                    {{-- Variable cost slice --}}
+                    <circle cx="18" cy="18" r="15.9155" fill="none"
+                            stroke="#a855f7" stroke-width="3.8"
+                            stroke-dasharray="{{ $paCostPct }} 100"
+                            stroke-dashoffset="0"
+                            transform="rotate(-90 18 18)" stroke-linecap="butt"/>
+                    {{-- Margin slice --}}
+                    <circle cx="18" cy="18" r="15.9155" fill="none"
+                            stroke="#0ea5e9" stroke-width="3.8"
+                            stroke-dasharray="{{ $paMarginPct }} 100"
+                            stroke-dashoffset="{{ -$paCostPct }}"
+                            transform="rotate(-90 18 18)" stroke-linecap="butt"/>
+                </svg>
+                <div class="absolute inset-0 flex flex-col items-center justify-center">
+                    <div class="text-[10px] text-slate-500 uppercase">Margin</div>
+                    <div class="text-xl font-extrabold text-sky-600 leading-none mt-0.5">
+                        ${{ number_format($contribution_margin_per_unit, 0) }}
+                    </div>
+                </div>
+            </div>
+
+            <div class="mt-4 space-y-1.5 text-xs">
+                <div class="flex items-center gap-2">
+                    <span class="w-2.5 h-2.5 rounded-sm bg-emerald-500"></span>
+                    <span class="text-slate-600 flex-1">Rent</span>
+                    <span class="font-semibold text-emerald-700">${{ number_format($avg_rent_per_apartment, 2) }}</span>
+                </div>
+                <div class="flex items-center gap-2">
+                    <span class="w-2.5 h-2.5 rounded-sm bg-purple-500"></span>
+                    <span class="text-slate-600 flex-1">Variable cost</span>
+                    <span class="font-semibold text-purple-700">${{ number_format($variable_cost_per_unit, 2) }}</span>
+                </div>
+                <div class="flex items-center gap-2 pt-1.5 border-t border-slate-100">
+                    <span class="w-2.5 h-2.5 rounded-sm bg-sky-500"></span>
+                    <span class="text-slate-600 flex-1">Margin</span>
+                    <span class="font-semibold text-sky-700">${{ number_format($contribution_margin_per_unit, 2) }}</span>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    {{-- What If --}}
+    <div class="grid grid-cols-3 gap-3">
+        <div class="bg-white rounded-xl border border-slate-100 p-4 text-center">
+            <div class="text-emerald-500 text-2xl leading-none">↑</div>
+            <div class="text-[10px] text-slate-500 uppercase mt-1">+1 Unit</div>
+            <div class="text-base font-extrabold text-emerald-600 mt-1">+${{ number_format($extraUnitProfit, 2) }}</div>
+            @if($vacantUnits > 0)
+                <div class="text-[10px] text-slate-400 mt-0.5">{{ $vacantUnits }} vacant</div>
+            @endif
+        </div>
+        <div class="bg-white rounded-xl border border-slate-100 p-4 text-center">
+            <div class="text-rose-500 text-2xl leading-none">↓</div>
+            <div class="text-[10px] text-slate-500 uppercase mt-1">−1 Unit</div>
+            <div class="text-base font-extrabold text-rose-500 mt-1">−${{ number_format($extraUnitProfit, 2) }}</div>
+        </div>
+        <div class="bg-white rounded-xl border border-slate-100 p-4 text-center">
+            <div class="text-sky-500 text-2xl leading-none">★</div>
+            <div class="text-[10px] text-slate-500 uppercase mt-1">Full</div>
+            <div class="text-base font-extrabold {{ $maxPossibleProfit >= 0 ? 'text-emerald-600' : 'text-rose-500' }} mt-1">
+                {{ $maxPossibleProfit >= 0 ? '+' : '−' }}${{ number_format(abs($maxPossibleProfit), 2) }}
+            </div>
+        </div>
+    </div>
+
+    {{-- Cost Breakdown --}}
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {{-- Business Expenses --}}
+        <div class="bg-white rounded-2xl border border-slate-100 p-5">
+            <div class="flex items-center justify-between mb-3">
+                <p class="text-sm font-semibold text-slate-700">Business Expenses</p>
+                <p class="text-sm font-bold text-orange-500">${{ number_format($business_expenses, 2) }}</p>
+            </div>
+            @if(count($business_expense_breakdown) > 0)
+                <div class="h-3 bg-slate-100 rounded-full overflow-hidden flex mb-3">
+                    @foreach($business_expense_breakdown as $i => $item)
+                        @php $w = ($item['amount'] / $bizTotal) * 100; @endphp
+                        <div class="{{ $palette[$i % count($palette)] }} h-full" style="width: {{ $w }}%"></div>
+                    @endforeach
+                </div>
+                <div class="space-y-1.5">
+                    @foreach($business_expense_breakdown as $i => $item)
+                        <div class="flex items-center gap-2 text-xs">
+                            <span class="w-2 h-2 rounded-full {{ $palette[$i % count($palette)] }} shrink-0"></span>
+                            <span class="text-slate-600 flex-1 truncate">{{ $item['label'] }}</span>
+                            <span class="font-medium text-slate-700">${{ number_format($item['amount'], 2) }}</span>
+                        </div>
+                    @endforeach
+                </div>
+            @else
+                <p class="text-xs text-slate-400 italic">None recorded this month</p>
+            @endif
+        </div>
+
+        {{-- Variable Costs --}}
+        <div class="bg-white rounded-2xl border border-slate-100 p-5">
+            <div class="flex items-center justify-between mb-3">
+                <p class="text-sm font-semibold text-slate-700">Per-Apartment Costs</p>
+                <p class="text-sm font-bold text-purple-500">${{ number_format($variable_cost_per_unit, 2) }}<span class="text-[10px] text-slate-400 font-normal">/apt</span></p>
+            </div>
+            @if(count($variable_cost_breakdown) > 0)
+                <div class="h-3 bg-slate-100 rounded-full overflow-hidden flex mb-3">
+                    @foreach($variable_cost_breakdown as $i => $item)
+                        @php $w = ($item['amount'] / $varTotal) * 100; @endphp
+                        <div class="{{ $varPalette[$i % count($varPalette)] }} h-full" style="width: {{ $w }}%"></div>
+                    @endforeach
+                </div>
+                <div class="space-y-1.5">
+                    @foreach($variable_cost_breakdown as $i => $item)
+                        <div class="flex items-center gap-2 text-xs">
+                            <span class="w-2 h-2 rounded-full {{ $varPalette[$i % count($varPalette)] }} shrink-0"></span>
+                            <span class="text-slate-600 flex-1 truncate">{{ $item['label'] }}</span>
+                            <span class="font-medium text-slate-700">${{ number_format($item['amount'], 2) }}</span>
+                        </div>
+                    @endforeach
+                </div>
+            @else
+                <p class="text-xs text-slate-400 italic">None recorded</p>
+            @endif
         </div>
     </div>
 
 </div>
 @endsection
-
-@push('scripts')
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
-<script>
-document.addEventListener('DOMContentLoaded', function () {
-    const fixedCosts      = {{ $fixed_costs }};
-    const variableCosts   = {{ $variable_cost_per_unit * $current_occupancy }};
-    const currentRevenue  = {{ $current_revenue }};
-    const breakEvenRev    = {{ $break_even_revenue }};
-    const occupied        = {{ $current_occupancy }};
-    const breakEvenUnits  = {{ $break_even_units }};
-    const totalApts       = {{ $total_apartments }};
-    const isAbove         = {{ $is_above_break_even ? 'true' : 'false' }};
-
-    const donutDefaults = {
-        cutout: '72%',
-        plugins: {
-            legend: { display: false },
-            tooltip: {
-                callbacks: {
-                    label: ctx => {
-                        const val = ctx.parsed;
-                        return ` ${ctx.label}: $${val.toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits:2})}`;
-                    }
-                }
-            }
-        }
-    };
-
-    // ── 1. Cost Composition ──────────────────────────────────────
-    new Chart(document.getElementById('costCompositionChart'), {
-        type: 'doughnut',
-        data: {
-            labels: ['Monthly Costs', 'Per-Unit Costs'],
-            datasets: [{
-                data: [fixedCosts, variableCosts],
-                backgroundColor: ['#fb923c', '#c084fc'],
-                borderWidth: 0,
-                hoverOffset: 6
-            }]
-        },
-        options: {
-            ...donutDefaults,
-            plugins: {
-                ...donutDefaults.plugins,
-                tooltip: {
-                    callbacks: {
-                        label: ctx => ` ${ctx.label}: $${ctx.parsed.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})}`
-                    }
-                }
-            }
-        }
-    });
-
-    // ── 2. Occupancy vs Break-Even ────────────────────────────────
-    const aboveBreakEven = Math.max(0, occupied - breakEvenUnits);
-    const atBreakEven    = Math.min(occupied, breakEvenUnits);
-    const vacant         = Math.max(0, totalApts - occupied);
-
-    new Chart(document.getElementById('occupancyChart'), {
-        type: 'doughnut',
-        data: {
-            labels: ['Occupied (above BEP)', 'Break-Even Target', 'Vacant'],
-            datasets: [{
-                data: [aboveBreakEven, atBreakEven, vacant],
-                backgroundColor: ['#34d399', '#fbbf24', '#e2e8f0'],
-                borderWidth: 0,
-                hoverOffset: 6
-            }]
-        },
-        options: {
-            cutout: '72%',
-            plugins: {
-                legend: { display: false },
-                tooltip: {
-                    callbacks: {
-                        label: ctx => ` ${ctx.label}: ${ctx.parsed} unit(s)`
-                    }
-                }
-            }
-        }
-    });
-
-    // ── 3. Revenue vs Break-Even Revenue ─────────────────────────
-    const gap        = Math.max(0, breakEvenRev - currentRevenue);
-    const revCovered = Math.min(currentRevenue, breakEvenRev);
-
-    new Chart(document.getElementById('revenueChart'), {
-        type: 'doughnut',
-        data: {
-            labels: ['Current Revenue', 'Remaining Gap'],
-            datasets: [{
-                data: [revCovered, gap > 0 ? gap : (currentRevenue - breakEvenRev)],
-                backgroundColor: gap > 0 ? ['#38bdf8', '#fca5a5'] : ['#34d399', '#38bdf8'],
-                borderWidth: 0,
-                hoverOffset: 6
-            }]
-        },
-        options: {
-            ...donutDefaults,
-            plugins: {
-                ...donutDefaults.plugins,
-                tooltip: {
-                    callbacks: {
-                        label: ctx => ` ${ctx.label}: $${ctx.parsed.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})}`
-                    }
-                }
-            }
-        }
-    });
-});
-</script>
-@endpush

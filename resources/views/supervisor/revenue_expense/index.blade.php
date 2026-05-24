@@ -1415,8 +1415,8 @@
                 <h2 class="text-sm font-semibold text-slate-800 mb-4 pb-2 border-b border-slate-100">Break-Even Calculation</h2>
                 <div class="space-y-3">
                     <div class="bg-slate-50 p-3 rounded-lg flex justify-between items-center">
-                        <div><p class="text-sm font-medium text-slate-700">Monthly Costs</p><p class="text-xs text-slate-400">Internet, maintenance, insurance</p></div>
-                        <span class="text-lg font-bold text-slate-800">${{ number_format($fixed_costs, 2) }}</span>
+                        <div><p class="text-sm font-medium text-slate-700">Business Expenses</p><p class="text-xs text-slate-400">This month's recurring business costs</p></div>
+                        <span class="text-lg font-bold text-slate-800">${{ number_format($business_expenses, 2) }}</span>
                     </div>
                     <div class="bg-slate-50 p-3 rounded-lg flex justify-between items-center">
                         <div><p class="text-sm font-medium text-slate-700">Per-Unit Cost</p><p class="text-xs text-slate-400">Electricity, water, parking</p></div>
