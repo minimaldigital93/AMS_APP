@@ -16,6 +16,7 @@ use App\Models\Apartments;
 use App\Services\RevenueExpense\BreakEvenService;
 use App\Services\RevenueExpense\ExpenseRecordingService;
 use App\Services\RevenueExpense\IncomeRecordingService;
+use App\Services\RevenueExpense\MonthlyBillingService;
 use App\Services\RevenueExpense\RevenueExpenseQueryService;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
@@ -83,6 +84,14 @@ class RevenueExpenseController extends Controller
     private function incomeService(FiscalPeriods $period): IncomeRecordingService
     {
         return new IncomeRecordingService(
+            userId: $this->ledgerUserId(),
+            period: $period,
+        );
+    }
+
+    private function billingService(FiscalPeriods $period): MonthlyBillingService
+    {
+        return new MonthlyBillingService(
             userId: $this->ledgerUserId(),
             period: $period,
         );
@@ -1402,174 +1411,59 @@ class RevenueExpenseController extends Controller
     public function processMonthlyBills(Request $request)
     {
         $activePeriod = $this->getActiveFiscalPeriod();
-
         if (!$activePeriod) {
             return redirect()->route('supervisor.dashboard')
                 ->with('warning', 'Please create a fiscal period first.');
         }
 
         $validated = $request->validate([
-            'billing_date' => 'required|date',
-            'bills' => 'required|array|min:1',
-            'bills.*.rental_id' => 'required|exists:rentals,id',
-            'bills.*.selected' => 'nullable|boolean',
-            'bills.*.expenses' => 'nullable|array',
+            'billing_date'                  => 'required|date',
+            'bills'                         => 'required|array|min:1',
+            'bills.*.rental_id'             => 'required|exists:rentals,id',
+            'bills.*.selected'              => 'nullable|boolean',
+            'bills.*.expenses'              => 'nullable|array',
             'bills.*.expenses.*.expense_id' => 'required|exists:apartment_fixed_expenses,id',
-            'bills.*.expenses.*.amount' => 'required|numeric|min:0',
-            'bills.*.expenses.*.selected' => 'nullable|boolean',
+            'bills.*.expenses.*.amount'     => 'required|numeric|min:0',
+            'bills.*.expenses.*.selected'   => 'nullable|boolean',
         ]);
 
-        $billingDate = Carbon::parse($validated['billing_date']);
-        $recordedCount = 0;
-        $totalAmount = 0;
+        $result = $this->billingService($activePeriod)->processSelected(
+            $validated['bills'],
+            Carbon::parse($validated['billing_date']),
+        );
 
-        foreach ($validated['bills'] as $billData) {
-            if (empty($billData['selected'])) {
-                continue;
-            }
-
-            $rental = Rentals::with(['tenant', 'apartment'])->findOrFail($billData['rental_id']);
-
-            if (!isset($billData['expenses'])) continue;
-
-            foreach ($billData['expenses'] as $expData) {
-                if (empty($expData['selected'])) continue;
-
-                $fixedExpense = ApartmentFixedExpense::findOrFail($expData['expense_id']);
-                $amount = $expData['amount'];
-
-                // Map expense_type to utility_type
-                $utilityType = $fixedExpense->expense_type;
-
-                // Check if already billed this month
-                $exists = Utilities::where('rental_id', $rental->id)
-                    ->where('utility_type', $utilityType)
-                    ->where('billing_month', $billingDate->month)
-                    ->where('billing_year', $billingDate->year)
-                    ->exists();
-
-                if ($exists) continue; // Skip if already billed
-
-                // Create Utilities record
-                Utilities::create([
-                    'tenant_id' => $rental->tenant_id,
-                    'rental_id' => $rental->id,
-                    'utility_type' => $utilityType,
-                    'meter_reading_in' => 0,
-                    'meter_reading_out' => 0,
-                    'charge_amount' => $amount,
-                    'billing_month' => $billingDate->month,
-                    'billing_year' => $billingDate->year,
-                    'paid_status' => false,
-                    'paid_at' => null,
-                ]);
-
-                // Create Accounts record for fiscal tracking
-                Accounts::create([
-                    'fiscal_period_id' => $activePeriod->id,
-                    'payment_id' => null,
-                    'user_id' => $this->getAdminUserId(),
-                    'account_type' => Accounts::TYPE_EXPENSE,
-                    'category' => Accounts::CAT_BUSINESS_FIXED,
-                    'description' => '[Apt ' . $rental->apartment->apartment_number . '] ' . $fixedExpense->expense_name . ' (monthly)',
-                    'amount' => $amount,
-                    'transaction_date' => $billingDate->toDateString(),
-                    'note' => 'Auto-generated monthly fixed expense',
-                ]);
-
-                $recordedCount++;
-                $totalAmount += $amount;
-            }
+        if ($result['count'] === 0) {
+            return redirect()->back()->with('error', 'No new expenses were generated. Expenses may already be billed for this month.');
         }
 
-        if ($recordedCount === 0) {
-            return redirect()->back()
-                ->with('error', 'No new expenses were generated. Expenses may already be billed for this month.');
-        }
-
-        return redirect()->back()
-            ->with('success', $recordedCount . ' expense(s) generated totaling $' . number_format($totalAmount, 2) . ' for tenants to pay.');
+        return redirect()->back()->with(
+            'success',
+            $result['count'] . ' expense(s) generated totaling $' . number_format($result['total'], 2) . ' for tenants to pay.'
+        );
     }
 
-    /**
-     * Auto-generate monthly bills for all apartments (quick action).
-     * This will create Utilities + Accounts records for any active fixed expense
-     * that has not yet been billed for the billing month/year.
-     */
     public function autoProcessMonthlyBills(Request $request)
     {
         $activePeriod = $this->getActiveFiscalPeriod();
-
         if (!$activePeriod) {
             return redirect()->route('supervisor.dashboard')
                 ->with('warning', 'Please create a fiscal period first.');
         }
 
-        $billingDate = $request->input('billing_date') ? Carbon::parse($request->input('billing_date')) : now();
-        $month = $billingDate->month;
-        $year = $billingDate->year;
+        $billingDate = $request->input('billing_date')
+            ? Carbon::parse($request->input('billing_date'))
+            : now();
 
-        $recordedCount = 0;
-        $totalAmount = 0;
+        $result = $this->billingService($activePeriod)->processAll($this->scopeApartments(), $billingDate);
 
-        $apartments = $this->scopeApartments()
-            ->with(['activeFixedExpenses', 'rentals' => function ($q) {
-                $q->where(function ($q2) {
-                        $q2->whereNull('end_date')->orWhere('end_date', '>=', now());
-                    })->with('tenant');
-            }])->get();
-
-        foreach ($apartments as $apartment) {
-            if ($apartment->rentals->isEmpty()) continue;
-
-            foreach ($apartment->rentals as $rental) {
-                foreach ($apartment->activeFixedExpenses as $fe) {
-                    $exists = Utilities::where('rental_id', $rental->id)
-                        ->where('utility_type', $fe->expense_type)
-                        ->where('billing_month', $month)
-                        ->where('billing_year', $year)
-                        ->exists();
-
-                    if ($exists) continue;
-
-                    Utilities::create([
-                        'tenant_id' => $rental->tenant_id,
-                        'rental_id' => $rental->id,
-                        'utility_type' => $fe->expense_type,
-                        'meter_reading_in' => 0,
-                        'meter_reading_out' => 0,
-                        'charge_amount' => $fe->amount,
-                        'billing_month' => $month,
-                        'billing_year' => $year,
-                        'paid_status' => false,
-                        'paid_at' => null,
-                    ]);
-
-                    Accounts::create([
-                        'fiscal_period_id' => $activePeriod->id,
-                        'payment_id' => null,
-                        'user_id' => $this->getAdminUserId() ?? null,
-                        'account_type' => Accounts::TYPE_EXPENSE,
-                        'category' => Accounts::CAT_BUSINESS_FIXED,
-                        'description' => '[Apt ' . $apartment->apartment_number . '] ' . $fe->expense_name . ' (monthly)',
-                        'amount' => $fe->amount,
-                        'transaction_date' => $billingDate->toDateString(),
-                        'note' => 'Auto-generated monthly fixed expense',
-                    ]);
-
-                    $recordedCount++;
-                    $totalAmount += $fe->amount;
-                }
-            }
+        if ($result['count'] === 0) {
+            return redirect()->back()->with('error', 'No new expenses were generated. Expenses may already be billed for this month.');
         }
 
-        if ($recordedCount === 0) {
-            return redirect()->back()
-                ->with('error', 'No new expenses were generated. Expenses may already be billed for this month.');
-        }
-
-        return redirect()->back()
-            ->with('success', $recordedCount . ' expense(s) generated totaling $' . number_format($totalAmount, 2) . ' for tenants to pay.');
+        return redirect()->back()->with(
+            'success',
+            $result['count'] . ' expense(s) generated totaling $' . number_format($result['total'], 2) . ' for tenants to pay.'
+        );
     }
 
     /**
