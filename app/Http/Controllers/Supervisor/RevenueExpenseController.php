@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Supervisor;
 
+use App\Http\Controllers\Concerns\HasFiscalPeriodScope;
 use App\Http\Controllers\Controller;
 use App\Models\Accounts;
 use App\Models\ApartmentFixedExpense;
@@ -12,6 +13,7 @@ use App\Models\TenantLeave;
 use App\Models\Utilities;
 use App\Models\Rentals;
 use App\Models\Apartments;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Carbon\Carbon;
@@ -20,7 +22,25 @@ use Illuminate\Pagination\LengthAwarePaginator;
 
 class RevenueExpenseController extends Controller
 {
-  
+    use HasFiscalPeriodScope;
+
+    /**
+     * Supervisors read from the admin's fiscal periods (not their own).
+     */
+    protected function fiscalPeriodsQuery(): Builder
+    {
+        return FiscalPeriods::whereHas('user', fn ($q) => $q->role('admin'));
+    }
+
+    /**
+     * The admin user_id under which all financial records are stored.
+     * Supervisors don't own ledger rows; they write under the admin's id.
+     */
+    private function getAdminUserId(): ?int
+    {
+        return $this->getActiveFiscalPeriod()?->user_id;
+    }
+
     public function index()
     {
         // Allow switching fiscal periods via ?period=ID
@@ -397,111 +417,6 @@ class RevenueExpenseController extends Controller
         $data['hasNext']       = $hasNext;
 
         return view('supervisor.revenue_expense.break_event', $data);
-    }
-
-    /**
-     * Get the admin's active (most recent open) fiscal period.
-     * Supervisors read from the admin's fiscal periods.
-     */
-    private function getActiveFiscalPeriod(): ?FiscalPeriods
-    {
-        return FiscalPeriods::where('status', 'open')
-            ->whereHas('user', function ($q) {
-                $q->role('admin');
-            })
-            ->orderBy('opening_date', 'desc')
-            ->first();
-    }
-
-    /**
-     * Get a specific fiscal period by ID, or fall back to the admin's active one.
-     */
-    private function resolveActivePeriod(?int $periodId = null): ?FiscalPeriods
-    {
-        if ($periodId) {
-            $period = FiscalPeriods::whereHas('user', function ($q) {
-                    $q->role('admin');
-                })
-                ->where('id', $periodId)
-                ->first();
-            if ($period) return $period;
-        }
-        return $this->getActiveFiscalPeriod();
-    }
-
-    /**
-     * Get the admin's user_id from the active fiscal period.
-     * All financial records are stored under the admin's user_id.
-     */
-    private function getAdminUserId(): ?int
-    {
-        return $this->getActiveFiscalPeriod()?->user_id;
-    }
-
-    /**
-     * Scope apartments to those assigned to this supervisor.
-     */
-    private function scopeApartments()
-    {
-        return Apartments::query();
-    }
-
-    /**
-     * Build list of months within a fiscal period (for dropdown filters).
-     *
-     * Returns: [['month' => 1, 'year' => 2026, 'label' => 'January 2026'], ...]
-     */
-    private function buildPeriodMonths(FiscalPeriods $period): array
-    {
-        $months = [];
-        $cursor = Carbon::parse($period->opening_date)->startOfMonth();
-        $end = Carbon::parse($period->closing_date)->endOfMonth();
-
-        while ($cursor->lte($end)) {
-            $months[] = [
-                'month' => $cursor->month,
-                'year'  => $cursor->year,
-                'label' => $cursor->format('F Y'),
-            ];
-            $cursor->addMonth();
-        }
-
-        return $months;
-    }
-
-    /**
-     * Calculate the date range for a monthly filter, clamped to fiscal period bounds.
-     *
-     * @return array{start: Carbon, end: Carbon}
-     */
-    private function getFilteredDateRange(FiscalPeriods $period, ?int $month, ?int $year): array
-    {
-        if ($month && $year) {
-            $filterStart = Carbon::create($year, $month, 1)->startOfMonth();
-            $filterEnd = $filterStart->copy()->endOfMonth();
-
-            return [
-                'start' => $filterStart->lt($period->opening_date) ? Carbon::parse($period->opening_date) : $filterStart,
-                'end'   => $filterEnd->gt($period->closing_date) ? Carbon::parse($period->closing_date) : $filterEnd,
-            ];
-        }
-
-        return [
-            'start' => $period->opening_date,
-            'end'   => $period->closing_date,
-        ];
-    }
-
-    /**
-     * Get all admin fiscal periods (for the period-switcher dropdown).
-     */
-    private function getAllFiscalPeriods()
-    {
-        return FiscalPeriods::whereHas('user', function ($q) {
-                $q->role('admin');
-            })
-            ->orderBy('opening_date', 'desc')
-            ->get();
     }
 
     /**
