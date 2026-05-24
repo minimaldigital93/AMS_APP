@@ -13,6 +13,7 @@ use App\Models\TenantLeave;
 use App\Models\Utilities;
 use App\Models\Rentals;
 use App\Models\Apartments;
+use App\Services\RevenueExpense\BreakEvenService;
 use App\Services\RevenueExpense\RevenueExpenseQueryService;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
@@ -38,6 +39,16 @@ class RevenueExpenseController extends Controller
     private function queryService(): RevenueExpenseQueryService
     {
         return new RevenueExpenseQueryService(
+            userId: $this->ledgerUserId(),
+            period: $this->getActiveFiscalPeriod(),
+            apartmentsScope: $this->scopeApartments(),
+        );
+    }
+
+    private function breakEvenService(): BreakEvenService
+    {
+        return new BreakEvenService(
+            queryService: $this->queryService(),
             userId: $this->ledgerUserId(),
             period: $this->getActiveFiscalPeriod(),
             apartmentsScope: $this->scopeApartments(),
@@ -449,263 +460,33 @@ class RevenueExpenseController extends Controller
     }
 
 
-    /**
-     * Calculate break-even point with full financial context.
-     *
-     * Connects break-even analysis to the balance sheet and overall
-     * financial health of the business. Uses ALL cost sources.
-     * 
-     * @return array
-     */
     public function calculateBreakEvenPoint(?int $month = null, ?int $year = null)
     {
-        $activePeriod = $this->getActiveFiscalPeriod();
-
-        $month = $month ?: now()->month;
-        $year  = $year  ?: now()->year;
-        $monthStart = Carbon::create($year, $month, 1)->startOfMonth();
-        $monthEnd   = $monthStart->copy()->endOfMonth();
-
-        $apartments = $this->scopeApartments()->get();
-        $totalApartments = $apartments->count();
-
-        // Pull income + expenses from the SAME source as the dashboard so the
-        // two views can never disagree. total_income and total_expenses match
-        // the numbers shown on /revenue_expense exactly.
-        $income   = $this->calculateIncome($monthStart, $monthEnd);
-        $expenses = $this->calculateExpenses($monthStart, $monthEnd);
-
-        $totalRevenue  = (float) $income['total_income'];
-        $totalExpenses = (float) $expenses['total_expenses'];
-
-        // Average rent across rentals active during the selected month
-        $avgRentPerApartment = Rentals::whereIn('apartment_id', $apartments->pluck('id'))
-            ->where('start_date', '<=', $monthEnd)
-            ->where(function ($q) use ($monthStart) {
-                $q->whereNull('end_date')->orWhere('end_date', '>=', $monthStart);
-            })
-            ->avg('rent_amount') ?? 0;
-
-        $currentOccupancy = Rentals::whereIn('apartment_id', $apartments->pluck('id'))
-            ->where('start_date', '<=', $monthEnd)
-            ->where(function ($q) use ($monthStart) {
-                $q->whereNull('end_date')->orWhere('end_date', '>=', $monthStart);
-            })
-            ->count();
-
-        // Business expenses = recurring overhead from BusinessExpense table.
-        // Everything else in total_expenses is treated as per-unit variable cost,
-        // so the breakdown automatically picks up whatever custom categories
-        // the user records (utilities, maintenance, salaries, taxes, etc.).
-        $businessExpenses    = (float) $this->calculateBusinessExpenses($activePeriod, $month, $year);
-        $variableTotal       = max(0, $totalExpenses - $businessExpenses);
-        $variableCostPerUnit = $currentOccupancy > 0 ? $variableTotal / $currentOccupancy : 0;
-
-        $contributionMarginPerUnit = $avgRentPerApartment - $variableCostPerUnit;
-
-        // Standard break-even: Fixed Costs / Contribution Margin per Unit.
-        // Each rented unit contributes (rent − variable cost) toward fixed costs;
-        // we need enough units for that contribution to equal business overhead.
-        // If CM ≤ 0, every new tenant loses money — no occupancy level breaks even.
-        $breakEvenFeasible = $contributionMarginPerUnit > 0 || $businessExpenses <= 0;
-        $breakEvenUnits    = $breakEvenFeasible && $contributionMarginPerUnit > 0
-            ? round($businessExpenses / $contributionMarginPerUnit, 2)
-            : 0;
-
-        // Break-even revenue = the rent collected at break-even occupancy.
-        $breakEvenRevenue = $breakEvenFeasible
-            ? round($breakEvenUnits * $avgRentPerApartment, 2)
-            : 0;
-
-        $currentRevenue = $totalRevenue;
-        $safetyMargin   = $currentRevenue - $totalExpenses; // = net profit / loss
-        $safetyMarginPercent = $currentRevenue > 0
-            ? round(($safetyMargin / $currentRevenue) * 100, 2)
-            : 0;
-
-        $isAboveBreakEven = $safetyMargin >= 0;
-        $amountNeeded     = max(0, -$safetyMargin);
-        $unitsNeeded      = $breakEvenFeasible
-            ? max(0, (int) ceil($breakEvenUnits) - $currentOccupancy)
-            : 0;
-
-        $businessExpenseBreakdown = $this->getBusinessExpenseBreakdown($month, $year);
-        $variableCostBreakdown    = $this->getVariableCostBreakdown($month, $year);
-
-        return [
-            'total_apartments' => $totalApartments,
-            'avg_rent_per_apartment' => round($avgRentPerApartment, 2),
-            'business_expenses' => round($businessExpenses, 2),
-            'variable_cost_per_unit' => round($variableCostPerUnit, 2),
-            'contribution_margin_per_unit' => round($contributionMarginPerUnit, 2),
-            'break_even_units' => $breakEvenUnits,
-            'break_even_revenue' => round($breakEvenRevenue, 2),
-            'current_occupancy' => $currentOccupancy,
-            'current_revenue' => round($currentRevenue, 2),
-            'total_expenses' => round($totalExpenses, 2),
-            'safety_margin' => round($safetyMargin, 2),
-            'safety_margin_percent' => $safetyMarginPercent,
-            'is_above_break_even' => $isAboveBreakEven,
-            'amount_needed' => round($amountNeeded, 2),
-            'units_needed' => $unitsNeeded,
-            'business_expense_breakdown' => $businessExpenseBreakdown,
-            'variable_cost_breakdown' => $variableCostBreakdown,
-            'break_even_feasible' => $breakEvenFeasible,
-        ];
+        return $this->breakEvenService()->calculate($month, $year);
     }
 
-    /**
-     * Get business expense items for the current month (break-even breakdown).
-     */
     private function getBusinessExpenseBreakdown(?int $month = null, ?int $year = null): array
     {
-        $activePeriod = $this->getActiveFiscalPeriod();
-        $month = $month ?: now()->month;
-        $year  = $year  ?: now()->year;
-
-        $query = BusinessExpense::where('user_id', Auth::id())
-            ->where('billing_month', $month)
-            ->where('billing_year', $year);
-
-        if ($activePeriod) {
-            $query->where('fiscal_period_id', $activePeriod->id);
-        }
-
-        return $query->get()->map(fn ($e) => [
-            'label'  => $e->expense_name ?: ($e->category ?: 'Business Expense'),
-            'amount' => round((float) $e->amount, 2),
-        ])->toArray();
+        return $this->breakEvenService()->getBusinessExpenseBreakdown($month, $year);
     }
 
-    /**
-     * Get detailed breakdown of variable costs by source.
-     */
     private function getVariableCostBreakdown(?int $month = null, ?int $year = null): array
     {
-        $activePeriod = $this->getActiveFiscalPeriod();
-        $month = $month ?: now()->month;
-        $year  = $year  ?: now()->year;
-
-        // Everything in Accounts.expense EXCEPT entries that already appear in
-        // BusinessExpense (those are counted as business overhead) and refunds.
-        $query = Accounts::expense()
-            ->forUser(Auth::id())
-            ->whereNotIn('category', [
-                Accounts::CAT_BUSINESS_FIXED,
-                Accounts::CAT_BUSINESS_VARIABLE,
-                Accounts::CAT_DEPOSIT_EXPENSE,
-            ])
-            ->whereMonth('transaction_date', $month)
-            ->whereYear('transaction_date', $year);
-
-        if ($activePeriod) {
-            $query->forPeriod($activePeriod->id);
-        }
-
-        $rows = $query->selectRaw('category, SUM(amount) as total')
-            ->groupBy('category')
-            ->pluck('total', 'category')
-            ->toArray();
-
-        $labels = [
-            'utilities_expense' => 'Utilities (vendor bills)',
-            'maintenance'       => 'Maintenance & Repairs',
-            'repairs'           => 'Repairs',
-            'insurance'         => 'Insurance',
-            'property_tax'      => 'Property Tax',
-            'management'        => 'Property Management',
-            'cleaning'          => 'Cleaning Services',
-            'security'          => 'Security',
-            'landscaping'       => 'Landscaping',
-            'supplies'          => 'Supplies & Materials',
-            'marketing'         => 'Marketing & Advertising',
-            'legal'             => 'Legal & Professional Fees',
-            'salaries'          => 'Salaries & Wages',
-            'taxes'             => 'Taxes',
-            'other_expense'     => 'Other Expense',
-            'miscellaneous'     => 'Miscellaneous',
-        ];
-
-        $breakdown = [];
-        foreach ($rows as $cat => $amount) {
-            if ($amount <= 0) continue;
-            $breakdown[] = [
-                'label'  => $labels[$cat] ?? ucfirst(str_replace('_', ' ', (string) $cat)),
-                'amount' => round((float) $amount, 2),
-            ];
-        }
-
-        return $breakdown;
+        return $this->breakEvenService()->getVariableCostBreakdown($month, $year);
     }
 
-    /**
-     * Total business expenses for the current month (used as the recurring
-     * monthly cost in break-even analysis).
-     */
     private function calculateBusinessExpenses(?FiscalPeriods $period = null, ?int $month = null, ?int $year = null)
     {
-        $activePeriod = $period ?? $this->getActiveFiscalPeriod();
-        $month = $month ?: now()->month;
-        $year  = $year  ?: now()->year;
-
-        $query = BusinessExpense::where('user_id', Auth::id())
-            ->where('billing_month', $month)
-            ->where('billing_year', $year);
-
-        if ($activePeriod) {
-            $query->where('fiscal_period_id', $activePeriod->id);
-        }
-
-        return (float) $query->sum('amount');
+        // $period arg kept for signature compatibility; the service uses the
+        // controller's active period (which is always identical here).
+        return $this->breakEvenService()->calculateBusinessExpenses($month, $year);
     }
 
-    /**
-     * Variable cost per occupied unit for the selected month.
-     *
-     * Pulled from Accounts (vendor-side expenses only): utilities_expense,
-     * maintenance, other_expense. Tenant utility CHARGES (Utilities.charge_amount)
-     * are income — they must not appear here.
-     */
     private function calculateVariableCostPerUnit(?FiscalPeriods $period = null, ?int $month = null, ?int $year = null)
     {
-        $apartmentIds = $this->scopeApartments()->pluck('id');
-        $activePeriod = $period ?? $this->getActiveFiscalPeriod();
-        $month = $month ?: now()->month;
-        $year  = $year  ?: now()->year;
-        $monthStart = Carbon::create($year, $month, 1)->startOfMonth();
-        $monthEnd   = $monthStart->copy()->endOfMonth();
-
-        $occupiedCount = Rentals::whereIn('apartment_id', $apartmentIds)
-            ->where('start_date', '<=', $monthEnd)
-            ->where(function ($q) use ($monthStart) {
-                $q->whereNull('end_date')->orWhere('end_date', '>=', $monthStart);
-            })
-            ->count();
-
-        if ($occupiedCount === 0) {
-            return 0;
-        }
-
-        $variableCategories = [
-            Accounts::CAT_UTILITIES_EXPENSE,
-            Accounts::CAT_MAINTENANCE,
-            Accounts::CAT_OTHER_EXPENSE,
-        ];
-
-        $query = Accounts::expense()
-            ->forUser(Auth::id())
-            ->whereIn('category', $variableCategories)
-            ->whereMonth('transaction_date', $month)
-            ->whereYear('transaction_date', $year);
-
-        if ($activePeriod) {
-            $query->forPeriod($activePeriod->id);
-        }
-
-        $variableTotal = (float) $query->sum('amount');
-
-        return $variableTotal / $occupiedCount;
+        return $this->breakEvenService()->calculateVariableCostPerUnit($month, $year);
     }
+
 
     /**
      * Show record income form — tenant billing management.
