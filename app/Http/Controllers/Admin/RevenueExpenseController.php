@@ -14,6 +14,7 @@ use App\Models\Utilities;
 use App\Models\Rentals;
 use App\Models\Apartments;
 use App\Services\RevenueExpense\BreakEvenService;
+use App\Services\RevenueExpense\ExpenseRecordingService;
 use App\Services\RevenueExpense\RevenueExpenseQueryService;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
@@ -52,6 +53,19 @@ class RevenueExpenseController extends Controller
             userId: $this->ledgerUserId(),
             period: $this->getActiveFiscalPeriod(),
             apartmentsScope: $this->scopeApartments(),
+        );
+    }
+
+    /**
+     * Builds the write-side expense service. Delete operations on existing rows
+     * pass the row's own period; write operations require an active period
+     * (callers should have already checked and redirected if missing).
+     */
+    private function expenseService(?FiscalPeriods $period = null): ExpenseRecordingService
+    {
+        return new ExpenseRecordingService(
+            userId: $this->ledgerUserId(),
+            period: $period ?? $this->getActiveFiscalPeriod(),
         );
     }
 
@@ -1414,63 +1428,34 @@ class RevenueExpenseController extends Controller
     public function storeExpense(Request $request)
     {
         $activePeriod = $this->getActiveFiscalPeriod();
-
         if (!$activePeriod) {
             return redirect()->route('admin.fiscalperiod.create')
                 ->with('warning', 'Please create a fiscal period first.');
         }
 
         $validated = $request->validate([
-            'rental_id' => 'required|exists:rentals,id',
-            'utility_type' => 'required|in:electricity,water,internet,parking,trash,other',
-            'charge_amount' => 'required|numeric|min:0.01',
-            'transaction_date' => 'required|date',
-            'meter_reading_in' => 'nullable|numeric|min:0',
+            'rental_id'         => 'required|exists:rentals,id',
+            'utility_type'      => 'required|in:electricity,water,internet,parking,trash,other',
+            'charge_amount'     => 'required|numeric|min:0.01',
+            'transaction_date'  => 'required|date',
+            'meter_reading_in'  => 'nullable|numeric|min:0',
             'meter_reading_out' => 'nullable|numeric|min:0',
-            'note' => 'nullable|string|max:1000',
+            'note'              => 'nullable|string|max:1000',
         ]);
 
         $rental = Rentals::with('tenant', 'apartment')->findOrFail($validated['rental_id']);
-        $transactionDate = Carbon::parse($validated['transaction_date']);
+        $this->expenseService($activePeriod)->recordUtilityExpense($rental, $validated);
 
-        // Create Utilities record (operational tracking)
-        Utilities::create([
-            'tenant_id' => $rental->tenant_id,
-            'rental_id' => $rental->id,
-            'utility_type' => $validated['utility_type'],
-            'meter_reading_in' => $validated['meter_reading_in'] ?? 0,
-            'meter_reading_out' => $validated['meter_reading_out'] ?? 0,
-            'charge_amount' => $validated['charge_amount'],
-            'billing_month' => $transactionDate->month,
-            'billing_year' => $transactionDate->year,
-            'paid_status' => true,
-            'paid_at' => $validated['transaction_date'],
-        ]);
-
-        // Create Accounts record (fiscal period financial tracking)
-        Accounts::create([
-            'fiscal_period_id' => $activePeriod->id,
-            'payment_id' => null,
-            'user_id' => Auth::id(),
-            'account_type' => Accounts::TYPE_EXPENSE,
-            'category' => Accounts::CAT_UTILITIES_EXPENSE,
-            'description' => '[Apt ' . $rental->apartment->apartment_number . '] ' . ucfirst($validated['utility_type']),
-            'amount' => $validated['charge_amount'],
-            'transaction_date' => $validated['transaction_date'],
-            'note' => $validated['note'] ?? null,
-        ]);
-
-        return redirect()->back()
-            ->with('success', ucfirst($validated['utility_type']) . ' expense of $' . number_format($validated['charge_amount'], 2) . ' recorded for apartment ' . $rental->apartment->apartment_number . '.');
+        return redirect()->back()->with(
+            'success',
+            ucfirst($validated['utility_type']) . ' expense of $' . number_format($validated['charge_amount'], 2)
+            . ' recorded for apartment ' . $rental->apartment->apartment_number . '.'
+        );
     }
 
-    /**
-     * Store an "other" expense (non-utility, non-business) — saves to Accounts.
-     */
     public function storeOtherExpense(Request $request)
     {
         $activePeriod = $this->getActiveFiscalPeriod();
-
         if (!$activePeriod) {
             return redirect()->route('admin.fiscalperiod.create')
                 ->with('warning', 'Please create a fiscal period first.');
@@ -1483,53 +1468,36 @@ class RevenueExpenseController extends Controller
         ];
 
         $validated = $request->validate([
-            'category' => 'required|string|in:' . implode(',', $allowedCategories),
-            'description' => 'required|string|max:500',
-            'amount' => 'required|numeric|min:0.01',
+            'category'         => 'required|string|in:' . implode(',', $allowedCategories),
+            'description'      => 'required|string|max:500',
+            'amount'           => 'required|numeric|min:0.01',
             'transaction_date' => 'required|date',
-            'note' => 'nullable|string|max:1000',
+            'note'             => 'nullable|string|max:1000',
         ]);
 
-        Accounts::create([
-            'fiscal_period_id' => $activePeriod->id,
-            'payment_id' => null,
-            'user_id' => Auth::id(),
-            'account_type' => Accounts::TYPE_EXPENSE,
-            'category' => $validated['category'],
-            'description' => $validated['description'],
-            'amount' => $validated['amount'],
-            'transaction_date' => $validated['transaction_date'],
-            'note' => $validated['note'] ?? null,
-        ]);
+        $this->expenseService($activePeriod)->recordOtherExpense($validated);
 
-        return redirect()->back()
-            ->with('success', 'Other expense of $' . number_format($validated['amount'], 2) . ' recorded (' . $validated['description'] . ').');
+        return redirect()->back()->with(
+            'success',
+            'Other expense of $' . number_format($validated['amount'], 2) . ' recorded (' . $validated['description'] . ').'
+        );
     }
 
-    /**
-     * Delete an other expense record from Accounts.
-     */
     public function deleteOtherExpense(Accounts $expense)
     {
-        // Verify ownership
+        // Admin authorization: row must belong to the current user.
         if ($expense->user_id !== Auth::id()) {
             abort(403);
         }
 
-        $desc = $expense->description;
-        $expense->delete();
+        $desc = $this->expenseService()->deleteOtherExpense($expense);
 
-        return redirect()->back()
-            ->with('success', 'Expense "' . $desc . '" has been removed.');
+        return redirect()->back()->with('success', 'Expense "' . $desc . '" has been removed.');
     }
 
-    /**
-     * Store a business-level expense.
-     */
     public function storeBusinessExpense(Request $request)
     {
         $activePeriod = $this->getActiveFiscalPeriod();
-
         if (!$activePeriod) {
             return redirect()->route('admin.fiscalperiod.create')
                 ->with('warning', 'Please create a fiscal period first.');
@@ -1537,78 +1505,31 @@ class RevenueExpenseController extends Controller
 
         $validated = $request->validate([
             'expense_name' => 'required|string|max:255',
-            'category' => 'required|in:electricity,water,trash,internet,legal_fee,tax,loan_payment,salary,other',
-            'amount' => 'required|numeric|min:0.01',
+            'category'     => 'required|in:electricity,water,trash,internet,legal_fee,tax,loan_payment,salary,other',
+            'amount'       => 'required|numeric|min:0.01',
             'expense_date' => 'required|date',
             'is_recurring' => 'nullable|boolean',
-            'note' => 'nullable|string|max:1000',
-            'attachment' => 'nullable|file|mimes:pdf|max:10240',
+            'note'         => 'nullable|string|max:1000',
+            'attachment'   => 'nullable|file|mimes:pdf|max:10240',
         ]);
 
-        $expenseDate = Carbon::parse($validated['expense_date']);
+        $attachmentPath = $request->hasFile('attachment')
+            ? $request->file('attachment')->store('business_expenses', 'public')
+            : null;
 
-        $attachmentPath = null;
-        if ($request->hasFile('attachment')) {
-            $attachmentPath = $request->file('attachment')->store('business_expenses', 'public');
-        }
+        $this->expenseService($activePeriod)->recordBusinessExpense($validated, $attachmentPath);
 
-        BusinessExpense::create([
-            'user_id' => Auth::id(),
-            'fiscal_period_id' => $activePeriod->id,
-            'expense_name' => $validated['expense_name'],
-            'category' => $validated['category'],
-            'amount' => $validated['amount'],
-            'expense_date' => $validated['expense_date'],
-            'billing_month' => $expenseDate->month,
-            'billing_year' => $expenseDate->year,
-            'is_recurring' => $request->boolean('is_recurring'),
-            'note' => $validated['note'] ?? null,
-            'attachment' => $attachmentPath,
-        ]);
-
-        // Also record in Accounts for fiscal period tracking
-        Accounts::create([
-            'fiscal_period_id' => $activePeriod->id,
-            'payment_id' => null,
-            'user_id' => Auth::id(),
-            'account_type' => Accounts::TYPE_EXPENSE,
-            'category' => Accounts::CAT_BUSINESS_VARIABLE,
-            'description' => '[Business] ' . $validated['expense_name'],
-            'amount' => $validated['amount'],
-            'transaction_date' => $validated['expense_date'],
-            'note' => $validated['note'] ?? null,
-        ]);
-
-        return redirect()->back()
-            ->with('success', 'Business expense "' . $validated['expense_name'] . '" ($' . number_format($validated['amount'], 2) . ') recorded.');
+        return redirect()->back()->with(
+            'success',
+            'Business expense "' . $validated['expense_name'] . '" ($' . number_format($validated['amount'], 2) . ') recorded.'
+        );
     }
 
-    /**
-     * Delete a business expense record.
-     */
     public function deleteBusinessExpense(BusinessExpense $businessExpense)
     {
-        $name = $businessExpense->expense_name;
+        $name = $this->expenseService()->deleteBusinessExpense($businessExpense);
 
-        // Remove the corresponding Accounts record
-        Accounts::where('user_id', Auth::id())
-            ->where('fiscal_period_id', $businessExpense->fiscal_period_id)
-            ->where('account_type', Accounts::TYPE_EXPENSE)
-            ->where('category', Accounts::CAT_BUSINESS_VARIABLE)
-            ->where('amount', $businessExpense->amount)
-            ->where('transaction_date', $businessExpense->expense_date)
-            ->where('description', '[Business] ' . $businessExpense->expense_name)
-            ->limit(1)
-            ->delete();
-
-        if ($businessExpense->attachment) {
-            \Illuminate\Support\Facades\Storage::disk('public')->delete($businessExpense->attachment);
-        }
-
-        $businessExpense->delete();
-
-        return redirect()->back()
-            ->with('success', 'Business expense "' . $name . '" has been removed.');
+        return redirect()->back()->with('success', 'Business expense "' . $name . '" has been removed.');
     }
 
     // ===========================================================================
@@ -1630,53 +1551,39 @@ class RevenueExpenseController extends Controller
         return view('admin.revenue_expense.fixed_expenses', compact('apartments'));
     }
 
-    /**
-     * Store a new fixed expense for an apartment.
-     */
     public function storeFixedExpense(Request $request)
     {
         $validated = $request->validate([
             'apartment_id' => 'required|exists:apartments,id',
             'expense_name' => 'required|string|max:255',
             'expense_type' => 'required|in:parking,internet,trash,other',
-            'amount' => 'required|numeric|min:0.01',
-            'note' => 'nullable|string|max:1000',
+            'amount'       => 'required|numeric|min:0.01',
+            'note'         => 'nullable|string|max:1000',
         ]);
 
-        ApartmentFixedExpense::create([
-            'apartment_id' => $validated['apartment_id'],
-            'expense_name' => $validated['expense_name'],
-            'expense_type' => $validated['expense_type'],
-            'amount' => $validated['amount'],
-            'is_active' => true,
-            'note' => $validated['note'] ?? null,
-        ]);
+        $this->expenseService()->recordFixedExpense($validated);
 
-        return redirect()->back()
-            ->with('success', $validated['expense_name'] . ' ($' . number_format($validated['amount'], 2) . ') assigned to apartment.');
+        return redirect()->back()->with(
+            'success',
+            $validated['expense_name'] . ' ($' . number_format($validated['amount'], 2) . ') assigned to apartment.'
+        );
     }
 
-    /**
-     * Toggle a fixed expense on/off.
-     */
     public function toggleFixedExpense(ApartmentFixedExpense $fixedExpense)
     {
-        $fixedExpense->update(['is_active' => !$fixedExpense->is_active]);
+        $isActive = $this->expenseService()->toggleFixedExpense($fixedExpense);
 
-        return redirect()->back()
-            ->with('success', $fixedExpense->expense_name . ' has been ' . ($fixedExpense->is_active ? 'activated' : 'deactivated') . '.');
+        return redirect()->back()->with(
+            'success',
+            $fixedExpense->expense_name . ' has been ' . ($isActive ? 'activated' : 'deactivated') . '.'
+        );
     }
 
-    /**
-     * Delete a fixed expense.
-     */
     public function deleteFixedExpense(ApartmentFixedExpense $fixedExpense)
     {
-        $name = $fixedExpense->expense_name;
-        $fixedExpense->delete();
+        $name = $this->expenseService()->deleteFixedExpense($fixedExpense);
 
-        return redirect()->back()
-            ->with('success', $name . ' has been removed.');
+        return redirect()->back()->with('success', $name . ' has been removed.');
     }
 
     // ===========================================================================
