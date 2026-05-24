@@ -15,6 +15,7 @@ use App\Models\Rentals;
 use App\Models\Apartments;
 use App\Services\RevenueExpense\BreakEvenService;
 use App\Services\RevenueExpense\ExpenseRecordingService;
+use App\Services\RevenueExpense\IncomeRecordingService;
 use App\Services\RevenueExpense\RevenueExpenseQueryService;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
@@ -76,6 +77,14 @@ class RevenueExpenseController extends Controller
         return new ExpenseRecordingService(
             userId: $this->ledgerUserId(),
             period: $period ?? $this->getActiveFiscalPeriod(),
+        );
+    }
+
+    private function incomeService(FiscalPeriods $period): IncomeRecordingService
+    {
+        return new IncomeRecordingService(
+            userId: $this->ledgerUserId(),
+            period: $period,
         );
     }
 
@@ -723,77 +732,46 @@ class RevenueExpenseController extends Controller
     public function addTenantCharge(Request $request)
     {
         $validated = $request->validate([
-            'rental_id' => 'required|exists:rentals,id',
-            'charge_type' => 'required|in:electricity,water,internet,parking,trash,other',
-            'charge_amount' => 'required|numeric|min:0.01',
-            'meter_reading_in' => 'nullable|numeric|min:0',
+            'rental_id'         => 'required|exists:rentals,id',
+            'charge_type'       => 'required|in:electricity,water,internet,parking,trash,other',
+            'charge_amount'     => 'required|numeric|min:0.01',
+            'meter_reading_in'  => 'nullable|numeric|min:0',
             'meter_reading_out' => 'nullable|numeric|min:0',
-            'billing_month' => 'nullable|integer|min:1|max:12',
-            'billing_year' => 'nullable|integer|min:2000|max:2100',
-            'note' => 'nullable|string|max:500',
+            'billing_month'     => 'nullable|integer|min:1|max:12',
+            'billing_year'      => 'nullable|integer|min:2000|max:2100',
+            'note'              => 'nullable|string|max:500',
         ]);
 
         $rental = Rentals::with('tenant')->findOrFail($validated['rental_id']);
-
-        $billingMonth = $validated['billing_month'] ?? now()->month;
-        $billingYear = $validated['billing_year'] ?? now()->year;
-
-        // Tenant charges are tracked only in the Utilities table until paid.
-        // The Accounts ledger entry is created on payment (checkoutTenant / storeIncome)
-        // to avoid double-counting income at both charge and payment time.
-        $utilityTypes = ['electricity', 'water', 'internet', 'trash', 'parking', 'other'];
-
-        if (in_array($validated['charge_type'], $utilityTypes, true)) {
-            Utilities::create([
-                'tenant_id' => $rental->tenant_id,
-                'rental_id' => $rental->id,
-                'utility_type' => $validated['charge_type'],
-                'meter_number' => null,
-                'meter_reading_in' => $validated['meter_reading_in'] ?? 0,
-                'meter_reading_out' => $validated['meter_reading_out'] ?? 0,
-                'charge_amount' => $validated['charge_amount'],
-                'billing_month' => $billingMonth,
-                'billing_year' => $billingYear,
-                'paid_status' => false,
-                'paid_at' => null,
-            ]);
+        $period = $this->getActiveFiscalPeriod();
+        if ($period) {
+            $this->incomeService($period)->addTenantCharge($rental, $validated);
         }
 
-        $successMsg = ucfirst($validated['charge_type']) . ' charge of $' . number_format($validated['charge_amount'], 2) . ' added for ' . ($rental->tenant->name ?? 'tenant') . '.';
+        $successMsg = ucfirst($validated['charge_type']) . ' charge of $' . number_format($validated['charge_amount'], 2)
+            . ' added for ' . ($rental->tenant->name ?? 'tenant') . '.';
 
         if ($request->expectsJson()) {
             return response()->json(['success' => true, 'message' => $successMsg]);
         }
-
         return redirect()->back()->with('success', $successMsg);
     }
 
-    /**
-     * Remove a charge from a tenant's bill.
-     */
     public function removeTenantCharge($chargeId)
     {
         $charge = Utilities::findOrFail($chargeId);
+        $period = $this->getActiveFiscalPeriod();
 
-        // Only allow removing unpaid charges
-        if ($charge->paid_status) {
+        $removed = $period
+            ? $this->incomeService($period)->removeTenantCharge($charge)
+            : false;
+
+        if (!$removed) {
             if (request()->expectsJson()) {
                 return response()->json(['error' => 'Cannot remove a paid charge.'], 422);
             }
             return redirect()->back()->with('error', 'Cannot remove a charge that has already been paid.');
         }
-
-        // Remove any Accounts entry created for this tenant charge
-        try {
-            \App\Models\Accounts::where('reference_number', 'tenant_charge:' . $charge->id)
-                ->whereNull('payment_id')
-                ->where('user_id', $this->getAdminUserId())
-                ->delete();
-        } catch (\Exception $e) {
-            // not fatal
-        }
-
-        $charge->delete();
 
         if (request()->expectsJson()) {
             return response()->json(['success' => true]);
@@ -801,22 +779,13 @@ class RevenueExpenseController extends Controller
         return redirect()->back()->with('success', 'Charge removed successfully.');
     }
 
-    /**
-     * Clear all unpaid charges for a rental.
-     */
     public function clearTenantCharges($rentalId)
     {
         $rental = Rentals::findOrFail($rentalId);
-        $charges = Utilities::where('rental_id', $rentalId)->where('paid_status', false)->get();
+        $period = $this->getActiveFiscalPeriod();
 
-        foreach ($charges as $charge) {
-            try {
-                \App\Models\Accounts::where('reference_number', 'tenant_charge:' . $charge->id)
-                    ->whereNull('payment_id')
-                    ->where('user_id', $this->getAdminUserId())
-                    ->delete();
-            } catch (\Exception $e) {}
-            $charge->delete();
+        if ($period) {
+            $this->incomeService($period)->clearTenantCharges($rental);
         }
 
         if (request()->expectsJson()) {
@@ -825,186 +794,40 @@ class RevenueExpenseController extends Controller
         return redirect()->back()->with('success', 'All unpaid charges cleared.');
     }
 
-    /**
-     * Checkout / Pay a tenant's full bill (rent + all charges).
-     */
     public function checkoutTenant(Request $request)
     {
         $activePeriod = $this->getActiveFiscalPeriod();
-
         if (!$activePeriod) {
             return redirect()->route('supervisor.dashboard')
                 ->with('warning', 'Please create a fiscal period first.');
         }
 
         $validated = $request->validate([
-            'rental_id' => 'required|exists:rentals,id',
-            'payment_method' => 'required|in:cash,bank',
-            'payment_date' => 'required|date',
-            'rent_amount' => 'required|numeric|min:0',
-            'late_fee' => 'nullable|numeric|min:0',
-            'pay_rent' => 'nullable|boolean',
-            'pay_utilities' => 'nullable|boolean',
+            'rental_id'             => 'required|exists:rentals,id',
+            'payment_method'        => 'required|in:cash,bank',
+            'payment_date'          => 'required|date',
+            'rent_amount'           => 'required|numeric|min:0',
+            'late_fee'              => 'nullable|numeric|min:0',
+            'pay_rent'              => 'nullable|boolean',
+            'pay_utilities'         => 'nullable|boolean',
             'transaction_reference' => 'nullable|string|max:255',
-            'note' => 'nullable|string|max:1000',
+            'note'                  => 'nullable|string|max:1000',
         ]);
 
         $rental = Rentals::with(['apartment', 'tenant'])->findOrFail($validated['rental_id']);
-        $paymentDate = $validated['payment_date'];
-        $paymentMethod = $validated['payment_method'];
-        $lateFee = $validated['late_fee'] ?? 0;
-        $totalPaid = 0;
-        $items = [];
+        $result = $this->incomeService($activePeriod)->checkout($rental, $validated);
 
-        // Pay rent if selected
-        if (!empty($validated['pay_rent'])) {
-            $rentAmount = $validated['rent_amount'];
-
-            $payment = Payments::create([
-                'rental_id' => $rental->id,
-                'amount' => $rentAmount,
-                'due_date' => $paymentDate,
-                'paid_at' => $paymentDate,
-                'payment_method' => $paymentMethod,
-                'payment_status' => 'paid',
-                'payment_type' => 'rent',
-                'transaction_reference' => $validated['transaction_reference'] ?? null,
-                'late_fee' => $lateFee,
-                'note' => $validated['note'] ?? 'Monthly rent payment',
-            ]);
-
-            Accounts::create([
-                'fiscal_period_id' => $activePeriod->id,
-                'payment_id' => $payment->id,
-                'user_id' => $this->getAdminUserId(),
-                'account_type' => Accounts::TYPE_INCOME,
-                'category' => Accounts::CAT_RENT_INCOME,
-                'description' => '[Apt ' . $rental->apartment->apartment_number . '] Monthly rent',
-                'amount' => $rentAmount,
-                'transaction_date' => $paymentDate,
-                'reference_number' => $validated['transaction_reference'] ?? null,
-                'note' => $validated['note'] ?? null,
-            ]);
-
-            // Record late fee as a separate Accounts entry if applicable
-            if ($lateFee > 0) {
-                Accounts::create([
-                    'fiscal_period_id' => $activePeriod->id,
-                    'payment_id' => $payment->id,
-                    'user_id' => $this->getAdminUserId(),
-                    'account_type' => Accounts::TYPE_INCOME,
-                    'category' => Accounts::CAT_LATE_FEE_INCOME,
-                    'description' => '[Apt ' . $rental->apartment->apartment_number . '] Late fee',
-                    'amount' => $lateFee,
-                    'transaction_date' => $paymentDate,
-                    'reference_number' => $validated['transaction_reference'] ?? null,
-                    'note' => 'Late fee',
-                ]);
-            }
-
-            $totalPaid += $rentAmount + $lateFee;
-            $items[] = 'Rent: $' . number_format($rentAmount, 2);
-        }
-
-        // Pay utilities if selected
-        if (!empty($validated['pay_utilities'])) {
-            $unpaidUtilities = Utilities::where('rental_id', $rental->id)
-                ->forMonth(now()->month, now()->year)
-                ->unpaid()
-                ->get();
-
-            if ($unpaidUtilities->isNotEmpty()) {
-                $utilityTotal = $unpaidUtilities->sum('charge_amount');
-
-                $payment = Payments::create([
-                    'rental_id' => $rental->id,
-                    'amount' => $utilityTotal,
-                    'due_date' => $paymentDate,
-                    'paid_at' => $paymentDate,
-                    'payment_method' => $paymentMethod,
-                    'payment_status' => 'paid',
-                    'payment_type' => 'utilities',
-                    'transaction_reference' => $validated['transaction_reference'] ?? null,
-                    'late_fee' => 0,
-                    'note' => 'Utility charges: ' . $unpaidUtilities->pluck('utility_type')->implode(', '),
-                ]);
-
-                // Split Accounts entries: electricity+water → utility_income, rest → other_income
-                $utilityIncomeTypes = ['electricity', 'water'];
-                $otherIncomeTypes   = ['internet', 'parking', 'trash', 'other'];
-                $utilIncomeAmt  = $unpaidUtilities->whereIn('utility_type', $utilityIncomeTypes)->sum('charge_amount');
-                $otherIncomeAmt = $unpaidUtilities->whereIn('utility_type', $otherIncomeTypes)->sum('charge_amount');
-
-                if ($utilIncomeAmt > 0) {
-                    $utilTypes = $unpaidUtilities->whereIn('utility_type', $utilityIncomeTypes)->pluck('utility_type')->unique()->implode(', ');
-                    Accounts::create([
-                        'fiscal_period_id' => $activePeriod->id,
-                        'payment_id'       => $payment->id,
-                        'user_id'          => $this->getAdminUserId(),
-                        'account_type'     => Accounts::TYPE_INCOME,
-                        'category'         => Accounts::CAT_UTILITY_INCOME,
-                        'description'      => '[Apt ' . $rental->apartment->apartment_number . '] ' . ucwords($utilTypes),
-                        'amount'           => $utilIncomeAmt,
-                        'transaction_date' => $paymentDate,
-                        'reference_number' => $validated['transaction_reference'] ?? null,
-                        'note'             => 'Utilities (electricity/water): ' . $utilTypes,
-                    ]);
-                }
-
-                if ($otherIncomeAmt > 0) {
-                    $otherTypes = $unpaidUtilities->whereIn('utility_type', $otherIncomeTypes)->pluck('utility_type')->unique()->implode(', ');
-                    Accounts::create([
-                        'fiscal_period_id' => $activePeriod->id,
-                        'payment_id'       => $payment->id,
-                        'user_id'          => $this->getAdminUserId(),
-                        'account_type'     => Accounts::TYPE_INCOME,
-                        'category'         => Accounts::CAT_OTHER_INCOME,
-                        'description'      => '[Apt ' . $rental->apartment->apartment_number . '] ' . ucwords($otherTypes),
-                        'amount'           => $otherIncomeAmt,
-                        'transaction_date' => $paymentDate,
-                        'reference_number' => $validated['transaction_reference'] ?? null,
-                        'note'             => 'Other charges (internet/parking/trash): ' . $otherTypes,
-                    ]);
-                }
-
-                // Fallback: if neither matched (shouldn't happen), record all as utility_income
-                if ($utilIncomeAmt <= 0 && $otherIncomeAmt <= 0 && $utilityTotal > 0) {
-                    Accounts::create([
-                        'fiscal_period_id' => $activePeriod->id,
-                        'payment_id'       => $payment->id,
-                        'user_id'          => $this->getAdminUserId(),
-                        'account_type'     => Accounts::TYPE_INCOME,
-                        'category'         => Accounts::CAT_UTILITY_INCOME,
-                        'description'      => '[Apt ' . $rental->apartment->apartment_number . '] Utility charges',
-                        'amount'           => $utilityTotal,
-                        'transaction_date' => $paymentDate,
-                        'reference_number' => $validated['transaction_reference'] ?? null,
-                        'note'             => 'Utilities: ' . $unpaidUtilities->pluck('utility_type')->implode(', '),
-                    ]);
-                }
-
-                // Mark utilities as paid
-                foreach ($unpaidUtilities as $utility) {
-                    $utility->update([
-                        'paid_status' => true,
-                        'paid_at' => now(),
-                    ]);
-                }
-
-                $totalPaid += $utilityTotal;
-                $items[] = 'Utilities: $' . number_format($utilityTotal, 2);
-            }
-        }
-
-        if ($totalPaid === 0) {
+        if ($result['total_paid'] === 0.0) {
             return redirect()->back()->with('error', 'No items selected for payment.');
         }
 
         $tenantName = $rental->tenant->name ?? 'Tenant';
-        $aptNumber = $rental->apartment->apartment_number;
+        $aptNumber  = $rental->apartment->apartment_number;
 
-        return redirect()->back()
-            ->with('success', "Payment of \${$totalPaid} recorded for {$tenantName} (Apt {$aptNumber}). Items: " . implode(', ', $items));
+        return redirect()->back()->with(
+            'success',
+            "Payment of \${$result['total_paid']} recorded for {$tenantName} (Apt {$aptNumber}). Items: " . implode(', ', $result['items'])
+        );
     }
 
     /**
@@ -1073,176 +896,72 @@ class RevenueExpenseController extends Controller
         return view('supervisor.revenue_expense.tenant_bill_print', $billData);
     }
 
-    /**
-     * Store a new income record from apartment rent payment.
-     */
     public function storeIncome(Request $request)
     {
         $activePeriod = $this->getActiveFiscalPeriod();
-
         if (!$activePeriod) {
             return redirect()->route('supervisor.dashboard')
                 ->with('warning', 'Please create a fiscal period first.');
         }
 
         $validated = $request->validate([
-            'rental_id' => 'required|exists:rentals,id',
-            'amount' => 'required|numeric|min:0.01',
-            'payment_method' => 'required|in:cash,bank',
-            'payment_type' => 'required|in:rent,utilities,deposit,other',
-            'transaction_date' => 'required|date',
+            'rental_id'             => 'required|exists:rentals,id',
+            'amount'                => 'required|numeric|min:0.01',
+            'payment_method'        => 'required|in:cash,bank',
+            'payment_type'          => 'required|in:rent,utilities,deposit,other',
+            'transaction_date'      => 'required|date',
             'transaction_reference' => 'nullable|string|max:255',
-            'late_fee' => 'nullable|numeric|min:0',
-            'note' => 'nullable|string|max:1000',
+            'late_fee'              => 'nullable|numeric|min:0',
+            'note'                  => 'nullable|string|max:1000',
         ]);
 
         $rental = Rentals::with('apartment')->findOrFail($validated['rental_id']);
+        $this->incomeService($activePeriod)->recordPayment($rental, $validated);
 
-        // Create the payment record
-        $payment = Payments::create([
-            'rental_id' => $validated['rental_id'],
-            'amount' => $validated['amount'],
-            'due_date' => $validated['transaction_date'],
-            'paid_at' => $validated['transaction_date'],
-            'payment_method' => $validated['payment_method'],
-            'payment_status' => 'paid',
-            'payment_type' => $validated['payment_type'],
-            'transaction_reference' => $validated['transaction_reference'] ?? null,
-            'late_fee' => $validated['late_fee'] ?? 0,
-            'note' => $validated['note'] ?? null,
-        ]);
-
-        // Map payment_type to account category (using constants for consistency)
-        $category = Accounts::PAYMENT_TYPE_TO_CATEGORY[$validated['payment_type']] ?? Accounts::CAT_OTHER_INCOME;
-
-        // Create the account record linked to fiscal period
-        Accounts::create([
-            'fiscal_period_id' => $activePeriod->id,
-            'payment_id' => $payment->id,
-            'user_id' => $this->getAdminUserId(),
-            'account_type' => Accounts::TYPE_INCOME,
-            'category' => $category,
-            'description' => '[Apt ' . $rental->apartment->apartment_number . '] ' . ucfirst($validated['payment_type']) . ' payment',
-            'amount' => $validated['amount'],
-            'transaction_date' => $validated['transaction_date'],
-            'reference_number' => $validated['transaction_reference'] ?? null,
-            'note' => $validated['note'] ?? null,
-        ]);
-
-        // Record late fee as a separate Accounts entry if applicable
-        $lateFeeAmount = $validated['late_fee'] ?? 0;
-        if ($lateFeeAmount > 0) {
-            Accounts::create([
-                'fiscal_period_id' => $activePeriod->id,
-                'payment_id' => $payment->id,
-                'user_id' => $this->getAdminUserId(),
-                'account_type' => Accounts::TYPE_INCOME,
-                'category' => Accounts::CAT_LATE_FEE_INCOME,
-                'description' => '[Apt ' . $rental->apartment->apartment_number . '] Late fee',
-                'amount' => $lateFeeAmount,
-                'transaction_date' => $validated['transaction_date'],
-                'reference_number' => $validated['transaction_reference'] ?? null,
-                'note' => 'Late fee for ' . ucfirst($validated['payment_type']),
-            ]);
-        }
-
-        return redirect()->back()
-            ->with('success', ucfirst($validated['payment_type']) . ' income of $' . number_format($validated['amount'], 2) . ' recorded for apartment ' . $rental->apartment->apartment_number . '.');
+        return redirect()->back()->with(
+            'success',
+            ucfirst($validated['payment_type']) . ' income of $' . number_format($validated['amount'], 2)
+            . ' recorded for apartment ' . $rental->apartment->apartment_number . '.'
+        );
     }
 
-    /**
-     * Store bulk monthly rent income for all selected apartments at once.
-     */
     public function storeBulkIncome(Request $request)
     {
         $activePeriod = $this->getActiveFiscalPeriod();
-
         if (!$activePeriod) {
             return redirect()->route('supervisor.dashboard')
                 ->with('warning', 'Please create a fiscal period first.');
         }
 
         $validated = $request->validate([
-            'payment_date' => 'required|date',
-            'payment_method' => 'required|in:cash,bank',
-            'apartments' => 'required|array|min:1',
+            'payment_date'           => 'required|date',
+            'payment_method'         => 'required|in:cash,bank',
+            'apartments'             => 'required|array|min:1',
             'apartments.*.rental_id' => 'required|exists:rentals,id',
-            'apartments.*.amount' => 'required|numeric|min:0.01',
-            'apartments.*.late_fee' => 'nullable|numeric|min:0',
-            'apartments.*.selected' => 'nullable|boolean',
+            'apartments.*.amount'    => 'required|numeric|min:0.01',
+            'apartments.*.late_fee'  => 'nullable|numeric|min:0',
+            'apartments.*.selected'  => 'nullable|boolean',
         ]);
 
-        $paymentDate = $validated['payment_date'];
-        $paymentMethod = $validated['payment_method'];
-        $recordedCount = 0;
-        $totalAmount = 0;
+        $result = $this->incomeService($activePeriod)->recordBulkRent(
+            $validated['payment_date'],
+            $validated['payment_method'],
+            $validated['apartments'],
+        );
 
-        foreach ($validated['apartments'] as $aptData) {
-            // Only process selected apartments
-            if (empty($aptData['selected'])) {
-                continue;
-            }
-
-            $rental = Rentals::with('apartment')->findOrFail($aptData['rental_id']);
-            $amount = $aptData['amount'];
-            $lateFee = $aptData['late_fee'] ?? 0;
-
-            // Create the payment record
-            $payment = Payments::create([
-                'rental_id' => $rental->id,
-                'amount' => $amount,
-                'due_date' => $paymentDate,
-                'paid_at' => $paymentDate,
-                'payment_method' => $paymentMethod,
-                'payment_status' => 'paid',
-                'payment_type' => 'rent',
-                'transaction_reference' => null,
-                'late_fee' => $lateFee,
-                'note' => 'Auto-generated monthly rent',
-            ]);
-
-            // Create the account record linked to fiscal period
-            Accounts::create([
-                'fiscal_period_id' => $activePeriod->id,
-                'payment_id' => $payment->id,
-                'user_id' => $this->getAdminUserId(),
-                'account_type' => Accounts::TYPE_INCOME,
-                'category' => Accounts::CAT_RENT_INCOME,
-                'description' => '[Apt ' . $rental->apartment->apartment_number . '] Monthly rent',
-                'amount' => $amount,
-                'transaction_date' => $paymentDate,
-                'reference_number' => null,
-                'note' => 'Auto-generated monthly rent',
-            ]);
-
-            // Record late fee as a separate Accounts entry if applicable
-            if ($lateFee > 0) {
-                Accounts::create([
-                    'fiscal_period_id' => $activePeriod->id,
-                    'payment_id' => $payment->id,
-                    'user_id' => $this->getAdminUserId(),
-                    'account_type' => Accounts::TYPE_INCOME,
-                    'category' => Accounts::CAT_LATE_FEE_INCOME,
-                    'description' => '[Apt ' . $rental->apartment->apartment_number . '] Late fee',
-                    'amount' => $lateFee,
-                    'transaction_date' => $paymentDate,
-                    'reference_number' => null,
-                    'note' => 'Auto-generated late fee',
-                ]);
-            }
-
-            $recordedCount++;
-            $totalAmount += $amount + $lateFee;
+        if ($result['count'] === 0) {
+            return redirect()->back()->with('error', 'No apartments were selected. Please check at least one apartment.');
         }
 
-        if ($recordedCount === 0) {
-            return redirect()->back()
-                ->with('error', 'No apartments were selected. Please check at least one apartment.');
-        }
-
-        return redirect()->back()
-            ->with('success', 'Monthly rent recorded for ' . $recordedCount . ' apartment(s). Total: $' . number_format($totalAmount, 2));
+        return redirect()->back()->with(
+            'success',
+            'Monthly rent recorded for ' . $result['count'] . ' apartment(s). Total: $' . number_format($result['total'], 2)
+        );
     }
+
+    /**
+     * @deprecated Dead block from refactor; the loop body below will be removed.
+     */
 
     /**
      * Show record expense form — apartment-centric utility expense recording
