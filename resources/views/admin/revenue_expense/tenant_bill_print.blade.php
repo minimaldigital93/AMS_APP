@@ -375,11 +375,11 @@
                     </tr>
                     @endforeach
 
-                    <!-- Fixed Expenses -->
+                    <!-- Apartment Costs -->
                     @foreach($fixedExpenses as $expense)
                     <tr>
                         <td>{{ $expense->expense_name }}</td>
-                        <td><span class="category-label">Fixed Charge</span></td>
+                        <td><span class="category-label">Apartment Cost</span></td>
                         <td>${{ number_format($expense->amount, 2) }}</td>
                     </tr>
                     @endforeach
@@ -400,7 +400,7 @@
                 @endif
                 @if($totalFixed > 0)
                 <div class="total-row">
-                    <span>Subtotal (Fixed Charges)</span>
+                    <span>Subtotal (Apartment Costs)</span>
                     <span>${{ number_format($totalFixed, 2) }}</span>
                 </div>
                 @endif

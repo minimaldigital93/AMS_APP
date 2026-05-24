@@ -11,7 +11,6 @@ class BusinessExpense extends Model
         'user_id',
         'fiscal_period_id',
         'expense_name',
-        'cost_type',
         'category',
         'amount',
         'expense_date',
@@ -19,6 +18,7 @@ class BusinessExpense extends Model
         'billing_year',
         'is_recurring',
         'note',
+        'attachment',
     ];
 
     protected function casts(): array
@@ -43,16 +43,6 @@ class BusinessExpense extends Model
     }
 
     // Scopes
-
-    public function scopeFixed($query)
-    {
-        return $query->where('cost_type', 'fixed');
-    }
-
-    public function scopeVariable($query)
-    {
-        return $query->where('cost_type', 'variable');
-    }
 
     public function scopeForMonth($query, $month, $year)
     {

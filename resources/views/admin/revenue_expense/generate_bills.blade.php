@@ -15,7 +15,7 @@
         <div class="flex gap-3">
             <a href="{{ route('admin.revenue_expense.fixed_expenses') }}" class="inline-flex items-center px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition text-sm">
                 <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
-                Manage Fixed Expenses
+                Manage Apartment Costs
             </a>
             <a href="{{ route('admin.revenue_expense.index') }}" class="inline-flex items-center px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition text-sm">
                 <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/></svg>
@@ -61,7 +61,7 @@
                             class="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white appearance-none h-10">
                     </div>
                     <div class="text-center">
-                        <p class="text-sm text-gray-500">Total Monthly Fixed Expenses</p>
+                        <p class="text-sm text-gray-500">Total Monthly Apartment Costs</p>
                         <p class="text-2xl font-bold text-red-600">${{ number_format($totalMonthlyExpenses, 2) }}</p>
                     </div>
                 </div>
@@ -97,7 +97,7 @@
                     <div class="text-right">
                         <p class="text-xs text-gray-500">Total Monthly Bill</p>
                         <p class="text-xl font-bold text-red-600">${{ number_format($bill['total_bill'], 2) }}</p>
-                        <p class="text-xs text-gray-400">Rent: ${{ number_format($bill['monthly_rent'], 2) }} + Fixed: ${{ number_format($bill['total_fixed'], 2) }}</p>
+                        <p class="text-xs text-gray-400">Rent: ${{ number_format($bill['monthly_rent'], 2) }} + Costs: ${{ number_format($bill['total_fixed'], 2) }}</p>
                     </div>
                 </div>
 
@@ -141,7 +141,7 @@
                         @endforeach
                     </div>
                     @else
-                    <p class="text-sm text-gray-400 text-center py-2">No fixed expenses assigned. <a href="{{ route('admin.revenue_expense.fixed_expenses') }}" class="text-blue-600 underline">Add some</a></p>
+                    <p class="text-sm text-gray-400 text-center py-2">No apartment costs assigned. <a href="{{ route('admin.revenue_expense.fixed_expenses') }}" class="text-blue-600 underline">Add some</a></p>
                     @endif
                 </div>
             </div>
@@ -164,10 +164,10 @@
     <div class="bg-white rounded-lg shadow-md p-12 text-center">
         <svg class="w-16 h-16 mx-auto text-gray-300 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/></svg>
         <h3 class="text-xl font-bold text-gray-700 mb-2">No Active Rentals Found</h3>
-        <p class="text-gray-500 mb-4">There are no apartments with active tenants and fixed expenses to generate bills for.</p>
+        <p class="text-gray-500 mb-4">There are no apartments with active tenants and apartment costs to generate bills for.</p>
         <div class="flex justify-center gap-4">
             <a href="{{ route('admin.revenue_expense.fixed_expenses') }}" class="inline-flex items-center px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition">
-                Set Up Fixed Expenses
+                Set Up Apartment Costs
             </a>
             <a href="{{ route('admin.apartments.index') }}" class="inline-flex items-center px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition">
                 Manage Apartments

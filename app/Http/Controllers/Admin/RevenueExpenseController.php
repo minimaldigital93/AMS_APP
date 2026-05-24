@@ -966,20 +966,6 @@ class RevenueExpenseController extends Controller
             $breakdown[] = ['label' => 'Apartment Fixed Expenses', 'amount' => round($aptFixed, 2)];
         }
 
-        // Business fixed expenses from BusinessExpense table
-        if ($activePeriod) {
-            // Business fixed expenses across the fiscal period
-            $bizFixed = BusinessExpense::where('user_id', Auth::id())
-                ->where('fiscal_period_id', $activePeriod->id)
-                ->where('cost_type', 'fixed')
-                ->whereBetween('expense_date', [$activePeriod->opening_date, $activePeriod->closing_date])
-                ->get();
-
-            foreach ($bizFixed as $expense) {
-                $breakdown[] = ['label' => $expense->expense_name ?? 'Business Fixed', 'amount' => round($expense->amount, 2)];
-            }
-        }
-
         // Accounts-based fixed expenses by category
         $fixedCategories = [
             Accounts::CAT_MAINTENANCE => 'Maintenance & Repairs',
@@ -1036,17 +1022,16 @@ class RevenueExpenseController extends Controller
             }
         }
 
-        // Business variable expenses from BusinessExpense table
+        // Business expenses from BusinessExpense table
         if ($activePeriod) {
-            $bizVariable = BusinessExpense::where('user_id', Auth::id())
+            $bizExpenses = BusinessExpense::where('user_id', Auth::id())
                 ->where('fiscal_period_id', $activePeriod->id)
-                ->where('cost_type', 'variable')
                 ->where('billing_month', now()->month)
                 ->where('billing_year', now()->year)
                 ->get();
 
-            foreach ($bizVariable as $expense) {
-                $breakdown[] = ['label' => $expense->expense_name ?? 'Business Variable', 'amount' => round($expense->amount, 2)];
+            foreach ($bizExpenses as $expense) {
+                $breakdown[] = ['label' => $expense->expense_name ?? 'Business', 'amount' => round($expense->amount, 2)];
             }
         }
 
@@ -1102,17 +1087,7 @@ class RevenueExpenseController extends Controller
             ->sum('amount');
         $periodFixedFromApts = $monthlyFixedExpenses * $months;
 
-        // 2. Business fixed expenses across the fiscal period from BusinessExpense table
-        $businessFixedExpenses = 0;
-        if ($activePeriod) {
-            $businessFixedExpenses = BusinessExpense::where('user_id', Auth::id())
-                ->where('fiscal_period_id', $activePeriod->id)
-                ->where('cost_type', 'fixed')
-                ->whereBetween('expense_date', [$activePeriod->opening_date, $activePeriod->closing_date])
-                ->sum('amount');
-        }
-
-        // 3. Fixed-nature expenses from Accounts (maintenance, insurance, property_tax, management)
+        // 2. Fixed-nature expenses from Accounts (maintenance, insurance, property_tax, management)
         $fixedCategories = [
             Accounts::CAT_MAINTENANCE,
             Accounts::CAT_INSURANCE,
@@ -1132,8 +1107,8 @@ class RevenueExpenseController extends Controller
 
         $accountFixedTotal = $accountFixedExpenses->sum('amount');
 
-        // Sum: apartment fixed (period) + business fixed (period) + accounts-based fixed categories
-        $fixedTotal = $periodFixedFromApts + $businessFixedExpenses + $accountFixedTotal;
+        // Sum: apartment fixed (period) + accounts-based fixed categories
+        $fixedTotal = $periodFixedFromApts + $accountFixedTotal;
 
         return $fixedTotal;
     }
@@ -1186,12 +1161,11 @@ class RevenueExpenseController extends Controller
 
         $monthlyUtilityCosts = $monthlyUtilityCostsQuery->sum('charge_amount');
 
-        // 2. Business variable expenses for the period
-        $businessVariableCosts = 0;
+        // 2. Business expenses for the period
+        $businessExpenseTotal = 0;
         if ($activePeriod) {
-            $businessVariableCosts = BusinessExpense::where('user_id', Auth::id())
+            $businessExpenseTotal = BusinessExpense::where('user_id', Auth::id())
                 ->where('fiscal_period_id', $activePeriod->id)
-                ->where('cost_type', 'variable')
                 ->whereBetween('expense_date', [$activePeriod->opening_date, $activePeriod->closing_date])
                 ->sum('amount');
         }
@@ -1211,7 +1185,7 @@ class RevenueExpenseController extends Controller
 
         $variableAccountTotal = $variableAccountCosts->sum('amount');
 
-        $totalVariableCosts = $monthlyUtilityCosts + $businessVariableCosts + $variableAccountTotal;
+        $totalVariableCosts = $monthlyUtilityCosts + $businessExpenseTotal + $variableAccountTotal;
 
         return $totalVariableCosts / $occupiedCount;
     }
@@ -2102,33 +2076,27 @@ class RevenueExpenseController extends Controller
             ->orderBy('expense_date', 'desc')
             ->get();
 
-        $businessFixedTotal = $businessExpenses->where('cost_type', 'fixed')->sum('amount');
-        $businessVariableTotal = $businessExpenses->where('cost_type', 'variable')->sum('amount');
-        $businessTotal = $businessFixedTotal + $businessVariableTotal;
+        $businessTotal = $businessExpenses->sum('amount');
 
         // Business expense categories
         $businessCategories = [
-            'building_maintenance' => 'Building Maintenance',
-            'insurance' => 'Insurance Premium',
-            'property_tax' => 'Property Tax',
-            'mortgage' => 'Mortgage / Loan Payment',
-            'management_fee' => 'Management Fee',
-            'security' => 'Security Service',
-            'cleaning' => 'Common Area Cleaning',
-            'landscaping' => 'Landscaping / Grounds',
-            'elevator' => 'Elevator Maintenance',
-            'pest_control' => 'Pest Control',
-            'accounting' => 'Accounting / Bookkeeping',
-            'legal' => 'Legal Fees',
-            'marketing' => 'Marketing / Advertising',
-            'supplies' => 'Office / Building Supplies',
-            'license' => 'License & Permits',
-            'depreciation' => 'Depreciation',
+            'electricity' => 'Electricity',
+            'water' => 'Water',
+            'trash' => 'Trash',
+            'internet' => 'Internet',
+            'legal_fee' => 'Legal Fee',
+            'tax' => 'Tax',
+            'loan_payment' => 'Loan Payment',
+            'salary' => 'Salary',
             'other' => 'Other',
         ];
 
-        // Grand total of all expenses for the selected month
-        $grandTotalExpenses = $totalExpenses + $totalOtherExpenses + $businessTotal;
+        // Tenants expense collection (utilities + fixed charges billed to tenants) — tracked
+        // separately and intentionally excluded from grand total business expenses.
+        $tenantsExpenseCollected = $totalExpenses;
+
+        // Grand total of business-side expenses for the selected month
+        $grandTotalExpenses = $totalOtherExpenses + $businessTotal;
 
         $currentMonth = now()->month;
         $currentYear = now()->year;
@@ -2136,9 +2104,8 @@ class RevenueExpenseController extends Controller
         return view('admin.revenue_expense.record_expense', compact(
             'activePeriod', 'apartments', 'apartmentExpenses', 'apartmentExpensesAll', 'recentExpenses',
             'utilityTypes', 'totalExpenses', 'otherExpenseCategories', 'otherExpenses',
-            'totalOtherExpenses', 'businessExpenses', 'businessFixedTotal',
-            'businessVariableTotal', 'businessTotal', 'businessCategories',
-            'grandTotalExpenses', 'currentMonth', 'currentYear',
+            'totalOtherExpenses', 'businessExpenses', 'businessTotal', 'businessCategories',
+            'grandTotalExpenses', 'tenantsExpenseCollected', 'currentMonth', 'currentYear',
             'filterMonth', 'filterYear', 'periodMonths'
         ));
     }
@@ -2259,7 +2226,7 @@ class RevenueExpenseController extends Controller
     }
 
     /**
-     * Store a business-level fixed or variable expense.
+     * Store a business-level expense.
      */
     public function storeBusinessExpense(Request $request)
     {
@@ -2272,21 +2239,25 @@ class RevenueExpenseController extends Controller
 
         $validated = $request->validate([
             'expense_name' => 'required|string|max:255',
-            'cost_type' => 'required|in:fixed,variable',
-            'category' => 'required|string|max:100',
+            'category' => 'required|in:electricity,water,trash,internet,legal_fee,tax,loan_payment,salary,other',
             'amount' => 'required|numeric|min:0.01',
             'expense_date' => 'required|date',
             'is_recurring' => 'nullable|boolean',
             'note' => 'nullable|string|max:1000',
+            'attachment' => 'nullable|file|mimes:pdf|max:10240',
         ]);
 
         $expenseDate = Carbon::parse($validated['expense_date']);
+
+        $attachmentPath = null;
+        if ($request->hasFile('attachment')) {
+            $attachmentPath = $request->file('attachment')->store('business_expenses', 'public');
+        }
 
         BusinessExpense::create([
             'user_id' => Auth::id(),
             'fiscal_period_id' => $activePeriod->id,
             'expense_name' => $validated['expense_name'],
-            'cost_type' => $validated['cost_type'],
             'category' => $validated['category'],
             'amount' => $validated['amount'],
             'expense_date' => $validated['expense_date'],
@@ -2294,28 +2265,24 @@ class RevenueExpenseController extends Controller
             'billing_year' => $expenseDate->year,
             'is_recurring' => $request->boolean('is_recurring'),
             'note' => $validated['note'] ?? null,
+            'attachment' => $attachmentPath,
         ]);
 
         // Also record in Accounts for fiscal period tracking
-        $costLabel = $validated['cost_type'] === 'fixed' ? 'Fixed' : 'Variable';
-        $accountCategory = $validated['cost_type'] === 'fixed'
-            ? Accounts::CAT_BUSINESS_FIXED
-            : Accounts::CAT_BUSINESS_VARIABLE;
-
         Accounts::create([
             'fiscal_period_id' => $activePeriod->id,
             'payment_id' => null,
             'user_id' => Auth::id(),
             'account_type' => Accounts::TYPE_EXPENSE,
-            'category' => $accountCategory,
-            'description' => '[Business ' . $costLabel . '] ' . $validated['expense_name'],
+            'category' => Accounts::CAT_BUSINESS_VARIABLE,
+            'description' => '[Business] ' . $validated['expense_name'],
             'amount' => $validated['amount'],
             'transaction_date' => $validated['expense_date'],
             'note' => $validated['note'] ?? null,
         ]);
 
         return redirect()->back()
-            ->with('success', $costLabel . ' business expense "' . $validated['expense_name'] . '" ($' . number_format($validated['amount'], 2) . ') recorded.');
+            ->with('success', 'Business expense "' . $validated['expense_name'] . '" ($' . number_format($validated['amount'], 2) . ') recorded.');
     }
 
     /**
@@ -2325,22 +2292,20 @@ class RevenueExpenseController extends Controller
     {
         $name = $businessExpense->expense_name;
 
-        // Build the exact description that was used when creating the Accounts record
-        $costLabel = $businessExpense->cost_type === 'fixed' ? 'Fixed' : 'Variable';
-        $expectedDescription = '[Business ' . $costLabel . '] ' . $businessExpense->expense_name;
-
-        // Remove the corresponding Accounts record using exact description match
+        // Remove the corresponding Accounts record
         Accounts::where('user_id', Auth::id())
             ->where('fiscal_period_id', $businessExpense->fiscal_period_id)
             ->where('account_type', Accounts::TYPE_EXPENSE)
-            ->where('category', $businessExpense->cost_type === 'fixed'
-                ? Accounts::CAT_BUSINESS_FIXED
-                : Accounts::CAT_BUSINESS_VARIABLE)
+            ->where('category', Accounts::CAT_BUSINESS_VARIABLE)
             ->where('amount', $businessExpense->amount)
             ->where('transaction_date', $businessExpense->expense_date)
-            ->where('description', $expectedDescription)
+            ->where('description', '[Business] ' . $businessExpense->expense_name)
             ->limit(1)
             ->delete();
+
+        if ($businessExpense->attachment) {
+            \Illuminate\Support\Facades\Storage::disk('public')->delete($businessExpense->attachment);
+        }
 
         $businessExpense->delete();
 

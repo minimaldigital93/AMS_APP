@@ -122,7 +122,7 @@
 
             <div class="p-6">
                 <!-- Business Expense Form -->
-                <form action="{{ route('admin.revenue_expense.store_business_expense') }}" method="POST">
+                <form action="{{ route('admin.revenue_expense.store_business_expense') }}" method="POST" enctype="multipart/form-data">
                     @csrf
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
@@ -130,14 +130,6 @@
                             <input type="text" name="expense_name" id="biz_expense_name" required
                                 value="{{ old('expense_name') }}" placeholder="e.g. Building Insurance..."
                                 class="w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500">
-                        </div>
-                        <div>
-                            <label for="biz_cost_type" class="block text-sm font-medium text-slate-700 mb-1">Cost Type <span class="text-red-500">*</span></label>
-                            <select name="cost_type" id="biz_cost_type" required class="w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500">
-                                <option value="">-- Select type --</option>
-                                <option value="fixed" {{ old('cost_type') == 'fixed' ? 'selected' : '' }}>Fixed</option>
-                                <option value="variable" {{ old('cost_type') == 'variable' ? 'selected' : '' }}>Variable</option>
-                            </select>
                         </div>
                         <div>
                             <label for="biz_category" class="block text-sm font-medium text-slate-700 mb-1">Category <span class="text-red-500">*</span></label>
@@ -159,6 +151,12 @@
                             <input type="date" name="expense_date" id="biz_date" required
                                 value="{{ old('expense_date', date('Y-m-d')) }}"
                                 class="w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 bg-white appearance-none h-10">
+                        </div>
+                        <div class="md:col-span-2">
+                            <label for="biz_attachment" class="block text-sm font-medium text-slate-700 mb-1">Attachment (PDF)</label>
+                            <input type="file" name="attachment" id="biz_attachment" accept="application/pdf"
+                                class="w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 file:mr-3 file:py-1.5 file:px-3 file:rounded-md file:border-0 file:text-sm file:font-medium file:bg-orange-50 file:text-orange-700 hover:file:bg-orange-100">
+                            <p class="text-xs text-slate-400 mt-1">Optional. PDF only, up to 10MB.</p>
                         </div>
                     </div>
                     <div class="mt-4 flex justify-end">
@@ -186,21 +184,21 @@
     @endphp
     <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
         <div x-data="{ expanded: false }" @click="expanded = !expanded"
-            class="bg-white rounded-xl border border-slate-100 p-5 cursor-pointer transition hover:shadow-sm">
+            class="bg-white rounded-xl border border-emerald-100 p-5 cursor-pointer transition hover:shadow-sm">
             <div class="flex items-center gap-3 mb-3">
-                <div class="w-10 h-10 rounded-lg bg-amber-50 flex items-center justify-center">
-                    <svg class="w-5 h-5 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+                <div class="w-10 h-10 rounded-lg bg-emerald-50 flex items-center justify-center">
+                    <svg class="w-5 h-5 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
                 </div>
                 <div>
-                    <p class="text-xs text-slate-400 font-medium">Apartment Utilities</p>
-                    <p class="text-xl font-bold text-amber-600">${{ number_format($allExp->sum('total'), 2) }}</p>
+                    <p class="text-xs text-slate-400 font-medium">Tenants Expense Collected</p>
+                    <p class="text-xl font-bold text-emerald-600">${{ number_format($allExp->sum('total') + $sumFixed, 2) }}</p>
                 </div>
                 <div class="ml-auto text-right text-xs text-slate-500"></div>
             </div>
             <div x-show="expanded" x-cloak class="mt-4 space-y-3">
                 <div class="rounded-xl bg-slate-50 p-4 border border-slate-100">
                     <div class="flex items-center justify-between text-sm text-slate-600">
-                        <span>Fixed total</span>
+                        <span>Apartment costs total</span>
                         <span class="font-semibold text-indigo-600">${{ number_format($sumFixed, 2) }}</span>
                     </div>
                 </div>
@@ -248,14 +246,8 @@
             <div x-show="expanded" x-cloak class="mt-4 space-y-2 text-sm text-slate-600">
                 <div class="rounded-xl bg-slate-50 p-4 border border-slate-100">
                     <div class="flex items-center justify-between">
-                        <span>Fixed total</span>
-                        <span class="font-semibold text-green-600">${{ number_format($businessFixedTotal, 2) }}</span>
-                    </div>
-                </div>
-                <div class="rounded-xl bg-slate-50 p-4 border border-slate-100">
-                    <div class="flex items-center justify-between">
-                        <span>Variable total</span>
-                        <span class="font-semibold text-amber-600">${{ number_format($businessVariableTotal, 2) }}</span>
+                        <span>Business total</span>
+                        <span class="font-semibold text-orange-600">${{ number_format($businessTotal, 2) }}</span>
                     </div>
                 </div>
             </div>
@@ -275,12 +267,6 @@
             <div x-show="expanded" x-cloak class="mt-4 space-y-2 text-sm text-slate-600">
                 <div class="rounded-xl bg-slate-50 p-4 border border-slate-100">
                     <div class="flex items-center justify-between">
-                        <span>Apartment utilities</span>
-                        <span class="font-semibold">${{ number_format($allExp->sum('total') + $sumFixed, 2) }}</span>
-                    </div>
-                </div>
-                <div class="rounded-xl bg-slate-50 p-4 border border-slate-100">
-                    <div class="flex items-center justify-between">
                         <span>Other expenses</span>
                         <span class="font-semibold">${{ number_format($totalOtherExpenses, 2) }}</span>
                     </div>
@@ -289,6 +275,12 @@
                     <div class="flex items-center justify-between">
                         <span>Business expenses</span>
                         <span class="font-semibold">${{ number_format($businessTotal, 2) }}</span>
+                    </div>
+                </div>
+                <div class="rounded-xl bg-emerald-50 p-4 border border-emerald-100">
+                    <div class="flex items-center justify-between text-emerald-700">
+                        <span>Tenants expense collected (not counted)</span>
+                        <span class="font-semibold">${{ number_format($tenantsExpenseCollected, 2) }}</span>
                     </div>
                 </div>
             </div>
@@ -313,100 +305,142 @@
         </button>
     </div>
 
-    <!-- Apartment Expenses Table -->
-    <div x-show="activeTab === 'apartment'" x-cloak class="bg-white rounded-xl border border-slate-100 overflow-hidden">
-        <div class="px-6 py-4 border-b border-slate-100">
-            <h2 class="text-lg font-semibold text-slate-800 flex items-center">
-                <svg class="w-5 h-5 mr-2 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/></svg>
-                Apartment Expenses — {{ \Carbon\Carbon::create($filterYear, $filterMonth, 1)->format('F Y') }}
-            </h2>
+    <!-- Apartment Expenses — grouped by floor -->
+    <div x-show="activeTab === 'apartment'" x-cloak class="space-y-5">
+        <div class="flex items-center gap-2 px-1">
+            <svg class="w-5 h-5 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/></svg>
+            <h2 class="text-lg font-semibold text-slate-800">Apartment Expenses — {{ \Carbon\Carbon::create($filterYear, $filterMonth, 1)->format('F Y') }}</h2>
         </div>
-        @if(count($apartmentExpensesAll) > 0)
-        <div class="overflow-x-auto">
-            <table class="min-w-full">
-                <thead class="bg-slate-50/80">
-                    <tr>
-                        <th class="px-3 py-3 text-center text-[11px] font-medium text-slate-400 uppercase tracking-wider w-10">#</th>
-                        <th class="px-4 py-3 text-left text-[11px] font-medium text-slate-400 uppercase tracking-wider">Apartment</th>
-                        <th class="px-4 py-3 text-center text-[11px] font-medium text-slate-400 uppercase tracking-wider">Status</th>
-                        <th class="px-4 py-3 text-right text-[11px] font-medium text-slate-400 uppercase tracking-wider">Electric</th>
-                        <th class="px-4 py-3 text-right text-[11px] font-medium text-slate-400 uppercase tracking-wider">Water</th>
-                        <th class="px-4 py-3 text-right text-[11px] font-medium text-slate-400 uppercase tracking-wider">Internet</th>
-                        <th class="px-4 py-3 text-right text-[11px] font-medium text-slate-400 uppercase tracking-wider">Parking</th>
-                        <th class="px-4 py-3 text-right text-[11px] font-medium text-slate-400 uppercase tracking-wider">Trash</th>
-                        <th class="px-4 py-3 text-right text-[11px] font-medium text-slate-400 uppercase tracking-wider">Other</th>
-                        <th class="px-4 py-3 text-right text-[11px] font-medium text-slate-400 uppercase tracking-wider">Fixed</th>
-                        <th class="px-4 py-3 text-right text-[11px] font-medium text-slate-400 uppercase tracking-wider">Total</th>
-                    </tr>
-                </thead>
-                <tbody class="divide-y divide-slate-50">
-                    @php $rowNo = ($apartmentExpenses->currentPage() - 1) * $apartmentExpenses->perPage(); @endphp
-                    @foreach($apartmentExpenses as $aptExp)
-                    @php $rowNo++ @endphp
-                    <tr class="hover:bg-slate-50/50" x-data="{ showFixed: false }">
-                        <td class="px-3 py-3 text-center text-xs text-slate-400 font-medium">{{ $rowNo }}</td>
-                        <td class="px-4 py-3">
-                            <span class="font-semibold text-slate-800">{{ $aptExp['apartment']->apartment_number }}</span>
-                            <span class="text-xs text-slate-400 block">Floor {{ $aptExp['apartment']->floor->floor_number ?? 'N/A' }}</span>
-                        </td>
-                        <td class="px-4 py-3 text-center">
-                            <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium {{ $aptExp['has_active_rental'] ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-50 text-slate-500' }}">
-                                {{ $aptExp['has_active_rental'] ? 'Occupied' : 'Vacant' }}
-                            </span>
-                        </td>
-                        <td class="px-4 py-3 text-right text-sm {{ $aptExp['electricity'] > 0 ? 'font-semibold text-amber-600' : 'text-slate-400' }}">${{ number_format($aptExp['electricity'], 2) }}</td>
-                        <td class="px-4 py-3 text-right text-sm {{ $aptExp['water'] > 0 ? 'font-semibold text-sky-600' : 'text-slate-400' }}">${{ number_format($aptExp['water'], 2) }}</td>
-                        <td class="px-4 py-3 text-right text-sm {{ $aptExp['internet'] > 0 ? 'font-semibold text-purple-600' : 'text-slate-400' }}">${{ number_format($aptExp['internet'], 2) }}</td>
-                        <td class="px-4 py-3 text-right text-sm {{ $aptExp['parking'] > 0 ? 'font-semibold text-orange-600' : 'text-slate-400' }}">${{ number_format($aptExp['parking'], 2) }}</td>
-                        <td class="px-4 py-3 text-right text-sm {{ $aptExp['trash'] > 0 ? 'font-semibold text-green-600' : 'text-slate-400' }}">${{ number_format($aptExp['trash'], 2) }}</td>
-                        <td class="px-4 py-3 text-right text-sm {{ $aptExp['other'] > 0 ? 'font-semibold text-slate-600' : 'text-slate-400' }}">${{ number_format($aptExp['other'], 2) }}</td>
-                        <td class="px-4 py-3 text-right text-sm">
-                            @if($aptExp['fixed_total'] > 0)
-                            <button @click="showFixed = !showFixed" class="font-semibold text-indigo-600 hover:text-indigo-800">
-                                ${{ number_format($aptExp['fixed_total'], 2) }}
-                                <svg class="w-3 h-3 inline transition-transform" :class="showFixed ? 'rotate-180' : ''" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
-                            </button>
-                            @else
-                            <span class="text-slate-400">$0.00</span>
-                            @endif
-                        </td>
-                        <td class="px-4 py-3 text-right font-bold text-red-600">${{ number_format($aptExp['grand_total'], 2) }}</td>
-                    </tr>
-                    @if($aptExp['fixed_items']->count() > 0)
-                    <tr x-show="showFixed" x-cloak class="bg-indigo-50">
-                        <td colspan="11" class="px-6 py-2">
-                            <div class="flex flex-wrap gap-2">
-                                @foreach($aptExp['fixed_items'] as $fi)
-                                <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-indigo-100 text-indigo-700">
-                                    {{ $fi->expense_name }}: ${{ number_format($fi->amount, 2) }}
-                                </span>
-                                @endforeach
+
+        @php
+            $expensesByFloor = collect($apartmentExpensesAll)
+                ->groupBy(fn($e) => optional($e['apartment']->floor)->id ?? 0)
+                ->sortBy(fn($items) => optional($items->first()['apartment']->floor)->floor_number ?? 0);
+        @endphp
+
+        @forelse($expensesByFloor as $floorId => $expensesInFloor)
+            @php
+                $floor = $expensesInFloor->first()['apartment']->floor;
+                $floorElec   = $expensesInFloor->sum('electricity');
+                $floorWater  = $expensesInFloor->sum('water');
+                $floorNet    = $expensesInFloor->sum('internet');
+                $floorPark   = $expensesInFloor->sum('parking');
+                $floorTrash  = $expensesInFloor->sum('trash');
+                $floorOther  = $expensesInFloor->sum('other');
+                $floorFixed  = $expensesInFloor->sum('fixed_total');
+                $floorTotal  = $expensesInFloor->sum('grand_total');
+            @endphp
+
+            <div class="bg-white rounded-xl border border-slate-100 overflow-hidden hover:border-slate-200 transition">
+                <details class="group">
+                    <summary class="flex items-center justify-between cursor-pointer px-6 py-4 hover:bg-slate-50/50 transition">
+                        <div class="flex items-center gap-3">
+                            <div class="w-9 h-9 rounded-lg bg-slate-100 flex items-center justify-center">
+                                <svg class="w-4.5 h-4.5 text-slate-500" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M2.25 21h19.5m-18-18v18m10.5-18v18m6-13.5V21M6.75 6.75h.75m-.75 3h.75m-.75 3h.75m3-6h.75m-.75 3h.75m-.75 3h.75M6.75 21v-3.375c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21M3 3h12m-.75 4.5H21m-3.75 3H21m-3.75 3H21" />
+                                </svg>
                             </div>
-                        </td>
-                    </tr>
-                    @endif
-                    @endforeach
-                </tbody>
-                <tfoot class="bg-slate-50/80">
-                    <tr>
-                        <td class="px-3 py-3"></td>
-                        <td class="px-4 py-3 font-bold text-slate-800" colspan="2">Total</td>
-                        <td class="px-4 py-3 text-right font-bold text-amber-600">${{ number_format($sumElec, 2) }}</td>
-                        <td class="px-4 py-3 text-right font-bold text-sky-600">${{ number_format($sumWater, 2) }}</td>
-                        <td class="px-4 py-3 text-right font-bold text-purple-600">${{ number_format($sumNet, 2) }}</td>
-                        <td class="px-4 py-3 text-right font-bold text-orange-600">${{ number_format($sumParking, 2) }}</td>
-                        <td class="px-4 py-3 text-right font-bold text-green-600">${{ number_format($sumTrash, 2) }}</td>
-                        <td class="px-4 py-3 text-right font-bold text-slate-600">${{ number_format($sumOther, 2) }}</td>
-                        <td class="px-4 py-3 text-right font-bold text-indigo-600">${{ number_format($sumFixed, 2) }}</td>
-                        <td class="px-4 py-3 text-right font-bold text-red-600">${{ number_format($totalExpenses, 2) }}</td>
-                    </tr>
-                </tfoot>
-            </table>
-        </div>
-        <div class="px-6 py-4 border-t border-slate-100">{{ $apartmentExpenses->appends(request()->query())->links() }}</div>
-        @else
-        <div class="text-center py-8 text-slate-400">
-            <p>No apartment expenses found.</p>
+                            <h2 class="text-base font-semibold text-slate-800">{{ $floor->floor_name ?? 'Floor '.($floor->floor_number ?? $floorId) }}</h2>
+                        </div>
+                        <div class="flex items-center gap-3">
+                            <span class="text-xs text-slate-400 font-medium">{{ count($expensesInFloor) }} apartments</span>
+                            <span class="text-sm font-bold text-red-600">${{ number_format($floorTotal, 2) }}</span>
+                            <svg class="w-4 h-4 text-slate-400 group-open:rotate-90 transition-transform" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7" />
+                            </svg>
+                        </div>
+                    </summary>
+
+                    <div class="overflow-x-auto border-t border-slate-50">
+                        <table class="min-w-full">
+                            <thead class="bg-slate-50/80">
+                                <tr>
+                                    <th class="px-3 py-3 text-center text-[11px] font-medium text-slate-400 uppercase tracking-wider w-10">#</th>
+                                    <th class="px-4 py-3 text-left text-[11px] font-medium text-slate-400 uppercase tracking-wider">Apartment</th>
+                                    <th class="px-4 py-3 text-center text-[11px] font-medium text-slate-400 uppercase tracking-wider">Status</th>
+                                    <th class="px-4 py-3 text-right text-[11px] font-medium text-slate-400 uppercase tracking-wider">Electric</th>
+                                    <th class="px-4 py-3 text-right text-[11px] font-medium text-slate-400 uppercase tracking-wider">Water</th>
+                                    <th class="px-4 py-3 text-right text-[11px] font-medium text-slate-400 uppercase tracking-wider">Internet</th>
+                                    <th class="px-4 py-3 text-right text-[11px] font-medium text-slate-400 uppercase tracking-wider">Parking</th>
+                                    <th class="px-4 py-3 text-right text-[11px] font-medium text-slate-400 uppercase tracking-wider">Trash</th>
+                                    <th class="px-4 py-3 text-right text-[11px] font-medium text-slate-400 uppercase tracking-wider">Other</th>
+                                    <th class="px-4 py-3 text-right text-[11px] font-medium text-slate-400 uppercase tracking-wider">Costs</th>
+                                    <th class="px-4 py-3 text-right text-[11px] font-medium text-slate-400 uppercase tracking-wider">Total</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-slate-50">
+                                @foreach($expensesInFloor as $aptExp)
+                                <tr class="hover:bg-slate-50/50" x-data="{ showFixed: false }">
+                                    <td class="px-3 py-3 text-center text-xs text-slate-400 font-medium">{{ $loop->iteration }}</td>
+                                    <td class="px-4 py-3">
+                                        <span class="font-semibold text-slate-800">{{ $aptExp['apartment']->apartment_number }}</span>
+                                    </td>
+                                    <td class="px-4 py-3 text-center">
+                                        <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium {{ $aptExp['has_active_rental'] ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-50 text-slate-500' }}">
+                                            {{ $aptExp['has_active_rental'] ? 'Occupied' : 'Vacant' }}
+                                        </span>
+                                    </td>
+                                    <td class="px-4 py-3 text-right text-sm {{ $aptExp['electricity'] > 0 ? 'font-semibold text-amber-600' : 'text-slate-400' }}">${{ number_format($aptExp['electricity'], 2) }}</td>
+                                    <td class="px-4 py-3 text-right text-sm {{ $aptExp['water'] > 0 ? 'font-semibold text-sky-600' : 'text-slate-400' }}">${{ number_format($aptExp['water'], 2) }}</td>
+                                    <td class="px-4 py-3 text-right text-sm {{ $aptExp['internet'] > 0 ? 'font-semibold text-purple-600' : 'text-slate-400' }}">${{ number_format($aptExp['internet'], 2) }}</td>
+                                    <td class="px-4 py-3 text-right text-sm {{ $aptExp['parking'] > 0 ? 'font-semibold text-orange-600' : 'text-slate-400' }}">${{ number_format($aptExp['parking'], 2) }}</td>
+                                    <td class="px-4 py-3 text-right text-sm {{ $aptExp['trash'] > 0 ? 'font-semibold text-green-600' : 'text-slate-400' }}">${{ number_format($aptExp['trash'], 2) }}</td>
+                                    <td class="px-4 py-3 text-right text-sm {{ $aptExp['other'] > 0 ? 'font-semibold text-slate-600' : 'text-slate-400' }}">${{ number_format($aptExp['other'], 2) }}</td>
+                                    <td class="px-4 py-3 text-right text-sm">
+                                        @if($aptExp['fixed_total'] > 0)
+                                        <button @click="showFixed = !showFixed" class="font-semibold text-indigo-600 hover:text-indigo-800">
+                                            ${{ number_format($aptExp['fixed_total'], 2) }}
+                                            <svg class="w-3 h-3 inline transition-transform" :class="showFixed ? 'rotate-180' : ''" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+                                        </button>
+                                        @else
+                                        <span class="text-slate-400">$0.00</span>
+                                        @endif
+                                    </td>
+                                    <td class="px-4 py-3 text-right font-bold text-red-600">${{ number_format($aptExp['grand_total'], 2) }}</td>
+                                </tr>
+                                @if($aptExp['fixed_items']->count() > 0)
+                                <tr x-show="showFixed" x-cloak class="bg-indigo-50">
+                                    <td colspan="11" class="px-6 py-2">
+                                        <div class="flex flex-wrap gap-2">
+                                            @foreach($aptExp['fixed_items'] as $fi)
+                                            <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-indigo-100 text-indigo-700">
+                                                {{ $fi->expense_name }}: ${{ number_format($fi->amount, 2) }}
+                                            </span>
+                                            @endforeach
+                                        </div>
+                                    </td>
+                                </tr>
+                                @endif
+                                @endforeach
+                            </tbody>
+                            <tfoot class="bg-slate-50/80">
+                                <tr>
+                                    <td class="px-3 py-3"></td>
+                                    <td class="px-4 py-3 font-bold text-slate-800" colspan="2">Floor Total</td>
+                                    <td class="px-4 py-3 text-right font-bold text-amber-600">${{ number_format($floorElec, 2) }}</td>
+                                    <td class="px-4 py-3 text-right font-bold text-sky-600">${{ number_format($floorWater, 2) }}</td>
+                                    <td class="px-4 py-3 text-right font-bold text-purple-600">${{ number_format($floorNet, 2) }}</td>
+                                    <td class="px-4 py-3 text-right font-bold text-orange-600">${{ number_format($floorPark, 2) }}</td>
+                                    <td class="px-4 py-3 text-right font-bold text-green-600">${{ number_format($floorTrash, 2) }}</td>
+                                    <td class="px-4 py-3 text-right font-bold text-slate-600">${{ number_format($floorOther, 2) }}</td>
+                                    <td class="px-4 py-3 text-right font-bold text-indigo-600">${{ number_format($floorFixed, 2) }}</td>
+                                    <td class="px-4 py-3 text-right font-bold text-red-600">${{ number_format($floorTotal, 2) }}</td>
+                                </tr>
+                            </tfoot>
+                        </table>
+                    </div>
+                </details>
+            </div>
+        @empty
+            <div class="bg-white rounded-xl border border-slate-100 p-8 text-center text-slate-400">
+                <p>No apartment expenses found.</p>
+            </div>
+        @endforelse
+
+        @if(count($apartmentExpensesAll) > 0)
+        <div class="bg-white rounded-xl border border-slate-100 px-6 py-4 flex items-center justify-between">
+            <span class="text-sm font-semibold text-slate-700">Grand Total — All Floors</span>
+            <span class="text-base font-bold text-red-600">${{ number_format($totalExpenses, 2) }}</span>
         </div>
         @endif
     </div>
@@ -459,8 +493,8 @@
                     <tr class="hover:bg-slate-50/50">
                         <td class="px-4 py-3 text-sm text-slate-600">{{ $be->expense_date->format('M d, Y') }}</td>
                         <td class="px-4 py-3">
-                            <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium {{ $be->cost_type === 'fixed' ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700' }}">
-                                Biz {{ ucfirst($be->cost_type) }}
+                            <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-amber-100 text-amber-700">
+                                Business
                             </span>
                         </td>
                         <td class="px-4 py-3 text-sm text-slate-600">{{ ucfirst(str_replace('_', ' ', $be->category)) }}</td>
@@ -469,14 +503,23 @@
                             @if($be->note)<span class="block text-xs text-slate-400">{{ $be->note }}</span>@endif
                             @if($be->is_recurring)<span class="inline-flex items-center ml-1 px-1.5 py-0.5 rounded text-xs bg-sky-50 text-sky-600">Recurring</span>@endif
                         </td>
-                        <td class="px-4 py-3 text-right font-semibold {{ $be->cost_type === 'fixed' ? 'text-green-600' : 'text-amber-600' }}">${{ number_format($be->amount, 2) }}</td>
-                        <td class="px-4 py-3 text-center">
-                            <form action="{{ route('admin.revenue_expense.delete_business_expense', $be) }}" method="POST" onsubmit="return confirm('Remove this expense?')">
-                                @csrf @method('DELETE')
-                                <button type="submit" class="text-red-500 hover:text-red-700">
-                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
-                                </button>
-                            </form>
+                        <td class="px-4 py-3 text-right font-semibold text-amber-600">${{ number_format($be->amount, 2) }}</td>
+                        <td class="px-4 py-3">
+                            <div class="flex items-center justify-center gap-2">
+                                @if($be->attachment)
+                                <a href="{{ asset('storage/'.$be->attachment) }}" target="_blank" rel="noopener" download
+                                   title="Download PDF" aria-label="Download PDF"
+                                   class="inline-flex items-center justify-center w-7 h-7 rounded text-red-500 hover:bg-red-50 hover:text-red-700">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M12 4v8"/></svg>
+                                </a>
+                                @endif
+                                <form action="{{ route('admin.revenue_expense.delete_business_expense', $be) }}" method="POST" onsubmit="return confirm('Remove this expense?')">
+                                    @csrf @method('DELETE')
+                                    <button type="submit" class="inline-flex items-center justify-center w-7 h-7 rounded text-red-500 hover:bg-red-50 hover:text-red-700" title="Delete" aria-label="Delete">
+                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                                    </button>
+                                </form>
+                            </div>
                         </td>
                     </tr>
                     @endforeach

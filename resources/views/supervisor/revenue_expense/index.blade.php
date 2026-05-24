@@ -412,16 +412,11 @@
                 </div>
                 {{-- Expense legend rows --}}
                 <div class="mt-4 space-y-1 border-t border-slate-100 pt-3">
-                    @if(($expenses['fixed_expenses'] ?? 0) > 0)
+                    @php $businessExpensesTotal = ($expenses['fixed_expenses'] ?? 0) + ($expenses['variable_expenses'] ?? 0); @endphp
+                    @if($businessExpensesTotal > 0)
                     <div class="flex items-center justify-between text-xs">
-                        <div class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full inline-block" style="background:#EF4444"></span><span class="text-slate-500">Fixed</span></div>
-                        <span class="font-semibold text-slate-700">${{ number_format($expenses['fixed_expenses'], 2) }}</span>
-                    </div>
-                    @endif
-                    @if(($expenses['variable_expenses'] ?? 0) > 0)
-                    <div class="flex items-center justify-between text-xs">
-                        <div class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full inline-block" style="background:#F97316"></span><span class="text-slate-500">Variable</span></div>
-                        <span class="font-semibold text-slate-700">${{ number_format($expenses['variable_expenses'], 2) }}</span>
+                        <div class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full inline-block" style="background:#F97316"></span><span class="text-slate-500">Business</span></div>
+                        <span class="font-semibold text-slate-700">${{ number_format($businessExpensesTotal, 2) }}</span>
                     </div>
                     @endif
                     @if(($expenses['utility_expenses'] ?? 0) > 0)
@@ -1149,12 +1144,12 @@
     </div>
 
     {{-- ================================================== --}}
-    {{-- TAB 4: FIXED COSTS --}}
+    {{-- TAB 4: APARTMENT COSTS --}}
     {{-- ================================================== --}}
     <div x-show="tab === 'fixed'" x-cloak>
 
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
-            {{-- Apartment Fixed Expenses List --}}
+            {{-- Apartment Costs List --}}
             <div class="lg:col-span-2 space-y-3">
                 @forelse($fixedApartments as $fa)
                 <div class="bg-white rounded-xl border border-slate-100 p-4">
@@ -1233,7 +1228,7 @@
                         </tfoot>
                     </table>
                     @else
-                    <p class="text-center py-2 text-slate-400 text-xs">No fixed expenses assigned</p>
+                    <p class="text-center py-2 text-slate-400 text-xs">No apartment costs assigned</p>
                     @endif
                 </div>
                 @empty
@@ -1241,10 +1236,10 @@
                 @endforelse
             </div>
 
-            {{-- Add Fixed Expense Form --}}
+            {{-- Add Apartment Cost Form --}}
             <div class="lg:col-span-1">
                 <div class="bg-white rounded-xl border border-slate-100 p-5 sticky top-8">
-                    <h3 class="text-sm font-semibold text-slate-800 mb-3 pb-2 border-b border-slate-100">Add Fixed Expense</h3>
+                    <h3 class="text-sm font-semibold text-slate-800 mb-3 pb-2 border-b border-slate-100">Add Apartment Cost</h3>
 
                     <form action="{{ route('supervisor.revenue_expense.store_fixed_expense') }}" method="POST">
                         @csrf
@@ -1283,7 +1278,7 @@
                                 <textarea name="note" rows="2" class="w-full px-3 py-2 text-sm border rounded-lg focus:ring-red-500 focus:border-red-500">{{ old('note') }}</textarea>
                             </div>
                             <button type="submit" class="w-full px-4 py-2 bg-red-600 text-white text-sm rounded-lg hover:bg-red-700 transition font-medium">
-                                Assign Fixed Expense
+                                Assign Apartment Cost
                             </button>
                         </div>
                     </form>
@@ -1308,7 +1303,7 @@
                         <input type="date" name="billing_date" required value="{{ date('Y-m-d') }}" class="px-3 py-1.5 text-sm border rounded-lg focus:ring-sky-500 focus:border-sky-500 bg-white appearance-none h-10">
                     </div>
                     <div class="text-center">
-                        <p class="text-xs text-slate-400">Total Monthly Fixed</p>
+                        <p class="text-xs text-slate-400">Total Monthly</p>
                         <p class="text-xl font-bold text-red-600">${{ number_format($totalMonthlyExpenses, 2) }}</p>
                     </div>
                 </div>
@@ -1335,7 +1330,7 @@
                         </div>
                         <div class="text-right">
                             <p class="text-sm font-bold text-red-600">${{ number_format($bill['total_bill'], 2) }}</p>
-                            <p class="text-xs text-slate-400">Rent ${{ number_format($bill['monthly_rent'], 2) }} + Fixed ${{ number_format($bill['total_fixed'], 2) }}</p>
+                            <p class="text-xs text-slate-400">Rent ${{ number_format($bill['monthly_rent'], 2) }} + Costs ${{ number_format($bill['total_fixed'], 2) }}</p>
                         </div>
                     </div>
 
@@ -1366,7 +1361,7 @@
                         </div>
                     </div>
                     @else
-                    <p class="p-3 text-xs text-slate-400 text-center">No fixed expenses assigned</p>
+                    <p class="p-3 text-xs text-slate-400 text-center">No apartment costs assigned</p>
                     @endif
                 </div>
                 @endforeach
@@ -1381,8 +1376,8 @@
         </form>
         @else
         <div class="bg-white rounded-xl border border-slate-100 p-8 text-center">
-            <p class="text-slate-400 text-sm mb-2">No active rentals with fixed expenses found.</p>
-            <button @click="tab = 'fixed'" class="text-sky-600 text-sm hover:underline">Set up fixed expenses first</button>
+            <p class="text-slate-400 text-sm mb-2">No active rentals with apartment costs found.</p>
+            <button @click="tab = 'fixed'" class="text-sky-600 text-sm hover:underline">Set up apartment costs first</button>
         </div>
         @endif
     </div>
@@ -1420,11 +1415,11 @@
                 <h2 class="text-sm font-semibold text-slate-800 mb-4 pb-2 border-b border-slate-100">Break-Even Calculation</h2>
                 <div class="space-y-3">
                     <div class="bg-slate-50 p-3 rounded-lg flex justify-between items-center">
-                        <div><p class="text-sm font-medium text-slate-700">Fixed Costs (Monthly)</p><p class="text-xs text-slate-400">Internet, maintenance, insurance</p></div>
+                        <div><p class="text-sm font-medium text-slate-700">Monthly Costs</p><p class="text-xs text-slate-400">Internet, maintenance, insurance</p></div>
                         <span class="text-lg font-bold text-slate-800">${{ number_format($fixed_costs, 2) }}</span>
                     </div>
                     <div class="bg-slate-50 p-3 rounded-lg flex justify-between items-center">
-                        <div><p class="text-sm font-medium text-slate-700">Variable Cost/Unit</p><p class="text-xs text-slate-400">Electricity, water, parking</p></div>
+                        <div><p class="text-sm font-medium text-slate-700">Per-Unit Cost</p><p class="text-xs text-slate-400">Electricity, water, parking</p></div>
                         <span class="text-lg font-bold text-slate-800">${{ number_format($variable_cost_per_unit, 2) }}</span>
                     </div>
                     <div class="bg-sky-50 border border-sky-200 p-3 rounded-lg flex justify-between items-center">
@@ -1517,7 +1512,7 @@ function revenueExpense() {
             { key: 'overview', label: 'Overview' },
             { key: 'income', label: 'Income' },
             { key: 'expense', label: 'Expenses' },
-            { key: 'fixed', label: 'Fixed Costs' },
+            { key: 'fixed', label: 'Apartment Costs' },
             { key: 'bills', label: 'Bills' },
             { key: 'breakeven', label: 'Break-Even' },
         ],
@@ -1644,17 +1639,16 @@ var incomeData = {
     ]
 };
 
+@php $businessExpensesTotal = ($expenses['fixed_expenses'] ?? 0) + ($expenses['variable_expenses'] ?? 0); @endphp
 var expenseData = {
     labels: [
-        @if(($expenses['fixed_expenses'] ?? 0) > 0) 'Fixed', @endif
-        @if(($expenses['variable_expenses'] ?? 0) > 0) 'Variable', @endif
+        @if($businessExpensesTotal > 0) 'Business', @endif
         @if(($expenses['utility_expenses'] ?? 0) > 0) 'Utilities', @endif
         @if(($expenses['deposit_expenses'] ?? 0) > 0) 'Deposit Refunds', @endif
         @if(($expenses['other_expenses'] ?? 0) > 0) 'Other', @endif
     ],
     values: [
-        @if(($expenses['fixed_expenses'] ?? 0) > 0) {{ $expenses['fixed_expenses'] }}, @endif
-        @if(($expenses['variable_expenses'] ?? 0) > 0) {{ $expenses['variable_expenses'] }}, @endif
+        @if($businessExpensesTotal > 0) {{ $businessExpensesTotal }}, @endif
         @if(($expenses['utility_expenses'] ?? 0) > 0) {{ $expenses['utility_expenses'] }}, @endif
         @if(($expenses['deposit_expenses'] ?? 0) > 0) {{ $expenses['deposit_expenses'] }}, @endif
         @if(($expenses['other_expenses'] ?? 0) > 0) {{ $expenses['other_expenses'] }}, @endif

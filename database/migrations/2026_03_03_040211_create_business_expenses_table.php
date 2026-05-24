@@ -16,7 +16,6 @@ return new class extends Migration
             $table->foreignId('user_id')->constrained('users')->onDelete('cascade');
             $table->foreignId('fiscal_period_id')->constrained('fiscal_periods')->onDelete('cascade');
             $table->string('expense_name');
-            $table->enum('cost_type', ['fixed', 'variable']); // fixed = recurring, variable = one-time/fluctuating
             $table->string('category')->default('general'); // e.g. maintenance, insurance, management, supplies, marketing
             $table->decimal('amount', 12, 2);
             $table->date('expense_date');

@@ -398,10 +398,10 @@
                         </div>
                     </template>
 
-                    <!-- Fixed charges -->
+                    <!-- Apartment costs -->
                     <template x-if="viewFixed > 0">
                         <div class="flex items-center justify-between py-1.5 px-3 rounded-lg bg-purple-50/60">
-                            <span class="text-sm text-slate-600">Fixed Charges</span>
+                            <span class="text-sm text-slate-600">Apartment Costs</span>
                             <span class="text-sm font-semibold text-slate-700" x-text="'$' + parseFloat(viewFixed).toFixed(2)"></span>
                         </div>
                     </template>
@@ -546,7 +546,7 @@
                             <span class="text-xs text-slate-500" x-text="'$' + parseFloat(checkoutOtherCharges).toFixed(2)"></span>
                         </div>
                         <div x-show="checkoutFixed > 0" class="flex items-center justify-between py-2 px-3 rounded-lg bg-slate-50">
-                            <span class="text-sm text-slate-500 pl-6">Fixed Charges</span>
+                            <span class="text-sm text-slate-500 pl-6">Apartment Costs</span>
                             <span class="text-sm font-medium text-slate-700" x-text="'$' + parseFloat(checkoutFixed).toFixed(2)"></span>
                         </div>
                         <div class="flex items-center justify-between py-2 px-3 rounded-lg bg-slate-50">

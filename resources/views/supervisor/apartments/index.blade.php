@@ -208,7 +208,15 @@
                                         </div>
                                         <div class="flex items-center justify-between mt-1 text-[11px]">
                                             <span class="{{ $monthTextColor }} font-medium">{{ $periodPercent }}%</span>
-                                            <span class="text-slate-400">{{ $periodDaysLeft }}d left</span>
+                                            @if($paymentPercent >= 100)
+                                                <span class="inline-flex items-center text-emerald-500" title="Paid">
+                                                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="3" viewBox="0 0 24 24">
+                                                        <path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+                                                    </svg>
+                                                </span>
+                                            @else
+                                                <span class="text-slate-400">{{ $periodDaysLeft }}d left</span>
+                                            @endif
                                         </div>
                                         @endif
                                     </div>

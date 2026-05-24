@@ -5,8 +5,8 @@
     <!-- Header -->
     <div class="mb-8 flex items-center justify-between">
         <div>
-            <h1 class="text-3xl font-bold text-gray-900">Fixed Expense Management</h1>
-            <p class="text-gray-600 mt-2">Assign recurring monthly expenses (parking, internet, etc.) to apartments</p>
+            <h1 class="text-3xl font-bold text-gray-900">Apartment Cost Management</h1>
+            <p class="text-gray-600 mt-2">Assign recurring monthly costs (parking, internet, etc.) to apartments</p>
         </div>
         <a href="{{ route('supervisor.revenue_expense.index') }}" class="inline-flex items-center px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition">
             <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/></svg>
@@ -32,7 +32,7 @@
     @endif
 
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        <!-- Left: Apartments with Fixed Expenses -->
+        <!-- Left: Apartments with Costs -->
         <div class="lg:col-span-2 space-y-6">
             @forelse($apartments as $apartment)
             <div class="bg-white rounded-lg shadow-md p-6">
@@ -57,7 +57,7 @@
                     </span>
                 </div>
 
-                <!-- Current Fixed Expenses -->
+                <!-- Current Apartment Costs -->
                 @if($apartment->fixedExpenses->isNotEmpty())
                 <div class="overflow-x-auto mb-4">
                     <table class="min-w-full">
@@ -112,7 +112,7 @@
                                                 @endif
                                             </button>
                                         </form>
-                                        <form action="{{ route('supervisor.revenue_expense.delete_fixed_expense', $expense) }}" method="POST" class="inline" onsubmit="return confirm('Remove this fixed expense?')">
+                                        <form action="{{ route('supervisor.revenue_expense.delete_fixed_expense', $expense) }}" method="POST" class="inline" onsubmit="return confirm('Remove this apartment cost?')">
                                             @csrf
                                             @method('DELETE')
                                             <button type="submit" class="p-1 rounded hover:bg-red-50 transition" title="Delete">
@@ -126,7 +126,7 @@
                         </tbody>
                         <tfoot class="bg-gray-100">
                             <tr>
-                                <td class="px-3 py-2 font-bold text-gray-900" colspan="2">Total Monthly Fixed</td>
+                                <td class="px-3 py-2 font-bold text-gray-900" colspan="2">Total Monthly</td>
                                 <td class="px-3 py-2 text-right font-bold text-red-600">${{ number_format($apartment->fixedExpenses->where('is_active', true)->sum('amount'), 2) }}</td>
                                 <td class="px-3 py-2" colspan="2"></td>
                             </tr>
@@ -135,7 +135,7 @@
                 </div>
                 @else
                 <div class="text-center py-4 text-gray-400 text-sm mb-4">
-                    <p>No fixed expenses assigned yet</p>
+                    <p>No apartment costs assigned yet</p>
                 </div>
                 @endif
             </div>
@@ -147,12 +147,12 @@
             @endforelse
         </div>
 
-        <!-- Right: Add Fixed Expense Form -->
+        <!-- Right: Add Apartment Cost Form -->
         <div class="lg:col-span-1">
             <div class="bg-white rounded-lg shadow-md p-6 sticky top-8">
                 <h3 class="text-lg font-bold text-gray-900 mb-4 pb-3 border-b-2 border-red-500 flex items-center">
                     <svg class="w-5 h-5 mr-2 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/></svg>
-                    Add Fixed Expense
+                    Add Apartment Cost
                 </h3>
 
                 <form action="{{ route('supervisor.revenue_expense.store_fixed_expense') }}" method="POST">
@@ -202,7 +202,7 @@
 
                         <button type="submit" class="w-full inline-flex items-center justify-center px-4 py-3 bg-red-600 text-white rounded-lg hover:bg-red-700 transition font-medium">
                             <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/></svg>
-                            Assign Fixed Expense
+                            Assign Apartment Cost
                         </button>
                     </div>
                 </form>
@@ -214,7 +214,7 @@
                 <div class="space-y-3 text-sm text-gray-600">
                     <div class="flex items-start gap-2">
                         <span class="text-blue-500 font-bold">1.</span>
-                        <p>Assign fixed expenses (parking, internet, etc.) to each apartment</p>
+                        <p>Assign apartment costs (parking, internet, etc.) to each apartment</p>
                     </div>
                     <div class="flex items-start gap-2">
                         <span class="text-blue-500 font-bold">2.</span>
@@ -226,7 +226,7 @@
                     </div>
                     <div class="flex items-start gap-2">
                         <span class="text-blue-500 font-bold">4.</span>
-                        <p>Tenants will see their bills including rent + fixed expenses</p>
+                        <p>Tenants will see their bills including rent + apartment costs</p>
                     </div>
                 </div>
             </div>

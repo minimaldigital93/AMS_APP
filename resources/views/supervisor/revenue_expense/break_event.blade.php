@@ -69,7 +69,7 @@
                 <p class="text-[11px] text-slate-400 mt-0.5">{{ $current_occupancy }} of {{ $total_apartments }} units rented</p>
             </div>
             <div class="px-5 py-4">
-                <p class="text-[11px] text-slate-400 uppercase tracking-wide font-medium">Fixed Costs / Month</p>
+                <p class="text-[11px] text-slate-400 uppercase tracking-wide font-medium">Monthly Costs</p>
                 <p class="text-2xl font-extrabold text-orange-500 mt-1">${{ number_format($fixed_costs, 2) }}</p>
                 <p class="text-[11px] text-slate-400 mt-0.5">recurring regardless of occupancy</p>
             </div>
@@ -105,7 +105,7 @@
         {{-- 2. Cost Composition --}}
         <div class="bg-white rounded-2xl border border-slate-100 p-5 flex flex-col items-center">
             <p class="text-sm font-semibold text-slate-700">Cost Composition</p>
-            <p class="text-[11px] text-slate-400 mt-0.5 mb-4">Fixed vs variable (at current occupancy)</p>
+            <p class="text-[11px] text-slate-400 mt-0.5 mb-4">Monthly vs per-unit (at current occupancy)</p>
             <div class="relative w-44 h-44">
                 <canvas id="costCompositionChart"></canvas>
                 <div class="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
@@ -114,8 +114,8 @@
                 </div>
             </div>
             <div class="flex flex-wrap justify-center gap-3 mt-4 text-[11px]">
-                <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-full bg-orange-400 inline-block"></span>Fixed</span>
-                <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-full bg-purple-400 inline-block"></span>Variable</span>
+                <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-full bg-orange-400 inline-block"></span>Monthly</span>
+                <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-full bg-purple-400 inline-block"></span>Per-Unit</span>
             </div>
         </div>
 
@@ -142,11 +142,11 @@
     {{-- ── Cost Details + Formula ───────────────────────────────── --}}
     <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
 
-        {{-- Fixed & Variable cost lists --}}
+        {{-- Monthly & Per-Unit cost lists --}}
         <div class="bg-white rounded-2xl border border-slate-100 overflow-hidden">
             <div class="px-5 py-3 border-b border-slate-100 flex items-center gap-2">
                 <span class="w-2.5 h-2.5 rounded-full bg-orange-400"></span>
-                <span class="text-sm font-semibold text-slate-700">Fixed Costs</span>
+                <span class="text-sm font-semibold text-slate-700">Monthly Costs</span>
                 <span class="ml-auto text-sm font-bold text-orange-500">${{ number_format($fixed_costs, 2) }}</span>
             </div>
             <div class="px-5 py-3 space-y-1.5">
@@ -156,12 +156,12 @@
                         <span class="font-medium text-slate-700">${{ number_format($item['amount'], 2) }}</span>
                     </div>
                 @empty
-                    <p class="text-xs text-slate-400 italic">No fixed costs recorded</p>
+                    <p class="text-xs text-slate-400 italic">No monthly costs recorded</p>
                 @endforelse
             </div>
             <div class="px-5 py-3 border-t border-slate-100 flex items-center gap-2 mt-1">
                 <span class="w-2.5 h-2.5 rounded-full bg-purple-400"></span>
-                <span class="text-sm font-semibold text-slate-700">Variable Costs</span>
+                <span class="text-sm font-semibold text-slate-700">Per-Unit Costs</span>
                 <span class="ml-auto text-sm font-bold text-purple-500">${{ number_format($variable_cost_per_unit, 2) }}<span class="text-slate-400 font-normal text-[11px] ml-0.5">/unit</span></span>
             </div>
             <div class="px-5 pb-4 space-y-1.5">
@@ -171,7 +171,7 @@
                         <span class="font-medium text-slate-700">${{ number_format($item['amount'], 2) }}</span>
                     </div>
                 @empty
-                    <p class="text-xs text-slate-400 italic">No variable costs recorded</p>
+                    <p class="text-xs text-slate-400 italic">No per-unit costs recorded</p>
                 @endforelse
             </div>
         </div>
@@ -184,7 +184,7 @@
                 <div class="flex items-center justify-center gap-2 text-sm mb-5 flex-wrap">
                     <div class="text-center">
                         <div class="bg-orange-50 text-orange-600 font-semibold px-3 py-1.5 rounded-lg text-xs">${{ number_format($fixed_costs, 2) }}</div>
-                        <div class="text-[10px] text-slate-400 mt-1">Fixed Costs</div>
+                        <div class="text-[10px] text-slate-400 mt-1">Monthly Costs</div>
                     </div>
                     <span class="text-slate-300 text-lg">÷</span>
                     <div class="text-center">
@@ -198,7 +198,7 @@
                     </div>
                 </div>
                 <div class="text-[11px] text-center text-slate-400 mb-4">
-                    Contribution Margin = Avg Rent (${{ number_format($avg_rent_per_apartment, 2) }}) − Variable/unit (${{ number_format($variable_cost_per_unit, 2) }})
+                    Contribution Margin = Avg Rent (${{ number_format($avg_rent_per_apartment, 2) }}) − Per-unit cost (${{ number_format($variable_cost_per_unit, 2) }})
                 </div>
             </div>
             {{-- Step summary --}}
@@ -208,7 +208,7 @@
                     <span class="font-semibold text-emerald-600">${{ number_format($avg_rent_per_apartment, 2) }}</span>
                 </div>
                 <div class="flex justify-between text-xs">
-                    <span class="text-slate-500">Variable cost / unit</span>
+                    <span class="text-slate-500">Per-unit cost</span>
                     <span class="font-semibold text-slate-700">${{ number_format($variable_cost_per_unit, 2) }}</span>
                 </div>
                 <div class="flex justify-between text-xs">
@@ -258,7 +258,7 @@ document.addEventListener('DOMContentLoaded', function () {
     new Chart(document.getElementById('costCompositionChart'), {
         type: 'doughnut',
         data: {
-            labels: ['Fixed Costs', 'Variable Costs'],
+            labels: ['Monthly Costs', 'Per-Unit Costs'],
             datasets: [{
                 data: [fixedCosts, variableCosts],
                 backgroundColor: ['#fb923c', '#c084fc'],

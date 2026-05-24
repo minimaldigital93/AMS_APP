@@ -91,7 +91,7 @@
                 <div class="value">{{ $fmt($total_util) }}</div>
             </div>
             <div class="kpi">
-                <div class="label">Total Fixed Expenses</div>
+                <div class="label">Total Apartment Costs</div>
                 <div class="value">{{ $fmt($total_fixed) }}</div>
             </div>
             <div class="kpi">
@@ -131,7 +131,7 @@
         $gl = [
             'rent_income' => ['code' => '4000', 'name' => 'Rent Income'],
             'utilities_expense' => ['code' => '5000', 'name' => 'Utilities Expense'],
-            'fixed_expense' => ['code' => '5100', 'name' => 'Fixed Expenses (Owner)'],
+            'fixed_expense' => ['code' => '5100', 'name' => 'Apartment Costs (Owner)'],
             'reconciliation' => ['code' => '2000', 'name' => 'Accounts Receivable / Payable']
         ];
 
