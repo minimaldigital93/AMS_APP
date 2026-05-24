@@ -13,6 +13,7 @@ use App\Models\TenantLeave;
 use App\Models\Utilities;
 use App\Models\Rentals;
 use App\Models\Apartments;
+use App\Services\RevenueExpense\RevenueExpenseQueryService;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -33,12 +34,29 @@ class RevenueExpenseController extends Controller
     }
 
     /**
-     * The admin user_id under which all financial records are stored.
-     * Supervisors don't own ledger rows; they write under the admin's id.
+     * Supervisors write/read ledger rows under the admin's user_id, resolved
+     * from the active fiscal period.
+     */
+    protected function ledgerUserId(): ?int
+    {
+        return $this->getActiveFiscalPeriod()?->user_id;
+    }
+
+    /**
+     * @deprecated Use ledgerUserId() — kept for any remaining inline references.
      */
     private function getAdminUserId(): ?int
     {
-        return $this->getActiveFiscalPeriod()?->user_id;
+        return $this->ledgerUserId();
+    }
+
+    private function queryService(): RevenueExpenseQueryService
+    {
+        return new RevenueExpenseQueryService(
+            userId: $this->ledgerUserId(),
+            period: $this->getActiveFiscalPeriod(),
+            apartmentsScope: $this->scopeApartments(),
+        );
     }
 
     public function index()
@@ -419,412 +437,29 @@ class RevenueExpenseController extends Controller
         return view('supervisor.revenue_expense.break_event', $data);
     }
 
-    /**
-     * Get all revenue and expense data, scoped to fiscal period dates.
-     * 
-     * @param string|null $startDate
-     * @param string|null $endDate
-     * @return array
-     */
     public function getRevenueExpenseData($startDate = null, $endDate = null)
     {
-        // If no dates provided, use the active fiscal period dates
-        if (!$startDate || !$endDate) {
-            $activePeriod = $this->getActiveFiscalPeriod();
-            if ($activePeriod) {
-                $startDate = $activePeriod->opening_date;
-                $endDate = $activePeriod->closing_date;
-            }
-        }
-
-        $income = $this->calculateIncome($startDate, $endDate);
-        $expenses = $this->calculateExpenses($startDate, $endDate);
-        $summary = $this->calculateSummary($income, $expenses);
-        $perApartment = $this->calculatePerApartmentData($startDate, $endDate);
-
-        return compact('income', 'expenses', 'summary', 'perApartment');
+        return $this->queryService()->getRevenueExpenseData($startDate, $endDate);
     }
 
-    /**
-     * Calculate total income from the Accounts table.
-     *
-     * Income categories:
-     *   rent_income     = Monthly rent paid by tenants
-     *   utility_income  = Electricity + Water collected from tenants
-     *   other_income    = Internet + Parking + Trash + generic other charges
-     *   deposit_income  = Security deposits
-     *   (late_fee)      = Pulled from linked Payments records
-     *
-     * Utility income split:
-     *   Utilities income → electricity, water
-     *   Other income     → internet, parking, trash, other (generic charges)
-     */
     public function calculateIncome($startDate = null, $endDate = null)
     {
-        $activePeriod = $this->getActiveFiscalPeriod();
-
-        $query = Accounts::income()->forUser($this->getAdminUserId());
-
-        if ($activePeriod) {
-            $query->forPeriod($activePeriod->id);
-        }
-
-        if ($startDate && $endDate) {
-            $query->betweenDates($startDate, $endDate);
-        }
-
-        $records = $query->get();
-
-        $rentIncome    = $records->where('category', Accounts::CAT_RENT_INCOME)->sum('amount');
-        $depositIncome = $records->where('category', Accounts::CAT_DEPOSIT_INCOME)->sum('amount');
-        $lateFeesIncome = $records->where('category', Accounts::CAT_LATE_FEE_INCOME)->sum('amount');
-        $utilityIncomeFromAccts = $records->where('category', Accounts::CAT_UTILITY_INCOME)->sum('amount');
-        $otherIncomeFromAccts   = $records->where('category', Accounts::CAT_OTHER_INCOME)->sum('amount');
-
-        $totalIncome = $records->sum('amount');
-        $paymentCount = $records->whereNotNull('payment_id')->pluck('payment_id')->unique()->count();
-
-        $rangeStart = $startDate ? Carbon::parse($startDate) : ($activePeriod ? Carbon::parse($activePeriod->opening_date) : null);
-        $rangeEnd   = $endDate   ? Carbon::parse($endDate)   : ($activePeriod ? Carbon::parse($activePeriod->closing_date) : null);
-
-        $byType = [];
-        if ($rangeStart && $rangeEnd) {
-            $apartmentIds = $this->scopeApartments()->pluck('id');
-            $byType = Utilities::whereHas('rental', function ($q) use ($apartmentIds) {
-                    $q->whereIn('apartment_id', $apartmentIds);
-                })
-                ->where('paid_status', true)
-                ->whereBetween('paid_at', [$rangeStart->copy()->startOfDay(), $rangeEnd->copy()->endOfDay()])
-                ->selectRaw('utility_type, SUM(charge_amount) as total')
-                ->groupBy('utility_type')
-                ->pluck('total', 'utility_type')
-                ->toArray();
-        }
-
-        $utilityBreakdown = [
-            'electricity' => round($byType['electricity'] ?? 0, 2),
-            'water'       => round($byType['water']       ?? 0, 2),
-        ];
-
-        $otherIncomeBreakdown = [
-            'internet' => round($byType['internet'] ?? 0, 2),
-            'parking'  => round($byType['parking']  ?? 0, 2),
-            'trash'    => round($byType['trash']     ?? 0, 2),
-            'other'    => max(0, round($otherIncomeFromAccts
-                - ($byType['internet'] ?? 0)
-                - ($byType['parking']  ?? 0)
-                - ($byType['trash']    ?? 0), 2)),
-        ];
-
-        return [
-            'rent_income'             => round($rentIncome, 2),
-            'late_fees'               => round($lateFeesIncome, 2),
-            'total_utility_income'    => round($utilityIncomeFromAccts, 2),
-            'utility_breakdown'       => $utilityBreakdown,
-            'other_income'            => round($otherIncomeFromAccts, 2),
-            'other_income_breakdown'  => $otherIncomeBreakdown,
-            'deposit_income'          => round($depositIncome, 2),
-            'total_income'            => round($totalIncome, 2),
-            'payment_count'           => $paymentCount,
-            'average_payment'         => $paymentCount > 0 ? round($rentIncome / $paymentCount, 2) : 0,
-        ];
+        return $this->queryService()->calculateIncome($startDate, $endDate);
     }
 
-    /**
-     * Calculate all expenses from the Accounts table.
-     *
-     * Expense categories:
-     *   business_fixed    = Recurring business costs (insurance, management fee)
-     *   business_variable = One-time business costs (repairs, supplies)
-     *   utilities_expense = Electricity, water, internet paid to vendors
-     *   (everything else) = maintenance, property_tax, etc.
-     */
     public function calculateExpenses($startDate = null, $endDate = null)
     {
-        $activePeriod = $this->getActiveFiscalPeriod();
-
-        $query = Accounts::expense()->forUser($this->getAdminUserId());
-
-        if ($activePeriod) {
-            $query->forPeriod($activePeriod->id);
-        }
-
-        if ($startDate && $endDate) {
-            $query->betweenDates($startDate, $endDate);
-        }
-
-        $records = $query->get();
-
-        $fixedExpenses    = $records->where('category', Accounts::CAT_BUSINESS_FIXED)->sum('amount');
-        $variableExpenses = $records->where('category', Accounts::CAT_BUSINESS_VARIABLE)->sum('amount');
-        $utilityExpenses  = $records->where('category', Accounts::CAT_UTILITIES_EXPENSE)->sum('amount');
-        $depositExpenses  = $records->where('category', Accounts::CAT_DEPOSIT_EXPENSE)->sum('amount');
-        $otherExpenses    = $records->whereNotIn('category', [
-            Accounts::CAT_BUSINESS_FIXED,
-            Accounts::CAT_BUSINESS_VARIABLE,
-            Accounts::CAT_UTILITIES_EXPENSE,
-            Accounts::CAT_DEPOSIT_EXPENSE,
-        ])->sum('amount');
-        $totalExpenses = $fixedExpenses + $variableExpenses + $utilityExpenses + $depositExpenses + $otherExpenses;
-
-        // Group by category for detailed breakdown
-        $byCategory = $records->groupBy('category')->map(fn($items) => round($items->sum('amount'), 2))->toArray();
-
-        return [
-            'fixed_expenses'    => round($fixedExpenses, 2),
-            'variable_expenses' => round($variableExpenses, 2),
-            'utility_expenses'  => round($utilityExpenses, 2),
-            'deposit_expenses'  => round($depositExpenses, 2),
-            'other_expenses'    => round($otherExpenses, 2),
-            'by_category'       => $byCategory,
-            'total_expenses'    => round($totalExpenses, 2),
-            'expense_count'     => $records->count(),
-        ];
+        return $this->queryService()->calculateExpenses($startDate, $endDate);
     }
 
-    /**
-     * Calculate profit/loss summary from income and expense arrays.
-     *
-     * Net Profit = Total Income − Total Expenses
-     * Profit Margin = (Net Profit / Total Income) × 100
-     */
     public function calculateSummary($income, $expenses)
     {
-        $netProfit = $income['total_income'] - $expenses['total_expenses'];
-        $profitMargin = $income['total_income'] > 0 
-            ? round(($netProfit / $income['total_income']) * 100, 2)
-            : 0;
-
-        return [
-            'total_income' => $income['total_income'],
-            'rent_income' => $income['rent_income'],
-            'total_expenses' => $expenses['total_expenses'],
-            'net_profit' => round($netProfit, 2),
-            'profit_margin' => $profitMargin,
-            'is_profitable' => $netProfit > 0,
-        ];
+        return $this->queryService()->calculateSummary($income, $expenses);
     }
 
-    /**
-     * Calculate per-apartment revenue and expense breakdown.
-     * Uses Accounts linkage for fiscal period filtering.
-     */
     private function calculatePerApartmentData($startDate = null, $endDate = null)
     {
-        // Determine the date range used for per-apartment "this period" calculations
-        $rangeStart = Carbon::parse($startDate ?: now()->startOfMonth())->startOfDay();
-        $rangeEnd = Carbon::parse($endDate ?: now()->endOfMonth())->endOfDay();
-        $activePeriod = $this->getActiveFiscalPeriod();
-
-        $apartments = $this->scopeApartments()
-            ->with(['floor', 'activeFixedExpenses', 'rentals' => function ($q) use ($activePeriod, $startDate, $endDate) {
-                $q->with([
-                    'tenant',
-                    'payments' => function ($pq) use ($activePeriod, $startDate, $endDate) {
-                        $pq->where('payment_status', 'paid');
-                        // Filter by fiscal period via Accounts linkage
-                        if ($activePeriod) {
-                            $pq->whereHas('accounts', function ($aq) use ($activePeriod, $startDate, $endDate) {
-                                $aq->where('fiscal_period_id', $activePeriod->id);
-                                if ($startDate && $endDate) {
-                                    $aq->whereBetween('transaction_date', [
-                                        Carbon::parse($startDate)->startOfDay(),
-                                        Carbon::parse($endDate)->endOfDay(),
-                                    ]);
-                                }
-                            });
-                        }
-                    },
-                    'utilities' => function ($uq) use ($startDate, $endDate) {
-                        if ($startDate && $endDate) {
-                            $start = Carbon::parse($startDate);
-                            $end = Carbon::parse($endDate);
-                            $uq->where(function ($q) use ($start, $end) {
-                                $q->whereBetween('paid_at', [$start->startOfDay(), $end->copy()->endOfDay()])
-                                  ->orWhere(function ($q2) use ($start, $end) {
-                                      $q2->where('billing_year', '>=', $start->year)
-                                          ->where('billing_year', '<=', $end->year)
-                                          ->where('billing_month', '>=', $start->month)
-                                          ->where('billing_month', '<=', $end->month);
-                                  });
-                            });
-                        }
-                    }
-                ]);
-            }])
-            ->get();
-
-        // Preload "other" income charges (type='other') that have NO Utilities row —
-        // they are stored only in Accounts with reference_number 'tenant_charge:rental:{id}:t...'
-        $otherAccountsQuery = Accounts::where('account_type', Accounts::TYPE_INCOME)
-            ->where('category', Accounts::CAT_OTHER_INCOME)
-            ->where('reference_number', 'LIKE', 'tenant_charge:rental:%');
-        if ($activePeriod) {
-            $otherAccountsQuery->where('fiscal_period_id', $activePeriod->id);
-        } elseif ($startDate && $endDate) {
-            $otherAccountsQuery->whereBetween('transaction_date', [
-                Carbon::parse($startDate)->startOfDay(),
-                Carbon::parse($endDate)->endOfDay(),
-            ]);
-        }
-        // Group by rental_id (extracted from reference_number: tenant_charge:rental:{rental_id}:t...)
-        $otherAccountsByRental = [];
-        foreach ($otherAccountsQuery->get() as $acct) {
-            $parts = explode(':', $acct->reference_number);
-            // format: tenant_charge:rental:{rental_id}:t{timestamp}
-            if (isset($parts[2]) && is_numeric($parts[2])) {
-                $rentalId = (int) $parts[2];
-                $otherAccountsByRental[$rentalId] = ($otherAccountsByRental[$rentalId] ?? 0) + $acct->amount;
-            }
-        }
-
-        $perApartment = [];
-        foreach ($apartments as $apartment) {
-            $income = 0;
-            $expenses = 0;
-            $otherIncome = 0;
-            $utilitiesIncome = 0;
-            $expenseBreakdown = ['electricity' => 0, 'water' => 0, 'internet' => 0, 'parking' => 0, 'trash' => 0, 'other' => 0];
-            $tenantName = 'Vacant';
-            $hasActiveRental = false;
-            $rentPercent = 0;
-            $rentPaid = 0;
-            $rentStatus = 'none';
-            $rentDue = $apartment->monthly_rent;
-
-            foreach ($apartment->rentals as $rental) {
-                $income += $rental->payments->sum('amount') + $rental->payments->sum('late_fee');
-                $hasActiveRental = true;
-                if ($rental->tenant) {
-                    $tenantName = $rental->tenant->name ?? 'N/A';
-                }
-
-                // Rent progress for the selected date range, prorated by rental occupancy within the range
-                $monthPayments = $rental->payments->filter(function ($p) use ($rangeStart, $rangeEnd) {
-                    return $p->payment_type === 'rent' && Carbon::parse($p->paid_at)->between($rangeStart, $rangeEnd);
-                });
-                $rentPaid = $monthPayments->sum('amount');
-
-                // Prorate rent due by overlap of rental start/end with the selected range
-                $rentPeriodStart = Carbon::parse($rental->start_date)->startOfDay();
-                $rentPeriodEnd = $rental->end_date ? Carbon::parse($rental->end_date)->endOfDay() : null;
-
-                $overlapStart = $rentPeriodStart->greaterThan($rangeStart) ? $rentPeriodStart : $rangeStart;
-                $overlapEnd = $rentPeriodEnd ? ($rentPeriodEnd->lessThan($rangeEnd) ? $rentPeriodEnd : $rangeEnd) : $rangeEnd;
-
-                $overlapDays = 0;
-                if ($overlapStart->lte($overlapEnd)) {
-                    $overlapDays = $overlapStart->diffInDays($overlapEnd) + 1;
-                }
-
-                $daysInRange = $rangeStart->diffInDays($rangeEnd) + 1;
-                $proration = $daysInRange > 0 ? ($overlapDays / $daysInRange) : 0;
-                $rentDue = round($rental->rent_amount * $proration, 2);
-
-                if ($proration <= 0) {
-                    $rentPercent = 0;
-                    $rentStatus = 'none';
-                } else {
-                    $rentPercent = $rentDue > 0 ? min(round(($rentPaid / $rentDue) * 100, 1), 100) : 0;
-                    if ($rentPaid >= $rentDue) {
-                        $rentStatus = 'paid';
-                    } elseif ($rentPercent > 0) {
-                        $rentStatus = 'partial';
-                    } else {
-                        $dueDay = min($rentPeriodStart->day, $rangeStart->copy()->daysInMonth);
-                        $dueDate = Carbon::create($rangeStart->year, $rangeStart->month, $dueDay)->endOfDay();
-                        $isFirstMonth = ($rentPeriodStart->month === $rangeStart->month && $rentPeriodStart->year === $rangeStart->year);
-                        $rentStatus = (now()->gt($dueDate) && !$isFirstMonth) ? 'overdue' : 'unpaid';
-                    }
-                }
-
-                // Occupancy percent (how many days in the selected range the rental was occupied)
-                $occupancyPercent = round($proration * 100, 1);
-
-                // Last payment date within the selected range (if any)
-                $lastPaymentDate = null;
-                if ($monthPayments->isNotEmpty()) {
-                    $lastPaymentDate = Carbon::parse($monthPayments->max('paid_at'))->toDateString();
-                }
-
-                // Occupancy end date for the overlap (if any)
-                $occupancyEndDate = $overlapDays > 0 ? $overlapEnd->toDateString() : null;
-
-                // days left for this rental overlap
-                $daysLeft = null;
-                if ($occupancyEndDate) {
-                    $diff = Carbon::parse($occupancyEndDate)->startOfDay()->diffInDays(Carbon::now()->startOfDay());
-                    $daysLeft = $diff > 0 ? $diff : 0;
-                }
-
-                foreach ($rental->utilities as $utility) {
-                    $type = $utility->utility_type;
-                    if (isset($expenseBreakdown[$type])) {
-                        $expenseBreakdown[$type] += $utility->charge_amount;
-                    }
-                    $expenses += $utility->charge_amount;
-                    if (in_array($type, ['internet', 'parking', 'trash', 'other'])) {
-                        $otherIncome += $utility->charge_amount;
-                    }
-                    if (in_array($type, ['electricity', 'water'])) {
-                        $utilitiesIncome += $utility->charge_amount;
-                    }
-                }
-
-                // Add "other" charges stored only in Accounts (no Utilities row)
-                $rentalOtherFromAccounts = $otherAccountsByRental[$rental->id] ?? 0;
-                if ($rentalOtherFromAccounts > 0) {
-                    $expenseBreakdown['other'] += $rentalOtherFromAccounts;
-                    $otherIncome  += $rentalOtherFromAccounts;
-                    $expenses     += $rentalOtherFromAccounts;
-                    $income       += $rentalOtherFromAccounts;
-                }
-            }
-
-            // Add fixed expenses to the total 
-            $fixedExpTotal = $apartment->activeFixedExpenses->sum('amount');
-
-            // Get the active rental id and tenant id
-            $activeRentalId = null;
-            $activeTenantId = null;
-            foreach ($apartment->rentals as $r) {
-                $activeRentalId = $r->id;
-                $activeTenantId = $r->tenant_id;
-            }
-
-            $perApartment[] = [
-                'apartment_id' => $apartment->id,
-                'rental_id' => $activeRentalId,
-                'tenant_id' => $activeTenantId,
-                'apartment_number' => $apartment->apartment_number,
-                'floor' => $apartment->floor->floor_number ?? 'N/A',
-                // explicit floor_number for view grouping
-                'floor_number' => $apartment->floor->floor_number ?? 'N/A',
-                'tenant' => $tenantName ?: 'Vacant',
-                'has_active_rental' => $hasActiveRental,
-                'monthly_rent' => $apartment->monthly_rent,
-                'income' => round($income, 2),
-                'expenses' => round($expenses, 2),
-                'utilities_income' => round($utilitiesIncome, 2),
-                'other_income' => round($otherIncome, 2),
-                'fixed_expenses' => round($fixedExpTotal, 2),
-                'tenant_net' => round($income - $expenses, 2),           // Net: Income minus utility costs
-                'owner_expenses' => round($fixedExpTotal, 2),            // Owner → Vendor
-                'net' => round($income - $expenses - $fixedExpTotal, 2),
-                'expense_breakdown' => $expenseBreakdown,
-                'status' => $apartment->status,
-                'rent_percent' => $rentPercent,
-                'rent_paid' => round($rentPaid, 2),
-                'rent_due' => round($rentDue, 2),
-                'occupancy_percent' => $occupancyPercent ?? 0,
-                'last_payment_date' => $lastPaymentDate,
-                'occupancy_end_date' => $occupancyEndDate,
-                'days_left' => $daysLeft,
-                'rent_status' => $hasActiveRental ? $rentStatus : 'none',
-            ];
-        }
-
-        return $perApartment;
+        return $this->queryService()->calculatePerApartmentData($startDate, $endDate);
     }
 
     /**

@@ -27,6 +27,17 @@ trait HasFiscalPeriodScope
     abstract protected function fiscalPeriodsQuery(): Builder;
 
     /**
+     * User_id under which ledger rows (Accounts, BusinessExpense) are stored.
+     *
+     * Admin writes/reads under its own Auth::id().
+     * Supervisor writes/reads under the admin's id (resolved from the active
+     * fiscal period) — supervisors don't own ledger rows.
+     *
+     * Used by services that filter Accounts via ->forUser().
+     */
+    abstract protected function ledgerUserId(): ?int;
+
+    /**
      * Active (most recent open) fiscal period in scope, or null if none.
      */
     protected function getActiveFiscalPeriod(): ?FiscalPeriods
