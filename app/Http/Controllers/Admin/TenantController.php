@@ -4,16 +4,16 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Tenants;
-use App\Models\TenantLeave;
-use App\Models\Rentals;
 use App\Models\Apartments;
 use App\Models\Floors;
 use App\Models\Payments;
-use App\Models\Utilities;
 use App\Models\Accounts;
 use App\Models\FiscalPeriods;
 use App\Models\User;
-use App\Services\TenantLeaveCalculator;
+use App\Http\Requests\Tenants\ProcessTenantLeaveRequest;
+use App\Services\Tenants\TenantLeaveProcessor;
+use App\Services\Tenants\TenantPendingChargesQuery;
+use App\Services\Tenants\TenantRentProgressCalculator;
 use Illuminate\Http\Request;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\View\View;
@@ -25,12 +25,11 @@ use Carbon\Carbon;
 
 class TenantController extends Controller
 {
-    protected TenantLeaveCalculator $leaveCalculator;
-
-    public function __construct(TenantLeaveCalculator $leaveCalculator)
-    {
-        $this->leaveCalculator = $leaveCalculator;
-    }
+    public function __construct(
+        protected TenantLeaveProcessor $leaveProcessor,
+        protected TenantPendingChargesQuery $pendingChargesQuery,
+        protected TenantRentProgressCalculator $rentProgressCalculator,
+    ) {}
 
     public function index(Request $request): View
     {
@@ -68,73 +67,7 @@ class TenantController extends Controller
         $apartments = Apartments::all();
         $floors = Floors::whereHas('apartments')->orderBy('floor_name')->get();
 
-        // Build rent progress for each tenant (current month)
-        $currentMonth = now()->month;
-        $currentYear = now()->year;
-        $rentProgressMap = [];
-
-        foreach ($tenants as $tenant) {
-            $rental = Rentals::where('tenant_id', $tenant->id)
-                ->where(function ($q) {
-                    $q->whereNull('end_date')->orWhere('end_date', '>=', now());
-                })
-                ->with(['payments' => function ($q) use ($currentMonth, $currentYear) {
-                    $q->where('payment_type', 'rent')
-                      ->where('payment_status', 'paid')
-                      ->whereMonth('paid_at', $currentMonth)
-                      ->whereYear('paid_at', $currentYear);
-                }])
-                ->latest('start_date')
-                ->first();
-
-            if ($rental) {
-                $paidAmount = $rental->payments->sum('amount');
-                $monthlyRent = $rental->rent_amount;
-                $paidDate = $rental->payments->first()?->paid_at;
-
-                // Calculate days stayed in current month
-                $monthStart = Carbon::create($currentYear, $currentMonth, 1)->startOfDay();
-                $monthEnd = $monthStart->copy()->endOfMonth();
-                $totalDaysInMonth = $monthStart->daysInMonth;
-
-                $rentalStart = Carbon::parse($rental->start_date)->startOfDay();
-                $stayStart = $rentalStart->gt($monthStart) ? $rentalStart : $monthStart;
-                $stayEnd = now()->gt($monthEnd) ? $monthEnd : now();
-                $daysStayed = max((int) $stayStart->diffInDays($stayEnd) + 1, 0);
-                $daysStayed = min($daysStayed, $totalDaysInMonth);
-
-                $dayPercent = $totalDaysInMonth > 0 ? round(($daysStayed / $totalDaysInMonth) * 100) : 0;
-                $payPercent = $monthlyRent > 0 ? min(round(($paidAmount / $monthlyRent) * 100, 1), 100) : 0;
-
-                // Rent due date for the current month: rental start day-of-month
-                $dueDay = min($rentalStart->day, $totalDaysInMonth);
-                $dueDate = Carbon::create($currentYear, $currentMonth, $dueDay)->endOfDay();
-                $isFirstMonth = ($rentalStart->month === $currentMonth && $rentalStart->year === $currentYear);
-                $isPastDue = now()->gt($dueDate);
-
-                if ($payPercent >= 100) {
-                    $status = 'paid';
-                } elseif ($payPercent > 0) {
-                    $status = 'partial';
-                } elseif ($isPastDue && !$isFirstMonth) {
-                    $status = 'overdue';
-                } else {
-                    $status = 'unpaid';
-                }
-
-                $rentProgressMap[$tenant->id] = [
-                    'rent' => $monthlyRent,
-                    'paid' => $paidAmount,
-                    'percent' => $payPercent,
-                    'status' => $status,
-                    'paid_date' => $paidDate ? Carbon::parse($paidDate)->format('M d') : null,
-                    'days_stayed' => $daysStayed,
-                    'total_days' => $totalDaysInMonth,
-                    'day_percent' => $dayPercent,
-                    'due_date' => $dueDate,
-                ];
-            }
-        }
+        $rentProgressMap = $this->rentProgressCalculator->map($tenants);
 
         // Statistics counts (across all records, not just current page)
         $activeTenantCount = Tenants::where('status', 'active')->count();
@@ -205,348 +138,33 @@ class TenantController extends Controller
             $rental->end_date = null;
         }
 
-        $pendingCharges = collect();
-        if ($rental && $rental->id) {
-            // Pending/overdue utility payments recorded manually
-            $pendingPayments = Payments::where('rental_id', $rental->id)
-                ->whereIn('payment_type', ['utilities', 'other'])
-                ->whereIn('payment_status', ['pending', 'overdue'])
-                ->orderBy('due_date')
-                ->get()
-                ->map(fn($p) => (object)[
-                    'id'          => 'payment_' . $p->id,
-                    'source'      => 'payment',
-                    'description' => $p->note ?: ucfirst($p->payment_type) . ' charge',
-                    'type'        => $p->payment_type,
-                    'amount'      => $p->amount,
-                    'due_date'    => $p->due_date,
-                ]);
-
-            // Unpaid utility charges from the billing/utilities system
-            $unpaidUtils = Utilities::where('rental_id', $rental->id)
-                ->where('paid_status', false)
-                ->orderBy('billing_year')
-                ->orderBy('billing_month')
-                ->get()
-                ->map(fn($u) => (object)[
-                    'id'          => 'utility_' . $u->id,
-                    'source'      => 'utility',
-                    'description' => ucfirst($u->utility_type) . ' — ' . Carbon::create($u->billing_year, $u->billing_month)->format('M Y'),
-                    'type'        => 'utilities',
-                    'amount'      => $u->charge_amount,
-                    'due_date'    => Carbon::create($u->billing_year, $u->billing_month)->endOfMonth(),
-                ]);
-
-            $pendingCharges = $pendingPayments->concat($unpaidUtils)
-                ->sortBy('due_date')
-                ->values();
-        }
+        $pendingCharges = $this->pendingChargesQuery->forRental($rental);
 
         return view('admin.tenantManagement.leave', compact('tenant', 'rental', 'pendingCharges'));
     }
 
     /**
-     * Process tenant leave and create settlement
+     * Process tenant leave and create settlement.
+     *
+     * Pipeline:
+     *   1. Validate input
+     *   2. processor->prepare() — resolve rental, parse charges, compute settlement
+     *   3. processor->persist() — write TenantLeave row + stamp rental.end_date
+     *   4. recordAdminLeaveAccounting() — admin-specific ledger writes
+     *      (per-payment, per-utility income; deposit refund expense)
+     *   5. processor->finalize() — archive tenant + free apartment + suspend user
      */
-    public function processLeave(Request $request, Tenants $tenant)
+    public function processLeave(ProcessTenantLeaveRequest $request, Tenants $tenant)
     {
         try {
-            $tenant->load(['apartment', 'rentals']);
+            $validated = $request->validated();
 
-            // Get the current active rental
-            $rental = $tenant->rentals()
-                ->where('apartment_id', $tenant->apartment_id)
-                ->where(function($query) {
-                    $query->whereNull('end_date')
-                          ->orWhere('end_date', '>', now());
-                })
-                ->latest()
-                ->first();
+            $context = $this->leaveProcessor->prepare($tenant, $validated);
+            $this->leaveProcessor->persist($tenant, $context, $validated['notes'] ?? null);
 
-            // If no rental exists, create one with tenant and apartment data
-            if (!$rental) {
-                $rental = Rentals::create([
-                    'apartment_id' => $tenant->apartment_id,
-                    'tenant_id' => $tenant->id,
-                    'rent_amount' => $tenant->apartment?->monthly_rent ?? 0,
-                    'start_date' => $tenant->move_in_date,
-                    'end_date' => null,
-                ]);
-                
-                Log::info('Created rental record for tenant', [
-                    'tenant_id' => $tenant->id,
-                    'rental_id' => $rental->id,
-                    'apartment_id' => $tenant->apartment_id,
-                    'rent_amount' => $rental->rent_amount,
-                    'start_date' => $rental->start_date,
-                ]);
-            }
+            $this->recordAdminLeaveAccounting($tenant, $context);
 
-            // Validate input
-            $validated = $request->validate([
-                'leave_date'        => 'required|date|after_or_equal:' . $tenant->move_in_date->format('Y-m-d'),
-                'charge_full_month' => 'nullable|boolean',
-                'charge_ids'        => 'nullable|array',
-                'charge_ids.*'      => 'string',
-                'notes'             => 'nullable|string',
-            ]);
-
-            $leaveDate = Carbon::parse($validated['leave_date']);
-
-            // Rent: full month or pro-rata based on checkbox
-            $chargeFullMonth = $request->boolean('charge_full_month');
-            $proRataRent = $chargeFullMonth
-                ? (float) $rental->rent_amount
-                : $this->leaveCalculator->calculateProRataRent($rental, $leaveDate);
-
-            // Parse prefixed charge IDs: "payment_N" and "utility_N"
-            $paymentIds = [];
-            $utilityIds = [];
-            foreach ($validated['charge_ids'] ?? [] as $chargeId) {
-                if (str_starts_with($chargeId, 'payment_')) {
-                    $paymentIds[] = (int) substr($chargeId, 8);
-                } elseif (str_starts_with($chargeId, 'utility_')) {
-                    $utilityIds[] = (int) substr($chargeId, 8);
-                }
-            }
-
-            $selectedPayments = collect();
-            if (!empty($paymentIds)) {
-                $selectedPayments = Payments::whereIn('id', $paymentIds)
-                    ->whereIn('payment_type', ['utilities', 'other'])
-                    ->get();
-            }
-
-            $selectedUtilities = collect();
-            if (!empty($utilityIds)) {
-                $selectedUtilities = Utilities::whereIn('id', $utilityIds)
-                    ->where('paid_status', false)
-                    ->get();
-            }
-
-            $utilitiesTotal = $selectedPayments->where('payment_type', 'utilities')->sum('amount')
-                            + $selectedUtilities->sum('charge_amount');
-            $otherTotal     = $selectedPayments->where('payment_type', 'other')->sum('amount');
-
-            $charges = [
-                'pro_rata_rent' => $proRataRent,
-                'electricity'   => $utilitiesTotal,
-                'water'         => 0,
-                'internet'      => 0,
-                'parking'       => $otherTotal,
-            ];
-
-            $settlement = $this->leaveCalculator->calculateSettlement(
-                $rental,
-                $tenant,
-                $leaveDate,
-                $charges,
-                $tenant->deposit ?? 0
-            );
-
-            // Create tenant leave record
-            $tenantLeave = TenantLeave::create([
-                'tenant_id' => $tenant->id,
-                'rental_id' => $rental->id,
-                'apartment_id' => $tenant->apartment_id,
-                'leave_date' => $leaveDate,
-                'original_move_out_date' => $rental->end_date,
-                'stay_days' => $settlement['stay_days'],
-                'pro_rata_rent' => $settlement['pro_rata_rent'],
-                'electricity_reading' => null,
-                'electricity_charge' => $settlement['electricity_charge'],
-                'water_reading' => null,
-                'water_charge' => $settlement['water_charge'],
-                'internet_charge' => $settlement['internet_charge'],
-                'parking_charge' => $settlement['parking_charge'],
-                'total_amount_due' => $settlement['total_amount_due'],
-                'deposit_applied' => $settlement['deposit_applied'],
-                'balance_due' => $settlement['balance_due'],
-                'refund_amount' => $settlement['refund_amount'],
-                'status' => 'completed',
-                'notes' => $validated['notes'] ?? null,
-            ]);
-
-            Log::info('Created tenant leave record', [
-                'tenant_leave_id' => $tenantLeave->id,
-                'tenant_id' => $tenant->id,
-            ]);
-
-            // Record revenue in Payments and Accounts tables
-            $activePeriod = FiscalPeriods::where('user_id', Auth::id())
-                ->where('status', 'open')
-                ->orderBy('opening_date', 'desc')
-                ->first();
-
-            if ($activePeriod) {
-                $apartmentNumber = $tenant->apartment->apartment_number ?? 'N/A';
-
-                // 1) Record pro-rata rent payment
-                if ($settlement['total_amount_due'] > 0 && $settlement['pro_rata_rent'] > 0) {
-                    $rentPayment = Payments::create([
-                        'rental_id' => $rental->id,
-                        'amount' => $settlement['pro_rata_rent'],
-                        'due_date' => $leaveDate,
-                        'paid_at' => $leaveDate,
-                        'payment_method' => 'cash',
-                        'payment_status' => 'paid',
-                        'payment_type' => 'rent',
-                        'transaction_reference' => null,
-                        'late_fee' => 0,
-                        'note' => 'Tenant leave settlement - pro-rata rent (' . $settlement['stay_days'] . ' days)',
-                    ]);
-
-                    Accounts::create([
-                        'fiscal_period_id' => $activePeriod->id,
-                        'payment_id' => $rentPayment->id,
-                        'user_id' => Auth::id(),
-                        'account_type' => 'income',
-                        'category' => 'rent_income',
-                        'description' => '[Apt ' . $apartmentNumber . '] Leave settlement - pro-rata rent',
-                        'amount' => $settlement['pro_rata_rent'],
-                        'transaction_date' => $leaveDate,
-                        'reference_number' => null,
-                        'note' => 'Tenant: ' . $tenant->name . ' - ' . $settlement['stay_days'] . ' days stay',
-                    ]);
-                }
-
-                // 2a) Mark selected Payments (pending utility/other) as paid and record income
-                foreach ($selectedPayments as $charge) {
-                    $charge->update([
-                        'payment_status' => 'paid',
-                        'paid_at'        => $leaveDate,
-                        'note'           => ($charge->note ? $charge->note . ' | ' : '') . 'Settled on tenant leave',
-                    ]);
-
-                    $category = $charge->payment_type === 'utilities' ? 'utility_income' : 'other_income';
-
-                    Accounts::create([
-                        'fiscal_period_id' => $activePeriod->id,
-                        'payment_id'       => $charge->id,
-                        'user_id'          => Auth::id(),
-                        'account_type'     => Accounts::TYPE_INCOME,
-                        'category'         => $category,
-                        'description'      => '[Apt ' . $apartmentNumber . '] Leave settlement - ' . ucfirst($charge->payment_type) . ': ' . ($charge->note ?: '-'),
-                        'amount'           => $charge->amount,
-                        'transaction_date' => $leaveDate,
-                        'reference_number' => null,
-                        'note'             => 'Tenant: ' . $tenant->name,
-                    ]);
-                }
-
-                // 2b) Mark selected Utilities as paid and record income per utility type
-                $utilityIncomeTypes = ['electricity', 'water'];
-                foreach ($selectedUtilities as $util) {
-                    $util->update([
-                        'paid_status' => true,
-                        'paid_at'     => $leaveDate,
-                    ]);
-
-                    $category = in_array($util->utility_type, $utilityIncomeTypes)
-                        ? 'utility_income'
-                        : 'other_income';
-
-                    Accounts::create([
-                        'fiscal_period_id' => $activePeriod->id,
-                        'payment_id'       => null,
-                        'user_id'          => Auth::id(),
-                        'account_type'     => Accounts::TYPE_INCOME,
-                        'category'         => $category,
-                        'description'      => '[Apt ' . $apartmentNumber . '] Leave settlement - ' . ucfirst($util->utility_type) . ' ' . Carbon::create($util->billing_year, $util->billing_month)->format('M Y'),
-                        'amount'           => $util->charge_amount,
-                        'transaction_date' => $leaveDate,
-                        'reference_number' => null,
-                        'note'             => 'Tenant: ' . $tenant->name,
-                    ]);
-                }
-
-                // 3) Record cash actually refunded to the tenant as a deposit expense.
-                // deposit_applied is the portion used to settle charges above (those charges
-                // already produce income rows), so it is NOT a new expense. Only refund_amount
-                // is cash leaving the business and needs to offset the original deposit_income.
-                $refundAmount = $settlement['refund_amount'] ?? 0;
-                if ($refundAmount > 0) {
-                    Accounts::create([
-                        'fiscal_period_id' => $activePeriod->id,
-                        'payment_id' => null,
-                        'user_id' => Auth::id(),
-                        'account_type' => Accounts::TYPE_EXPENSE,
-                        'category' => Accounts::CAT_DEPOSIT_EXPENSE,
-                        'description' => '[Apt ' . $apartmentNumber . '] Deposit refunded — ' . $tenant->name,
-                        'amount' => $refundAmount,
-                        'transaction_date' => $leaveDate,
-                        'note' => 'Deposit refund on leave. Applied to charges: $' . ($settlement['deposit_applied'] ?? 0),
-                    ]);
-                }
-
-                Log::info('Recorded leave settlement revenue', [
-                    'tenant_id'                => $tenant->id,
-                    'fiscal_period_id'         => $activePeriod->id,
-                    'pro_rata_rent'            => $settlement['pro_rata_rent'],
-                    'outstanding_charges_total' => $utilitiesTotal + $otherTotal,
-                    'settled_payment_ids'      => $selectedPayments->pluck('id'),
-                    'settled_utility_ids'      => $selectedUtilities->pluck('id'),
-                    'total_amount_due'         => $settlement['total_amount_due'],
-                    'deposit_applied'          => $settlement['deposit_applied'] ?? 0,
-                    'refund_amount'            => $settlement['refund_amount'] ?? 0,
-                ]);
-            } else {
-                Log::warning('No active fiscal period found - leave settlement not recorded', [
-                    'tenant_id' => $tenant->id,
-                    'total_amount_due' => $settlement['total_amount_due'],
-                ]);
-            }
-
-            // Update rental end date
-            $rental->update(['end_date' => $leaveDate]);
-
-            Log::info('Updated rental end date', [
-                'rental_id' => $rental->id,
-                'end_date' => $leaveDate,
-            ]);
-
-            // Save apartment reference before clearing tenant
-            $apartment = $tenant->apartment;
-
-            Log::info('Starting tenant archival process', [
-                'tenant_id' => $tenant->id,
-                'apartment_id' => $apartment?->id,
-            ]);
-
-            // Archive tenant (set status to moved_out and archived_at)
-            $archiveResult = $this->leaveCalculator->archiveTenant($tenant, now());
-            Log::info('Archived tenant', [
-                'tenant_id' => $tenant->id,
-                'result' => $archiveResult,
-            ]);
-
-            // Clear tenant from apartment (remove apartment assignment)
-            $clearResult = $this->leaveCalculator->clearTenantFromApartment($tenant);
-            Log::info('Cleared tenant from apartment', [
-                'tenant_id' => $tenant->id,
-                'result' => $clearResult,
-            ]);
-
-            // Mark apartment as available (using saved reference)
-            if ($apartment) {
-                $apartmentResult = $this->leaveCalculator->markApartmentAvailable($apartment);
-                Log::info('Marked apartment as available', [
-                    'apartment_id' => $apartment->id,
-                    'result' => $apartmentResult,
-                ]);
-            }
-
-            // Soft delete the tenant record (will be preserved in tenant_leaves history)
-            $deleteResult = $tenant->delete();
-            Log::info('Soft deleted tenant', [
-                'tenant_id' => $tenant->id,
-                'result' => $deleteResult,
-            ]);
-
-            // Suspend the linked user account so the ex-tenant can no longer log in
-            if ($tenant->user_id) {
-                User::where('id', $tenant->user_id)->update(['status' => 'suspended']);
-            }
+            $this->leaveProcessor->finalize($tenant);
 
             return redirect()
                 ->route('admin.tenants.archived')
@@ -556,9 +174,140 @@ class TenantController extends Controller
             Log::error('Error processing tenant leave: ' . $e->getMessage(), [
                 'tenant_id' => $tenant->id,
                 'exception' => $e,
-                'trace' => $e->getTraceAsString()
             ]);
             return back()->with('error', 'Error processing leave: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Admin-specific ledger writes for tenant leave.
+     *
+     * Differs from supervisor (which records summary aggregates only):
+     *   - Per-payment income row for each selected pending charge
+     *   - Per-utility income row split by type (electricity/water → utility_income;
+     *     internet/parking/trash/other → other_income)
+     *   - A deposit-refund expense entry (cash returned to tenant) so the
+     *     original deposit_income is offset on the books
+     *
+     * Skipped silently when no fiscal period is open (the leave still proceeds
+     * but the settlement is not recorded — see Log::warning below).
+     */
+    private function recordAdminLeaveAccounting(Tenants $tenant, array $context): void
+    {
+        $settlement        = $context['settlement'];
+        $leaveDate         = $context['leave_date'];
+        $rental            = $context['rental'];
+        $selectedPayments  = $context['selected_payments'];
+        $selectedUtilities = $context['selected_utilities'];
+
+        $activePeriod = FiscalPeriods::where('user_id', Auth::id())
+            ->where('status', 'open')
+            ->orderBy('opening_date', 'desc')
+            ->first();
+
+        if (!$activePeriod) {
+            Log::warning('No active fiscal period found - leave settlement not recorded', [
+                'tenant_id'        => $tenant->id,
+                'total_amount_due' => $settlement['total_amount_due'],
+            ]);
+            return;
+        }
+
+        $apartmentNumber = $tenant->apartment->apartment_number ?? 'N/A';
+
+        // 1) Pro-rata rent payment + income entry
+        if ($settlement['total_amount_due'] > 0 && $settlement['pro_rata_rent'] > 0) {
+            $rentPayment = Payments::create([
+                'rental_id'             => $rental->id,
+                'amount'                => $settlement['pro_rata_rent'],
+                'due_date'              => $leaveDate,
+                'paid_at'               => $leaveDate,
+                'payment_method'        => 'cash',
+                'payment_status'        => 'paid',
+                'payment_type'          => 'rent',
+                'transaction_reference' => null,
+                'late_fee'              => 0,
+                'note'                  => 'Tenant leave settlement - pro-rata rent (' . $settlement['stay_days'] . ' days)',
+            ]);
+
+            Accounts::create([
+                'fiscal_period_id' => $activePeriod->id,
+                'payment_id'       => $rentPayment->id,
+                'user_id'          => Auth::id(),
+                'account_type'     => Accounts::TYPE_INCOME,
+                'category'         => Accounts::CAT_RENT_INCOME,
+                'description'      => '[Apt ' . $apartmentNumber . '] Leave settlement - pro-rata rent',
+                'amount'           => $settlement['pro_rata_rent'],
+                'transaction_date' => $leaveDate,
+                'note'             => 'Tenant: ' . $tenant->name . ' - ' . $settlement['stay_days'] . ' days stay',
+            ]);
+        }
+
+        // 2a) Mark selected Payments paid + record per-row income
+        foreach ($selectedPayments as $charge) {
+            $charge->update([
+                'payment_status' => 'paid',
+                'paid_at'        => $leaveDate,
+                'note'           => ($charge->note ? $charge->note . ' | ' : '') . 'Settled on tenant leave',
+            ]);
+
+            $category = $charge->payment_type === 'utilities'
+                ? Accounts::CAT_UTILITY_INCOME
+                : Accounts::CAT_OTHER_INCOME;
+
+            Accounts::create([
+                'fiscal_period_id' => $activePeriod->id,
+                'payment_id'       => $charge->id,
+                'user_id'          => Auth::id(),
+                'account_type'     => Accounts::TYPE_INCOME,
+                'category'         => $category,
+                'description'      => '[Apt ' . $apartmentNumber . '] Leave settlement - ' . ucfirst($charge->payment_type) . ': ' . ($charge->note ?: '-'),
+                'amount'           => $charge->amount,
+                'transaction_date' => $leaveDate,
+                'note'             => 'Tenant: ' . $tenant->name,
+            ]);
+        }
+
+        // 2b) Mark selected Utilities paid + record per-utility income (split by type)
+        $utilityIncomeTypes = ['electricity', 'water'];
+        foreach ($selectedUtilities as $util) {
+            $util->update([
+                'paid_status' => true,
+                'paid_at'     => $leaveDate,
+            ]);
+
+            $category = in_array($util->utility_type, $utilityIncomeTypes, true)
+                ? Accounts::CAT_UTILITY_INCOME
+                : Accounts::CAT_OTHER_INCOME;
+
+            Accounts::create([
+                'fiscal_period_id' => $activePeriod->id,
+                'payment_id'       => null,
+                'user_id'          => Auth::id(),
+                'account_type'     => Accounts::TYPE_INCOME,
+                'category'         => $category,
+                'description'      => '[Apt ' . $apartmentNumber . '] Leave settlement - ' . ucfirst($util->utility_type) . ' ' . Carbon::create($util->billing_year, $util->billing_month)->format('M Y'),
+                'amount'           => $util->charge_amount,
+                'transaction_date' => $leaveDate,
+                'note'             => 'Tenant: ' . $tenant->name,
+            ]);
+        }
+
+        // 3) Refund actually paid back to the tenant is the only cash leaving
+        // the business; deposit_applied already shows up as income via 2a/2b.
+        $refundAmount = $settlement['refund_amount'] ?? 0;
+        if ($refundAmount > 0) {
+            Accounts::create([
+                'fiscal_period_id' => $activePeriod->id,
+                'payment_id'       => null,
+                'user_id'          => Auth::id(),
+                'account_type'     => Accounts::TYPE_EXPENSE,
+                'category'         => Accounts::CAT_DEPOSIT_EXPENSE,
+                'description'      => '[Apt ' . $apartmentNumber . '] Deposit refunded — ' . $tenant->name,
+                'amount'           => $refundAmount,
+                'transaction_date' => $leaveDate,
+                'note'             => 'Deposit refund on leave. Applied to charges: $' . ($settlement['deposit_applied'] ?? 0),
+            ]);
         }
     }
 
