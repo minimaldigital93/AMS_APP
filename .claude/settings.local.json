@@ -33,7 +33,20 @@
       "Bash(brew install *)",
       "Bash(direnv --version)",
       "Bash(grep -n \"direnv\\\\|PATH.*php\\\\|php.*PATH\" ~/.zshrc 2>/dev/null | head -20; echo \"---END---\")",
-      "Read(//Users/sarotmoniodom/**)"
+      "Read(//Users/sarotmoniodom/**)",
+      "Bash(ls /usr/local/bin/php* /opt/homebrew/bin/php* 2>/dev/null; which php8.4 php8.3 2>/dev/null)",
+      "Read(//usr/local/**)",
+      "Read(//opt/homebrew/opt/**)",
+      "Bash(python3 -c ' *)",
+      "Bash(/opt/homebrew/opt/php@8.4/bin/php -v)",
+      "Bash(direnv version *)",
+      "Bash(grep -n \"loading\\\\|spinner\\\\|htmx\\\\|axios.get\\\\|fetch\\(\\\\|$.ajax\\\\|setTimeout\\\\|setInterval\" /Users/sarotmoniodom/AMS_APP/resources/views/admin/dashboard.blade.php)",
+      "Bash(grep -n \"fetch\\(\\\\|axios\\\\|$.get\\\\|$.post\\\\|XMLHttpRequest\\\\|x-on:submit\\\\|@submit\" /Users/sarotmoniodom/AMS_APP/resources/views/admin/dashboard.blade.php)",
+      "Bash(grep -n \"fetch\\(\\\\|axios\\\\|$.get\\\\|$.post\\\\|XMLHttpRequest\" /Users/sarotmoniodom/AMS_APP/resources/views/admin/revenue_expense/index.blade.php)",
+      "Bash(php -r \"echo phpversion\\(\\);\")",
+      "Bash(/opt/homebrew/opt/php@8.4/bin/php -r \"echo phpversion\\(\\);\")",
+      "Bash(direnv status *)",
+      "Bash(/opt/homebrew/opt/php@8.4/bin/php artisan *)"
     ]
   }
 }
