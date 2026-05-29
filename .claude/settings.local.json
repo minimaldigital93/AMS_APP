@@ -16,7 +16,24 @@
       "Bash(xargs cat *)",
       "Bash(awk '/Supervisor Management Routes/,0' /Users/moniodom/AMS_APP/routes/web.php)",
       "Bash(php -l app/Http/Controllers/Supervisor/ApartmentController.php)",
-      "Bash(php -l resources/views/supervisor/apartments/index.blade.php)"
+      "Bash(php -l resources/views/supervisor/apartments/index.blade.php)",
+      "Bash(mysql -u root -pAdmin@1234 -e \"SELECT 1;\")",
+      "Bash(php --version)",
+      "Bash(echo \"PID: $!\")",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://127.0.0.1:8000/)",
+      "Read(//private/tmp/**)",
+      "Read(//opt/homebrew/bin/**)",
+      "Bash(brew list *)",
+      "Bash(curl -s -L -c /tmp/cookies.txt -w \"\\\\nHTTP: %{http_code}\" http://127.0.0.1:8000/login)",
+      "Bash(composer install *)",
+      "Bash(brew search *)",
+      "Bash(php -v)",
+      "Read(//opt/homebrew/Cellar/php/8.4.8/bin/**)",
+      "Bash(/opt/homebrew/opt/php/bin/php -v)",
+      "Bash(brew install *)",
+      "Bash(direnv --version)",
+      "Bash(grep -n \"direnv\\\\|PATH.*php\\\\|php.*PATH\" ~/.zshrc 2>/dev/null | head -20; echo \"---END---\")",
+      "Read(//Users/sarotmoniodom/**)"
     ]
   }
 }
