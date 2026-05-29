@@ -46,7 +46,8 @@
       "Bash(php -r \"echo phpversion\\(\\);\")",
       "Bash(/opt/homebrew/opt/php@8.4/bin/php -r \"echo phpversion\\(\\);\")",
       "Bash(direnv status *)",
-      "Bash(/opt/homebrew/opt/php@8.4/bin/php artisan *)"
+      "Bash(/opt/homebrew/opt/php@8.4/bin/php artisan *)",
+      "Bash(php -l app/Services/RevenueExpense/BreakEvenService.php)"
     ]
   }
 }

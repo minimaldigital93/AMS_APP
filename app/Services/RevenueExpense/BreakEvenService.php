@@ -6,6 +6,7 @@ use App\Models\Accounts;
 use App\Models\BusinessExpense;
 use App\Models\FiscalPeriods;
 use App\Models\Rentals;
+use App\Models\Utilities;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
 
@@ -83,6 +84,9 @@ class BreakEvenService
             ? max(0, (int) ceil($breakEvenUnits) - $currentOccupancy)
             : 0;
 
+        $businessBreakdown = $this->getBusinessExpenseBreakdown($month, $year);
+        $variableBreakdown = $this->getVariableCostBreakdown($month, $year);
+
         return [
             'total_apartments'             => $totalApartments,
             'avg_rent_per_apartment'       => round($avgRentPerApartment, 2),
@@ -99,10 +103,96 @@ class BreakEvenService
             'is_above_break_even'          => $isAboveBreakEven,
             'amount_needed'                => round($amountNeeded, 2),
             'units_needed'                 => $unitsNeeded,
-            'business_expense_breakdown'   => $this->getBusinessExpenseBreakdown($month, $year),
-            'variable_cost_breakdown'      => $this->getVariableCostBreakdown($month, $year),
+            'business_expense_breakdown'   => $businessBreakdown,
+            'variable_cost_breakdown'      => $variableBreakdown,
             'break_even_feasible'          => $breakEvenFeasible,
+            'utility_analysis'             => $this->getUtilityAnalysis($apartmentIds, $month, $year),
+            'biggest_expense'              => $this->biggestExpense($businessBreakdown, $variableBreakdown),
         ];
+    }
+
+    /**
+     * Per-room utility insight for the given month — feeds the utilities donut
+     * and the "average per room" / "most expensive apartment" cards.
+     *
+     * Utilities are billed per rental (Utilities.rental_id → Rentals.apartment_id),
+     * so we scope through the owner's apartments and aggregate two ways:
+     * by utility_type (donut) and by apartment (to find the heaviest user).
+     */
+    public function getUtilityAnalysis($apartmentIds, ?int $month = null, ?int $year = null): array
+    {
+        $month = $month ?: now()->month;
+        $year  = $year  ?: now()->year;
+
+        $base = Utilities::query()
+            ->join('rentals', 'utilities.rental_id', '=', 'rentals.id')
+            ->where('utilities.billing_month', $month)
+            ->where('utilities.billing_year', $year)
+            ->whereIn('rentals.apartment_id', $apartmentIds);
+
+        $typeLabels = [
+            'electricity' => 'Electricity',
+            'water'       => 'Water',
+            'internet'    => 'Internet',
+            'trash'       => 'Trash',
+            'parking'     => 'Parking',
+            'cleaning'    => 'Cleaning',
+            'other'       => 'Other',
+        ];
+
+        $byTypeRaw = (clone $base)
+            ->selectRaw('utilities.utility_type as t, SUM(utilities.charge_amount) as total')
+            ->groupBy('utilities.utility_type')
+            ->orderByDesc('total')
+            ->pluck('total', 't')
+            ->toArray();
+
+        $byType = [];
+        foreach ($byTypeRaw as $type => $amount) {
+            if ($amount <= 0) continue;
+            $byType[] = [
+                'label'  => $typeLabels[$type] ?? ucfirst((string) $type),
+                'amount' => round((float) $amount, 2),
+            ];
+        }
+
+        $total      = (float) array_sum(array_column($byType, 'amount'));
+        $roomsUsed  = (int) (clone $base)->distinct()->count('rentals.apartment_id');
+        $avgPerRoom = $roomsUsed > 0 ? $total / $roomsUsed : 0;
+
+        $topApt = (clone $base)
+            ->join('apartments', 'rentals.apartment_id', '=', 'apartments.id')
+            ->selectRaw('apartments.apartment_number as num, SUM(utilities.charge_amount) as total')
+            ->groupBy('apartments.apartment_number')
+            ->orderByDesc('total')
+            ->first();
+
+        return [
+            'total'         => round($total, 2),
+            'avg_per_room'  => round($avgPerRoom, 2),
+            'rooms_used'    => $roomsUsed,
+            'by_type'       => $byType,
+            'top_apartment' => $topApt ? [
+                'label'  => $topApt->num,
+                'amount' => round((float) $topApt->total, 2),
+            ] : null,
+        ];
+    }
+
+    /**
+     * The single largest expense line across overhead + variable costs —
+     * the best candidate to cut down. Null when nothing is recorded.
+     */
+    private function biggestExpense(array $businessBreakdown, array $variableBreakdown): ?array
+    {
+        $all = array_merge($businessBreakdown, $variableBreakdown);
+        if (empty($all)) {
+            return null;
+        }
+
+        usort($all, fn ($a, $b) => $b['amount'] <=> $a['amount']);
+
+        return $all[0]['amount'] > 0 ? $all[0] : null;
     }
 
     /**
