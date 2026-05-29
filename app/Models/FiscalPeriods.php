@@ -15,6 +15,9 @@ class FiscalPeriods extends Model
         'closing_date',
         'opening_balance',
         'closing_balance',
+        'opening_assets',
+        'opening_liabilities',
+        'opening_equity',
         'status',
     ];
 
@@ -25,6 +28,9 @@ class FiscalPeriods extends Model
             'closing_date' => 'date',
             'opening_balance' => 'float',
             'closing_balance' => 'float',
+            'opening_assets' => 'float',
+            'opening_liabilities' => 'float',
+            'opening_equity' => 'float',
         ];
     }
 

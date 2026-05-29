@@ -3,21 +3,21 @@
 @section('content')
 <div class="container mx-auto py-8" x-data="{ activeTab: 'overview' }">
     <!-- Header -->
-    <div class="flex items-center justify-between mb-6">
+    <div class="flex items-start justify-between mb-6 gap-4">
         <div>
-            <h1 class="text-3xl font-bold">Reports & Exports</h1>
-            <p class="text-gray-600 mt-1">{{ $fiscalperiod->name }} &middot; {{ $fiscalperiod->opening_date->format('M d, Y') }} – {{ $fiscalperiod->closing_date->format('M d, Y') }}</p>
+            <h1 class="text-2xl font-bold">Reports & Exports</h1>
+            <p class="text-sm text-gray-500 mt-1">{{ $fiscalperiod->name }} &middot; {{ $fiscalperiod->opening_date->format('M d, Y') }} – {{ $fiscalperiod->closing_date->format('M d, Y') }}</p>
         </div>
-        <div class="flex gap-2">
-            <a href="{{ route('admin.fiscalperiod.exportCSV', $fiscalperiod->id) }}" class="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition text-sm font-semibold">
-                ↓ CSV
+        <div class="flex flex-wrap gap-2 justify-end no-print">
+            <a href="{{ route('admin.fiscalperiod.exportCSV', $fiscalperiod->id) }}" class="text-sm bg-gray-100 text-gray-700 px-3 py-2 rounded-lg hover:bg-gray-200 flex items-center gap-1.5" title="Export CSV">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+                CSV
             </a>
-            <button onclick="window.print()" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition text-sm font-semibold">
-                🖨 Print
+            <button onclick="window.print()" class="text-sm bg-gray-700 text-white px-3 py-2 rounded-lg hover:bg-gray-800 flex items-center gap-1.5" title="Print">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>
+                Print
             </button>
-            <a href="{{ route('admin.fiscalperiod.show', $fiscalperiod->id) }}" class="bg-gray-400 text-white px-4 py-2 rounded-lg hover:bg-gray-500 transition text-sm font-semibold">
-                ← Back
-            </a>
+            <a href="{{ route('admin.fiscalperiod.show', $fiscalperiod->id) }}" class="text-sm bg-gray-100 text-gray-700 px-3 py-2 rounded-lg hover:bg-gray-200">← Back</a>
         </div>
     </div>
 
@@ -53,72 +53,53 @@
     <div x-show="activeTab === 'overview'" class="bg-white rounded-b-lg shadow p-6">
         <!-- Summary Cards -->
         <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-            <div class="rounded-lg p-5 border-l-4 border-green-600 bg-green-50">
-                <p class="text-xs text-gray-600 uppercase font-semibold">Total Revenue</p>
-                <p class="text-2xl font-bold text-green-700 mt-1">${{ number_format($periodFinancials['total_income'], 2) }}</p>
-                <p class="text-xs text-gray-500 mt-1">{{ $periodFinancials['payment_count'] }} payments</p>
+            <div class="border border-gray-100 rounded-lg p-4">
+                <p class="text-xs text-gray-500 uppercase">Total Revenue</p>
+                <p class="text-xl font-bold text-green-600 mt-1">${{ number_format($periodFinancials['total_income'], 2) }}</p>
+                <p class="text-xs text-gray-400 mt-1">{{ $periodFinancials['payment_count'] }} payments</p>
             </div>
-            <div class="rounded-lg p-5 border-l-4 border-red-600 bg-red-50">
-                <p class="text-xs text-gray-600 uppercase font-semibold">Total Expenses</p>
-                <p class="text-2xl font-bold text-red-700 mt-1">${{ number_format($periodFinancials['total_expenses'], 2) }}</p>
+            <div class="border border-gray-100 rounded-lg p-4">
+                <p class="text-xs text-gray-500 uppercase">Total Expenses</p>
+                <p class="text-xl font-bold text-red-600 mt-1">${{ number_format($periodFinancials['total_expenses'], 2) }}</p>
             </div>
-            <div class="rounded-lg p-5 border-l-4 {{ $periodFinancials['is_profitable'] ? 'border-blue-600 bg-blue-50' : 'border-orange-600 bg-orange-50' }}">
-                <p class="text-xs text-gray-600 uppercase font-semibold">{{ $periodFinancials['is_profitable'] ? 'Net Profit' : 'Net Loss' }}</p>
-                <p class="text-2xl font-bold {{ $periodFinancials['is_profitable'] ? 'text-blue-700' : 'text-orange-700' }} mt-1">
+            <div class="border border-gray-100 rounded-lg p-4">
+                <p class="text-xs text-gray-500 uppercase">{{ $periodFinancials['is_profitable'] ? 'Net Profit' : 'Net Loss' }}</p>
+                <p class="text-xl font-bold {{ $periodFinancials['is_profitable'] ? 'text-green-600' : 'text-red-600' }} mt-1">
                     {{ $periodFinancials['is_profitable'] ? '+' : '' }}${{ number_format($periodFinancials['net_income'], 2) }}
                 </p>
             </div>
-            <div class="rounded-lg p-5 border-l-4 border-indigo-600 bg-indigo-50">
-                <p class="text-xs text-gray-600 uppercase font-semibold">Period Balance</p>
-                <p class="text-2xl font-bold text-indigo-700 mt-1">${{ number_format($fiscalperiod->opening_balance + $periodFinancials['net_income'], 2) }}</p>
-                <p class="text-xs text-gray-500 mt-1">Open: ${{ number_format($fiscalperiod->opening_balance, 2) }}</p>
+            <div class="border border-gray-100 rounded-lg p-4">
+                <p class="text-xs text-gray-500 uppercase">Period Balance</p>
+                <p class="text-xl font-bold mt-1">${{ number_format($fiscalperiod->opening_balance + $periodFinancials['net_income'], 2) }}</p>
+                <p class="text-xs text-gray-400 mt-1">Open: ${{ number_format($fiscalperiod->opening_balance, 2) }}</p>
             </div>
         </div>
 
         <!-- Revenue vs Expenses Breakdown -->
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <div class="bg-gray-50 rounded-lg p-5">
-                <h3 class="font-semibold text-gray-800 mb-4">Revenue Sources</h3>
-                <div class="space-y-3">
-                    <div class="flex justify-between items-center p-3 bg-green-50 rounded border">
-                        <span class="text-sm">Rent Income</span>
-                        <span class="font-bold text-green-600">${{ number_format($periodFinancials['rent_income'], 2) }}</span>
-                    </div>
-                    <div class="flex justify-between items-center p-3 bg-yellow-50 rounded border">
-                        <span class="text-sm">Late Fees</span>
-                        <span class="font-bold text-yellow-600">${{ number_format($periodFinancials['late_fees'], 2) }}</span>
-                    </div>
+            <div class="border border-gray-100 rounded-lg p-5">
+                <h3 class="font-semibold text-sm text-gray-700 mb-3">Revenue Sources</h3>
+                <div class="space-y-2 text-sm">
+                    <div class="flex justify-between"><span class="text-gray-600">Rent Income</span><span class="font-medium text-green-600">${{ number_format($periodFinancials['rent_income'], 2) }}</span></div>
+                    <div class="flex justify-between"><span class="text-gray-600">Late Fees</span><span class="font-medium text-green-600">${{ number_format($periodFinancials['late_fees'], 2) }}</span></div>
                     @if($periodFinancials['other_income'] > 0)
-                        <div class="flex justify-between items-center p-3 bg-blue-50 rounded border">
-                            <span class="text-sm">Other Income</span>
-                            <span class="font-bold text-blue-600">${{ number_format($periodFinancials['other_income'], 2) }}</span>
-                        </div>
+                        <div class="flex justify-between"><span class="text-gray-600">Other Income</span><span class="font-medium text-green-600">${{ number_format($periodFinancials['other_income'], 2) }}</span></div>
                     @endif
+                    <div class="flex justify-between border-t pt-2 font-semibold"><span>Total</span><span class="text-green-700">${{ number_format($periodFinancials['total_income'], 2) }}</span></div>
                 </div>
             </div>
-            <div class="bg-gray-50 rounded-lg p-5">
-                <h3 class="font-semibold text-gray-800 mb-4">Expense Categories</h3>
-                <div class="space-y-3">
-                    @foreach($periodFinancials['utility_expenses'] as $type => $amount)
-                        <div class="flex justify-between items-center p-3 bg-red-50 rounded border">
-                            <span class="text-sm">
-                                @switch($type)
-                                    @case('electricity') 🔌 Electricity @break
-                                    @case('water') 💧 Water @break
-                                    @case('internet') 📡 Internet @break
-                                    @case('parking') 🅿️ Parking @break
-                                    @default {{ ucfirst($type) }}
-                                @endswitch
-                            </span>
-                            <span class="font-bold text-red-600">${{ number_format($amount, 2) }}</span>
-                        </div>
-                    @endforeach
+            <div class="border border-gray-100 rounded-lg p-5">
+                <h3 class="font-semibold text-sm text-gray-700 mb-3">Expense Categories</h3>
+                <div class="space-y-2 text-sm">
+                    @forelse($periodFinancials['utility_expenses'] as $type => $amount)
+                        <div class="flex justify-between"><span class="text-gray-600 capitalize">{{ str_replace('_', ' ', $type) }}</span><span class="font-medium text-red-600">${{ number_format($amount, 2) }}</span></div>
+                    @empty
+                        <p class="text-gray-400 text-xs">No utility expenses</p>
+                    @endforelse
                     @if($periodFinancials['fixed_expenses'] > 0)
-                        <div class="flex justify-between items-center p-3 bg-orange-50 rounded border">
-                            <span class="text-sm">📋 Fixed/Other Expenses</span>
-                            <span class="font-bold text-orange-600">${{ number_format($periodFinancials['fixed_expenses'], 2) }}</span>
-                        </div>
+                        <div class="flex justify-between"><span class="text-gray-600">Fixed/Other</span><span class="font-medium text-red-600">${{ number_format($periodFinancials['fixed_expenses'], 2) }}</span></div>
                     @endif
+                    <div class="flex justify-between border-t pt-2 font-semibold"><span>Total</span><span class="text-red-700">${{ number_format($periodFinancials['total_expenses'], 2) }}</span></div>
                 </div>
             </div>
         </div>
@@ -214,22 +195,22 @@
 
         <!-- Summary -->
         <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
-            <div class="rounded-lg p-4 border-l-4 border-blue-600 bg-blue-50">
-                <p class="text-xs text-gray-600 font-semibold">Total Assets</p>
-                <p class="text-2xl font-bold text-blue-600">${{ number_format($summary['total_assets'], 2) }}</p>
+            <div class="border border-gray-100 rounded-lg p-4">
+                <p class="text-xs text-gray-500 uppercase">Total Assets</p>
+                <p class="text-xl font-bold mt-1">${{ number_format($summary['total_assets'], 2) }}</p>
             </div>
-            <div class="rounded-lg p-4 border-l-4 border-red-600 bg-red-50">
-                <p class="text-xs text-gray-600 font-semibold">Total Liabilities</p>
-                <p class="text-2xl font-bold text-red-600">${{ number_format($summary['total_liabilities'], 2) }}</p>
+            <div class="border border-gray-100 rounded-lg p-4">
+                <p class="text-xs text-gray-500 uppercase">Total Liabilities</p>
+                <p class="text-xl font-bold text-red-600 mt-1">${{ number_format($summary['total_liabilities'], 2) }}</p>
             </div>
-            <div class="rounded-lg p-4 border-l-4 border-green-600 bg-green-50">
-                <p class="text-xs text-gray-600 font-semibold">Total Equity</p>
-                <p class="text-2xl font-bold text-green-600">${{ number_format($summary['total_equity'], 2) }}</p>
+            <div class="border border-gray-100 rounded-lg p-4">
+                <p class="text-xs text-gray-500 uppercase">Total Equity</p>
+                <p class="text-xl font-bold mt-1">${{ number_format($summary['total_equity'], 2) }}</p>
             </div>
-            <div class="rounded-lg p-4 border-l-4 {{ $summary['balance_check'] ? 'border-green-600 bg-green-50' : 'border-yellow-600 bg-yellow-50' }}">
-                <p class="text-xs text-gray-600 font-semibold">Status</p>
-                <p class="text-lg font-bold {{ $summary['balance_check'] ? 'text-green-600' : 'text-yellow-600' }}">
-                    {{ $summary['balance_check'] ? '✓ Balanced' : '✗ Unbalanced' }}
+            <div class="border border-gray-100 rounded-lg p-4">
+                <p class="text-xs text-gray-500 uppercase">Status</p>
+                <p class="text-lg font-bold mt-1 {{ $summary['balance_check'] ? 'text-green-600' : 'text-amber-600' }}">
+                    {{ $summary['balance_check'] ? 'Balanced' : 'Unbalanced' }}
                 </p>
             </div>
         </div>
@@ -273,12 +254,12 @@
             </div>
 
             <!-- Equation Verification -->
-            <div class="mt-6 p-4 {{ $summary['balance_check'] ? 'bg-green-50 border-green-200' : 'bg-yellow-50 border-yellow-200' }} border rounded-lg">
-                <p class="text-sm {{ $summary['balance_check'] ? 'text-green-700' : 'text-yellow-700' }}">
+            <div class="mt-6 p-4 {{ $summary['balance_check'] ? 'bg-green-50 border-green-200' : 'bg-amber-50 border-amber-200' }} border rounded-lg">
+                <p class="text-sm {{ $summary['balance_check'] ? 'text-green-700' : 'text-amber-700' }}">
                     <strong>Assets (${{ number_format($summary['total_assets'], 2) }})</strong> =
                     <strong>Liabilities (${{ number_format($summary['total_liabilities'], 2) }})</strong> +
                     <strong>Equity (${{ number_format($summary['total_equity'], 2) }})</strong>
-                    &mdash; {{ $summary['balance_check'] ? '✓ Balanced' : '⚠ Not balanced' }}
+                    &mdash; {{ $summary['balance_check'] ? 'Balanced' : 'Not balanced' }}
                 </p>
             </div>
         @else
@@ -295,22 +276,26 @@
         <p class="text-sm text-gray-500 mb-6">{{ $fiscalperiod->opening_date->format('M d, Y') }} – {{ $fiscalperiod->closing_date->format('M d, Y') }}</p>
 
         <!-- Cash Flow Summary -->
-        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-            <div class="rounded-lg p-4 border-l-4 border-blue-600 bg-blue-50">
-                <p class="text-xs text-gray-600 font-semibold">Opening Cash</p>
-                <p class="text-xl font-bold">${{ number_format($cashFlow['opening_balance'], 2) }}</p>
+        <div class="grid grid-cols-2 md:grid-cols-5 gap-4 mb-8">
+            <div class="border border-gray-100 rounded-lg p-4">
+                <p class="text-xs text-gray-500 uppercase">Opening Cash</p>
+                <p class="text-xl font-bold mt-1">${{ number_format($cashFlow['opening_balance'], 2) }}</p>
             </div>
-            <div class="rounded-lg p-4 border-l-4 border-green-600 bg-green-50">
-                <p class="text-xs text-gray-600 font-semibold">Total Cash In</p>
-                <p class="text-xl font-bold text-green-600">+${{ number_format($cashFlow['total_cash_in'], 2) }}</p>
+            <div class="border border-gray-100 rounded-lg p-4">
+                <p class="text-xs text-gray-500 uppercase">Total Cash In</p>
+                <p class="text-xl font-bold text-green-600 mt-1">+${{ number_format($cashFlow['total_cash_in'], 2) }}</p>
             </div>
-            <div class="rounded-lg p-4 border-l-4 border-red-600 bg-red-50">
-                <p class="text-xs text-gray-600 font-semibold">Total Cash Out</p>
-                <p class="text-xl font-bold text-red-600">-${{ number_format($cashFlow['total_cash_out'], 2) }}</p>
+            <div class="border border-gray-100 rounded-lg p-4">
+                <p class="text-xs text-gray-500 uppercase">Total Cash Out</p>
+                <p class="text-xl font-bold text-red-600 mt-1">-${{ number_format($cashFlow['total_cash_out'], 2) }}</p>
             </div>
-            <div class="rounded-lg p-4 border-l-4 border-indigo-600 bg-indigo-50">
-                <p class="text-xs text-gray-600 font-semibold">Closing Cash</p>
-                <p class="text-xl font-bold">${{ number_format($cashFlow['closing_balance'], 2) }}</p>
+            <div class="border border-gray-100 rounded-lg p-4">
+                <p class="text-xs text-gray-500 uppercase">Owner Draws</p>
+                <p class="text-xl font-bold text-purple-600 mt-1">-${{ number_format($cashFlow['total_withdrawals'], 2) }}</p>
+            </div>
+            <div class="border border-gray-100 rounded-lg p-4">
+                <p class="text-xs text-gray-500 uppercase">Closing Cash</p>
+                <p class="text-xl font-bold mt-1">${{ number_format($cashFlow['closing_balance'], 2) }}</p>
             </div>
         </div>
 
@@ -324,6 +309,7 @@
                             <th class="px-3 py-2 text-right font-semibold">Cash In</th>
                             <th class="px-3 py-2 text-right font-semibold">Cash Out</th>
                             <th class="px-3 py-2 text-right font-semibold">Net Cash Flow</th>
+                            <th class="px-3 py-2 text-right font-semibold">Owner Draw</th>
                             <th class="px-3 py-2 text-right font-semibold">Closing Balance</th>
                         </tr>
                     </thead>
@@ -337,6 +323,7 @@
                                 <td class="px-3 py-2 text-right font-bold {{ $m['net_cash_flow'] >= 0 ? 'text-green-700' : 'text-red-700' }}">
                                     {{ $m['net_cash_flow'] >= 0 ? '+' : '' }}${{ number_format($m['net_cash_flow'], 2) }}
                                 </td>
+                                <td class="px-3 py-2 text-right text-purple-700 font-medium">{{ $m['owner_withdrawal'] > 0 ? '-$'.number_format($m['owner_withdrawal'], 2) : '—' }}</td>
                                 <td class="px-3 py-2 text-right font-semibold">${{ number_format($m['closing_balance'], 2) }}</td>
                             </tr>
                         @endforeach
@@ -350,6 +337,7 @@
                             <td class="px-3 py-3 text-right font-bold {{ $cashFlow['net_change'] >= 0 ? 'text-green-800' : 'text-red-800' }}">
                                 {{ $cashFlow['net_change'] >= 0 ? '+' : '' }}${{ number_format($cashFlow['net_change'], 2) }}
                             </td>
+                            <td class="px-3 py-3 text-right font-bold text-purple-700">{{ $cashFlow['total_withdrawals'] > 0 ? '-$'.number_format($cashFlow['total_withdrawals'], 2) : '—' }}</td>
                             <td class="px-3 py-3 text-right font-bold">${{ number_format($cashFlow['closing_balance'], 2) }}</td>
                         </tr>
                     </tfoot>
@@ -386,7 +374,8 @@
     <!-- ==================== TRIAL BALANCE TAB ==================== -->
     <div x-show="activeTab === 'trial_balance'" x-cloak class="bg-white rounded-b-lg shadow p-6">
         <h2 class="text-xl font-bold mb-1">Trial Balance</h2>
-        <p class="text-sm text-gray-500 mb-6">As of {{ $fiscalperiod->closing_date->format('M d, Y') }}</p>
+        <p class="text-sm text-gray-500 mb-1">As of {{ $fiscalperiod->closing_date->format('M d, Y') }}</p>
+        <p class="text-xs text-gray-400 mb-6">Post-closing: net income (retained earnings of ${{ number_format($trialBalance['retained_earnings'], 2) }}) is folded into equity, not listed as a separate account.</p>
 
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
             <!-- Debits -->
@@ -433,14 +422,14 @@
         </div>
 
         <!-- Balance Check -->
-        <div class="p-4 rounded-lg border {{ $trialBalance['is_balanced'] ? 'bg-green-50 border-green-200' : 'bg-yellow-50 border-yellow-200' }}">
+        <div class="p-4 rounded-lg border {{ $trialBalance['is_balanced'] ? 'bg-green-50 border-green-200' : 'bg-amber-50 border-amber-200' }}">
             <div class="flex items-center justify-between">
                 <div>
-                    <p class="font-semibold {{ $trialBalance['is_balanced'] ? 'text-green-900' : 'text-yellow-900' }}">
-                        {{ $trialBalance['is_balanced'] ? '✓ Trial Balance is Balanced' : '⚠ Trial Balance Discrepancy' }}
+                    <p class="font-semibold {{ $trialBalance['is_balanced'] ? 'text-green-900' : 'text-amber-900' }}">
+                        {{ $trialBalance['is_balanced'] ? 'Trial Balance is balanced' : 'Trial Balance discrepancy' }}
                     </p>
                     @if(!$trialBalance['is_balanced'])
-                        <p class="text-sm text-yellow-700 mt-1">
+                        <p class="text-sm text-amber-700 mt-1">
                             Difference: ${{ number_format(abs($trialBalance['difference']), 2) }}
                         </p>
                     @endif
@@ -460,7 +449,7 @@
                 <h2 class="text-xl font-bold">Monthly Breakdown</h2>
                 <p class="text-sm text-gray-500">Month-by-month performance analysis</p>
             </div>
-            <a href="{{ route('admin.fiscalperiod.monthly-periods', $fiscalperiod->id) }}" class="text-blue-600 text-sm font-semibold hover:underline">
+            <a href="{{ route('admin.fiscalperiod.show', $fiscalperiod->id) }}" class="text-blue-600 text-sm font-semibold hover:underline">
                 Manage Monthly Periods →
             </a>
         </div>

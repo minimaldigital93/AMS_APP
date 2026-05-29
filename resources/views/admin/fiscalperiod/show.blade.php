@@ -1,9 +1,10 @@
 @extends('layouts.admin')
 
 @section('content')
-<div class="container mx-auto py-8 max-w-5xl">
+<div class="container mx-auto py-8 max-w-5xl"
+     x-data="{ closeModal: { open: false, action: '', name: '', net: 0, available: 0, amount: '' } }">
     {{-- Header --}}
-    <div class="flex items-center justify-between mb-6">
+    <div class="flex items-start justify-between mb-6 gap-4">
         <div>
             <div class="flex items-center gap-3">
                 <h1 class="text-2xl font-bold">{{ $fiscalperiod->name }}</h1>
@@ -16,16 +17,15 @@
                 ({{ $fiscalperiod->opening_date->diffInDays($fiscalperiod->closing_date) }} days)
             </p>
         </div>
-        <div class="flex gap-2">
+        <div class="flex flex-wrap gap-2 justify-end">
             @if($fiscalperiod->status === 'open')
                 <a href="{{ route('admin.fiscalperiod.edit', $fiscalperiod->id) }}" class="text-sm bg-gray-100 text-gray-700 px-3 py-2 rounded-lg hover:bg-gray-200">Edit</a>
-                <a href="{{ route('admin.fiscalperiod.balance-sheet', $fiscalperiod->id) }}" class="text-sm bg-blue-600 text-white px-3 py-2 rounded-lg hover:bg-blue-700">Balance Sheet</a>
             @endif
-            {{-- Annual PDF Print --}}
+            <a href="{{ route('admin.fiscalperiod.reports', $fiscalperiod->id) }}" class="text-sm bg-indigo-600 text-white px-3 py-2 rounded-lg hover:bg-indigo-700">Reports</a>
             <a href="{{ route('admin.fiscalperiod.exportPDF', $fiscalperiod->id) }}" target="_blank"
                class="text-sm bg-gray-700 text-white px-3 py-2 rounded-lg hover:bg-gray-800 flex items-center gap-1.5" title="Print Annual Summary PDF">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>
-                Print Annual
+                Print
             </a>
             <a href="{{ route('admin.fiscalperiod.index') }}" class="text-sm bg-gray-100 text-gray-700 px-3 py-2 rounded-lg hover:bg-gray-200">← Back</a>
         </div>
@@ -42,67 +42,62 @@
         </div>
     @endif
 
-
-
-    {{-- Financial Summary Cards --}}
-    <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-        <div class="bg-white rounded-lg shadow p-4">
-            <p class="text-xs text-gray-500 uppercase">Total Income</p>
-            <p class="text-xl font-bold text-green-600 mt-1">${{ number_format($financialData['total_income'], 2) }}</p>
-        </div>
-        <div class="bg-white rounded-lg shadow p-4">
-            <p class="text-xs text-gray-500 uppercase">Total Expenses</p>
-            <p class="text-xl font-bold text-red-600 mt-1">${{ number_format($financialData['total_expenses'], 2) }}</p>
-        </div>
-        <div class="bg-white rounded-lg shadow p-4">
-            <p class="text-xs text-gray-500 uppercase">Net {{ $financialData['is_profitable'] ? 'Profit' : 'Loss' }}</p>
-            <p class="text-xl font-bold {{ $financialData['is_profitable'] ? 'text-green-600' : 'text-red-600' }} mt-1">
-                ${{ number_format(abs($financialData['net_income']), 2) }}
-            </p>
-        </div>
-        <div class="bg-white rounded-lg shadow p-4">
-            <p class="text-xs text-gray-500 uppercase">Opening Balance</p>
-            <p class="text-xl font-bold mt-1">${{ number_format($fiscalperiod->opening_balance, 2) }}</p>
-        </div>
-    </div>
-
-    {{-- Income & Expense Breakdown --}}
-    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+    {{-- Income & Expense Breakdown (totals shown inline in each header) --}}
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
         <div class="bg-white rounded-lg shadow p-5">
-            <h3 class="font-semibold text-sm text-gray-700 mb-3">Income</h3>
+            <div class="flex items-baseline justify-between mb-3">
+                <h3 class="font-semibold text-sm text-gray-700">Income</h3>
+                <span class="text-xl font-bold text-green-600">${{ number_format($financialData['total_income'], 2) }}</span>
+            </div>
             <div class="space-y-2 text-sm">
-                <div class="flex justify-between"><span class="text-gray-600">Rent</span><span class="font-medium text-green-600">${{ number_format($financialData['rent_income'], 2) }}</span></div>
-                <div class="flex justify-between"><span class="text-gray-600">Late Fees</span><span class="font-medium text-green-600">${{ number_format($financialData['late_fees'], 2) }}</span></div>
+                <div class="flex justify-between"><span class="text-gray-600">Rent</span><span class="font-medium">${{ number_format($financialData['rent_income'], 2) }}</span></div>
+                <div class="flex justify-between"><span class="text-gray-600">Late Fees</span><span class="font-medium">${{ number_format($financialData['late_fees'], 2) }}</span></div>
                 @if($financialData['other_income'] > 0)
-                    <div class="flex justify-between"><span class="text-gray-600">Other</span><span class="font-medium text-green-600">${{ number_format($financialData['other_income'], 2) }}</span></div>
+                    <div class="flex justify-between"><span class="text-gray-600">Other</span><span class="font-medium">${{ number_format($financialData['other_income'], 2) }}</span></div>
                 @endif
-                <div class="flex justify-between border-t pt-2 font-semibold"><span>Total</span><span class="text-green-700">${{ number_format($financialData['total_income'], 2) }}</span></div>
             </div>
         </div>
         <div class="bg-white rounded-lg shadow p-5">
-            <h3 class="font-semibold text-sm text-gray-700 mb-3">Expenses</h3>
+            <div class="flex items-baseline justify-between mb-3">
+                <h3 class="font-semibold text-sm text-gray-700">Expenses</h3>
+                <span class="text-xl font-bold text-red-600">${{ number_format($financialData['total_expenses'], 2) }}</span>
+            </div>
             <div class="space-y-2 text-sm">
                 @forelse($financialData['utility_expenses'] as $type => $amount)
-                    <div class="flex justify-between"><span class="text-gray-600 capitalize">{{ str_replace('_', ' ', $type) }}</span><span class="font-medium text-red-600">${{ number_format($amount, 2) }}</span></div>
+                    <div class="flex justify-between"><span class="text-gray-600 capitalize">{{ str_replace('_', ' ', $type) }}</span><span class="font-medium">${{ number_format($amount, 2) }}</span></div>
                 @empty
                     <p class="text-gray-400 text-xs">No utility expenses</p>
                 @endforelse
                 @if($financialData['fixed_expenses'] > 0)
-                    <div class="flex justify-between"><span class="text-gray-600">Fixed/Other</span><span class="font-medium text-red-600">${{ number_format($financialData['fixed_expenses'], 2) }}</span></div>
+                    <div class="flex justify-between"><span class="text-gray-600">Fixed/Other</span><span class="font-medium">${{ number_format($financialData['fixed_expenses'], 2) }}</span></div>
                 @endif
-                <div class="flex justify-between border-t pt-2 font-semibold"><span>Total</span><span class="text-red-700">${{ number_format($financialData['total_expenses'], 2) }}</span></div>
             </div>
+        </div>
+    </div>
+
+    {{-- Opening balance + net result --}}
+    <div class="grid grid-cols-2 gap-4 mb-6">
+        <div class="bg-white rounded-lg shadow p-4">
+            <p class="text-xs text-gray-500 uppercase">Opening Balance</p>
+            <p class="text-xl font-bold mt-1">${{ number_format($fiscalperiod->opening_balance, 2) }}</p>
+        </div>
+        <div class="bg-white rounded-lg shadow p-4">
+            <p class="text-xs text-gray-500 uppercase">Net {{ $financialData['is_profitable'] ? 'Profit' : 'Loss' }}</p>
+            <p class="text-xl font-bold {{ $financialData['is_profitable'] ? 'text-green-600' : 'text-red-600' }} mt-1">${{ number_format(abs($financialData['net_income']), 2) }}</p>
         </div>
     </div>
 
     {{-- Monthly Periods --}}
     <div class="bg-white rounded-lg shadow mb-6">
         <div class="flex items-center justify-between px-5 py-3 border-b">
-            <h3 class="font-semibold">Monthly Periods</h3>
+            <div>
+                <h3 class="font-semibold">Monthly Periods</h3>
+                <p class="text-xs text-gray-400">Close each month to freeze its totals and carry the balance forward.</p>
+            </div>
             @if($fiscalperiod->status === 'open')
-                <form method="POST" action="{{ route('admin.fiscalperiod.recalculate-balances', $fiscalperiod->id) }}" onsubmit="return confirm('Recalculate all balances?')">
+                <form method="POST" action="{{ route('admin.fiscalperiod.recalculate-balances', $fiscalperiod->id) }}" onsubmit="return confirm('Recalculate all monthly balances using carry-forward logic?')">
                     @csrf
-                    <button type="submit" class="text-xs bg-amber-100 text-amber-700 px-3 py-1 rounded hover:bg-amber-200">Recalculate</button>
+                    <button type="submit" class="text-xs bg-amber-100 text-amber-700 px-3 py-1.5 rounded hover:bg-amber-200 font-semibold">↻ Recalculate</button>
                 </form>
             @endif
         </div>
@@ -123,7 +118,7 @@
                     </thead>
                     <tbody class="divide-y">
                         @foreach($monthlyPeriods as $month)
-                            <tr class="hover:bg-gray-50">
+                            <tr class="hover:bg-gray-50 {{ $month->isClosed() ? 'bg-gray-50/40' : '' }}">
                                 <td class="px-4 py-2.5 font-medium">{{ $month->name }}</td>
                                 <td class="px-4 py-2.5 text-right">${{ number_format($month->opening_balance, 2) }}</td>
                                 <td class="px-4 py-2.5 text-right text-green-600">+${{ number_format($month->live_income, 2) }}</td>
@@ -134,33 +129,52 @@
                                 <td class="px-4 py-2.5 text-right">
                                     @if($month->isClosed())
                                         ${{ number_format($month->closing_balance, 2) }}
+                                        @if($month->owner_withdrawal > 0)
+                                            <div class="text-xs text-purple-600 font-normal" title="{{ $month->withdrawal_note }}">
+                                                − ${{ number_format($month->owner_withdrawal, 2) }} drawn
+                                            </div>
+                                        @endif
                                     @else
                                         <span class="text-gray-400">${{ number_format($month->opening_balance + $month->live_net, 2) }}</span>
                                     @endif
                                 </td>
                                 <td class="px-4 py-2.5 text-center">
-                                    <span class="px-2 py-0.5 rounded-full text-xs font-semibold {{ $month->status === 'open' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600' }}">
+                                    <span class="px-2 py-0.5 rounded-full text-xs font-semibold {{ $month->status === 'open' ? 'bg-green-100 text-green-700' : ($month->status === 'closed' ? 'bg-red-100 text-red-700' : 'bg-gray-200 text-gray-700') }}">
                                         {{ ucfirst($month->status) }}
                                     </span>
                                 </td>
-                                <td class="px-4 py-2.5 text-center">
-                                    <div class="flex items-center justify-center gap-1.5">
-                                        <a href="{{ route('admin.fiscalperiod.monthly-period.show', [$fiscalperiod->id, $month->id]) }}" class="text-blue-600 hover:underline text-xs">View</a>
+                                <td class="px-4 py-2.5">
+                                    <div class="flex items-center justify-center gap-1">
+                                        {{-- View --}}
+                                        <a href="{{ route('admin.fiscalperiod.monthly-period.show', [$fiscalperiod->id, $month->id]) }}"
+                                           class="p-1.5 rounded text-blue-600 hover:bg-blue-50 transition" title="View Details">
+                                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+                                        </a>
+
                                         @if($month->canClose())
-                                            <form method="POST" action="{{ route('admin.fiscalperiod.monthly-period.close', [$fiscalperiod->id, $month->id]) }}" onsubmit="return confirm('Close {{ $month->name }}?')" class="inline">
-                                                @csrf
-                                                <button class="text-amber-600 hover:underline text-xs ml-1">Close</button>
-                                            </form>
+                                            {{-- Close Month (opens withdrawal modal) --}}
+                                            <button type="button"
+                                                    @click="closeModal = { open: true, action: '{{ route('admin.fiscalperiod.monthly-period.close', [$fiscalperiod->id, $month->id]) }}', name: @js($month->name), net: {{ $month->live_net }}, available: {{ $month->opening_balance + $month->live_net }}, amount: '' }"
+                                                    class="p-1.5 rounded text-amber-600 hover:bg-amber-50 transition" title="Close Month">
+                                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
+                                            </button>
                                         @endif
+
                                         @if($month->canReopen())
-                                            <form method="POST" action="{{ route('admin.fiscalperiod.monthly-period.reopen', [$fiscalperiod->id, $month->id]) }}" onsubmit="return confirm('Reopen {{ $month->name }}?')" class="inline">
+                                            {{-- Reopen Month --}}
+                                            <form method="POST" action="{{ route('admin.fiscalperiod.monthly-period.reopen', [$fiscalperiod->id, $month->id]) }}"
+                                                  onsubmit="return confirm('Reopen {{ $month->name }}? This clears the recorded owner withdrawal.')">
                                                 @csrf
-                                                <button class="text-green-600 hover:underline text-xs ml-1">Reopen</button>
+                                                <button type="submit" class="p-1.5 rounded text-green-600 hover:bg-green-50 transition" title="Reopen Month">
+                                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 11V7a4 4 0 118 0m-4 8v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2z"/></svg>
+                                                </button>
                                             </form>
                                         @endif
+
+                                        {{-- Print Monthly PDF --}}
                                         <a href="{{ route('admin.fiscalperiod.monthly-period.print', [$fiscalperiod->id, $month->id]) }}" target="_blank"
-                                           class="text-gray-500 hover:text-gray-700 ml-1" title="Print Monthly PDF">
-                                            <svg class="w-3.5 h-3.5 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>
+                                           class="p-1.5 rounded text-gray-500 hover:bg-gray-100 transition" title="Print Summary PDF">
+                                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>
                                         </a>
                                     </div>
                                 </td>
@@ -174,11 +188,7 @@
         @endif
     </div>
 
-
-        <div class="mt-3 text-center">
-
-
-    {{-- Close Period Section (only if open) --}}
+    {{-- Close Period (only if open) --}}
     @if($fiscalperiod->status === 'open')
         <div class="bg-white rounded-lg shadow p-5 mb-6">
             <h3 class="font-semibold mb-3">Close This Period</h3>
@@ -203,7 +213,7 @@
         </div>
     @endif
 
-    {{-- Delete (only if open) --}}
+    {{-- Delete (only if not closed) --}}
     @if($fiscalperiod->status !== 'closed')
         <div class="text-center">
             <form method="POST" action="{{ route('admin.fiscalperiod.destroy', $fiscalperiod->id) }}" onsubmit="return confirm('Delete this fiscal period? This cannot be undone.')">
@@ -213,5 +223,61 @@
             </form>
         </div>
     @endif
+
+    {{-- Close-month modal: capture owner profit withdrawal --}}
+    <div x-show="closeModal.open" x-cloak
+         class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+         @keydown.escape.window="closeModal.open = false">
+        <div class="bg-white rounded-xl shadow-xl w-full max-w-md" @click.outside="closeModal.open = false">
+            <form method="POST" :action="closeModal.action">
+                @csrf
+                <div class="px-6 py-4 border-b">
+                    <h3 class="text-lg font-semibold">Close <span x-text="closeModal.name"></span></h3>
+                </div>
+
+                <div class="px-6 py-4 space-y-4">
+                    <div class="grid grid-cols-2 gap-3 text-sm">
+                        <div class="bg-gray-50 rounded-lg p-3">
+                            <p class="text-xs text-gray-500">Net Income (Profit)</p>
+                            <p class="font-bold mt-0.5" :class="closeModal.net >= 0 ? 'text-green-600' : 'text-red-600'"
+                               x-text="(closeModal.net >= 0 ? '+$' : '-$') + Math.abs(closeModal.net).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})"></p>
+                        </div>
+                        <div class="bg-gray-50 rounded-lg p-3">
+                            <p class="text-xs text-gray-500">Cash Available</p>
+                            <p class="font-bold mt-0.5" x-text="'$' + closeModal.available.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})"></p>
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Owner Withdrawal <span class="text-gray-400 font-normal">(optional)</span></label>
+                        <div class="relative">
+                            <span class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">$</span>
+                            <input type="number" name="owner_withdrawal" step="0.01" min="0" :max="Math.max(0, closeModal.available)"
+                                   x-model="closeModal.amount" placeholder="0.00"
+                                   class="w-full pl-7 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500">
+                        </div>
+                        <p class="text-xs text-red-600 mt-1" x-show="parseFloat(closeModal.amount || 0) > closeModal.available">
+                            Exceeds available cash.
+                        </p>
+                    </div>
+
+                    <div>
+                        <input type="text" name="withdrawal_note" placeholder="Note (optional)"
+                               class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500">
+                    </div>
+                </div>
+
+                <div class="px-6 py-4 border-t flex justify-end gap-2">
+                    <button type="button" @click="closeModal.open = false"
+                            class="px-4 py-2 rounded-lg bg-gray-100 text-gray-700 hover:bg-gray-200 text-sm font-semibold">Cancel</button>
+                    <button type="submit"
+                            :disabled="parseFloat(closeModal.amount || 0) > closeModal.available"
+                            class="px-4 py-2 rounded-lg bg-amber-600 text-white hover:bg-amber-700 text-sm font-semibold disabled:opacity-50 disabled:cursor-not-allowed">
+                        Close Month
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
 </div>
 @endsection

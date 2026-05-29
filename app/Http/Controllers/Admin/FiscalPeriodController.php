@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\FiscalPeriod\CloseFiscalPeriodRequest;
+use App\Http\Requests\FiscalPeriod\CloseMonthlyPeriodRequest;
 use App\Http\Requests\FiscalPeriod\StoreBalanceSheetItemRequest;
 use App\Http\Requests\FiscalPeriod\StoreFiscalPeriodRequest;
 use App\Http\Requests\FiscalPeriod\UpdateFiscalPeriodRequest;
@@ -45,18 +46,23 @@ class FiscalPeriodController extends Controller
 
     public function store(StoreFiscalPeriodRequest $request)
     {
+        $data = $request->validated();
+
         $fiscalPeriod = FiscalPeriods::create([
-            ...$request->validated(),
-            'user_id'         => Auth::id(),
-            'status'          => 'open',
+            ...$data,
+            'user_id' => Auth::id(),
+            'status' => 'open',
+            // The opening cash carry-forward seed is the opening assets: from here
+            // the monthly closing balance tracks total assets as profit accrues.
+            'opening_balance' => $data['opening_assets'],
             'closing_balance' => 0,
         ]);
 
         $this->monthlyManager->generateForFiscalPeriod($fiscalPeriod);
 
         return redirect()
-            ->route('admin.fiscalperiod.balance-sheet', $fiscalPeriod->id)
-            ->with('success', 'Fiscal period created with ' . $fiscalPeriod->monthlyPeriods()->count() . ' monthly periods.');
+            ->route('admin.fiscalperiod.show', $fiscalPeriod->id)
+            ->with('success', 'Fiscal period created with '.$fiscalPeriod->monthlyPeriods()->count().' monthly periods. The balance sheet will update automatically as you record income and expenses.');
     }
 
     /**
@@ -66,7 +72,7 @@ class FiscalPeriodController extends Controller
     {
         $this->authorizeUser($fiscalperiod);
 
-        $financialData  = $this->financials->forPeriod($fiscalperiod);
+        $financialData = $this->financials->forPeriod($fiscalperiod);
         $monthlyPeriods = $this->attachLiveFinancials($fiscalperiod->monthlyPeriods()->orderBy('start_date')->get(), $fiscalperiod);
         $balanceSummary = $this->balanceSheetService->summary($fiscalperiod);
 
@@ -86,7 +92,16 @@ class FiscalPeriodController extends Controller
     {
         $this->authorizeUser($fiscalperiod);
 
-        $fiscalperiod->update($request->validated());
+        $data = $request->validated();
+        $fiscalperiod->update([
+            ...$data,
+            // Keep the cash carry-forward seed aligned with the opening assets.
+            'opening_balance' => $data['opening_assets'],
+        ]);
+
+        // Re-cascade the monthly carry-forward so the months reflect the new
+        // opening figures.
+        $this->monthlyManager->recalculateBalances($fiscalperiod);
 
         return redirect()
             ->route('admin.fiscalperiod.show', $fiscalperiod->id)
@@ -131,7 +146,7 @@ class FiscalPeriodController extends Controller
         BalanceSheet::create([
             ...$request->validated(),
             'fiscal_period_id' => $fiscalperiod->id,
-            'user_id'          => Auth::id(),
+            'user_id' => Auth::id(),
         ]);
 
         return back()->with('success', 'Balance sheet item added successfully.');
@@ -150,28 +165,13 @@ class FiscalPeriodController extends Controller
         return back()->with('success', 'Balance sheet item deleted successfully.');
     }
 
-    /**
-     * Show opening/closing-balance form (used before closing a period).
-     */
-    public function openCloseBalances(FiscalPeriods $fiscalperiod)
-    {
-        $this->authorizeUser($fiscalperiod);
-
-        $assets         = $fiscalperiod->balanceSheets()->where('item_type', 'asset')->sum('amount');
-        $liabilities    = $fiscalperiod->balanceSheets()->where('item_type', 'liability')->sum('amount');
-        $equity         = $fiscalperiod->balanceSheets()->where('item_type', 'equity')->sum('amount');
-        $closingBalance = $assets - $liabilities;
-
-        return view('admin.fiscalperiod.open_close_balances', compact('fiscalperiod', 'assets', 'liabilities', 'equity', 'closingBalance'));
-    }
-
     public function closeperiod(CloseFiscalPeriodRequest $request, FiscalPeriods $fiscalperiod)
     {
         $this->authorizeUser($fiscalperiod);
 
         $fiscalperiod->update([
             'closing_balance' => $request->validated()['closing_balance'],
-            'status'          => 'closed',
+            'status' => 'closed',
         ]);
 
         return redirect()
@@ -182,18 +182,6 @@ class FiscalPeriodController extends Controller
     // ============================================================
     // MONTHLY PERIOD MANAGEMENT
     // ============================================================
-
-    public function monthlyPeriods(FiscalPeriods $fiscalperiod)
-    {
-        $this->authorizeUser($fiscalperiod);
-
-        $monthlyPeriods = $this->attachLiveFinancials(
-            $fiscalperiod->monthlyPeriods()->orderBy('start_date')->get(),
-            $fiscalperiod,
-        );
-
-        return view('admin.fiscalperiod.monthly_periods', compact('fiscalperiod', 'monthlyPeriods'));
-    }
 
     public function showMonth(FiscalPeriods $fiscalperiod, MonthlyPeriod $monthlyPeriod)
     {
@@ -212,24 +200,50 @@ class FiscalPeriodController extends Controller
             ->orderBy('start_date')
             ->first();
 
+        $balanceSheet = $this->balanceSheetService->summaryAsOf($fiscalperiod, $monthlyPeriod);
+
         return view('admin.fiscalperiod.monthly_period_show', compact(
-            'fiscalperiod', 'monthlyPeriod', 'financials', 'previousMonth', 'nextMonth'
+            'fiscalperiod', 'monthlyPeriod', 'financials', 'previousMonth', 'nextMonth', 'balanceSheet'
         ));
     }
 
-    public function closeMonth(FiscalPeriods $fiscalperiod, MonthlyPeriod $monthlyPeriod)
+    public function closeMonth(CloseMonthlyPeriodRequest $request, FiscalPeriods $fiscalperiod, MonthlyPeriod $monthlyPeriod)
     {
         $this->authorizeUser($fiscalperiod);
         $this->ensureMonthBelongsTo($fiscalperiod, $monthlyPeriod);
 
-        if (!$monthlyPeriod->canClose()) {
+        if (! $monthlyPeriod->canClose()) {
             return back()->with('error', 'This monthly period cannot be closed.');
         }
 
-        $result = $this->monthlyManager->closeMonth($fiscalperiod, $monthlyPeriod);
+        $withdrawal = (float) $request->validated()['owner_withdrawal'];
 
-        $msg = $monthlyPeriod->name . ' closed. Closing balance: $' . number_format($result['closing_balance'], 2)
-            . ($result['next_month'] ? ' carried forward to ' . $result['next_month']->name : '') . '.';
+        // A profit withdrawal can't exceed the cash actually available at month
+        // end (opening balance + net income). Guard so the carry-forward never
+        // goes negative from an over-draw.
+        $financials = $this->financials->forMonth($fiscalperiod, $monthlyPeriod);
+        $availableCash = $monthlyPeriod->opening_balance + $financials['net_income'];
+        if ($withdrawal > $availableCash + 0.01) {
+            return back()
+                ->withInput()
+                ->with('error', 'Withdrawal of $'.number_format($withdrawal, 2)
+                    .' exceeds the available cash of $'.number_format(max(0, $availableCash), 2)
+                    .' for '.$monthlyPeriod->name.'.');
+        }
+
+        $result = $this->monthlyManager->closeMonth(
+            $fiscalperiod,
+            $monthlyPeriod,
+            $withdrawal,
+            $request->validated()['withdrawal_note'] ?? null,
+        );
+
+        $msg = $monthlyPeriod->name.' closed. Net income: $'.number_format($result['net_income'], 2).'.';
+        if ($result['owner_withdrawal'] > 0) {
+            $msg .= ' Owner withdrawal: $'.number_format($result['owner_withdrawal'], 2).'.';
+        }
+        $msg .= ' Closing balance: $'.number_format($result['closing_balance'], 2)
+            .($result['next_month'] ? ' carried forward to '.$result['next_month']->name : '').'.';
 
         return back()->with('success', $msg);
     }
@@ -239,7 +253,7 @@ class FiscalPeriodController extends Controller
         $this->authorizeUser($fiscalperiod);
         $this->ensureMonthBelongsTo($fiscalperiod, $monthlyPeriod);
 
-        if (!$monthlyPeriod->canReopen()) {
+        if (! $monthlyPeriod->canReopen()) {
             return back()->with('error', 'This monthly period cannot be reopened.');
         }
 
@@ -247,10 +261,10 @@ class FiscalPeriodController extends Controller
 
         // Service returns the blocking next month if reopen would break the chain.
         if ($result instanceof MonthlyPeriod) {
-            return back()->with('error', 'Cannot reopen: the next month (' . $result->name . ') is already closed. Reopen it first.');
+            return back()->with('error', 'Cannot reopen: the next month ('.$result->name.') is already closed. Reopen it first.');
         }
 
-        return back()->with('success', $monthlyPeriod->name . ' has been reopened.');
+        return back()->with('success', $monthlyPeriod->name.' has been reopened.');
     }
 
     public function recalculateBalances(FiscalPeriods $fiscalperiod)
@@ -261,7 +275,7 @@ class FiscalPeriodController extends Controller
 
         return back()->with(
             'success',
-            'All monthly balances recalculated. Fiscal period closing balance: $' . number_format($carryForward, 2)
+            'All monthly balances recalculated. Fiscal period closing balance: $'.number_format($carryForward, 2)
         );
     }
 
@@ -274,21 +288,21 @@ class FiscalPeriodController extends Controller
         $this->authorizeUser($fiscalperiod);
 
         $balanceSheetItems = $fiscalperiod->balanceSheets()->get();
-        $summary           = $this->balanceSheetService->summary($fiscalperiod);
-        $monthlyPeriods    = $fiscalperiod->monthlyPeriods()->orderBy('start_date')->get();
+        $summary = $this->balanceSheetService->summary($fiscalperiod);
+        $monthlyPeriods = $fiscalperiod->monthlyPeriods()->orderBy('start_date')->get();
 
         $monthlyData = [];
         foreach ($monthlyPeriods as $month) {
             $monthlyData[] = [
-                'period'     => $month,
+                'period' => $month,
                 'financials' => $this->financials->forMonth($fiscalperiod, $month),
             ];
         }
 
         $periodFinancials = $this->financials->forPeriod($fiscalperiod);
-        $incomeStatement  = $this->reportsService->incomeStatement($fiscalperiod, $monthlyPeriods);
-        $cashFlow         = $this->reportsService->cashFlow($fiscalperiod, $monthlyPeriods);
-        $trialBalance     = $this->reportsService->trialBalance($fiscalperiod);
+        $incomeStatement = $this->reportsService->incomeStatement($fiscalperiod, $monthlyPeriods);
+        $cashFlow = $this->reportsService->cashFlow($fiscalperiod, $monthlyPeriods);
+        $trialBalance = $this->reportsService->trialBalance($fiscalperiod);
 
         return view('admin.fiscalperiod.period_reports_exports', compact(
             'fiscalperiod', 'balanceSheetItems', 'summary',
@@ -302,9 +316,9 @@ class FiscalPeriodController extends Controller
         $this->authorizeUser($fiscalperiod);
 
         $balanceSheetItems = $fiscalperiod->balanceSheets()->get();
-        $summary           = $this->balanceSheetService->summary($fiscalperiod);
-        $html              = $this->balanceSheetService->renderHtml($fiscalperiod, $balanceSheetItems);
-        $periodFinancials  = $this->financials->forPeriod($fiscalperiod);
+        $summary = $this->balanceSheetService->summary($fiscalperiod);
+        $html = $this->balanceSheetService->renderHtml($fiscalperiod, $balanceSheetItems);
+        $periodFinancials = $this->financials->forPeriod($fiscalperiod);
 
         return view('admin.fiscalperiod.export-pdf', compact(
             'fiscalperiod', 'balanceSheetItems', 'summary', 'html', 'periodFinancials'
@@ -317,8 +331,9 @@ class FiscalPeriodController extends Controller
         $this->ensureMonthBelongsTo($fiscalperiod, $monthlyPeriod);
 
         $financials = $this->financials->forMonth($fiscalperiod, $monthlyPeriod);
+        $balanceSheet = $this->balanceSheetService->summaryAsOf($fiscalperiod, $monthlyPeriod);
 
-        return view('admin.fiscalperiod.monthly-period-pdf', compact('fiscalperiod', 'monthlyPeriod', 'financials'));
+        return view('admin.fiscalperiod.monthly-period-pdf', compact('fiscalperiod', 'monthlyPeriod', 'financials', 'balanceSheet'));
     }
 
     public function exportCSV(FiscalPeriods $fiscalperiod)
@@ -326,18 +341,18 @@ class FiscalPeriodController extends Controller
         $this->authorizeUser($fiscalperiod);
 
         $balanceSheetItems = $fiscalperiod->balanceSheets()->orderBy('item_type')->get();
-        $summary           = $this->balanceSheetService->summary($fiscalperiod);
+        $summary = $this->balanceSheetService->summary($fiscalperiod);
 
-        $fileName = "balance_sheet_{$fiscalperiod->id}_" . now()->format('Y-m-d') . '.csv';
+        $fileName = "balance_sheet_{$fiscalperiod->id}_".now()->format('Y-m-d').'.csv';
 
         return response()->stream(
             function () use ($fiscalperiod, $balanceSheetItems, $summary) {
                 $file = fopen('php://output', 'w');
 
                 fputcsv($file, [
-                    'Fiscal Period: ' . $fiscalperiod->name,
-                    'Period: ' . $fiscalperiod->opening_date . ' to ' . $fiscalperiod->closing_date,
-                    'Generated: ' . now()->format('Y-m-d H:i:s'),
+                    'Fiscal Period: '.$fiscalperiod->name,
+                    'Period: '.$fiscalperiod->opening_date.' to '.$fiscalperiod->closing_date,
+                    'Generated: '.now()->format('Y-m-d H:i:s'),
                 ]);
                 fputcsv($file, []);
                 fputcsv($file, ['Item Type', 'Sub Type', 'Name', 'Amount', 'As Of Date', 'Reference Number', 'Notes']);
@@ -366,7 +381,7 @@ class FiscalPeriodController extends Controller
             },
             200,
             [
-                'Content-Type'        => 'text/csv',
+                'Content-Type' => 'text/csv',
                 'Content-Disposition' => "attachment; filename={$fileName}",
             ]
         );
@@ -384,10 +399,11 @@ class FiscalPeriodController extends Controller
     {
         foreach ($monthlyPeriods as $month) {
             $data = $this->financials->forMonth($fiscalPeriod, $month);
-            $month->live_income   = $data['total_income'];
+            $month->live_income = $data['total_income'];
             $month->live_expenses = $data['total_expenses'];
-            $month->live_net      = $data['net_income'];
+            $month->live_net = $data['net_income'];
         }
+
         return $monthlyPeriods;
     }
 

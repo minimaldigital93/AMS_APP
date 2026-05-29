@@ -20,6 +20,8 @@ class MonthlyPeriod extends Model
         'total_income',
         'total_expenses',
         'net_income',
+        'owner_withdrawal',
+        'withdrawal_note',
         'status',
         'closed_at',
         'notes',
@@ -35,6 +37,7 @@ class MonthlyPeriod extends Model
             'total_income' => 'float',
             'total_expenses' => 'float',
             'net_income' => 'float',
+            'owner_withdrawal' => 'float',
             'closed_at' => 'datetime',
         ];
     }

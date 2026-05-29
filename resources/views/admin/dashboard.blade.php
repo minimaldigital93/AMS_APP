@@ -361,7 +361,9 @@
                 <tbody class="divide-y divide-slate-50">
                     @foreach($fiscalData['recent_periods'] as $period)
                     <tr class="hover:bg-slate-50/50">
-                        <td class="py-2.5 font-medium text-slate-700">{{ $period->name }}</td>
+                        <td class="py-2.5 font-medium text-slate-700">
+                            <a href="{{ route('admin.fiscalperiod.show', $period->id) }}" class="hover:text-sky-600 hover:underline">{{ $period->name }}</a>
+                        </td>
                         <td class="py-2.5 text-slate-400">{{ $period->opening_date->format('M d') }} - {{ $period->closing_date->format('M d, Y') }}</td>
                         <td class="py-2.5 text-right">${{ number_format($period->opening_balance, 2) }}</td>
                         <td class="py-2.5 text-right">${{ number_format($period->closing_balance, 2) }}</td>

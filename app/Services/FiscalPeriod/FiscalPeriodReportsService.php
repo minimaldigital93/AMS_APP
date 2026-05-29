@@ -26,29 +26,29 @@ class FiscalPeriodReportsService
     {
         $months = [];
         $totals = [
-            'rent_income'    => 0,
-            'late_fees'      => 0,
-            'other_income'   => 0,
-            'total_income'   => 0,
+            'rent_income' => 0,
+            'late_fees' => 0,
+            'other_income' => 0,
+            'total_income' => 0,
             'total_expenses' => 0,
-            'net_income'     => 0,
+            'net_income' => 0,
         ];
 
         foreach ($monthlyPeriods as $month) {
             $data = $this->financials->forMonth($fiscalPeriod, $month);
 
             $months[] = [
-                'name'  => $month->name,
+                'name' => $month->name,
                 'short' => Carbon::parse($month->start_date)->format('M'),
-                'data'  => $data,
+                'data' => $data,
             ];
 
-            $totals['rent_income']    += $data['rent_income'];
-            $totals['late_fees']      += $data['late_fees'];
-            $totals['other_income']   += $data['other_income'];
-            $totals['total_income']   += $data['total_income'];
+            $totals['rent_income'] += $data['rent_income'];
+            $totals['late_fees'] += $data['late_fees'];
+            $totals['other_income'] += $data['other_income'];
+            $totals['total_income'] += $data['total_income'];
             $totals['total_expenses'] += $data['total_expenses'];
-            $totals['net_income']     += $data['net_income'];
+            $totals['net_income'] += $data['net_income'];
         }
 
         return ['months' => $months, 'totals' => $totals];
@@ -66,16 +66,23 @@ class FiscalPeriodReportsService
 
         foreach ($monthlyPeriods as $month) {
             $data = $this->financials->forMonth($fiscalPeriod, $month);
-            $openBal  = $runningBalance;
-            $closeBal = $openBal + $data['net_income'];
+
+            // An owner draw is not an expense (net income is untouched), but it
+            // is cash leaving the business, so the cash flow must subtract it
+            // from the running balance carried into the next month.
+            $withdrawal = (float) $month->owner_withdrawal;
+
+            $openBal = $runningBalance;
+            $closeBal = $openBal + $data['net_income'] - $withdrawal;
 
             $months[] = [
-                'name'            => $month->name,
-                'short'           => Carbon::parse($month->start_date)->format('M'),
+                'name' => $month->name,
+                'short' => Carbon::parse($month->start_date)->format('M'),
                 'opening_balance' => $openBal,
-                'cash_in'         => $data['total_income'],
-                'cash_out'        => $data['total_expenses'],
-                'net_cash_flow'   => $data['net_income'],
+                'cash_in' => $data['total_income'],
+                'cash_out' => $data['total_expenses'],
+                'net_cash_flow' => $data['net_income'],
+                'owner_withdrawal' => $withdrawal,
                 'closing_balance' => $closeBal,
             ];
 
@@ -83,64 +90,60 @@ class FiscalPeriodReportsService
         }
 
         return [
-            'months'          => $months,
+            'months' => $months,
             'opening_balance' => $fiscalPeriod->opening_balance,
             'closing_balance' => $runningBalance,
-            'total_cash_in'   => array_sum(array_column($months, 'cash_in')),
-            'total_cash_out'  => array_sum(array_column($months, 'cash_out')),
-            'net_change'      => $runningBalance - $fiscalPeriod->opening_balance,
+            'total_cash_in' => array_sum(array_column($months, 'cash_in')),
+            'total_cash_out' => array_sum(array_column($months, 'cash_out')),
+            'total_withdrawals' => array_sum(array_column($months, 'owner_withdrawal')),
+            'net_change' => $runningBalance - $fiscalPeriod->opening_balance,
         ];
     }
 
     /**
-     * Trial Balance — debits (assets + expenses + cash) on the left,
-     * credits (liabilities + equity + revenue) on the right. Reports
-     * is_balanced when |debit − credit| < 0.01.
+     * Post-closing Trial Balance — assets on the debit side, liabilities and
+     * equity on the credit side. Reports is_balanced when |debit − credit| < 0.01.
+     *
+     * The figures come straight from the auto-calculated balance sheet, which
+     * has already folded retained earnings (net income) and owner draws into
+     * both current assets and current equity. Because the opening figures must
+     * balance (Assets = Liabilities + Equity) and operations move assets and
+     * equity by the same amount, the trial balance self-balances by construction.
      */
     public function trialBalance(FiscalPeriods $fiscalPeriod): array
     {
-        $periodFinancials = $this->financials->forPeriod($fiscalPeriod);
-        $summary          = $this->balanceSheet->summary($fiscalPeriod);
+        $summary = $this->balanceSheet->summary($fiscalPeriod);
+        $nonZero = fn ($amount) => abs((float) $amount) > 0.005;
 
-        $debits  = [];
+        $debits = [];
         $totalDebits = 0;
 
-        if ($summary['total_assets'] > 0) {
-            $debits[] = ['account' => 'Assets', 'amount' => $summary['total_assets']];
+        if ($nonZero($summary['total_assets'])) {
+            $debits[] = ['account' => 'Assets (incl. retained earnings)', 'amount' => $summary['total_assets']];
             $totalDebits += $summary['total_assets'];
-        }
-        if ($periodFinancials['total_expenses'] > 0) {
-            $debits[] = ['account' => 'Total Expenses', 'amount' => $periodFinancials['total_expenses']];
-            $totalDebits += $periodFinancials['total_expenses'];
-        }
-        if ($fiscalPeriod->opening_balance > 0) {
-            $debits[] = ['account' => 'Cash (Opening Balance)', 'amount' => $fiscalPeriod->opening_balance];
-            $totalDebits += $fiscalPeriod->opening_balance;
         }
 
         $credits = [];
         $totalCredits = 0;
 
-        if ($summary['total_liabilities'] > 0) {
+        if ($nonZero($summary['total_liabilities'])) {
             $credits[] = ['account' => 'Liabilities', 'amount' => $summary['total_liabilities']];
             $totalCredits += $summary['total_liabilities'];
         }
-        if ($summary['total_equity'] > 0) {
-            $credits[] = ['account' => 'Equity', 'amount' => $summary['total_equity']];
+        // Equity already includes opening equity + retained earnings − draws.
+        if ($nonZero($summary['total_equity'])) {
+            $credits[] = ['account' => 'Equity (incl. retained earnings)', 'amount' => $summary['total_equity']];
             $totalCredits += $summary['total_equity'];
-        }
-        if ($periodFinancials['total_income'] > 0) {
-            $credits[] = ['account' => 'Total Revenue', 'amount' => $periodFinancials['total_income']];
-            $totalCredits += $periodFinancials['total_income'];
         }
 
         return [
-            'debits'        => $debits,
-            'credits'       => $credits,
-            'total_debits'  => $totalDebits,
-            'total_credits' => $totalCredits,
-            'is_balanced'   => abs($totalDebits - $totalCredits) < 0.01,
-            'difference'    => $totalDebits - $totalCredits,
+            'debits' => $debits,
+            'credits' => $credits,
+            'total_debits' => round($totalDebits, 2),
+            'total_credits' => round($totalCredits, 2),
+            'is_balanced' => abs($totalDebits - $totalCredits) < 0.01,
+            'difference' => round($totalDebits - $totalCredits, 2),
+            'retained_earnings' => $summary['retained_earnings'],
         ];
     }
 }

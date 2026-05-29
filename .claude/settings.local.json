@@ -47,7 +47,16 @@
       "Bash(/opt/homebrew/opt/php@8.4/bin/php -r \"echo phpversion\\(\\);\")",
       "Bash(direnv status *)",
       "Bash(/opt/homebrew/opt/php@8.4/bin/php artisan *)",
-      "Bash(php -l app/Services/RevenueExpense/BreakEvenService.php)"
+      "Bash(php -l app/Services/RevenueExpense/BreakEvenService.php)",
+      "Bash(./vendor/bin/pest --filter=\"iscal\")",
+      "Bash(./vendor/bin/pint app/Services/FiscalPeriod/MonthlyPeriodManager.php app/Services/FiscalPeriod/FiscalPeriodReportsService.php)",
+      "Bash(php -r '$s=file_get_contents\\(\"resources/views/admin/fiscalperiod/period_reports_exports.blade.php\"\\); echo \"@if=\".substr_count\\($s,\"@if\"\\).\" @endif=\".substr_count\\($s,\"@endif\"\\).\" @foreach=\".substr_count\\($s,\"@foreach\"\\).\" @endforeach=\".substr_count\\($s,\"@endforeach\"\\).\" @forelse=\".substr_count\\($s,\"@forelse\"\\).\" @empty=\".substr_count\\($s,\"@empty\"\\).\" @endforelse=\".substr_count\\($s,\"@endforelse\"\\).\"\\\\n\";')",
+      "Bash(grep -n 'fillable\\\\|protected $casts' app/Models/BalanceSheet.php)",
+      "Bash(./vendor/bin/pest tests/Feature/FiscalPeriod/)",
+      "Bash(./vendor/bin/pest tests/Feature/FiscalPeriod/TrialBalanceTest.php)",
+      "Bash(git stash *)",
+      "Bash(./vendor/bin/pest tests/Feature/Auth/RegistrationTest.php)",
+      "Bash(./vendor/bin/pint app/Services/FiscalPeriod/BalanceSheetService.php app/Services/FiscalPeriod/FiscalPeriodReportsService.php app/Http/Controllers/Admin/FiscalPeriodController.php app/Http/Requests/FiscalPeriod/StoreFiscalPeriodRequest.php app/Http/Requests/FiscalPeriod/UpdateFiscalPeriodRequest.php app/Models/FiscalPeriods.php database/migrations/2026_05_29_000002_add_opening_balance_sheet_to_fiscal_periods.php tests/Feature/FiscalPeriod/)"
     ]
   }
 }

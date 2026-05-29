@@ -112,6 +112,12 @@
             {{ $financials['net_income'] >= 0 ? '+' : '' }}${{ number_format($financials['net_income'], 2) }}
         </div>
     </div>
+    @if($monthlyPeriod->owner_withdrawal > 0)
+    <div class="flow-card">
+        <div class="label">− Owner Draw</div>
+        <div class="amount" style="color:#7c3aed">${{ number_format($monthlyPeriod->owner_withdrawal, 2) }}</div>
+    </div>
+    @endif
     <div class="flow-card">
         <div class="label">Closing</div>
         <div class="amount">
@@ -209,6 +215,43 @@
     <div style="font-size:24px;font-weight:700;color:{{ $financials['net_income'] >= 0 ? '#16a34a' : '#dc2626' }};">
         {{ $financials['net_income'] >= 0 ? '+' : '' }}${{ number_format($financials['net_income'], 2) }}
     </div>
+</div>
+
+@if($monthlyPeriod->owner_withdrawal > 0)
+{{-- Owner Profit Withdrawal (owner's draw — not an expense) --}}
+<div style="background:#faf5ff;border:1px solid #d8b4fe;border-radius:6px;padding:16px 20px;display:flex;justify-content:space-between;align-items:center;margin-bottom:24px;">
+    <div>
+        <div style="font-size:12px;color:#6b7280;font-weight:600;text-transform:uppercase;">Owner Profit Withdrawal</div>
+        <div style="font-size:11px;color:#9ca3af;margin-top:2px;">Owner's draw — reduces carried-forward cash, not net income@if($monthlyPeriod->withdrawal_note) &nbsp;|&nbsp; {{ $monthlyPeriod->withdrawal_note }}@endif</div>
+    </div>
+    <div style="font-size:24px;font-weight:700;color:#7c3aed;">
+        − ${{ number_format($monthlyPeriod->owner_withdrawal, 2) }}
+    </div>
+</div>
+@endif
+
+{{-- Balance Sheet as of this month end (auto-calculated) --}}
+<div style="margin-bottom:24px;">
+    <div style="font-size:12px;color:#6b7280;font-weight:600;text-transform:uppercase;margin-bottom:8px;">
+        Balance Sheet — as of {{ $monthlyPeriod->end_date->format('M d, Y') }}
+        ({{ $balanceSheet['balance_check'] ? 'Balanced' : 'Out of balance' }})
+    </div>
+    <table>
+        <tbody>
+            <tr>
+                <td>Assets</td>
+                <td class="right" style="color:#2563eb;font-weight:600;">${{ number_format($balanceSheet['total_assets'], 2) }}</td>
+            </tr>
+            <tr>
+                <td>Liabilities</td>
+                <td class="right" style="color:#dc2626;font-weight:600;">${{ number_format($balanceSheet['total_liabilities'], 2) }}</td>
+            </tr>
+            <tr>
+                <td>Equity</td>
+                <td class="right" style="color:#16a34a;font-weight:600;">${{ number_format($balanceSheet['total_equity'], 2) }}</td>
+            </tr>
+        </tbody>
+    </table>
 </div>
 
 <div class="footer">

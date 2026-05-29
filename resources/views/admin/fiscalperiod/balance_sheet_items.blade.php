@@ -7,7 +7,12 @@
             <h1 class="text-2xl font-bold">Balance Sheet</h1>
             <p class="text-sm text-gray-500">{{ $fiscalperiod->name }}</p>
         </div>
-        <a href="{{ route('admin.fiscalperiod.show', $fiscalperiod->id) }}" class="text-sm bg-gray-100 text-gray-700 px-3 py-2 rounded-lg hover:bg-gray-200">← Back</a>
+        <div class="flex items-center gap-2">
+            @if($fiscalperiod->status === 'open')
+                <a href="{{ route('admin.fiscalperiod.edit', $fiscalperiod->id) }}" class="text-sm bg-gray-100 text-gray-700 px-3 py-2 rounded-lg hover:bg-gray-200">Edit opening figures</a>
+            @endif
+            <a href="{{ route('admin.fiscalperiod.show', $fiscalperiod->id) }}" class="text-sm bg-gray-100 text-gray-700 px-3 py-2 rounded-lg hover:bg-gray-200">← Back</a>
+        </div>
     </div>
 
     @if(session('success'))
@@ -15,16 +20,15 @@
             <p class="text-green-800 text-sm">{{ session('success') }}</p>
         </div>
     @endif
-    @if($errors->any())
-        <div class="bg-red-50 border border-red-200 rounded-lg p-3 mb-4">
-            <ul class="text-red-700 text-sm space-y-1">
-                @foreach($errors->all() as $error)<li>{{ $error }}</li>@endforeach
-            </ul>
-        </div>
-    @endif
 
-    {{-- Summary --}}
-    <div class="grid grid-cols-3 gap-4 mb-6">
+    {{-- How it works --}}
+    <div class="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-6 text-sm text-blue-800">
+        This balance sheet is calculated automatically. You set the opening Assets, Liabilities and Equity when the
+        period was created; the system rolls them forward every month from your recorded income and expenses.
+    </div>
+
+    {{-- Current (auto-calculated) balance sheet --}}
+    <div class="grid grid-cols-3 gap-4 mb-2">
         <div class="bg-white rounded-lg shadow p-4 text-center">
             <p class="text-xs text-gray-500 uppercase">Assets</p>
             <p class="text-lg font-bold text-blue-600">${{ number_format($summary['total_assets'], 2) }}</p>
@@ -37,6 +41,55 @@
             <p class="text-xs text-gray-500 uppercase">Equity</p>
             <p class="text-lg font-bold text-green-600">${{ number_format($summary['total_equity'], 2) }}</p>
         </div>
+    </div>
+    <p class="text-center text-xs mb-6 {{ $summary['balance_check'] ? 'text-green-600' : 'text-amber-600' }}">
+        @if($summary['balance_check'])
+            ✓ Balanced — Assets = Liabilities + Equity
+        @else
+            ⚠ Out of balance by ${{ number_format(abs($summary['total_assets'] - ($summary['total_liabilities'] + $summary['total_equity'])), 2) }}
+        @endif
+    </p>
+
+    {{-- Opening → Current roll-forward --}}
+    <div class="bg-white rounded-lg shadow p-5 mb-6">
+        <h3 class="font-semibold text-sm text-gray-700 mb-3">How it was calculated</h3>
+        <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+                <thead>
+                    <tr class="text-xs text-gray-500 uppercase border-b">
+                        <th class="py-2 text-left">&nbsp;</th>
+                        <th class="py-2 text-right">Opening</th>
+                        <th class="py-2 text-right">+ Retained Earnings</th>
+                        <th class="py-2 text-right">− Owner Draws</th>
+                        <th class="py-2 text-right">= Current</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y">
+                    <tr>
+                        <td class="py-2 font-medium text-gray-700">Assets</td>
+                        <td class="py-2 text-right">${{ number_format($summary['opening_assets'], 2) }}</td>
+                        <td class="py-2 text-right text-green-600">+${{ number_format($summary['retained_earnings'], 2) }}</td>
+                        <td class="py-2 text-right text-purple-600">−${{ number_format($summary['owner_withdrawals'], 2) }}</td>
+                        <td class="py-2 text-right font-semibold text-blue-600">${{ number_format($summary['total_assets'], 2) }}</td>
+                    </tr>
+                    <tr>
+                        <td class="py-2 font-medium text-gray-700">Liabilities</td>
+                        <td class="py-2 text-right">${{ number_format($summary['opening_liabilities'], 2) }}</td>
+                        <td class="py-2 text-right text-gray-400">—</td>
+                        <td class="py-2 text-right text-gray-400">—</td>
+                        <td class="py-2 text-right font-semibold text-red-600">${{ number_format($summary['total_liabilities'], 2) }}</td>
+                    </tr>
+                    <tr>
+                        <td class="py-2 font-medium text-gray-700">Equity</td>
+                        <td class="py-2 text-right">${{ number_format($summary['opening_equity'], 2) }}</td>
+                        <td class="py-2 text-right text-green-600">+${{ number_format($summary['retained_earnings'], 2) }}</td>
+                        <td class="py-2 text-right text-purple-600">−${{ number_format($summary['owner_withdrawals'], 2) }}</td>
+                        <td class="py-2 text-right font-semibold text-green-600">${{ number_format($summary['total_equity'], 2) }}</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+        <p class="text-xs text-gray-400 mt-2">Retained earnings = total income − total expenses. Owner draws are profit distributions taken when closing a month.</p>
     </div>
 
     {{-- Operating Performance & Retained Earnings --}}
@@ -102,144 +155,14 @@
                 </p>
             </div>
             <div>
-                <p class="text-xs text-gray-400">Adjusted Equity</p>
-                <p class="font-bold text-sm text-purple-600">${{ number_format($summary['adjusted_equity'] ?? $summary['total_equity'], 2) }}</p>
+                <p class="text-xs text-gray-400">Owner Draws</p>
+                <p class="font-bold text-sm text-purple-600">${{ number_format($summary['owner_withdrawals'] ?? 0, 2) }}</p>
             </div>
             <div>
-                <p class="text-xs text-gray-400">Cash from Operations</p>
-                <p class="font-bold text-sm text-blue-600">${{ number_format($summary['cash_from_operations'] ?? 0, 2) }}</p>
+                <p class="text-xs text-gray-400">Net Worth (Assets − Liabilities)</p>
+                <p class="font-bold text-sm text-blue-600">${{ number_format($summary['net_worth'] ?? 0, 2) }}</p>
             </div>
         </div>
     </div>
-
-    {{-- Add Item Form --}}
-    <div class="bg-white rounded-lg shadow p-5 mb-6">
-        <h3 class="font-semibold mb-4">Add Item</h3>
-        <form method="POST" action="{{ route('admin.fiscalperiod.storeBalanceItem', $fiscalperiod->id) }}" class="space-y-4">
-            @csrf
-            <div class="grid grid-cols-2 gap-3">
-                <div>
-                    <label class="block text-xs text-gray-500 mb-1">Type</label>
-                    <select id="item_type" name="item_type" required onchange="updateSubTypes()"
-                        class="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none">
-                        <option value="">Select...</option>
-                        <option value="asset" {{ old('item_type') === 'asset' ? 'selected' : '' }}>Asset</option>
-                        <option value="liability" {{ old('item_type') === 'liability' ? 'selected' : '' }}>Liability</option>
-                        <option value="equity" {{ old('item_type') === 'equity' ? 'selected' : '' }}>Equity</option>
-                    </select>
-                </div>
-                <div>
-                    <label class="block text-xs text-gray-500 mb-1">Sub Type</label>
-                    <select id="sub_type" name="sub_type" required
-                        class="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none">
-                        <option value="">Select...</option>
-                    </select>
-                </div>
-            </div>
-            <div class="grid grid-cols-2 gap-3">
-                <div>
-                    <label class="block text-xs text-gray-500 mb-1">Name</label>
-                    <input type="text" name="name" value="{{ old('name') }}" required placeholder="e.g., Cash in Bank"
-                        class="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none">
-                </div>
-                <div>
-                    <label class="block text-xs text-gray-500 mb-1">Amount</label>
-                    <div class="relative">
-                        <span class="absolute left-3 top-2 text-gray-500 text-sm">$</span>
-                        <input type="number" name="amount" value="{{ old('amount') }}" required step="0.01" min="0"
-                            class="w-full pl-7 pr-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none">
-                    </div>
-                </div>
-            </div>
-            <div class="grid grid-cols-2 gap-3">
-                <div>
-                    <label class="block text-xs text-gray-500 mb-1">Date</label>
-                    <input type="date" name="as_of_date" value="{{ old('as_of_date') }}" required
-                        min="{{ $fiscalperiod->opening_date->format('Y-m-d') }}" max="{{ $fiscalperiod->closing_date->format('Y-m-d') }}"
-                        class="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none bg-white appearance-none h-10">
-                </div>
-                <div>
-                    <label class="block text-xs text-gray-500 mb-1">Reference (optional)</label>
-                    <input type="text" name="reference_number" value="{{ old('reference_number') }}" placeholder="e.g., INV-001"
-                        class="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none">
-                </div>
-            </div>
-            <div>
-                <label class="block text-xs text-gray-500 mb-1">Notes (optional)</label>
-                <input type="text" name="notes" value="{{ old('notes') }}" placeholder="Any additional notes"
-                    class="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none">
-            </div>
-            <button type="submit" class="w-full bg-blue-600 text-white py-2 rounded-lg font-semibold hover:bg-blue-700 text-sm">
-                Add Item
-            </button>
-        </form>
-    </div>
-
-    {{-- Items List --}}
-    @php
-        $assets = $balanceSheetItems->get('asset', collect());
-        $liabilities = $balanceSheetItems->get('liability', collect());
-        $equity = $balanceSheetItems->get('equity', collect());
-        $groups = [
-            ['label' => 'Assets', 'items' => $assets, 'color' => 'blue'],
-            ['label' => 'Liabilities', 'items' => $liabilities, 'color' => 'red'],
-            ['label' => 'Equity', 'items' => $equity, 'color' => 'green'],
-        ];
-    @endphp
-
-    @foreach($groups as $group)
-        @if($group['items']->count())
-            <div class="bg-white rounded-lg shadow mb-4">
-                <div class="px-5 py-3 border-b">
-                    <h3 class="font-semibold text-{{ $group['color'] }}-700 text-sm">{{ $group['label'] }}</h3>
-                </div>
-                <div class="divide-y">
-                    @foreach($group['items'] as $item)
-                        <div class="flex items-center justify-between px-5 py-3">
-                            <div>
-                                <p class="font-medium text-sm">{{ $item->name }}</p>
-                                <p class="text-xs text-gray-500">{{ $item->as_of_date->format('M d, Y') }}{{ $item->reference_number ? ' · ' . $item->reference_number : '' }}</p>
-                            </div>
-                            <div class="flex items-center gap-3">
-                                <span class="font-bold text-sm text-{{ $group['color'] }}-600">${{ number_format($item->amount, 2) }}</span>
-                                <form method="POST" action="{{ route('admin.fiscalperiod.deleteBalanceItem', [$fiscalperiod->id, $item->id]) }}" class="inline">
-                                    @csrf @method('DELETE')
-                                    <button onclick="return confirm('Delete this item?')" class="text-red-400 hover:text-red-600 text-xs">Delete</button>
-                                </form>
-                            </div>
-                        </div>
-                    @endforeach
-                </div>
-            </div>
-        @endif
-    @endforeach
-
-    @if($balanceSheetItems->isEmpty())
-        <div class="bg-white rounded-lg shadow p-6 text-center">
-            <p class="text-sm text-gray-400">No items yet. Use the form above to add balance sheet items.</p>
-        </div>
-    @endif
 </div>
-
-<script>
-const subtypes = {
-    'asset': ['Cash', 'Accounts Receivable', 'Property', 'Equipment', 'Other Asset'],
-    'liability': ['Accounts Payable', 'Loans', 'Deposits Held', 'Other Liability'],
-    'equity': ['Retained Earnings', 'Capital', 'Other Equity']
-};
-function updateSubTypes() {
-    const type = document.getElementById('item_type').value;
-    const sel = document.getElementById('sub_type');
-    sel.innerHTML = '<option value="">Select...</option>';
-    if (type && subtypes[type]) {
-        subtypes[type].forEach(s => {
-            const o = document.createElement('option');
-            o.value = s.toLowerCase().replace(/ /g, '_');
-            o.textContent = s;
-            sel.appendChild(o);
-        });
-    }
-}
-document.addEventListener('DOMContentLoaded', updateSubTypes);
-</script>
 @endsection

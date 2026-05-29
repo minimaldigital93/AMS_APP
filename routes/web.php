@@ -1,24 +1,22 @@
 <?php
 
-use App\Http\Controllers\ProfileController;
-use App\Http\Controllers\Admin\DashboardController;
-use App\Http\Controllers\Admin\FloorController;
 use App\Http\Controllers\Admin\ApartmentController;
-use App\Http\Controllers\Admin\UserController;
-use App\Http\Controllers\Admin\TenantController;
+use App\Http\Controllers\Admin\DashboardController;
 use App\Http\Controllers\Admin\FiscalPeriodController;
+use App\Http\Controllers\Admin\FloorController;
 use App\Http\Controllers\Admin\RevenueExpenseController;
 use App\Http\Controllers\Admin\SettingsController;
-use App\Http\Controllers\Supervisor\DashboardController as SupervisorDashboardController;
-use App\Http\Controllers\Supervisor\TenantController as SupervisorTenantController;
+use App\Http\Controllers\Admin\TenantController;
+use App\Http\Controllers\Admin\UserController;
+use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\Supervisor\ApartmentController as SupervisorApartmentController;
+use App\Http\Controllers\Supervisor\DashboardController as SupervisorDashboardController;
 use App\Http\Controllers\Supervisor\RevenueExpenseController as SupervisorRevenueExpenseController;
 use App\Http\Controllers\Supervisor\SettingsController as SupervisorSettingsController;
+use App\Http\Controllers\Supervisor\TenantController as SupervisorTenantController;
 use App\Http\Controllers\Tenant\DashboardController as TenantDashboardController;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
-
-  
 
 Route::get('/', function () {
     return view('auth.login');
@@ -31,10 +29,11 @@ Route::post('/language/switch', function (\Illuminate\Http\Request $request) {
         session(['locale' => $locale]);
         \App\Models\Settings::set('app_locale', $locale);
     }
+
     return redirect()->back()->with('success', __('messages.language_changed'));
 })->name('language.switch')->middleware('auth');
 
-//Route for dashboard - redirects to role-appropriate dashboard
+// Route for dashboard - redirects to role-appropriate dashboard
 Route::get('/dashboard', function () {
     /** @var \App\Models\User $user */
     $user = Auth::user();
@@ -45,6 +44,7 @@ Route::get('/dashboard', function () {
     } elseif ($user->hasRole('tenant')) {
         return redirect()->route('tenant.dashboard');
     }
+
     return redirect('/');
 })->middleware(['auth', 'verified'])->name('dashboard');
 
@@ -76,7 +76,7 @@ Route::middleware(['auth', 'role:admin'])->group(function () {
     Route::put('/admin/floors/{floor}', [FloorController::class, 'update'])->name('admin.floors.update');
     Route::delete('/admin/floors/{floor}', [FloorController::class, 'destroy'])->name('admin.floors.destroy');
     Route::get('/admin/floors/{floor}/apartments', [FloorController::class, 'getApartments'])->name('admin.floors.apartments');
-    
+
     // Apartment Management Routes
     Route::get('/admin/apartments', [ApartmentController::class, 'index'])->name('admin.apartments.index');
     Route::get('/admin/apartments/create', [ApartmentController::class, 'create'])->name('admin.apartments.create');
@@ -86,7 +86,7 @@ Route::middleware(['auth', 'role:admin'])->group(function () {
     Route::put('/admin/apartments/{apartment}', [ApartmentController::class, 'update'])->name('admin.apartments.update');
     Route::post('/admin/apartments/{apartment}/assign-tenant', [ApartmentController::class, 'assignTenant'])->name('admin.apartments.assignTenant');
     Route::delete('/admin/apartments/{apartment}', [ApartmentController::class, 'destroy'])->name('admin.apartments.destroy');
-    
+
     // User Management Routes
     Route::get('/admin/users', [UserController::class, 'index'])->name('admin.users.index');
     Route::get('/admin/users/create', [UserController::class, 'create'])->name('admin.users.create');
@@ -96,7 +96,7 @@ Route::middleware(['auth', 'role:admin'])->group(function () {
     Route::patch('/admin/users/{user}/role', [UserController::class, 'updateRole'])->name('admin.users.updateRole');
     Route::delete('/admin/users/{user}', [UserController::class, 'destroy'])->name('admin.users.destroy');
     Route::post('/admin/users/{user}/permissions', [UserController::class, 'assignPermissions'])->name('admin.users.permissions');
-    
+
     // Tenant Management Routes
     Route::get('/admin/tenants', [TenantController::class, 'index'])->name('admin.tenants.index');
     Route::get('/admin/tenants/create', [TenantController::class, 'create'])->name('admin.tenants.create');
@@ -116,18 +116,16 @@ Route::middleware(['auth', 'role:admin'])->group(function () {
     Route::get('/admin/fiscalperiod/{fiscalperiod}/edit', [FiscalPeriodController::class, 'edit'])->name('admin.fiscalperiod.edit');
     Route::put('/admin/fiscalperiod/{fiscalperiod}', [FiscalPeriodController::class, 'update'])->name('admin.fiscalperiod.update');
     Route::delete('/admin/fiscalperiod/{fiscalperiod}', [FiscalPeriodController::class, 'destroy'])->name('admin.fiscalperiod.destroy');
-    
+
     // Balance Sheet Management Routes
     Route::get('/admin/fiscalperiod/{fiscalperiod}/balance-sheet', [FiscalPeriodController::class, 'balanceSheet'])->name('admin.fiscalperiod.balance-sheet');
     Route::post('/admin/fiscalperiod/{fiscalperiod}/balance-sheet', [FiscalPeriodController::class, 'storeBalanceItem'])->name('admin.fiscalperiod.storeBalanceItem');
     Route::delete('/admin/fiscalperiod/{fiscalperiod}/balance-sheet/{balanceSheet}', [FiscalPeriodController::class, 'deleteBalanceItem'])->name('admin.fiscalperiod.deleteBalanceItem');
-    
-    // Opening/Closing Balances Routes
-    Route::get('/admin/fiscalperiod/{fiscalperiod}/open-close-balances', [FiscalPeriodController::class, 'openCloseBalances'])->name('admin.fiscalperiod.open-close-balances');
+
+    // Close the fiscal period
     Route::post('/admin/fiscalperiod/{fiscalperiod}/close', [FiscalPeriodController::class, 'closeperiod'])->name('admin.fiscalperiod.closeperiod');
-    
-    // Monthly Period Management Routes
-    Route::get('/admin/fiscalperiod/{fiscalperiod}/monthly-periods', [FiscalPeriodController::class, 'monthlyPeriods'])->name('admin.fiscalperiod.monthly-periods');
+
+    // Monthly Period Management Routes (managed from the period dashboard / show page)
     Route::get('/admin/fiscalperiod/{fiscalperiod}/monthly-period/{monthlyPeriod}', [FiscalPeriodController::class, 'showMonth'])->name('admin.fiscalperiod.monthly-period.show');
     Route::post('/admin/fiscalperiod/{fiscalperiod}/monthly-period/{monthlyPeriod}/close', [FiscalPeriodController::class, 'closeMonth'])->name('admin.fiscalperiod.monthly-period.close');
     Route::post('/admin/fiscalperiod/{fiscalperiod}/monthly-period/{monthlyPeriod}/reopen', [FiscalPeriodController::class, 'reopenMonth'])->name('admin.fiscalperiod.monthly-period.reopen');
@@ -138,7 +136,7 @@ Route::middleware(['auth', 'role:admin'])->group(function () {
     Route::get('/admin/fiscalperiod/{fiscalperiod}/export-pdf', [FiscalPeriodController::class, 'exportPDF'])->name('admin.fiscalperiod.exportPDF');
     Route::get('/admin/fiscalperiod/{fiscalperiod}/export-csv', [FiscalPeriodController::class, 'exportCSV'])->name('admin.fiscalperiod.exportCSV');
     Route::get('/admin/fiscalperiod/{fiscalperiod}/monthly-period/{monthlyPeriod}/print', [FiscalPeriodController::class, 'printMonthlyPDF'])->name('admin.fiscalperiod.monthly-period.print');
-    
+
     // System Settings Routes
     Route::get('/admin/settings', [SettingsController::class, 'index'])->name('admin.settings.index');
     Route::put('/admin/settings/batch', [SettingsController::class, 'updateBatch'])->name('admin.settings.updateBatch');
@@ -146,7 +144,7 @@ Route::middleware(['auth', 'role:admin'])->group(function () {
     Route::delete('/admin/settings/reset', [SettingsController::class, 'reset'])->name('admin.settings.reset');
     Route::delete('/admin/settings', [SettingsController::class, 'destroy'])->name('admin.settings.destroy');
     Route::get('/admin/settings/{key}', [SettingsController::class, 'get'])->name('admin.settings.get');
-    
+
     // Revenue & Expense Management Routes (requires active fiscal period)
     Route::middleware(['fiscal.period'])->group(function () {
         Route::get('/admin/revenue-expense', [RevenueExpenseController::class, 'index'])->name('admin.revenue_expense.index');
