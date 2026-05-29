@@ -134,6 +134,35 @@
                 @endif
             </div>
 
+            <!-- Extra Charges (optional) -->
+            <div>
+                <p class="text-sm font-medium text-gray-700 mb-2">Extra Charges <span class="text-xs font-normal text-gray-400">(optional — for damage or unpaid items)</span></p>
+                <template x-for="(row, idx) in extraCharges" :key="idx">
+                    <div class="flex gap-2 mb-2">
+                        <input type="text"
+                            :name="'extra_charges[' + idx + '][description]'"
+                            x-model="row.description"
+                            placeholder="What is the charge for?"
+                            class="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm">
+                        <input type="number" step="0.01" min="0"
+                            :name="'extra_charges[' + idx + '][amount]'"
+                            x-model.number="row.amount"
+                            @input="updateCalculations()"
+                            placeholder="0.00"
+                            class="w-28 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm">
+                        <button type="button" @click="removeExtraCharge(idx)"
+                            class="px-2 text-red-500 hover:text-red-700" title="Remove">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                        </button>
+                    </div>
+                </template>
+                <button type="button" @click="addExtraCharge()"
+                    class="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-blue-700 bg-blue-50 border border-blue-200 rounded-lg hover:bg-blue-100">
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+                    Add extra charge
+                </button>
+            </div>
+
             <!-- Notes -->
             <div>
                 <label class="block text-sm font-medium text-gray-700 mb-1">Notes</label>
@@ -211,6 +240,10 @@
                         <span>Outstanding Charges</span>
                         <span class="font-semibold text-gray-800" x-text="'$' + outstandingCharges.toFixed(2)"></span>
                     </div>
+                    <div class="flex justify-between text-gray-600" x-show="extraTotal > 0">
+                        <span>Damage / Extra Charges</span>
+                        <span class="font-semibold text-gray-800" x-text="'$' + extraTotal.toFixed(2)"></span>
+                    </div>
                 </div>
 
                 <!-- Total -->
@@ -245,7 +278,7 @@
                 <template x-if="refundAmount > 0">
                     <div class="flex items-start gap-2 bg-green-50 border border-green-200 rounded-lg px-3 py-2.5 text-xs text-green-700">
                         <svg class="w-4 h-4 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-                        <span>Refund <strong x-text="'$' + refundAmount.toFixed(2)"></strong> to tenant from deposit.</span>
+                        <span>Refund <strong x-text="'$' + refundAmount.toFixed(2)"></strong> to tenant from deposit (recorded as expense).</span>
                     </div>
                 </template>
             </div>
@@ -278,12 +311,14 @@
             moveInDate: new Date('{{ $tenant->move_in_date?->format("Y-m-d") ?? now()->format("Y-m-d") }}'),
 
             fullMonth: {{ old('charge_full_month') ? 'true' : 'false' }},
+            extraCharges: @json(old('extra_charges', [])),
             showModal: false,
 
             // Calculated values (reactive, shown in modal)
             stayDays: 0,
             proRataRent: 0,
             outstandingCharges: 0,
+            extraTotal: 0,
             totalDue: 0,
             depositApplied: 0,
             balanceDue: 0,
@@ -294,6 +329,16 @@
                     this.bindChargeCheckboxes();
                     this.updateCalculations();
                 });
+            },
+
+            addExtraCharge() {
+                this.extraCharges.push({ description: '', amount: 0 });
+                this.updateCalculations();
+            },
+
+            removeExtraCharge(idx) {
+                this.extraCharges.splice(idx, 1);
+                this.updateCalculations();
             },
 
             updateCalculations() {
@@ -309,7 +354,9 @@
                     this.outstandingCharges += parseFloat(cb.dataset.amount) || 0;
                 });
 
-                this.totalDue = this.proRataRent + this.outstandingCharges;
+                this.extraTotal = this.extraCharges.reduce((sum, r) => sum + (parseFloat(r.amount) || 0), 0);
+
+                this.totalDue = this.proRataRent + this.outstandingCharges + this.extraTotal;
                 this.depositApplied = Math.min(this.deposit, this.totalDue);
                 this.balanceDue = Math.max(0, this.totalDue - this.depositApplied);
                 this.refundAmount = this.deposit - this.depositApplied;

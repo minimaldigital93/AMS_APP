@@ -18,9 +18,18 @@ return new class extends Migration
             $table->date('due_date');
             $table->timestamp('paid_at')->nullable();
 
-            $table->enum('payment_method', ['cash', 'bank'])->default('cash');
-            $table->enum('payment_status', ['pending', 'paid', 'overdue'])->default('pending');
-            $table->enum('payment_type', ['rent', 'utilities', 'deposit', 'other'])->default('rent');
+            // See accounts migration for the rationale: MySQL keeps the
+            // strict ENUM; SQLite (tests) uses plain strings so later
+            // expand-ENUM migrations don't leave it stuck.
+            if (Schema::getConnection()->getDriverName() === 'mysql') {
+                $table->enum('payment_method', ['cash', 'bank'])->default('cash');
+                $table->enum('payment_status', ['pending', 'paid', 'overdue'])->default('pending');
+                $table->enum('payment_type', ['rent', 'utilities', 'deposit', 'other'])->default('rent');
+            } else {
+                $table->string('payment_method')->default('cash');
+                $table->string('payment_status')->default('pending');
+                $table->string('payment_type')->default('rent');
+            }
 
             $table->string('transaction_reference')->nullable();
             $table->decimal('late_fee', 10, 2)->default(0);

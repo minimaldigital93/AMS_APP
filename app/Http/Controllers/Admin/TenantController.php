@@ -19,6 +19,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\View\View;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Carbon\Carbon;
@@ -159,12 +160,14 @@ class TenantController extends Controller
         try {
             $validated = $request->validated();
 
-            $context = $this->leaveProcessor->prepare($tenant, $validated);
-            $this->leaveProcessor->persist($tenant, $context, $validated['notes'] ?? null);
+            DB::transaction(function () use ($tenant, $validated) {
+                $context = $this->leaveProcessor->prepare($tenant, $validated);
+                $this->leaveProcessor->persist($tenant, $context, $validated['notes'] ?? null);
 
-            $this->recordAdminLeaveAccounting($tenant, $context);
+                $this->recordAdminLeaveAccounting($tenant, $context);
 
-            $this->leaveProcessor->finalize($tenant);
+                $this->leaveProcessor->finalize($tenant);
+            });
 
             return redirect()
                 ->route('admin.tenants.archived')
@@ -199,6 +202,7 @@ class TenantController extends Controller
         $rental            = $context['rental'];
         $selectedPayments  = $context['selected_payments'];
         $selectedUtilities = $context['selected_utilities'];
+        $extraCharges      = $context['extra_charges'] ?? [];
 
         $activePeriod = FiscalPeriods::where('user_id', Auth::id())
             ->where('status', 'open')
@@ -293,8 +297,23 @@ class TenantController extends Controller
             ]);
         }
 
+        // 2c) Extra/damage charges entered on the leave form — booked as other income
+        foreach ($extraCharges as $extra) {
+            Accounts::create([
+                'fiscal_period_id' => $activePeriod->id,
+                'payment_id'       => null,
+                'user_id'          => Auth::id(),
+                'account_type'     => Accounts::TYPE_INCOME,
+                'category'         => Accounts::CAT_OTHER_INCOME,
+                'description'      => '[Apt ' . $apartmentNumber . '] Leave settlement - Damage/Extra: ' . $extra['description'],
+                'amount'           => $extra['amount'],
+                'transaction_date' => $leaveDate,
+                'note'             => 'Tenant: ' . $tenant->name . ' - deducted from deposit on leave',
+            ]);
+        }
+
         // 3) Refund actually paid back to the tenant is the only cash leaving
-        // the business; deposit_applied already shows up as income via 2a/2b.
+        // the business; deposit_applied already shows up as income via 2a/2b/2c.
         $refundAmount = $settlement['refund_amount'] ?? 0;
         if ($refundAmount > 0) {
             Accounts::create([

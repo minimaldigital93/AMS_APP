@@ -12,6 +12,9 @@ return new class extends Migration
      */
     public function up(): void
     {
+        if (Schema::getConnection()->getDriverName() !== 'mysql') {
+            return;
+        }
         DB::statement("ALTER TABLE utilities MODIFY COLUMN utility_type ENUM('electricity', 'water', 'internet', 'trash', 'parking')");
     }
 
@@ -20,6 +23,9 @@ return new class extends Migration
      */
     public function down(): void
     {
+        if (Schema::getConnection()->getDriverName() !== 'mysql') {
+            return;
+        }
         DB::statement("ALTER TABLE utilities MODIFY COLUMN utility_type ENUM('electricity', 'water', 'internet', 'trash')");
     }
 };

@@ -7,6 +7,7 @@ use App\Models\FiscalPeriods;
 use App\Models\Payments;
 use App\Models\Rentals;
 use App\Models\Utilities;
+use Illuminate\Support\Facades\DB;
 
 /**
  * Write-side service for income recording — single payments, bulk rent runs,
@@ -36,6 +37,7 @@ class IncomeRecordingService
      */
     public function recordPayment(Rentals $rental, array $data): Payments
     {
+        return DB::transaction(function () use ($rental, $data) {
         $payment = Payments::create([
             'rental_id'             => $rental->id,
             'amount'                => $data['amount'],
@@ -76,7 +78,8 @@ class IncomeRecordingService
             );
         }
 
-        return $payment;
+            return $payment;
+        });
     }
 
     /**
@@ -91,6 +94,7 @@ class IncomeRecordingService
      */
     public function recordBulkRent(string $paymentDate, string $paymentMethod, array $apartments): array
     {
+        return DB::transaction(function () use ($paymentDate, $paymentMethod, $apartments) {
         $recordedCount = 0;
         $totalAmount   = 0.0;
 
@@ -144,10 +148,11 @@ class IncomeRecordingService
             $totalAmount += $amount + $lateFee;
         }
 
-        return [
-            'count' => $recordedCount,
-            'total' => $totalAmount,
-        ];
+            return [
+                'count' => $recordedCount,
+                'total' => $totalAmount,
+            ];
+        });
     }
 
     /**
@@ -205,23 +210,25 @@ class IncomeRecordingService
      */
     public function clearTenantCharges(Rentals $rental): int
     {
-        $charges = Utilities::where('rental_id', $rental->id)
-            ->where('paid_status', false)
-            ->get();
+        return DB::transaction(function () use ($rental) {
+            $charges = Utilities::where('rental_id', $rental->id)
+                ->where('paid_status', false)
+                ->get();
 
-        foreach ($charges as $charge) {
-            try {
-                Accounts::where('reference_number', 'tenant_charge:' . $charge->id)
-                    ->whereNull('payment_id')
-                    ->where('user_id', $this->userId)
-                    ->delete();
-            } catch (\Throwable $e) {
-                // not fatal
+            foreach ($charges as $charge) {
+                try {
+                    Accounts::where('reference_number', 'tenant_charge:' . $charge->id)
+                        ->whereNull('payment_id')
+                        ->where('user_id', $this->userId)
+                        ->delete();
+                } catch (\Throwable $e) {
+                    // not fatal
+                }
+                $charge->delete();
             }
-            $charge->delete();
-        }
 
-        return $charges->count();
+            return $charges->count();
+        });
     }
 
     /**
@@ -236,6 +243,7 @@ class IncomeRecordingService
      */
     public function checkout(Rentals $rental, array $data): array
     {
+        return DB::transaction(function () use ($rental, $data) {
         $paymentDate   = $data['payment_date'];
         $paymentMethod = $data['payment_method'];
         $lateFee       = $data['late_fee'] ?? 0;
@@ -297,10 +305,11 @@ class IncomeRecordingService
             }
         }
 
-        return [
-            'total_paid' => $totalPaid,
-            'items'      => $items,
-        ];
+            return [
+                'total_paid' => $totalPaid,
+                'items'      => $items,
+            ];
+        });
     }
 
     /**

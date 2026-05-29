@@ -12,6 +12,9 @@ return new class extends Migration
      */
     public function up(): void
     {
+        if (Schema::getConnection()->getDriverName() !== 'mysql') {
+            return;
+        }
         DB::statement("ALTER TABLE `payments` MODIFY COLUMN `payment_method` ENUM('cash', 'bank', 'bank_transfer', 'mobile_payment') NOT NULL DEFAULT 'cash'");
     }
 
@@ -20,6 +23,9 @@ return new class extends Migration
      */
     public function down(): void
     {
+        if (Schema::getConnection()->getDriverName() !== 'mysql') {
+            return;
+        }
         DB::statement("ALTER TABLE `payments` MODIFY COLUMN `payment_method` ENUM('cash', 'bank') NOT NULL DEFAULT 'cash'");
     }
 };

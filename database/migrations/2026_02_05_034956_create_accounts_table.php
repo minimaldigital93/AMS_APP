@@ -17,11 +17,20 @@ return new class extends Migration
             $table->foreignId('payment_id')->nullable()->constrained('payments')->onDelete('set null');
             $table->foreignId('user_id')->constrained('users')->onDelete('cascade');
 
-            $table->enum('account_type', ['income', 'expense']);
-            $table->enum('category', [
-                'rent_income', 'utility_income', 'deposit_income', 'other_income',
-                'maintenance', 'repairs', 'utilities_expense', 'salaries', 'taxes', 'insurance', 'other_expense'
-            ]);
+            // On SQLite (tests) ENUMs synthesize CHECK constraints with the
+            // values listed here only — later ALTER migrations can't grow the
+            // set on SQLite. Use plain strings on non-MySQL so application
+            // constants (which are the real source of truth) aren't blocked.
+            if (Schema::getConnection()->getDriverName() === 'mysql') {
+                $table->enum('account_type', ['income', 'expense']);
+                $table->enum('category', [
+                    'rent_income', 'utility_income', 'deposit_income', 'other_income',
+                    'maintenance', 'repairs', 'utilities_expense', 'salaries', 'taxes', 'insurance', 'other_expense'
+                ]);
+            } else {
+                $table->string('account_type');
+                $table->string('category');
+            }
 
             $table->text('description')->nullable();
             $table->decimal('amount', 15, 2);

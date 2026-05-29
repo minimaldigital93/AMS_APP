@@ -22,11 +22,14 @@ class ProcessTenantLeaveRequest extends FormRequest
             : '1970-01-01';
 
         return [
-            'leave_date'        => 'required|date|after_or_equal:' . $moveInBoundary,
-            'charge_full_month' => 'nullable|boolean',
-            'charge_ids'        => 'nullable|array',
-            'charge_ids.*'      => 'string',
-            'notes'             => 'nullable|string',
+            'leave_date'                  => 'required|date|after_or_equal:' . $moveInBoundary,
+            'charge_full_month'           => 'nullable|boolean',
+            'charge_ids'                  => 'nullable|array',
+            'charge_ids.*'                => 'string',
+            'extra_charges'               => 'nullable|array',
+            'extra_charges.*.description' => 'required_with:extra_charges.*.amount|string|max:255',
+            'extra_charges.*.amount'      => 'required_with:extra_charges.*.description|numeric|min:0.01',
+            'notes'                       => 'nullable|string',
         ];
     }
 }

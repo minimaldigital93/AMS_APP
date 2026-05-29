@@ -72,6 +72,9 @@ class TenantLeaveProcessor
                        + $selectedUtilities->sum('charge_amount');
         $otherTotal     = $selectedPayments->where('payment_type', 'other')->sum('amount');
 
+        $extraCharges = $this->normalizeExtraCharges($validated['extra_charges'] ?? []);
+        $extraTotal   = array_sum(array_column($extraCharges, 'amount'));
+
         $settlement = $this->calculator->calculateSettlement(
             rental: $rental,
             tenant: $tenant,
@@ -82,6 +85,7 @@ class TenantLeaveProcessor
                 'water'         => 0,
                 'internet'      => 0,
                 'parking'       => $otherTotal,
+                'extra'         => $extraTotal,
             ],
             deposit: (float) ($tenant->deposit ?? 0),
         );
@@ -91,8 +95,29 @@ class TenantLeaveProcessor
             'leave_date'         => $leaveDate,
             'selected_payments'  => $selectedPayments,
             'selected_utilities' => $selectedUtilities,
+            'extra_charges'      => $extraCharges,
             'settlement'         => $settlement,
         ];
+    }
+
+    /**
+     * Coerce free-form extra-charge input into a clean
+     * list of {description, amount} rows; drop empties.
+     *
+     * @return list<array{description: string, amount: float}>
+     */
+    private function normalizeExtraCharges(array $rows): array
+    {
+        $cleaned = [];
+        foreach ($rows as $row) {
+            $description = trim((string) ($row['description'] ?? ''));
+            $amount      = (float) ($row['amount'] ?? 0);
+            if ($description === '' || $amount <= 0) {
+                continue;
+            }
+            $cleaned[] = ['description' => $description, 'amount' => round($amount, 2)];
+        }
+        return $cleaned;
     }
 
     /**

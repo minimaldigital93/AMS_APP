@@ -20,6 +20,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\View\View;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Carbon\Carbon;
@@ -286,12 +287,14 @@ class TenantController extends Controller
         try {
             $validated = $request->validated();
 
-            $context = $this->leaveProcessor->prepare($tenant, $validated);
-            $this->leaveProcessor->persist($tenant, $context, $validated['notes'] ?? null);
+            DB::transaction(function () use ($tenant, $validated) {
+                $context = $this->leaveProcessor->prepare($tenant, $validated);
+                $this->leaveProcessor->persist($tenant, $context, $validated['notes'] ?? null);
 
-            $this->recordSupervisorLeaveAccounting($tenant, $context);
+                $this->recordSupervisorLeaveAccounting($tenant, $context);
 
-            $this->leaveProcessor->finalize($tenant);
+                $this->leaveProcessor->finalize($tenant);
+            });
 
             return redirect()
                 ->route('supervisor.tenants.archived')
@@ -312,7 +315,8 @@ class TenantController extends Controller
      * Differs from admin (which writes per-payment/per-utility rows):
      *   - One aggregate rent_income entry for the pro-rata rent
      *   - One aggregate utility_income entry summing all utility charges
-     *   - No deposit_refund expense entry
+     *   - One income row per damage/extra charge (CAT_OTHER_INCOME)
+     *   - Deposit refund expense when leftover deposit > 0
      *
      * Writes are owned by the admin's user_id (resolved from the period), since
      * supervisors don't own ledger rows. Skipped silently when no admin period
@@ -320,9 +324,12 @@ class TenantController extends Controller
      */
     private function recordSupervisorLeaveAccounting(Tenants $tenant, array $context): void
     {
-        $settlement = $context['settlement'];
-        $leaveDate  = $context['leave_date'];
-        $rental     = $context['rental'];
+        $settlement        = $context['settlement'];
+        $leaveDate         = $context['leave_date'];
+        $rental            = $context['rental'];
+        $selectedPayments  = $context['selected_payments'];
+        $selectedUtilities = $context['selected_utilities'];
+        $extraCharges      = $context['extra_charges'] ?? [];
 
         $activePeriod = FiscalPeriods::where('status', 'open')
             ->whereHas('user', function ($q) {
@@ -331,7 +338,7 @@ class TenantController extends Controller
             ->orderBy('opening_date', 'desc')
             ->first();
 
-        if (!$activePeriod || $settlement['total_amount_due'] <= 0) {
+        if (!$activePeriod) {
             return;
         }
 
@@ -362,6 +369,21 @@ class TenantController extends Controller
             ]);
         }
 
+        foreach ($selectedPayments as $charge) {
+            $charge->update([
+                'payment_status' => 'paid',
+                'paid_at'        => $leaveDate,
+                'note'           => ($charge->note ? $charge->note . ' | ' : '') . 'Settled on tenant leave',
+            ]);
+        }
+
+        foreach ($selectedUtilities as $util) {
+            $util->update([
+                'paid_status' => true,
+                'paid_at'     => $leaveDate,
+            ]);
+        }
+
         $utilityTotal = ($settlement['electricity_charge'] ?? 0)
             + ($settlement['water_charge'] ?? 0)
             + ($settlement['internet_charge'] ?? 0)
@@ -388,6 +410,35 @@ class TenantController extends Controller
                 'category'         => Accounts::CAT_UTILITY_INCOME,
                 'description'      => '[Apt ' . $apartmentNumber . '] Leave settlement - utilities (by supervisor)',
                 'amount'           => $utilityTotal,
+                'transaction_date' => $leaveDate,
+            ]);
+        }
+
+        // Damage / extra charges entered on the leave form — booked as other income
+        foreach ($extraCharges as $extra) {
+            Accounts::create([
+                'fiscal_period_id' => $activePeriod->id,
+                'payment_id'       => null,
+                'user_id'          => $activePeriod->user_id,
+                'account_type'     => Accounts::TYPE_INCOME,
+                'category'         => Accounts::CAT_OTHER_INCOME,
+                'description'      => '[Apt ' . $apartmentNumber . '] Leave settlement - Damage/Extra: ' . $extra['description'] . ' (by supervisor)',
+                'amount'           => $extra['amount'],
+                'transaction_date' => $leaveDate,
+            ]);
+        }
+
+        // Deposit refund expense — mirrors the admin flow.
+        $refundAmount = $settlement['refund_amount'] ?? 0;
+        if ($refundAmount > 0) {
+            Accounts::create([
+                'fiscal_period_id' => $activePeriod->id,
+                'payment_id'       => null,
+                'user_id'          => $activePeriod->user_id,
+                'account_type'     => Accounts::TYPE_EXPENSE,
+                'category'         => Accounts::CAT_DEPOSIT_EXPENSE,
+                'description'      => '[Apt ' . $apartmentNumber . '] Deposit refunded — ' . $tenant->name . ' (by supervisor)',
+                'amount'           => $refundAmount,
                 'transaction_date' => $leaveDate,
             ]);
         }

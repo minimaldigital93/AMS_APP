@@ -12,6 +12,9 @@ return new class extends Migration
      */
     public function up(): void
     {
+        if (Schema::getConnection()->getDriverName() !== 'mysql') {
+            return;
+        }
         // Expand the category enum to include all categories used in the application
         DB::statement("ALTER TABLE `accounts` MODIFY COLUMN `category` ENUM(
             'rent_income', 'utility_income', 'deposit_income', 'other_income',
@@ -27,6 +30,9 @@ return new class extends Migration
      */
     public function down(): void
     {
+        if (Schema::getConnection()->getDriverName() !== 'mysql') {
+            return;
+        }
         DB::statement("ALTER TABLE `accounts` MODIFY COLUMN `category` ENUM(
             'rent_income', 'utility_income', 'deposit_income', 'other_income',
             'maintenance', 'repairs', 'utilities_expense', 'salaries', 'taxes', 'insurance', 'other_expense'

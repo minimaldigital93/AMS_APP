@@ -9,6 +9,7 @@ use App\Models\Rentals;
 use App\Models\Utilities;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Facades\DB;
 
 /**
  * Monthly bill generation — converts apartment fixed-expense templates into
@@ -36,6 +37,7 @@ class MonthlyBillingService
      */
     public function processSelected(array $bills, Carbon $billingDate): array
     {
+        return DB::transaction(function () use ($bills, $billingDate) {
         $recordedCount = 0;
         $totalAmount   = 0.0;
 
@@ -61,7 +63,8 @@ class MonthlyBillingService
             }
         }
 
-        return ['count' => $recordedCount, 'total' => $totalAmount];
+            return ['count' => $recordedCount, 'total' => $totalAmount];
+        });
     }
 
     /**
@@ -73,9 +76,7 @@ class MonthlyBillingService
      */
     public function processAll(Builder $apartmentsScope, Carbon $billingDate): array
     {
-        $month = $billingDate->month;
-        $year  = $billingDate->year;
-
+        return DB::transaction(function () use ($apartmentsScope, $billingDate) {
         $recordedCount = 0;
         $totalAmount   = 0.0;
 
@@ -101,7 +102,8 @@ class MonthlyBillingService
             }
         }
 
-        return ['count' => $recordedCount, 'total' => $totalAmount];
+            return ['count' => $recordedCount, 'total' => $totalAmount];
+        });
     }
 
     /**

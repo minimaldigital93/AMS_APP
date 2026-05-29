@@ -11,9 +11,14 @@ return new class extends Migration
      */
     public function up(): void
     {
+        // SQLite's column-change shim would re-emit a CHECK constraint with
+        // only these three values, which would then block later expansions
+        // (`moved_out`). Skip on non-MySQL — the initial migration uses a
+        // plain string column there.
+        if (Schema::getConnection()->getDriverName() !== 'mysql') {
+            return;
+        }
         Schema::table('tenants', function (Blueprint $table) {
-            // Change the status column enum to include 'pending' and 'inactive'
-            // This allows for better tracking of tenant lifecycle
             $table->enum('status', ['active', 'pending', 'inactive'])->default('active')->change();
         });
     }
@@ -23,8 +28,10 @@ return new class extends Migration
      */
     public function down(): void
     {
+        if (Schema::getConnection()->getDriverName() !== 'mysql') {
+            return;
+        }
         Schema::table('tenants', function (Blueprint $table) {
-            // Revert back to original enum
             $table->enum('status', ['active', 'moved_out'])->default('active')->change();
         });
     }

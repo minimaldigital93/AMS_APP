@@ -16,7 +16,14 @@ return new class extends Migration
             $table->foreignId('tenant_id')->constrained('tenants')->onDelete('cascade');
             $table->foreignId('rental_id')->constrained('rentals')->onDelete('cascade');
 
-            $table->enum('utility_type', ['electricity', 'water', 'internet', 'trash']);
+            // See accounts migration: use string on SQLite so later ENUM
+            // ALTER migrations (MySQL-only) don't leave the test DB stuck with
+            // the original four values.
+            if (Schema::getConnection()->getDriverName() === 'mysql') {
+                $table->enum('utility_type', ['electricity', 'water', 'internet', 'trash']);
+            } else {
+                $table->string('utility_type');
+            }
             $table->string('meter_number')->nullable();
             $table->decimal('meter_reading_in', 10, 2)->nullable();
             $table->decimal('meter_reading_out', 10, 2)->nullable();

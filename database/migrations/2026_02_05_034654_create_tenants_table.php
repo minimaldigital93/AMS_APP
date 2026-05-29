@@ -26,7 +26,11 @@ return new class extends Migration
 
             $table->date('move_in_date')->nullable();
             $table->date('move_out_date')->nullable();
-            $table->enum('status', ['active', 'moved_out'])->default('active');
+            if (Schema::getConnection()->getDriverName() === 'mysql') {
+                $table->enum('status', ['active', 'moved_out'])->default('active');
+            } else {
+                $table->string('status')->default('active');
+            }
             $table->decimal('deposit', 10, 2)->default(0);
 
             $table->string('photo_path')->nullable();

@@ -44,6 +44,7 @@ class TenantLeaveCalculator
             'water' => 0,
             'internet' => 0,
             'parking' => 0,
+            'extra' => 0,
         ], $charges);
 
         $totalAmountDue = array_sum($charges);
@@ -58,6 +59,7 @@ class TenantLeaveCalculator
             'water_charge' => round($charges['water'], 2),
             'internet_charge' => round($charges['internet'], 2),
             'parking_charge' => round($charges['parking'], 2),
+            'extra_charges' => round($charges['extra'], 2),
             'total_amount_due' => round($totalAmountDue, 2),
             'deposit_applied' => round($depositApplied, 2),
             'balance_due' => round($balanceDue, 2),

@@ -12,7 +12,10 @@ return new class extends Migration
      */
     public function up(): void
     {
-        // Add 'moved_out' to the status ENUM while keeping existing values
+        // ENUM ALTER is MySQL-only; SQLite stores ENUM as TEXT so no change needed.
+        if (Schema::getConnection()->getDriverName() !== 'mysql') {
+            return;
+        }
         DB::statement("ALTER TABLE tenants MODIFY COLUMN status ENUM('active', 'pending', 'inactive', 'moved_out') DEFAULT 'active'");
     }
 
@@ -21,7 +24,9 @@ return new class extends Migration
      */
     public function down(): void
     {
-        // Revert to the original ENUM values
+        if (Schema::getConnection()->getDriverName() !== 'mysql') {
+            return;
+        }
         DB::statement("ALTER TABLE tenants MODIFY COLUMN status ENUM('active', 'pending', 'inactive') DEFAULT 'active'");
     }
 };
