@@ -6,7 +6,7 @@
         <!-- Header Section -->
         <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-8">
             <div>
-                <h1 class="text-3xl font-bold text-gray-900">Archived Tenants Management</h1>
+                <h1 class="text-3xl font-bold text-gray-900">{{ __('messages.archived_tenants_management') }}</h1>
             </div>
         </div>
 
@@ -20,7 +20,7 @@
                         </svg>
                     </div>
                     <div class="ml-4">
-                        <p class="text-slate-500 text-sm">Total Archived</p>
+                        <p class="text-slate-500 text-sm">{{ __('messages.total_archived') }}</p>
                         <p class="text-2xl font-bold text-slate-800">{{ $archivedTenantCount }}</p>
                     </div>
                 </div>
@@ -33,7 +33,7 @@
                         </svg>
                     </div>
                     <div class="ml-4">
-                        <p class="text-slate-500 text-sm">Recently Archived</p>
+                        <p class="text-slate-500 text-sm">{{ __('messages.recently_archived') }}</p>
                         <p class="text-2xl font-bold text-slate-800">{{ $recentlyArchivedCount }}</p>
                     </div>
                 </div>
@@ -46,7 +46,7 @@
                         </svg>
                     </div>
                     <div class="ml-4">
-                        <p class="text-slate-500 text-sm">Total Deposits</p>
+                        <p class="text-slate-500 text-sm">{{ __('messages.total_deposits') }}</p>
                         <p class="text-2xl font-bold text-slate-800">${{ number_format($totalDeposits, 2) }}</p>
                     </div>
                 </div>
@@ -57,13 +57,13 @@
         <div class="bg-white rounded-xl border border-slate-100 mb-6 p-6">
             <form method="GET" action="{{ route('admin.tenants.archived') }}" class="grid grid-cols-1 md:grid-cols-4 gap-4">
                 <div class="md:col-span-2">
-                    <label class="block text-sm font-medium text-slate-500 mb-2">Search by Name or Phone</label>
-                    <input type="text" name="search" placeholder="Search archived tenants..." value="{{ request('search') }}" class="w-full h-10 px-3 text-sm border border-slate-200 rounded-lg focus:ring-2 focus:ring-slate-300 focus:border-transparent">
+                    <label class="block text-sm font-medium text-slate-500 mb-2">{{ __('messages.search_by_name_phone') }}</label>
+                    <input type="text" name="search" placeholder="{{ __('messages.search_archived_tenants') }}" value="{{ request('search') }}" class="w-full h-10 px-3 text-sm border border-slate-200 rounded-lg focus:ring-2 focus:ring-slate-300 focus:border-transparent">
                 </div>
                 <div class="md:col-span-1">
-                    <label class="block text-sm font-medium text-slate-500 mb-2">Sort by Floor</label>
+                    <label class="block text-sm font-medium text-slate-500 mb-2">{{ __('messages.sort_by_floor') }}</label>
                     <select name="floor" class="w-full h-10 px-3 text-sm border border-slate-200 rounded-lg focus:ring-2 focus:ring-slate-300 focus:border-transparent">
-                        <option value="">All Floors</option>
+                        <option value="">{{ __('messages.all_floors') }}</option>
                         @foreach($floors ?? [] as $floor)
                             <option value="{{ $floor->id }}" {{ request('floor') == $floor->id ? 'selected' : '' }}>{{ $floor->floor_name }}</option>
                         @endforeach
@@ -73,9 +73,7 @@
                     <a href="{{ route('admin.tenants.archived') }}" class="inline-flex items-center h-10 px-3 whitespace-nowrap border border-slate-200 rounded-md text-slate-700 hover:bg-slate-50 transition font-medium text-center text-sm">
                         <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 mr-2 text-slate-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v6h6M20 20v-6h-6M4 10a8 8 0 0116 0M20 14a8 8 0 01-16 0" />
-                        </svg>
-                        Reset
-                    </a>
+                        </svg>{{ __('messages.reset') }}</a>
                 </div>
             </form>
         </div>
@@ -86,11 +84,11 @@
                 <table class="min-w-full divide-y divide-gray-200">
                     <thead class="bg-gray-50">
                         <tr>
-                            <th class="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">No</th>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Tenant Name</th>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Floor / Apartment</th>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Tenancy Duration</th>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Actions</th>
+                            <th class="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">{{ __('messages.no_col') }}</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">{{ __('messages.tenant_name') }}</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">{{ __('messages.floor_apartment') }}</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">{{ __('messages.tenancy_duration') }}</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">{{ __('messages.actions') }}</th>
                         </tr>
                     </thead>
                     <tbody class="bg-white divide-y divide-gray-200">
@@ -117,20 +115,20 @@
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{ $tenant->apartment?->floor?->floor_name ?? 'N/A' }} / {{ $tenant->apartment?->apartment_number ?? 'N/A' }}</td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
                                     @if($tenant->leaves->last() && $tenant->move_in_date)
-                                        {{ $tenant->leaves->last()->stay_days }} days
+                                        {{ __('messages.days_suffix', ['days' => $tenant->leaves->last()->stay_days]) }}
                                     @else
                                         N/A
                                     @endif
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm font-medium flex items-center space-x-3 mt-3">
-                                    <button onclick="viewTenantSettlement('{{ $tenant->id }}', '{{ addslashes($tenant->name) }}')" title="View Settlement" class="inline-flex items-center justify-center h-8 w-8 rounded-md text-sky-600 bg-sky-50 hover:bg-sky-100 transition" aria-label="View Settlement">
+                                    <button onclick="viewTenantSettlement('{{ $tenant->id }}', '{{ addslashes($tenant->name) }}')" title="{{ __('messages.view_settlement') }}" class="inline-flex items-center justify-center h-8 w-8 rounded-md text-sky-600 bg-sky-50 hover:bg-sky-100 transition" aria-label="View Settlement">
                                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
                                         </svg>
                                     </button>
                                     @if($tenant->document_path)
-                                        <a href="{{ asset('storage/' . $tenant->document_path) }}" target="_blank" title="View Document" class="inline-flex items-center justify-center h-8 w-8 rounded-md text-red-600 bg-red-50 hover:bg-red-100 transition" aria-label="Document">
+                                        <a href="{{ asset('storage/' . $tenant->document_path) }}" target="_blank" title="{{ __('messages.view_document') }}" class="inline-flex items-center justify-center h-8 w-8 rounded-md text-red-600 bg-red-50 hover:bg-red-100 transition" aria-label="Document">
                                             <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
                                                 <path d="M4 2h7l5 5v11a2 2 0 01-2 2H4a2 2 0 01-2-2V4a2 2 0 012-2z" />
                                             </svg>
@@ -140,9 +138,7 @@
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="5" class="px-6 py-4 text-center text-gray-500">
-                                    No archived tenants found
-                                </td>
+                                <td colspan="5" class="px-6 py-4 text-center text-gray-500">{{ __('messages.no_archived_tenants_found') }}</td>
                             </tr>
                         @endforelse
                     </tbody>
@@ -162,7 +158,7 @@
 <div id="viewTenantModal" class="hidden fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
     <div class="bg-white rounded-lg shadow-lg max-w-3xl w-full max-h-screen overflow-y-auto">
         <div class="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex justify-between items-center">
-            <h2 class="text-lg font-semibold text-gray-900">Archived Tenant Details</h2>
+            <h2 class="text-lg font-semibold text-gray-900">{{ __('messages.archived_tenant_details') }}</h2>
             <button onclick="closeViewTenantModal()" class="text-gray-400 hover:text-gray-600">
                 <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
@@ -226,15 +222,15 @@ function calculateDuration(moveInDate, moveOutDate) {
     const months = Math.floor((moveOutDate - moveInDate) / (1000 * 60 * 60 * 24) / 30.44);
     const days = Math.floor(((moveOutDate - moveInDate) / (1000 * 60 * 60 * 24)) % 30.44);
     let duration = '';
-    if (months > 0) duration += months + ' month' + (months > 1 ? 's' : '') + ' ';
-    if (days > 0) duration += days + ' day' + (days > 1 ? 's' : '');
-    return duration || '0 days';
+    if (months > 0) duration += months + ' {{ __('messages.month_short') }} ';
+    if (days > 0) duration += days + ' {{ __('messages.day_short') }}';
+    return duration || ('0 ' + '{{ __('messages.day_short') }}');
 }
 
 function viewTenantSettlement(tenantId, tenantName) {
     try {
         const tenant = allArchivedTenants.find(t => t.id == tenantId);
-        if (!tenant) { alert('Tenant not found'); return; }
+        if (!tenant) { alert('{{ __('messages.tenant_not_found') }}'); return; }
 
         const t = tenant;
         const moveInDate = new Date(t.move_in_date);
@@ -245,42 +241,42 @@ function viewTenantSettlement(tenantId, tenantName) {
             <div class="space-y-6">
                 <div class="grid grid-cols-2 gap-6">
                     <div>
-                        <h3 class="text-sm font-medium text-gray-600 mb-4">Personal Information</h3>
+                        <h3 class="text-sm font-medium text-gray-600 mb-4">{{ __('messages.personal_information') }}</h3>
                         <div class="space-y-3">
                             <div class="flex items-center gap-4">
                                 ${t.photo_path ? `<img src="${t.photo_path.startsWith('/') ? t.photo_path : ('/storage/' + t.photo_path)}" alt="${t.name}" class="h-20 w-20 rounded-lg object-cover border border-gray-300">` : `<div class="h-20 w-20 rounded-lg bg-red-50 flex items-center justify-center text-xl font-semibold text-red-600">${t.name.charAt(0).toUpperCase()}</div>`}
                                 <div>
-                                    <p class="text-xs text-gray-500">Full Name</p>
+                                    <p class="text-xs text-gray-500">{{ __('messages.full_name') }}</p>
                                     <p class="text-sm font-medium text-gray-900">${t.name}</p>
-                                    <p class="text-xs text-gray-500 mt-2">Phone</p>
+                                    <p class="text-xs text-gray-500 mt-2">{{ __('messages.phone') }}</p>
                                     <p class="text-sm font-medium text-gray-900">${t.phone}</p>
-                                    <p class="text-xs text-gray-500 mt-2">Email</p>
+                                    <p class="text-xs text-gray-500 mt-2">{{ __('messages.email') }}</p>
                                     <p class="text-sm font-medium text-gray-900">${t.email || '—'}</p>
                                 </div>
                             </div>
                             <div>
-                                <p class="text-xs text-gray-500">Date of Birth</p>
-                                <p class="text-sm font-medium text-gray-900">${t.date_of_birth || 'Not provided'}</p>
+                                <p class="text-xs text-gray-500">{{ __('messages.date_of_birth') }}</p>
+                                <p class="text-sm font-medium text-gray-900">${t.date_of_birth || '{{ __('messages.not_provided') }}'}</p>
                             </div>
                         </div>
                     </div>
                     <div>
-                        <h3 class="text-sm font-medium text-gray-600 mb-4">Tenancy Information</h3>
+                        <h3 class="text-sm font-medium text-gray-600 mb-4">{{ __('messages.tenancy_information') }}</h3>
                         <div class="space-y-3">
                             <div>
-                                <p class="text-xs text-gray-500">Floor / Apartment</p>
+                                <p class="text-xs text-gray-500">{{ __('messages.floor_apartment') }}</p>
                                 <p class="text-sm font-medium text-gray-900">${t.floor} / ${t.apartment || 'N/A'}</p>
                             </div>
                             <div>
-                                <p class="text-xs text-gray-500">Move In Date</p>
+                                <p class="text-xs text-gray-500">{{ __('messages.move_in_date') }}</p>
                                 <p class="text-sm font-medium text-gray-900">${t.move_in_date}</p>
                             </div>
                             <div>
-                                <p class="text-xs text-gray-500">Move Out Date</p>
+                                <p class="text-xs text-gray-500">{{ __('messages.move_out_date') }}</p>
                                 <p class="text-sm font-medium text-gray-900">${t.move_out_date || 'N/A'}</p>
                             </div>
                             <div>
-                                <p class="text-xs text-gray-500">Duration</p>
+                                <p class="text-xs text-gray-500">{{ __('messages.duration') }}</p>
                                 <p class="text-sm font-medium text-gray-900">${duration}</p>
                             </div>
                         </div>
@@ -288,28 +284,26 @@ function viewTenantSettlement(tenantId, tenantName) {
                 </div>
 
                 <div class="bg-gray-50 rounded-lg p-4">
-                    <h3 class="text-sm font-medium text-gray-600 mb-4">Settlement Information</h3>
+                    <h3 class="text-sm font-medium text-gray-600 mb-4">{{ __('messages.settlement_information') }}</h3>
                     <div class="grid grid-cols-2 gap-4">
                         <div>
-                            <p class="text-xs text-gray-500">Deposit Amount</p>
+                            <p class="text-xs text-gray-500">{{ __('messages.deposit_amount') }}</p>
                             <p class="text-lg font-semibold text-gray-900">$${parseFloat(t.deposit || 0).toFixed(2)}</p>
                         </div>
                         <div>
-                            <p class="text-xs text-gray-500">Status</p>
-                            <span class="inline-block px-3 py-1 text-xs font-semibold rounded-full bg-red-100 text-red-800">Archived</span>
+                            <p class="text-xs text-gray-500">{{ __('messages.status') }}</p>
+                            <span class="inline-block px-3 py-1 text-xs font-semibold rounded-full bg-red-100 text-red-800">{{ __('messages.archived') }}</span>
                         </div>
                     </div>
                 </div>
 
                 ${t.notes ? `<div class="border-t border-gray-200 pt-4">
-                    <p class="text-sm font-medium text-gray-600">Additional Notes</p>
+                    <p class="text-sm font-medium text-gray-600">{{ __('messages.additional_notes') }}</p>
                     <p class="mt-2 text-sm text-gray-700">${t.notes}</p>
                 </div>` : ''}
-                ${t.document_path ? `<div class="mt-4"><a href="${t.document_path.startsWith('/') ? t.document_path : ('/storage/' + t.document_path)}" target="_blank" class="inline-flex items-center px-3 py-2 bg-gray-50 text-gray-700 rounded-lg border border-gray-200 hover:bg-gray-100"><svg class="w-4 h-4 mr-2 text-red-600" fill="currentColor" viewBox="0 0 20 20"><path d="M4 2h7l5 5v11a2 2 0 01-2 2H4a2 2 0 01-2-2V4a2 2 0 012-2z"/></svg>View Document</a></div>` : '' }
+                ${t.document_path ? `<div class="mt-4"><a href="${t.document_path.startsWith('/') ? t.document_path : ('/storage/' + t.document_path)}" target="_blank" class="inline-flex items-center px-3 py-2 bg-gray-50 text-gray-700 rounded-lg border border-gray-200 hover:bg-gray-100"><svg class="w-4 h-4 mr-2 text-red-600" fill="currentColor" viewBox="0 0 20 20"><path d="M4 2h7l5 5v11a2 2 0 01-2 2H4a2 2 0 01-2-2V4a2 2 0 012-2z"/></svg>{{ __('messages.view_document') }}</a></div>` : '' }
 
-                <button onclick="closeViewTenantModal()" class="w-full px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition font-medium">
-                    Close
-                </button>
+                <button onclick="closeViewTenantModal()" class="w-full px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition font-medium">{{ __('messages.close') }}</button>
             </div>
         `;
 
@@ -317,7 +311,7 @@ function viewTenantSettlement(tenantId, tenantName) {
         document.getElementById('viewTenantModal').classList.remove('hidden');
     } catch (error) {
         console.error('Error loading tenant details:', error);
-        alert('Error loading tenant details');
+        alert('{{ __('messages.error_loading_tenant') }}');
     }
 }
 

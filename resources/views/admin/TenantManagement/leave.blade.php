@@ -1,6 +1,6 @@
 @extends('layouts.admin')
 
-@section('title', 'Process Tenant Leave')
+@section('title', __('messages.process_tenant_leave'))
 
 @section('content')
 <div class="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6" x-data="leaveForm()">
@@ -8,10 +8,8 @@
     <!-- Header -->
     <div>
         <a href="{{ route('admin.tenants.index') }}" class="inline-flex items-center text-blue-600 hover:text-blue-800 text-sm mb-3">
-            <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path></svg>
-            Back to Tenants
-        </a>
-        <h1 class="text-2xl font-bold text-gray-900">Process Tenant Leave</h1>
+            <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path></svg>{{ __('messages.back_to_tenants') }}</a>
+        <h1 class="text-2xl font-bold text-gray-900">{{ __('messages.process_tenant_leave') }}</h1>
     </div>
 
     @if(session('error'))
@@ -35,25 +33,25 @@
             @endif
             <div>
                 <h2 class="text-lg font-semibold text-gray-900">{{ $tenant->name }}</h2>
-                <p class="text-sm text-gray-500">Apt {{ $tenant->apartment?->apartment_number ?? 'N/A' }} &middot; {{ $tenant->phone ?? '' }}</p>
+                <p class="text-sm text-gray-500">{{ __('messages.apt_short') }} {{ $tenant->apartment?->apartment_number ?? 'N/A' }} &middot; {{ $tenant->phone ?? '' }}</p>
             </div>
         </div>
         <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm">
             <div class="bg-slate-50 rounded-lg p-3">
-                <p class="text-xs text-slate-400">Move In</p>
+                <p class="text-xs text-slate-400">{{ __('messages.move_in') }}</p>
                 <p class="font-semibold text-slate-800">{{ $tenant->move_in_date?->format('M d, Y') ?? 'N/A' }}</p>
             </div>
             <div class="bg-slate-50 rounded-lg p-3">
-                <p class="text-xs text-slate-400">Monthly Rent</p>
+                <p class="text-xs text-slate-400">{{ __('messages.monthly_rent') }}</p>
                 <p class="font-semibold text-slate-800">${{ number_format($rental->rent_amount ?? 0, 2) }}</p>
             </div>
             <div class="bg-slate-50 rounded-lg p-3">
-                <p class="text-xs text-slate-400">Deposit</p>
+                <p class="text-xs text-slate-400">{{ __('messages.deposit') }}</p>
                 <p class="font-semibold text-slate-800">${{ number_format($tenant->deposit ?? 0, 2) }}</p>
             </div>
             <div class="bg-amber-50 rounded-lg p-3">
-                <p class="text-xs text-slate-400">Stay Days</p>
-                <p class="font-semibold text-amber-700" x-text="stayDays + ' days'">0</p>
+                <p class="text-xs text-slate-400">{{ __('messages.stay_days_label') }}</p>
+                <p class="font-semibold text-amber-700" x-text="stayDays + ' ' + '{{ __('messages.days_word') }}'">0</p>
             </div>
         </div>
     </div>
@@ -63,11 +61,11 @@
         @csrf
 
         <div class="bg-white rounded-xl shadow-sm border p-5 space-y-4">
-            <h3 class="text-base font-semibold text-gray-900">Leave Details</h3>
+            <h3 class="text-base font-semibold text-gray-900">{{ __('messages.leave_details') }}</h3>
 
             <!-- Leave Date -->
             <div>
-                <label for="moveOutDate" class="block text-sm font-medium text-gray-700 mb-1">Move Out Date *</label>
+                <label for="moveOutDate" class="block text-sm font-medium text-gray-700 mb-1">{{ __('messages.move_out_date') }} *</label>
                 <input type="date" name="leave_date" id="moveOutDate" value="{{ old('leave_date', today()->format('Y-m-d')) }}" required
                     @change="updateCalculations()"
                     class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white appearance-none h-10 text-sm">
@@ -76,8 +74,8 @@
             <!-- Rent Charge Mode — Toggle Switch -->
             <div class="flex items-center justify-between p-3 bg-slate-50 rounded-lg border border-slate-200">
                 <div>
-                    <p class="text-sm font-medium text-gray-700">Charge full month rent</p>
-                    <p class="text-xs text-gray-400 mt-0.5" x-text="fullMonth ? 'Charging full monthly rent' : 'Charging by actual days stayed'"></p>
+                    <p class="text-sm font-medium text-gray-700">{{ __('messages.charge_full_month_rent') }}</p>
+                    <p class="text-xs text-gray-400 mt-0.5" x-text="fullMonth ? '{{ __('messages.charging_full') }}' : '{{ __('messages.charging_actual') }}'"></p>
                 </div>
                 <button type="button" @click="fullMonth = !fullMonth; updateCalculations()"
                     :class="fullMonth ? 'bg-blue-600' : 'bg-slate-300'"
@@ -91,9 +89,9 @@
 
             <!-- Outstanding Charges -->
             <div>
-                <p class="text-sm font-medium text-gray-700 mb-2">Outstanding Charges</p>
+                <p class="text-sm font-medium text-gray-700 mb-2">{{ __('messages.outstanding_charges') }}</p>
                 @if($pendingCharges->isEmpty())
-                    <p class="text-xs text-gray-400 italic">No outstanding utility or other charges recorded.</p>
+                    <p class="text-xs text-gray-400 italic">{{ __('messages.no_outstanding_charges') }}</p>
                 @else
                     <div class="border border-slate-200 rounded-lg overflow-hidden">
                         <table class="w-full text-sm">
@@ -102,10 +100,10 @@
                                     <th class="px-3 py-2 text-left w-8">
                                         <input type="checkbox" id="selectAllCharges" class="w-3.5 h-3.5 text-blue-600 rounded">
                                     </th>
-                                    <th class="px-3 py-2 text-left">Description</th>
-                                    <th class="px-3 py-2 text-left">Type</th>
-                                    <th class="px-3 py-2 text-left">Due Date</th>
-                                    <th class="px-3 py-2 text-right">Amount</th>
+                                    <th class="px-3 py-2 text-left">{{ __('messages.description') }}</th>
+                                    <th class="px-3 py-2 text-left">{{ __('messages.type') }}</th>
+                                    <th class="px-3 py-2 text-left">{{ __('messages.due_date') }}</th>
+                                    <th class="px-3 py-2 text-right">{{ __('messages.amount') }}</th>
                                 </tr>
                             </thead>
                             <tbody class="divide-y divide-slate-100">
@@ -136,13 +134,13 @@
 
             <!-- Extra Charges (optional) -->
             <div>
-                <p class="text-sm font-medium text-gray-700 mb-2">Extra Charges <span class="text-xs font-normal text-gray-400">(optional — for damage or unpaid items)</span></p>
+                <p class="text-sm font-medium text-gray-700 mb-2">{{ __('messages.extra_charges') }} <span class="text-xs font-normal text-gray-400">{{ __('messages.extra_charges_hint') }}</span></p>
                 <template x-for="(row, idx) in extraCharges" :key="idx">
                     <div class="flex gap-2 mb-2">
                         <input type="text"
                             :name="'extra_charges[' + idx + '][description]'"
                             x-model="row.description"
-                            placeholder="What is the charge for?"
+                            placeholder="{{ __('messages.what_is_charge_for') }}"
                             class="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm">
                         <input type="number" step="0.01" min="0"
                             :name="'extra_charges[' + idx + '][amount]'"
@@ -151,22 +149,20 @@
                             placeholder="0.00"
                             class="w-28 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm">
                         <button type="button" @click="removeExtraCharge(idx)"
-                            class="px-2 text-red-500 hover:text-red-700" title="Remove">
+                            class="px-2 text-red-500 hover:text-red-700" title="{{ __('messages.remove') }}">
                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
                         </button>
                     </div>
                 </template>
                 <button type="button" @click="addExtraCharge()"
                     class="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-blue-700 bg-blue-50 border border-blue-200 rounded-lg hover:bg-blue-100">
-                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
-                    Add extra charge
-                </button>
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>{{ __('messages.add_extra_charge') }}</button>
             </div>
 
             <!-- Notes -->
             <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">Notes</label>
-                <textarea name="notes" rows="2" placeholder="Optional notes about the departure"
+                <label class="block text-sm font-medium text-gray-700 mb-1">{{ __('messages.notes') }}</label>
+                <textarea name="notes" rows="2" placeholder="{{ __('messages.optional_notes_departure') }}"
                     class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm">{{ old('notes') }}</textarea>
             </div>
         </div>
@@ -174,12 +170,8 @@
         <!-- Actions -->
         <div class="flex gap-3 mt-4">
             <button type="button" @click="showModal = true"
-                class="flex-1 px-5 py-2.5 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 transition text-sm">
-                Process Leave & Archive
-            </button>
-            <a href="{{ route('admin.tenants.index') }}" class="flex-1 px-5 py-2.5 border border-gray-300 text-gray-700 font-semibold rounded-lg hover:bg-gray-50 transition text-center text-sm">
-                Cancel
-            </a>
+                class="flex-1 px-5 py-2.5 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 transition text-sm">{{ __('messages.process_leave_archive') }}</button>
+            <a href="{{ route('admin.tenants.index') }}" class="flex-1 px-5 py-2.5 border border-gray-300 text-gray-700 font-semibold rounded-lg hover:bg-gray-50 transition text-center text-sm">{{ __('messages.cancel') }}</a>
         </div>
     </form>
 
@@ -208,8 +200,8 @@
             <!-- Modal Header -->
             <div class="flex items-center justify-between px-6 pt-5 pb-4 border-b border-slate-100">
                 <div>
-                    <h3 class="text-lg font-bold text-gray-900">Settlement Summary</h3>
-                    <p class="text-xs text-slate-400 mt-0.5">Review before confirming tenant leave</p>
+                    <h3 class="text-lg font-bold text-gray-900">{{ __('messages.settlement_summary') }}</h3>
+                    <p class="text-xs text-slate-400 mt-0.5">{{ __('messages.review_before_confirming') }}</p>
                 </div>
                 <button type="button" @click="showModal = false" class="text-slate-400 hover:text-slate-600 transition">
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
@@ -226,44 +218,44 @@
                     </div>
                     <div>
                         <p class="font-semibold text-gray-900">{{ $tenant->name }}</p>
-                        <p class="text-xs text-slate-400">Apt {{ $tenant->apartment?->apartment_number ?? 'N/A' }} &middot; <span x-text="stayDays"></span> days stay</p>
+                        <p class="text-xs text-slate-400">{{ __('messages.apt_short') }} {{ $tenant->apartment?->apartment_number ?? 'N/A' }} &middot; <span x-text="stayDays"></span> {{ __('messages.days_stay') }}</p>
                     </div>
                 </div>
 
                 <!-- Line items -->
                 <div class="space-y-2">
                     <div class="flex justify-between text-gray-600">
-                        <span x-text="fullMonth ? 'Full Month Rent' : 'Pro-rata Rent'"></span>
+                        <span x-text="fullMonth ? '{{ __('messages.full_month_rent') }}' : '{{ __('messages.pro_rata_rent') }}'"></span>
                         <span class="font-semibold text-gray-800" x-text="'$' + proRataRent.toFixed(2)"></span>
                     </div>
                     <div class="flex justify-between text-gray-600">
-                        <span>Outstanding Charges</span>
+                        <span>{{ __('messages.outstanding_charges') }}</span>
                         <span class="font-semibold text-gray-800" x-text="'$' + outstandingCharges.toFixed(2)"></span>
                     </div>
                     <div class="flex justify-between text-gray-600" x-show="extraTotal > 0">
-                        <span>Damage / Extra Charges</span>
+                        <span>{{ __('messages.damage_extra_charges') }}</span>
                         <span class="font-semibold text-gray-800" x-text="'$' + extraTotal.toFixed(2)"></span>
                     </div>
                 </div>
 
                 <!-- Total -->
                 <div class="flex justify-between items-center bg-slate-50 rounded-lg px-3 py-2.5 border border-slate-200">
-                    <span class="font-semibold text-gray-800">Total Due</span>
+                    <span class="font-semibold text-gray-800">{{ __('messages.total_due') }}</span>
                     <span class="font-bold text-xl text-gray-900" x-text="'$' + totalDue.toFixed(2)"></span>
                 </div>
 
                 <!-- Deposit / Balance / Refund -->
                 <div class="space-y-2 pt-1">
                     <div class="flex justify-between text-gray-600">
-                        <span>Deposit Applied</span>
+                        <span>{{ __('messages.deposit_applied') }}</span>
                         <span class="font-semibold text-green-600" x-text="'$' + depositApplied.toFixed(2)"></span>
                     </div>
                     <div class="flex justify-between text-gray-600">
-                        <span>Balance Due from Tenant</span>
+                        <span>{{ __('messages.balance_due_from_tenant') }}</span>
                         <span class="font-semibold" :class="balanceDue > 0 ? 'text-red-600' : 'text-slate-400'" x-text="'$' + balanceDue.toFixed(2)"></span>
                     </div>
                     <div class="flex justify-between text-gray-600">
-                        <span>Refund to Tenant</span>
+                        <span>{{ __('messages.refund_to_tenant') }}</span>
                         <span class="font-semibold" :class="refundAmount > 0 ? 'text-green-600' : 'text-slate-400'" x-text="'$' + refundAmount.toFixed(2)"></span>
                     </div>
                 </div>
@@ -272,13 +264,13 @@
                 <template x-if="balanceDue > 0">
                     <div class="flex items-start gap-2 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2.5 text-xs text-amber-700">
                         <svg class="w-4 h-4 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/></svg>
-                        <span>Tenant owes <strong x-text="'$' + balanceDue.toFixed(2)"></strong> after deposit is applied.</span>
+                        <span>{{ __('messages.tenant_owes') }} <strong x-text="'$' + balanceDue.toFixed(2)"></strong> {{ __('messages.after_deposit_applied') }}</span>
                     </div>
                 </template>
                 <template x-if="refundAmount > 0">
                     <div class="flex items-start gap-2 bg-green-50 border border-green-200 rounded-lg px-3 py-2.5 text-xs text-green-700">
                         <svg class="w-4 h-4 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-                        <span>Refund <strong x-text="'$' + refundAmount.toFixed(2)"></strong> to tenant from deposit (recorded as expense).</span>
+                        <span>{{ __('messages.refund_prefix') }} <strong x-text="'$' + refundAmount.toFixed(2)"></strong> {{ __('messages.refund_suffix') }}</span>
                     </div>
                 </template>
             </div>
@@ -286,13 +278,9 @@
             <!-- Modal Footer -->
             <div class="flex gap-3 px-6 pb-6">
                 <button type="button" @click="showModal = false"
-                    class="flex-1 px-4 py-2.5 border border-gray-300 text-gray-700 font-semibold rounded-lg hover:bg-gray-50 transition text-sm">
-                    Cancel
-                </button>
+                    class="flex-1 px-4 py-2.5 border border-gray-300 text-gray-700 font-semibold rounded-lg hover:bg-gray-50 transition text-sm">{{ __('messages.cancel') }}</button>
                 <button type="button" @click="document.getElementById('leaveForm').submit()"
-                    class="flex-1 px-4 py-2.5 bg-red-600 text-white font-semibold rounded-lg hover:bg-red-700 transition text-sm">
-                    Confirm & Archive
-                </button>
+                    class="flex-1 px-4 py-2.5 bg-red-600 text-white font-semibold rounded-lg hover:bg-red-700 transition text-sm">{{ __('messages.confirm_archive') }}</button>
             </div>
         </div>
     </div>

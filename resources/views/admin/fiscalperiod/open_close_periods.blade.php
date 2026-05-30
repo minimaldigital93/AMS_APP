@@ -2,7 +2,7 @@
 
 @section('content')
 <div class="container mx-auto py-8 max-w-lg">
-    <h1 class="text-2xl font-bold mb-6">New Fiscal Period</h1>
+    <h1 class="text-2xl font-bold mb-6">{{ __('messages.new_fiscal_period') }}</h1>
 
     @if(session('warning'))
         <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-3 mb-4">
@@ -31,20 +31,20 @@
         @csrf
 
         <div>
-            <label for="name" class="block text-sm font-medium text-gray-700 mb-1">Period Name</label>
+            <label for="name" class="block text-sm font-medium text-gray-700 mb-1">{{ __('messages.period_name') }}</label>
             <input type="text" id="name" name="name" value="{{ old('name') }}" required
                 class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none"
-                placeholder="e.g., Fiscal Year 2026">
+                placeholder="{{ __('messages.eg_fiscal_year') }}">
         </div>
 
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-                <label for="opening_date" class="block text-sm font-medium text-gray-700 mb-1">Start Date</label>
+                <label for="opening_date" class="block text-sm font-medium text-gray-700 mb-1">{{ __('messages.start_date') }}</label>
                 <input type="date" id="opening_date" name="opening_date" value="{{ old('opening_date') }}" required
                     class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white appearance-none h-10 focus:ring-2 focus:ring-blue-500 focus:outline-none">
             </div>
             <div>
-                <label for="closing_date" class="block text-sm font-medium text-gray-700 mb-1">End Date</label>
+                <label for="closing_date" class="block text-sm font-medium text-gray-700 mb-1">{{ __('messages.end_date') }}</label>
                 <input type="date" id="closing_date" name="closing_date" value="{{ old('closing_date') }}" required
                     class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white appearance-none h-10 focus:ring-2 focus:ring-blue-500 focus:outline-none">
             </div>
@@ -53,13 +53,13 @@
         {{-- Opening balance sheet: entered once, then auto-rolled forward each month --}}
         <div class="border border-gray-200 rounded-lg p-4">
             <div class="mb-3">
-                <h2 class="text-sm font-semibold text-gray-700">Opening Balance Sheet</h2>
-                <p class="text-xs text-gray-500">Enter your starting position. The system updates it automatically every month as you record income and expenses.</p>
+                <h2 class="text-sm font-semibold text-gray-700">{{ __('messages.opening_balance_sheet') }}</h2>
+                <p class="text-xs text-gray-500">{{ __('messages.starting_position_help') }}</p>
             </div>
 
             <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
                 <div>
-                    <label for="opening_assets" class="block text-xs font-medium text-gray-600 mb-1">Assets</label>
+                    <label for="opening_assets" class="block text-xs font-medium text-gray-600 mb-1">{{ __('messages.assets') }}</label>
                     <div class="relative">
                         <span class="absolute left-3 top-2 text-gray-500">$</span>
                         <input type="number" id="opening_assets" name="opening_assets" x-model.number="assets"
@@ -68,7 +68,7 @@
                     </div>
                 </div>
                 <div>
-                    <label for="opening_liabilities" class="block text-xs font-medium text-gray-600 mb-1">Liabilities</label>
+                    <label for="opening_liabilities" class="block text-xs font-medium text-gray-600 mb-1">{{ __('messages.liabilities') }}</label>
                     <div class="relative">
                         <span class="absolute left-3 top-2 text-gray-500">$</span>
                         <input type="number" id="opening_liabilities" name="opening_liabilities" x-model.number="liabilities"
@@ -77,7 +77,7 @@
                     </div>
                 </div>
                 <div>
-                    <label for="opening_equity" class="block text-xs font-medium text-gray-600 mb-1">Equity</label>
+                    <label for="opening_equity" class="block text-xs font-medium text-gray-600 mb-1">{{ __('messages.equity') }}</label>
                     <div class="relative">
                         <span class="absolute left-3 top-2 text-gray-500">$</span>
                         <input type="number" id="opening_equity" name="opening_equity" x-model.number="equity"
@@ -94,7 +94,7 @@
                     <span>✓ Balanced — Assets = Liabilities + Equity.</span>
                 </template>
                 <template x-if="!balanced">
-                    <span>Not balanced yet: Assets must equal Liabilities + Equity (off by $<span x-text="Math.abs(diff).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})"></span>).</span>
+                    <span>{{ __('messages.not_balanced_pre') }}<span x-text="Math.abs(diff).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})"></span>).</span>
                 </template>
             </div>
         </div>
@@ -105,7 +105,7 @@
                 Create Period
             </button>
             <a href="{{ route('admin.fiscalperiod.index') }}" class="flex-1 bg-gray-100 text-gray-700 py-2.5 rounded-lg font-semibold hover:bg-gray-200 text-sm text-center">
-                Cancel
+                {{ __('messages.cancel') }}
             </a>
         </div>
     </form>

@@ -3,7 +3,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Apartment Summary</title>
+    <title>{{ __('messages.apartment_summary') }}</title>
     <style>
         /* Owner-friendly print styles */
         :root{--brand:#0ea5a3;--accent:#2563eb;--muted:#6b7280;--bg:#ffffff}
@@ -44,10 +44,10 @@
         <form id="auto-gen-form" method="POST" action="{{ route('admin.revenue_expense.process_bills_auto') }}" style="margin:0;">
             @csrf
             <input type="hidden" name="billing_date" value="{{ $start }}">
-            <button type="submit" style="padding:8px 12px; background:#0ea5a3; color:#fff; border:none; border-radius:6px; cursor:pointer;">Auto-generate bills</button>
+            <button type="submit" style="padding:8px 12px; background:#0ea5a3; color:#fff; border:none; border-radius:6px; cursor:pointer;">{{ __('messages.auto_generate_bills') }}</button>
         </form>
-        <a href="{{ route('admin.revenue_expense.apartment_summary_pdf', ['start' => $start, 'end' => $end, 'summary_only' => $summaryOnly ?? false, 'whole' => $wholeNumbers ?? false]) }}" target="_blank" style="padding:8px 12px; background:#2563eb; color:#fff; border-radius:6px; text-decoration:none;">Download PDF</a>
-        <button onclick="window.print()" style="padding:8px 12px; background:#6b7280; color:#fff; border:none; border-radius:6px; cursor:pointer;">Print</button>
+        <a href="{{ route('admin.revenue_expense.apartment_summary_pdf', ['start' => $start, 'end' => $end, 'summary_only' => $summaryOnly ?? false, 'whole' => $wholeNumbers ?? false]) }}" target="_blank" style="padding:8px 12px; background:#2563eb; color:#fff; border-radius:6px; text-decoration:none;">{{ __('messages.download_pdf') }}</a>
+        <button onclick="window.print()" style="padding:8px 12px; background:#6b7280; color:#fff; border:none; border-radius:6px; cursor:pointer;">{{ __('messages.print') }}</button>
     </div>
     @endif
 
@@ -56,7 +56,7 @@
             <div class="brand">
                 <div class="brand-logo" aria-hidden></div>
                 <div>
-                    <h1>Apartment Summary</h1>
+                    <h1>{{ __('messages.apartment_summary') }}</h1>
                     <div class="company">{{ $activePeriod->name ?? 'Fiscal Period' }} · Period: {{ $start }} — {{ $end }}</div>
                 </div>
             </div>
@@ -83,19 +83,19 @@
 
         <div class="kpis">
             <div class="kpi">
-                <div class="label">Total Rent Recognized</div>
+                <div class="label">{{ __('messages.total_rent_recognized') }}</div>
                 <div class="value">{{ $fmt($total_rent) }}</div>
             </div>
             <div class="kpi">
-                <div class="label">Total Utilities</div>
+                <div class="label">{{ __('messages.total_utilities') }}</div>
                 <div class="value">{{ $fmt($total_util) }}</div>
             </div>
             <div class="kpi">
-                <div class="label">Total Apartment Costs</div>
+                <div class="label">{{ __('messages.total_apartment_costs') }}</div>
                 <div class="value">{{ $fmt($total_fixed) }}</div>
             </div>
             <div class="kpi">
-                <div class="label">Net (Owner)</div>
+                <div class="label">{{ __('messages.net_owner') }}</div>
                 <div class="value">{{ $fmt($total_net) }}</div>
                 <div class="muted" style="margin-top:6px">{{ $paid_units }} / {{ $total_units }} units paid</div>
             </div>
@@ -105,13 +105,13 @@
         @endphp
 
         @if(count($occupiedList) > 0)
-            <h3 style="margin-top:14px; font-size:13px;">Income by Occupied Apartment</h3>
+            <h3 style="margin-top:14px; font-size:13px;">{{ __('messages.income_by_apartment') }}</h3>
             <table>
                 <thead>
                     <tr>
-                        <th style="width:120px">Unit</th>
-                        <th class="right">Income</th>
-                        <th>Tenant</th>
+                        <th style="width:120px">{{ __('messages.unit') }}</th>
+                        <th class="right">{{ __('messages.income') }}</th>
+                        <th>{{ __('messages.tenant') }}</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -148,40 +148,40 @@
             $sum_profit = $sum_revenue - $sum_expenses;
         @endphp
 
-        <h2 style="margin-top:12px; font-size:14px;">Summary</h2>
+        <h2 style="margin-top:12px; font-size:14px;">{{ __('messages.summary') }}</h2>
         <table>
             <thead>
                 <tr>
-                    <th>Description</th>
-                    <th class="right">Amount</th>
+                    <th>{{ __('messages.description') }}</th>
+                    <th class="right">{{ __('messages.amount') }}</th>
                 </tr>
             </thead>
             <tbody>
                 <tr>
-                    <td>Revenue</td>
+                    <td>{{ __('messages.revenue') }}</td>
                     <td class="right">{{ $fmt($sum_revenue) }}</td>
                 </tr>
                 <tr>
-                    <td>Expenses</td>
+                    <td>{{ __('messages.expenses_word') }}</td>
                     <td class="right">{{ $fmt($sum_expenses) }}</td>
                 </tr>
                 <tr style="font-weight:700; border-top:2px solid #ddd;">
-                    <td>Total Profit</td>
+                    <td>{{ __('messages.total_profit') }}</td>
                     <td class="right">{{ $fmt($sum_profit) }}</td>
                 </tr>
             </tbody>
         </table>
     @else
-    <h2 style="margin-top:12px; font-size:14px;">General Ledger Entries (per apartment)</h2>
+    <h2 style="margin-top:12px; font-size:14px;">{{ __('messages.general_ledger_entries') }}</h2>
     <table>
         <thead>
             <tr>
-                <th style="width:80px">Unit</th>
-                <th style="width:120px">Account Code</th>
-                <th>Account</th>
-                <th class="right">Debit ($)</th>
-                <th class="right">Credit ($)</th>
-                <th>Note</th>
+                <th style="width:80px">{{ __('messages.unit') }}</th>
+                <th style="width:120px">{{ __('messages.account_code') }}</th>
+                <th>{{ __('messages.account') }}</th>
+                <th class="right">{{ __('messages.debit_dollar') }}</th>
+                <th class="right">{{ __('messages.credit_dollar') }}</th>
+                <th>{{ __('messages.note') }}</th>
             </tr>
         </thead>
         <tbody>
@@ -201,7 +201,7 @@
                     <td>{{ $gl['utilities_expense']['name'] }}</td>
                     <td class="right">{{ number_format($utilities, 2) }}</td>
                     <td class="right">&nbsp;</td>
-                    <td>Utilities cost for unit</td>
+                    <td>{{ __('messages.utilities_cost_unit') }}</td>
                 </tr>
                 @php $totalDebits += $utilities; @endphp
                 @endif
@@ -210,10 +210,10 @@
     </table>
 
     <div class="summary" style="margin-top:14px">
-        <div class="muted">Total Debits</div>
+        <div class="muted">{{ __('messages.total_debits') }}</div>
         <div class="tot">{{ $fmt($totalDebits) }}</div>
         <div style="width:12px"></div>
-        <div class="muted">Total Credits</div>
+        <div class="muted">{{ __('messages.total_credits') }}</div>
         <div class="tot">{{ $fmt($totalCredits) }}</div>
     </div>
 

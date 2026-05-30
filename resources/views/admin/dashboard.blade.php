@@ -1,6 +1,6 @@
 @extends('layouts.admin')
 
-@section('title', 'Dashboard')
+@section('title', __('messages.dashboard'))
 
 @section('content')
 <div class="max-w-6xl mx-auto space-y-8">
@@ -22,16 +22,16 @@
     {{-- Header --}}
     <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
-            <h1 class="text-2xl font-semibold text-slate-800 tracking-tight">Dashboard</h1>
+            <h1 class="text-2xl font-semibold text-slate-800 tracking-tight">{{ __('messages.dashboard') }}</h1>
             <p class="text-slate-400 text-sm mt-1">
-                {{ $isFullPeriod ? $activePeriod->name . ' — Full Fiscal Period Overview' : $displayMonth->format('F Y') . ' — Overview & Quick Recording' }}
+                {{ $isFullPeriod ? $activePeriod->name . ' — ' . __('messages.full_period_overview') : $displayMonth->format('F Y') . ' — ' . __('messages.overview_quick_recording') }}
             </p>
         </div>
         <div class="flex items-center gap-2">
             <a href="{{ route('admin.floors.plan3d') }}"
                class="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 transition shadow-sm">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/></svg>
-                3D Floor View
+                {{ __('messages.floor_view_3d') }}
             </a>
             @if($activePeriod)
             <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-700">
@@ -46,7 +46,7 @@
         <div class="inline-flex items-center bg-white rounded-xl border border-slate-100 px-2 py-1.5 gap-1">
             @if($monthNavigation['previousMonth'])
             <a href="{{ route('admin.dashboard', ['month' => $monthNavigation['previousMonth']['month'], 'year' => $monthNavigation['previousMonth']['year']]) }}"
-               class="inline-flex items-center justify-center w-10 h-10 rounded-lg text-slate-500 hover:bg-slate-50 hover:text-sky-600 transition" title="Previous Month">
+               class="inline-flex items-center justify-center w-10 h-10 rounded-lg text-slate-500 hover:bg-slate-50 hover:text-sky-600 transition" title="{{ __('messages.previous_month') }}">
                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
             </a>
             @else
@@ -57,24 +57,24 @@
 
             <div class="px-4 py-2 min-w-[220px] text-center">
                 @if($isFullPeriod)
-                    <span class="text-lg font-bold text-slate-800">All Months</span>
-                    <span class="ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-sky-100 text-sky-700">Full Period</span>
+                    <span class="text-lg font-bold text-slate-800">{{ __('messages.all_months') }}</span>
+                    <span class="ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-sky-100 text-sky-700">{{ __('messages.full_period') }}</span>
                 @else
                 <span class="text-lg font-bold text-slate-800">{{ $displayMonth->format('F') }}</span>
                 <span class="text-lg text-slate-500 ml-1">{{ $displayMonth->format('Y') }}</span>
                 @if($monthNavigation['isCurrentMonth'])
-                    <span class="ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-emerald-100 text-emerald-700">Current</span>
+                    <span class="ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-emerald-100 text-emerald-700">{{ __('messages.current') }}</span>
                 @elseif($displayMonth->isFuture())
-                    <span class="ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-sky-100 text-sky-700">Upcoming</span>
+                    <span class="ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-sky-100 text-sky-700">{{ __('messages.upcoming') }}</span>
                 @else
-                    <span class="ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-600">Past</span>
+                    <span class="ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-600">{{ __('messages.past') }}</span>
                 @endif
                 @endif
             </div>
 
             @if($monthNavigation['nextMonth'])
             <a href="{{ route('admin.dashboard', ['month' => $monthNavigation['nextMonth']['month'], 'year' => $monthNavigation['nextMonth']['year']]) }}"
-               class="inline-flex items-center justify-center w-10 h-10 rounded-lg text-slate-500 hover:bg-slate-50 hover:text-sky-600 transition" title="Next Month">
+               class="inline-flex items-center justify-center w-10 h-10 rounded-lg text-slate-500 hover:bg-slate-50 hover:text-sky-600 transition" title="{{ __('messages.next_month') }}">
                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
             </a>
             @else
@@ -85,17 +85,17 @@
 
                 @if(!$isFullPeriod)
                 <a href="{{ route('admin.dashboard', ['view' => 'all']) }}"
-                    class="ml-1 inline-flex items-center px-3 py-2 text-sm font-medium text-slate-600 bg-slate-50 rounded-lg hover:bg-slate-100 transition" title="View full fiscal period">
+                    class="ml-1 inline-flex items-center px-3 py-2 text-sm font-medium text-slate-600 bg-slate-50 rounded-lg hover:bg-slate-100 transition" title="{{ __('messages.view_full_fiscal_period') }}">
                      <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h16M4 18h16"/></svg>
-                     All
+                     {{ __('messages.all') }}
                 </a>
                 @endif
 
                 @if(($isFullPeriod || !$monthNavigation['isCurrentMonth']) && $monthNavigation['currentMonthInPeriod'])
             <a href="{{ route('admin.dashboard', ['month' => now()->month, 'year' => now()->year]) }}"
-               class="ml-1 inline-flex items-center px-3 py-2 text-sm font-medium text-sky-600 bg-sky-50 rounded-lg hover:bg-sky-100 transition" title="Go to current month">
+               class="ml-1 inline-flex items-center px-3 py-2 text-sm font-medium text-sky-600 bg-sky-50 rounded-lg hover:bg-sky-100 transition" title="{{ __('messages.go_to_current_month') }}">
                 <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
-                Today
+                {{ __('messages.today') }}
             </a>
             @endif
         </div>
@@ -111,7 +111,7 @@
                     <svg class="w-5 h-5 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
                 </div>
                 <div>
-                    <p class="text-xs text-slate-400 font-medium">Revenue</p>
+                    <p class="text-xs text-slate-400 font-medium">{{ __('messages.revenue') }}</p>
                     <p class="text-xl font-bold text-slate-800">${{ number_format($stats['revenue']['total_monthly'] ?? 0, 2) }}</p>
                 </div>
             </div>
@@ -119,19 +119,19 @@
             <p class="text-[11px] text-slate-400 mt-2 space-y-0.5">
                 @php $byType = $stats['revenue']['by_type'] ?? []; @endphp
                 @if(($byType['rent'] ?? 0) > 0)
-                    <span class="flex justify-between"><span>Rent</span><span class="font-medium text-green-500">+${{ number_format($byType['rent'], 2) }}</span></span>
+                    <span class="flex justify-between"><span>{{ __('messages.rent') }}</span><span class="font-medium text-green-500">+${{ number_format($byType['rent'], 2) }}</span></span>
                 @endif
                 @if(($byType['deposit'] ?? 0) > 0)
-                    <span class="flex justify-between"><span>Deposit</span><span class="font-medium text-green-500">+${{ number_format($byType['deposit'], 2) }}</span></span>
+                    <span class="flex justify-between"><span>{{ __('messages.deposit') }}</span><span class="font-medium text-green-500">+${{ number_format($byType['deposit'], 2) }}</span></span>
                 @endif
                 @if(($byType['utilities'] ?? 0) > 0)
-                    <span class="flex justify-between"><span>Utilities</span><span class="font-medium text-green-500">+${{ number_format($byType['utilities'], 2) }}</span></span>
+                    <span class="flex justify-between"><span>{{ __('messages.utilities') }}</span><span class="font-medium text-green-500">+${{ number_format($byType['utilities'], 2) }}</span></span>
                 @endif
                 @if(($stats['revenue']['late_fees_this_month'] ?? 0) > 0)
-                    <span class="flex justify-between"><span>Late Fees</span><span class="font-medium text-green-500">+${{ number_format($stats['revenue']['late_fees_this_month'], 2) }}</span></span>
+                    <span class="flex justify-between"><span>{{ __('messages.late_fees') }}</span><span class="font-medium text-green-500">+${{ number_format($stats['revenue']['late_fees_this_month'], 2) }}</span></span>
                 @endif
                 @if(($byType['other'] ?? 0) > 0)
-                    <span class="flex justify-between"><span>Other</span><span class="font-medium text-green-500">+${{ number_format($byType['other'], 2) }}</span></span>
+                    <span class="flex justify-between"><span>{{ __('messages.other') }}</span><span class="font-medium text-green-500">+${{ number_format($byType['other'], 2) }}</span></span>
                 @endif
             </p>
             </div>
@@ -144,14 +144,14 @@
                     <svg class="w-5 h-5 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
                 </div>
                 <div>
-                    <p class="text-xs text-slate-400 font-medium">Expenses</p>
+                    <p class="text-xs text-slate-400 font-medium">{{ __('messages.expense') }}</p>
                     <p class="text-xl font-bold text-slate-800">${{ number_format($stats['expenses']['monthly_total'] ?? 0, 2) }}</p>
                 </div>
             </div>
             <div class="summary-details hidden">
             <p class="text-[11px] text-slate-400 mt-2 space-y-0.5">
                 @if(($stats['expenses']['utilities_total'] ?? 0) > 0)
-                    <span class="flex justify-between"><span>Utilities</span><span class="font-medium text-red-400">-${{ number_format($stats['expenses']['utilities_total'], 2) }}</span></span>
+                    <span class="flex justify-between"><span>{{ __('messages.utilities') }}</span><span class="font-medium text-red-400">-${{ number_format($stats['expenses']['utilities_total'], 2) }}</span></span>
                 @endif
                 @foreach(($stats['expenses']['account_breakdown'] ?? []) as $cat => $amt)
                     @if($amt > 0)
@@ -172,7 +172,7 @@
                     <svg class="w-5 h-5 {{ $netProfit >= 0 ? 'text-blue-600' : 'text-orange-600' }}" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"/></svg>
                 </div>
                 <div>
-                    <p class="text-xs text-slate-400 font-medium">Net Profit</p>
+                    <p class="text-xs text-slate-400 font-medium">{{ __('messages.net_profit') }}</p>
                     <p class="text-xl font-bold {{ $netProfit >= 0 ? 'text-green-700' : 'text-red-700' }}">
                         {{ $netProfit >= 0 ? '+' : '' }}${{ number_format($netProfit, 2) }}
                     </p>
@@ -180,8 +180,8 @@
             </div>
             <div class="summary-details hidden">
             <p class="text-[11px] text-slate-400 mt-2 space-y-0.5">
-                <span class="flex justify-between"><span>Revenue</span><span class="font-medium text-emerald-500">+${{ number_format($stats['revenue']['total_monthly'] ?? 0, 2) }}</span></span>
-                <span class="flex justify-between"><span>Expenses</span><span class="font-medium text-red-400">-${{ number_format($stats['expenses']['monthly_total'] ?? 0, 2) }}</span></span>
+                <span class="flex justify-between"><span>{{ __('messages.revenue') }}</span><span class="font-medium text-emerald-500">+${{ number_format($stats['revenue']['total_monthly'] ?? 0, 2) }}</span></span>
+                <span class="flex justify-between"><span>{{ __('messages.expense') }}</span><span class="font-medium text-red-400">-${{ number_format($stats['expenses']['monthly_total'] ?? 0, 2) }}</span></span>
             </p>
                 </div>
             </div>
@@ -193,17 +193,17 @@
                     <svg class="w-5 h-5 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>
                 </div>
                 <div>
-                    <p class="text-xs text-slate-400 font-medium">Occupied / Total</p>
+                    <p class="text-xs text-slate-400 font-medium">{{ __('messages.occupied_total') }}</p>
                     <p class="text-xl font-bold text-slate-800">{{ $stats['apartments']['occupied'] }} / {{ $stats['apartments']['total'] }}</p>
                 </div>
             </div>
             <div class="summary-details hidden">
             @php $occRate = $stats['apartments']['total'] > 0 ? round(($stats['apartments']['occupied'] / $stats['apartments']['total']) * 100, 1) : 0; @endphp
             <p class="text-[11px] text-slate-400 mt-2 space-y-0.5">
-                <span class="flex justify-between"><span>Occupancy Rate</span><span class="font-medium {{ $occRate >= 80 ? 'text-emerald-500' : ($occRate >= 50 ? 'text-amber-500' : 'text-red-500') }}">{{ $occRate }}%</span></span>
-                <span class="flex justify-between"><span>Available</span><span class="font-medium text-slate-500">{{ $stats['apartments']['available'] }}</span></span>
+                <span class="flex justify-between"><span>{{ __('messages.occupancy_rate') }}</span><span class="font-medium {{ $occRate >= 80 ? 'text-emerald-500' : ($occRate >= 50 ? 'text-amber-500' : 'text-red-500') }}">{{ $occRate }}%</span></span>
+                <span class="flex justify-between"><span>{{ __('messages.available') }}</span><span class="font-medium text-slate-500">{{ $stats['apartments']['available'] }}</span></span>
                 @if(($stats['apartments']['maintenance'] ?? 0) > 0)
-                    <span class="flex justify-between"><span>Maintenance</span><span class="font-medium text-slate-500">{{ $stats['apartments']['maintenance'] }}</span></span>
+                    <span class="flex justify-between"><span>{{ __('messages.maintenance') }}</span><span class="font-medium text-slate-500">{{ $stats['apartments']['maintenance'] }}</span></span>
                 @endif
             </p>
             </div>
@@ -216,10 +216,10 @@
         <div class="flex items-start gap-3">
             <svg class="w-6 h-6 text-yellow-600 shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/></svg>
             <div>
-                <h3 class="font-bold text-yellow-900">No Active Fiscal Period</h3>
-                <p class="text-sm text-yellow-800 mt-1">Create a fiscal period to start recording revenue and expenses.</p>
+                <h3 class="font-bold text-yellow-900">{{ __('messages.no_active_fiscal_period') }}</h3>
+                <p class="text-sm text-yellow-800 mt-1">{{ __('messages.create_fiscal_period_prompt') }}</p>
                 <a href="{{ route('admin.fiscalperiod.create') }}" class="inline-block mt-3 bg-yellow-600 text-white px-5 py-2 rounded-lg hover:bg-yellow-700 transition text-sm font-medium">
-                    Create Fiscal Period
+                    {{ __('messages.create_fiscal_period') }}
                 </a>
             </div>
         </div>
@@ -231,13 +231,13 @@
     <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div class="bg-emerald-50/70 border border-emerald-100 rounded-xl p-4 flex items-center justify-between">
             <div>
-                <p class="text-sm font-medium text-emerald-700">Paid</p>
+                <p class="text-sm font-medium text-emerald-700">{{ __('messages.paid') }}</p>
                 <p class="text-2xl font-bold text-emerald-800">{{ $stats['payments']['paid'] }}</p>
                 @if(!empty($stats['tenants_on_leave']) && $stats['tenants_on_leave'] > 0)
                     @php $leaveCount = (int) $stats['tenants_on_leave']; @endphp
-                    <p class="flex items-center gap-2 text-sm text-slate-500 mt-2" title="{{ $leaveCount === 1 ? '1 tenant is on leave' : $leaveCount . ' tenants on leave' }}">
+                    <p class="flex items-center gap-2 text-sm text-slate-500 mt-2" title="{{ __('messages.tenants_on_leave', ['count' => $leaveCount]) }}">
                         <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-sky-500 shrink-0" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path fill-rule="evenodd" d="M18 10A8 8 0 1110 2a8 8 0 018 8zm-9-3a1 1 0 102 0 1 1 0 00-2 0zm1 4a1 1 0 00-1 1v1a1 1 0 102 0v-1a1 1 0 00-1-1z" clip-rule="evenodd"/></svg>
-                        <span>{{ $leaveCount === 1 ? '1 tenant is on leave' : $leaveCount . ' tenants on leave' }}</span>
+                        <span>{{ __('messages.tenants_on_leave', ['count' => $leaveCount]) }}</span>
                     </p>
                 @endif
             </div>
@@ -250,7 +250,7 @@
 
         <div class="bg-amber-50/70 border border-amber-100 rounded-xl p-4 flex items-center justify-between">
             <div>
-                <p class="text-sm font-medium text-amber-700">Pending</p>
+                <p class="text-sm font-medium text-amber-700">{{ __('messages.pending') }}</p>
                 <p class="text-2xl font-bold text-amber-800">{{ $stats['payments']['pending'] }}</p>
             </div>
             @php $pending = $stats['payments']['pending'] ?? 0; @endphp
@@ -262,7 +262,7 @@
 
         <div class="bg-red-50/70 border border-red-100 rounded-xl p-4 flex items-center justify-between">
             <div>
-                <p class="text-sm font-medium text-red-600">Overdue</p>
+                <p class="text-sm font-medium text-red-600">{{ __('messages.overdue') }}</p>
                 <p class="text-2xl font-bold text-red-700">{{ $stats['payments']['overdue'] }}</p>
             </div>
             @php $overdue = $stats['payments']['overdue'] ?? 0; @endphp
@@ -286,8 +286,8 @@
         {{-- Calendar Grid --}}
         <div class="rounded-lg border border-slate-100 overflow-hidden">
             <div class="grid grid-cols-7 bg-slate-50/80 border-b border-slate-100">
-                @foreach(['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'] as $dayName)
-                    <div class="text-center text-[11px] font-medium text-slate-400 py-2 uppercase tracking-wider">{{ $dayName }}</div>
+                @foreach(['day_sun', 'day_mon', 'day_tue', 'day_wed', 'day_thu', 'day_fri', 'day_sat'] as $dayKey)
+                    <div class="text-center text-[11px] font-medium text-slate-400 py-2 uppercase tracking-wider">{{ __('messages.' . $dayKey) }}</div>
                 @endforeach
             </div>
             <div class="grid grid-cols-7">
@@ -339,7 +339,7 @@
 
         {{-- Legend --}}
         <div class="flex items-center gap-4 text-xs text-slate-400 mt-3">
-            <span class="flex items-center gap-1"><span class="w-3 h-3 border-2 border-sky-500 rounded"></span> Today</span>
+            <span class="flex items-center gap-1"><span class="w-3 h-3 border-2 border-sky-500 rounded"></span> {{ __('messages.today') }}</span>
         </div>
     </div>
     @endif
@@ -350,16 +350,16 @@
     {{-- Recent Closed Fiscal Periods --}}
     @if($fiscalData['has_active_period'] && $fiscalData['recent_periods']->count() > 0)
     <div class="bg-white rounded-xl border border-slate-100 p-6">
-        <h2 class="text-lg font-semibold text-slate-800 mb-4">Closed Periods</h2>
+        <h2 class="text-lg font-semibold text-slate-800 mb-4">{{ __('messages.closed_periods') }}</h2>
         <div class="overflow-x-auto">
             <table class="w-full text-sm">
                 <thead>
                     <tr class="text-left border-b border-slate-100">
-                        <th class="pb-2 text-[11px] font-medium text-slate-400 uppercase tracking-wider">Period</th>
-                        <th class="pb-2 text-[11px] font-medium text-slate-400 uppercase tracking-wider">Dates</th>
-                        <th class="pb-2 text-[11px] font-medium text-slate-400 uppercase tracking-wider text-right">Opening</th>
-                        <th class="pb-2 text-[11px] font-medium text-slate-400 uppercase tracking-wider text-right">Closing</th>
-                        <th class="pb-2 text-[11px] font-medium text-slate-400 uppercase tracking-wider text-right">Change</th>
+                        <th class="pb-2 text-[11px] font-medium text-slate-400 uppercase tracking-wider">{{ __('messages.period') }}</th>
+                        <th class="pb-2 text-[11px] font-medium text-slate-400 uppercase tracking-wider">{{ __('messages.dates') }}</th>
+                        <th class="pb-2 text-[11px] font-medium text-slate-400 uppercase tracking-wider text-right">{{ __('messages.opening') }}</th>
+                        <th class="pb-2 text-[11px] font-medium text-slate-400 uppercase tracking-wider text-right">{{ __('messages.closing') }}</th>
+                        <th class="pb-2 text-[11px] font-medium text-slate-400 uppercase tracking-wider text-right">{{ __('messages.change') }}</th>
                         <th class="pb-2"></th>
                     </tr>
                 </thead>
@@ -377,7 +377,7 @@
                             {{ $change >= 0 ? '+' : '' }}${{ number_format($change, 2) }}
                         </td>
                         <td class="py-2.5 text-right">
-                            <a href="{{ route('admin.fiscalperiod.reports', $period->id) }}" class="text-sky-600 hover:text-sky-700 text-xs font-medium">Report</a>
+                            <a href="{{ route('admin.fiscalperiod.reports', $period->id) }}" class="text-sky-600 hover:text-sky-700 text-xs font-medium">{{ __('messages.report') }}</a>
                         </td>
                     </tr>
                     @endforeach

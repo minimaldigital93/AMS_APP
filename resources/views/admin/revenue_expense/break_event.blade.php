@@ -16,14 +16,12 @@
 
     {{-- Header --}}
     <div class="flex items-center justify-between">
-        <h1 class="text-xl font-bold text-slate-800 tracking-tight">Are you covering your costs?</h1>
+        <h1 class="text-xl font-bold text-slate-800 tracking-tight">{{ __('messages.covering_costs_q') }}</h1>
         <a href="{{ route('admin.revenue_expense.index') }}"
            class="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm bg-slate-100 text-slate-600 rounded-lg hover:bg-slate-200 transition">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
-            </svg>
-            Back
-        </a>
+            </svg>{{ __('messages.back') }}</a>
     </div>
 
     {{-- Month navigation --}}
@@ -51,7 +49,7 @@
             </svg>
             <span class="text-base font-bold text-slate-800">{{ $selectedDate->format('F Y') }}</span>
             @if($selectedMonth === now()->month && $selectedYear === now()->year)
-                <span class="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-700 uppercase">Current</span>
+                <span class="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-700 uppercase">{{ __('messages.current') }}</span>
             @endif
         </div>
 
@@ -85,17 +83,17 @@
                 </div>
                 <div class="text-3xl font-extrabold mt-1 leading-none">
                     {{ $is_above_break_even ? '+' : '−' }}${{ number_format(abs($is_above_break_even ? $safety_margin : $amount_needed), 0) }}
-                    <span class="text-sm font-medium opacity-80">this month</span>
+                    <span class="text-sm font-medium opacity-80">{{ __('messages.this_month') }}</span>
                 </div>
             </div>
         </div>
         <div class="grid grid-cols-2 gap-3 mt-5">
             <div class="rounded-xl bg-white/15 px-4 py-3">
-                <div class="text-xs opacity-80">Money in (rent)</div>
+                <div class="text-xs opacity-80">{{ __('messages.money_in_rent') }}</div>
                 <div class="text-xl font-bold mt-0.5">${{ number_format($current_revenue, 0) }}</div>
             </div>
             <div class="rounded-xl bg-white/15 px-4 py-3">
-                <div class="text-xs opacity-80">Money out (costs)</div>
+                <div class="text-xs opacity-80">{{ __('messages.money_out_costs') }}</div>
                 <div class="text-xl font-bold mt-0.5">${{ number_format($total_expenses, 0) }}</div>
             </div>
         </div>
@@ -106,8 +104,8 @@
 
         {{-- Occupancy: exist vs rented --}}
         <div class="bg-white rounded-2xl border border-slate-100 p-5">
-            <p class="text-sm font-semibold text-slate-700">Apartments rented</p>
-            <p class="text-[11px] text-slate-400">How many of your units are bringing in rent</p>
+            <p class="text-sm font-semibold text-slate-700">{{ __('messages.apartments_rented') }}</p>
+            <p class="text-[11px] text-slate-400">{{ __('messages.units_bringing_rent') }}</p>
 
             <div class="relative w-40 h-40 mx-auto my-4">
                 <svg viewBox="0 0 36 36" class="w-full h-full -rotate-90">
@@ -120,27 +118,27 @@
                 </svg>
                 <div class="absolute inset-0 flex flex-col items-center justify-center">
                     <span class="text-3xl font-extrabold text-slate-800 leading-none">{{ $current_occupancy }}</span>
-                    <span class="text-xs text-slate-400">of {{ $total_apartments }} rented</span>
+                    <span class="text-xs text-slate-400">{{ __('messages.of_rented', ['total' => $total_apartments]) }}</span>
                 </div>
             </div>
 
             <div class="flex items-center justify-center gap-4 text-xs">
                 <span class="flex items-center gap-1.5">
                     <span class="w-2.5 h-2.5 rounded-full {{ $is_above_break_even ? 'bg-emerald-500' : 'bg-rose-500' }}"></span>
-                    <span class="text-slate-600">Rented {{ $current_occupancy }}</span>
+                    <span class="text-slate-600">{{ __('messages.rented_word') }} {{ $current_occupancy }}</span>
                 </span>
                 <span class="flex items-center gap-1.5">
                     <span class="w-2.5 h-2.5 rounded-full bg-slate-200"></span>
-                    <span class="text-slate-600">Empty {{ $vacantUnits }}</span>
+                    <span class="text-slate-600">{{ __('messages.empty_word') }} {{ $vacantUnits }}</span>
                 </span>
             </div>
 
             @if($break_even_feasible)
                 <p class="text-xs text-center text-slate-500 mt-4 pt-4 border-t border-slate-100">
                     @if($is_above_break_even)
-                        Covering costs at <span class="font-semibold text-emerald-600">{{ $break_even_units }}</span> rented — you're past it. 👍
+                        {{ __('messages.covering_costs_at_pre') }} <span class="font-semibold text-emerald-600">{{ $break_even_units }}</span> {{ __('messages.covering_costs_at_post') }}
                     @else
-                        Rent <span class="font-semibold text-rose-600">{{ $units_needed }}</span> more to cover your costs.
+                        {{ __('messages.rent_more_pre') }} <span class="font-semibold text-rose-600">{{ $units_needed }}</span> {{ __('messages.rent_more_post') }}
                     @endif
                 </p>
             @endif
@@ -148,8 +146,8 @@
 
         {{-- Utilities by type --}}
         <div class="bg-white rounded-2xl border border-slate-100 p-5">
-            <p class="text-sm font-semibold text-slate-700">Where utility money goes</p>
-            <p class="text-[11px] text-slate-400">Total billed across all rooms this month</p>
+            <p class="text-sm font-semibold text-slate-700">{{ __('messages.utility_money_goes') }}</p>
+            <p class="text-[11px] text-slate-400">{{ __('messages.total_billed_rooms') }}</p>
 
             @if(count($utilByType) > 0)
                 <div class="relative w-40 h-40 mx-auto my-4">
@@ -167,7 +165,7 @@
                     </svg>
                     <div class="absolute inset-0 flex flex-col items-center justify-center">
                         <span class="text-2xl font-extrabold text-slate-800 leading-none">${{ number_format($util['total'], 0) }}</span>
-                        <span class="text-xs text-slate-400">total</span>
+                        <span class="text-xs text-slate-400">{{ __('messages.total') }}</span>
                     </div>
                 </div>
 
@@ -183,7 +181,7 @@
             @else
                 <div class="flex flex-col items-center justify-center py-12 text-center">
                     <div class="text-3xl mb-2">💡</div>
-                    <p class="text-sm text-slate-400">No utility bills recorded this month</p>
+                    <p class="text-sm text-slate-400">{{ __('messages.no_utility_bills') }}</p>
                 </div>
             @endif
         </div>
@@ -195,34 +193,34 @@
         {{-- Average utilities per room --}}
         <div class="bg-white rounded-2xl border border-slate-100 p-5">
             <div class="w-10 h-10 rounded-xl bg-sky-50 flex items-center justify-center text-xl mb-3">💧</div>
-            <p class="text-[11px] uppercase tracking-wide text-slate-400 font-semibold">Avg utilities / room</p>
+            <p class="text-[11px] uppercase tracking-wide text-slate-400 font-semibold">{{ __('messages.avg_utilities_room') }}</p>
             <p class="text-2xl font-extrabold text-slate-800 mt-1">${{ number_format($util['avg_per_room'], 0) }}</p>
-            <p class="text-[11px] text-slate-400 mt-1">across {{ $util['rooms_used'] }} {{ \Illuminate\Support\Str::plural('room', $util['rooms_used']) }} used</p>
+            <p class="text-[11px] text-slate-400 mt-1">{{ __('messages.across_rooms_used', ['count' => $util['rooms_used']]) }}</p>
         </div>
 
         {{-- Most utility-hungry apartment --}}
         <div class="bg-white rounded-2xl border border-slate-100 p-5">
             <div class="w-10 h-10 rounded-xl bg-amber-50 flex items-center justify-center text-xl mb-3">🏠</div>
-            <p class="text-[11px] uppercase tracking-wide text-slate-400 font-semibold">Highest utility room</p>
+            <p class="text-[11px] uppercase tracking-wide text-slate-400 font-semibold">{{ __('messages.highest_utility_room') }}</p>
             @if($util['top_apartment'])
-                <p class="text-2xl font-extrabold text-slate-800 mt-1">Apt {{ $util['top_apartment']['label'] }}</p>
-                <p class="text-[11px] text-slate-400 mt-1">${{ number_format($util['top_apartment']['amount'], 0) }} in utilities</p>
+                <p class="text-2xl font-extrabold text-slate-800 mt-1">{{ __('messages.apt_short') }} {{ $util['top_apartment']['label'] }}</p>
+                <p class="text-[11px] text-slate-400 mt-1">${{ number_format($util['top_apartment']['amount'], 0) }} {{ __('messages.in_utilities') }}</p>
             @else
                 <p class="text-2xl font-extrabold text-slate-300 mt-1">—</p>
-                <p class="text-[11px] text-slate-400 mt-1">No data yet</p>
+                <p class="text-[11px] text-slate-400 mt-1">{{ __('messages.no_data_yet') }}</p>
             @endif
         </div>
 
         {{-- Biggest expense to cut --}}
         <div class="bg-white rounded-2xl border border-slate-100 p-5">
             <div class="w-10 h-10 rounded-xl bg-rose-50 flex items-center justify-center text-xl mb-3">✂️</div>
-            <p class="text-[11px] uppercase tracking-wide text-slate-400 font-semibold">Biggest cost to cut</p>
+            <p class="text-[11px] uppercase tracking-wide text-slate-400 font-semibold">{{ __('messages.biggest_cost_cut') }}</p>
             @if($biggest_expense)
                 <p class="text-2xl font-extrabold text-slate-800 mt-1 truncate" title="{{ $biggest_expense['label'] }}">{{ $biggest_expense['label'] }}</p>
-                <p class="text-[11px] text-slate-400 mt-1">${{ number_format($biggest_expense['amount'], 0) }} this month</p>
+                <p class="text-[11px] text-slate-400 mt-1">${{ number_format($biggest_expense['amount'], 0) }} {{ __('messages.this_month') }}</p>
             @else
                 <p class="text-2xl font-extrabold text-slate-300 mt-1">—</p>
-                <p class="text-[11px] text-slate-400 mt-1">No expenses yet</p>
+                <p class="text-[11px] text-slate-400 mt-1">{{ __('messages.no_expenses_yet') }}</p>
             @endif
         </div>
     </div>

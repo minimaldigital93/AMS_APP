@@ -621,7 +621,7 @@
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M5 6h14M7 14h10m-8 4h6" />
                     </svg>
                 </span>
-                <span class="nav-text truncate sidebar-label">Balance Sheet</span>
+                <span class="nav-text truncate sidebar-label">{{ __('messages.balance_sheet') }}</span>
             </a>
 
             {{-- Reports & Export --}}
@@ -631,7 +631,7 @@
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                     </svg>
                 </span>
-                <span class="nav-text truncate sidebar-label">Reports & Export</span>
+                <span class="nav-text truncate sidebar-label">{{ __('messages.reports_export') }}</span>
             </a>
         </div>
     </div>

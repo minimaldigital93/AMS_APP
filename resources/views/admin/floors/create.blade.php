@@ -7,8 +7,8 @@
     <!-- Header -->
     <div class="flex items-center justify-between">
         <div>
-            <h1 class="text-2xl font-semibold text-slate-800 tracking-tight">Add New Floor</h1>
-            <p class="text-slate-400 text-sm mt-1">Create a floor and assign apartment units</p>
+            <h1 class="text-2xl font-semibold text-slate-800 tracking-tight">{{ __('messages.add_new_floor') }}</h1>
+            <p class="text-slate-400 text-sm mt-1">{{ __('messages.create_floor_assign') }}</p>
         </div>
         <a href="{{ route('admin.floors.index') }}" class="text-slate-400 hover:text-slate-600 text-sm font-medium py-2 px-4 rounded-lg border border-slate-200 hover:border-slate-300 transition">
             Back to Floors
@@ -32,23 +32,23 @@
 
             <!-- Floor Information -->
             <div class="p-6 space-y-5">
-                <h3 class="text-sm font-medium text-slate-500 uppercase tracking-wide">Floor Information</h3>
+                <h3 class="text-sm font-medium text-slate-500 uppercase tracking-wide">{{ __('messages.floor_information') }}</h3>
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
-                        <label class="block text-xs font-medium text-slate-500 mb-1.5 uppercase tracking-wide">Floor Name <span class="text-red-400">*</span></label>
+                        <label class="block text-xs font-medium text-slate-500 mb-1.5 uppercase tracking-wide">{{ __('messages.floor_name') }} <span class="text-red-400">*</span></label>
                         <input type="text" name="floor_name" id="floor_name" required
                                value="{{ old('floor_name') }}"
-                               placeholder="e.g., 1st Floor, Ground Floor"
+                               placeholder="{{ __('messages.eg_floor_1') }}"
                                class="w-full px-3.5 py-2 text-sm border border-slate-200 rounded-lg bg-slate-50/50 placeholder-slate-300 focus:outline-none focus:ring-2 focus:ring-slate-300 focus:border-slate-300 transition @error('floor_name') border-red-300 ring-1 ring-red-200 @enderror">
                         @error('floor_name')
                             <p class="text-red-500 text-xs mt-1">{{ $message }}</p>
                         @enderror
                     </div>
                     <div>
-                        <label class="block text-xs font-medium text-slate-500 mb-1.5 uppercase tracking-wide">Description</label>
+                        <label class="block text-xs font-medium text-slate-500 mb-1.5 uppercase tracking-wide">{{ __('messages.description') }}</label>
                         <input type="text" name="description"
                                value="{{ old('description') }}"
-                               placeholder="Optional description..."
+                               placeholder="{{ __('messages.optional_description') }}"
                                class="w-full px-3.5 py-2 text-sm border border-slate-200 rounded-lg bg-slate-50/50 placeholder-slate-300 focus:outline-none focus:ring-2 focus:ring-slate-300 focus:border-slate-300 transition">
                     </div>
                 </div>
@@ -60,21 +60,21 @@
             <!-- Apartments Section -->
             <div class="p-6 space-y-5">
                 <div class="flex items-center justify-between">
-                    <h3 class="text-sm font-medium text-slate-500 uppercase tracking-wide">Apartment Units</h3>
+                    <h3 class="text-sm font-medium text-slate-500 uppercase tracking-wide">{{ __('messages.apt_units') }}</h3>
                     <span id="unitCount" class="text-xs font-medium text-slate-400 hidden"></span>
                 </div>
 
                 <!-- Add Unit Inputs -->
                 <div class="grid grid-cols-2 gap-3">
                     <div>
-                        <label class="block text-xs font-medium text-slate-500 mb-1.5 uppercase tracking-wide">Unit Number</label>
+                        <label class="block text-xs font-medium text-slate-500 mb-1.5 uppercase tracking-wide">{{ __('messages.unit_number') }}</label>
                         <input type="text" id="input_unit_number"
-                               placeholder="e.g., 101"
+                               placeholder="{{ __('messages.eg_unit') }}"
                                class="w-full px-3.5 py-2 text-sm border border-slate-200 rounded-lg bg-slate-50/50 placeholder-slate-300 focus:outline-none focus:ring-2 focus:ring-slate-300 focus:border-slate-300 transition">
                         <p id="unitError" class="text-red-500 text-xs mt-1 hidden"></p>
                     </div>
                     <div>
-                        <label class="block text-xs font-medium text-slate-500 mb-1.5 uppercase tracking-wide">Monthly Rent</label>
+                        <label class="block text-xs font-medium text-slate-500 mb-1.5 uppercase tracking-wide">{{ __('messages.monthly_rent') }}</label>
                         <input type="number" id="input_monthly_rent" step="0.01" min="0"
                                placeholder="0.00"
                                class="w-full px-3.5 py-2 text-sm border border-slate-200 rounded-lg bg-slate-50/50 placeholder-slate-300 focus:outline-none focus:ring-2 focus:ring-slate-300 focus:border-slate-300 transition">
@@ -85,7 +85,7 @@
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/>
                     </svg>
-                    Add Unit
+                    {{ __('messages.add_unit') }}
                 </button>
 
                 <!-- Added Units Table -->
@@ -93,9 +93,9 @@
                     <table class="w-full">
                         <thead>
                             <tr class="bg-slate-50/80">
-                                <th class="px-4 py-2.5 text-left text-[11px] font-medium text-slate-400 uppercase tracking-wider">Unit #</th>
-                                <th class="px-4 py-2.5 text-left text-[11px] font-medium text-slate-400 uppercase tracking-wider">Monthly Rent</th>
-                                <th class="px-4 py-2.5 text-left text-[11px] font-medium text-slate-400 uppercase tracking-wider">Status</th>
+                                <th class="px-4 py-2.5 text-left text-[11px] font-medium text-slate-400 uppercase tracking-wider">{{ __('messages.unit_hash') }}</th>
+                                <th class="px-4 py-2.5 text-left text-[11px] font-medium text-slate-400 uppercase tracking-wider">{{ __('messages.monthly_rent') }}</th>
+                                <th class="px-4 py-2.5 text-left text-[11px] font-medium text-slate-400 uppercase tracking-wider">{{ __('messages.status') }}</th>
                                 <th class="px-4 py-2.5"></th>
                             </tr>
                         </thead>
@@ -103,7 +103,7 @@
                     </table>
                 </div>
                 <div id="noUnitsMsg" class="text-center py-10">
-                    <p class="text-slate-400 text-sm">No units added yet. Add at least one unit above.</p>
+                    <p class="text-slate-400 text-sm">{{ __('messages.no_units_added') }}</p>
                 </div>
 
                 <!-- Hidden inputs injected by JS -->
@@ -116,7 +116,7 @@
                     Create Floor
                 </button>
                 <a href="{{ route('admin.floors.index') }}" class="flex-1 text-center text-slate-500 hover:text-slate-700 bg-slate-50 hover:bg-slate-100 text-sm font-medium py-2.5 px-5 rounded-lg transition">
-                    Cancel
+                    {{ __('messages.cancel') }}
                 </a>
             </div>
         </form>
@@ -175,7 +175,7 @@
                     '</span>' +
                 '</td>' +
                 '<td class="px-4 py-2.5 text-right">' +
-                    '<button type="button" data-index="' + index + '" class="remove-unit text-red-400 hover:text-red-600 text-xs font-medium transition">Remove</button>' +
+                    '<button type="button" data-index="' + index + '" class="remove-unit text-red-400 hover:text-red-600 text-xs font-medium transition">{{ __('messages.remove') }}</button>' +
                 '</td>';
             tableBody.appendChild(tr);
 

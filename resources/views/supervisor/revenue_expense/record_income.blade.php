@@ -5,23 +5,21 @@
     <!-- Header -->
     <div class="flex items-center justify-between">
         <div>
-            <h1 class="text-2xl font-semibold text-slate-800 tracking-tight">Monthly Billing & Payments</h1>
+            <h1 class="text-2xl font-semibold text-slate-800 tracking-tight">{{ __('messages.monthly_billing_payments') }}</h1>
             <p class="text-slate-400 text-sm mt-1">
-                Manage tenant payments for <span class="font-semibold text-sky-600">{{ $selectedDate->format('F Y') }}</span>
+                {{ __('messages.manage_payments_for') }} <span class="font-semibold text-sky-600">{{ $selectedDate->format('F Y') }}</span>
                 — Fiscal Period: <span class="font-semibold text-sky-600">{{ $activePeriod->name }}</span>
             </p>
         </div>
         <a href="{{ route('supervisor.revenue_expense.index') }}" class="inline-flex items-center gap-2 bg-slate-800 hover:bg-slate-700 text-white text-sm font-medium py-2.5 px-5 rounded-lg transition">
-            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/></svg>
-            Back
-        </a>
+            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/></svg>{{ __('messages.back') }}</a>
     </div>
 
     <!-- Month Navigation -->
     <div class="flex items-center justify-center">
         <div class="inline-flex items-center bg-white rounded-xl border border-slate-100 px-2 py-1.5 gap-1">
             <a href="{{ route('supervisor.revenue_expense.record_income', ['month' => $prevDate->month, 'year' => $prevDate->year]) }}"
-               class="inline-flex items-center justify-center w-10 h-10 rounded-lg text-slate-500 hover:bg-slate-50 hover:text-sky-600 transition" title="Previous Month">
+               class="inline-flex items-center justify-center w-10 h-10 rounded-lg text-slate-500 hover:bg-slate-50 hover:text-sky-600 transition" title="{{ __('messages.previous_month') }}">
                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
             </a>
             <div class="px-4 py-2 min-w-[180px] text-center">
@@ -29,24 +27,22 @@
                 <span class="text-lg text-slate-400 ml-1">{{ $selectedDate->format('Y') }}</span>
                 @if(!$isCurrentMonth)
                     @if($isFutureMonth)
-                        <span class="ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-sky-50 text-sky-700">Upcoming</span>
+                        <span class="ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-sky-50 text-sky-700">{{ __('messages.upcoming') }}</span>
                     @else
-                        <span class="ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-600">Past</span>
+                        <span class="ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-600">{{ __('messages.past') }}</span>
                     @endif
                 @else
-                    <span class="ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-700">Current</span>
+                    <span class="ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-700">{{ __('messages.current') }}</span>
                 @endif
             </div>
             <a href="{{ route('supervisor.revenue_expense.record_income', ['month' => $nextDate->month, 'year' => $nextDate->year]) }}"
-               class="inline-flex items-center justify-center w-10 h-10 rounded-lg text-slate-500 hover:bg-slate-50 hover:text-sky-600 transition" title="Next Month">
+               class="inline-flex items-center justify-center w-10 h-10 rounded-lg text-slate-500 hover:bg-slate-50 hover:text-sky-600 transition" title="{{ __('messages.next_month') }}">
                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
             </a>
             @if(!$isCurrentMonth)
             <a href="{{ route('supervisor.revenue_expense.record_income') }}"
-               class="ml-1 inline-flex items-center px-3 py-2 text-sm font-medium text-sky-600 bg-sky-50 rounded-lg hover:bg-sky-100 transition" title="Go to current month">
-                <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
-                Today
-            </a>
+               class="ml-1 inline-flex items-center px-3 py-2 text-sm font-medium text-sky-600 bg-sky-50 rounded-lg hover:bg-sky-100 transition" title="{{ __('messages.go_to_current_month') }}">
+                <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>{{ __('messages.today') }}</a>
             @endif
         </div>
     </div>
@@ -82,11 +78,11 @@
                     <svg class="w-5 h-5 text-sky-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
                 </div>
                 <div>
-                    <p class="text-xs text-slate-400 font-medium">Total Expected</p>
+                    <p class="text-xs text-slate-400 font-medium">{{ __('messages.total_expected') }}</p>
                     <p class="text-xl font-bold text-sky-600">${{ number_format($totalRentExpected, 2) }}</p>
                 </div>
             </div>
-            <p class="text-[11px] text-slate-400 mt-2">{{ count($tenantBillsAll ?? $tenantBills) }} active tenant(s)</p>
+            <p class="text-[11px] text-slate-400 mt-2">{{ __('messages.active_tenants_n', ['count' => count($tenantBillsAll ?? $tenantBills)]) }}</p>
         </div>
         <div class="bg-white rounded-xl border border-slate-100 p-5">
             <div class="flex items-center gap-3">
@@ -94,11 +90,11 @@
                     <svg class="w-5 h-5 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
                 </div>
                 <div>
-                    <p class="text-xs text-slate-400 font-medium">Collected</p>
+                    <p class="text-xs text-slate-400 font-medium">{{ __('messages.collected') }}</p>
                     <p class="text-xl font-bold text-emerald-600">${{ number_format($totalRentCollected, 2) }}</p>
                 </div>
             </div>
-            <p class="text-[11px] text-slate-400 mt-2">{{ $paidCount }} tenant(s) paid</p>
+            <p class="text-[11px] text-slate-400 mt-2">{{ __('messages.tenants_paid', ['count' => $paidCount]) }}</p>
         </div>
         <div class="bg-white rounded-xl border border-slate-100 p-5">
             <div class="flex items-center gap-3">
@@ -106,11 +102,11 @@
                     <svg class="w-5 h-5 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
                 </div>
                 <div>
-                    <p class="text-xs text-slate-400 font-medium">Pending</p>
+                    <p class="text-xs text-slate-400 font-medium">{{ __('messages.pending') }}</p>
                     <p class="text-xl font-bold text-amber-600">${{ number_format($totalPending, 2) }}</p>
                 </div>
             </div>
-            <p class="text-[11px] text-slate-400 mt-2">{{ $pendingCount }} pending</p>
+            <p class="text-[11px] text-slate-400 mt-2">{{ __('messages.n_pending', ['count' => $pendingCount]) }}</p>
         </div>
         @if($isFutureMonth)
         <div class="bg-white rounded-xl border border-slate-100 p-5">
@@ -119,11 +115,11 @@
                     <svg class="w-5 h-5 text-sky-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
                 </div>
                 <div>
-                    <p class="text-xs text-slate-400 font-medium">Upcoming</p>
+                    <p class="text-xs text-slate-400 font-medium">{{ __('messages.upcoming') }}</p>
                     <p class="text-xl font-bold text-sky-600">{{ $pendingCount }}</p>
                 </div>
             </div>
-            <p class="text-[11px] text-slate-400 mt-2">Scheduled for {{ $selectedDate->format('F') }}</p>
+            <p class="text-[11px] text-slate-400 mt-2">{{ __('messages.scheduled_for') }} {{ $selectedDate->format('F') }}</p>
         </div>
         @else
         <div class="bg-white rounded-xl border border-slate-100 p-5">
@@ -132,11 +128,11 @@
                     <svg class="w-5 h-5 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z"/></svg>
                 </div>
                 <div>
-                    <p class="text-xs text-slate-400 font-medium">Overdue</p>
+                    <p class="text-xs text-slate-400 font-medium">{{ __('messages.overdue') }}</p>
                     <p class="text-xl font-bold text-red-600">{{ $overdueCount }}</p>
                 </div>
             </div>
-            <p class="text-[11px] text-slate-400 mt-2">Past due date</p>
+            <p class="text-[11px] text-slate-400 mt-2">{{ __('messages.past_due_date') }}</p>
         </div>
         @endif
     </div>
@@ -144,21 +140,21 @@
     <!-- Filter Bar -->
     <div class="bg-white rounded-xl border border-slate-100 p-4 flex flex-wrap items-center gap-4">
         <div class="flex items-center gap-2">
-            <span class="text-sm font-medium text-slate-500">Filter:</span>
+            <span class="text-sm font-medium text-slate-500">{{ __('messages.filter') }}:</span>
             <button @click="filter = 'all'" :class="filter === 'all' ? 'bg-slate-800 text-white' : 'bg-slate-50 text-slate-600 hover:bg-slate-100'"
-                class="px-3 py-1.5 rounded-lg text-sm font-medium transition">All ({{ count($tenantBillsAll ?? $tenantBills) }})</button>
+                class="px-3 py-1.5 rounded-lg text-sm font-medium transition">{{ __('messages.all') }} ({{ count($tenantBillsAll ?? $tenantBills) }})</button>
             @if(!$isFutureMonth)
             <button @click="filter = 'overdue'" :class="filter === 'overdue' ? 'bg-red-600 text-white' : 'bg-slate-50 text-slate-600 hover:bg-slate-100'"
-                class="px-3 py-1.5 rounded-lg text-sm font-medium transition">Overdue ({{ $overdueCount }})</button>
+                class="px-3 py-1.5 rounded-lg text-sm font-medium transition">{{ __('messages.overdue') }} ({{ $overdueCount }})</button>
             @endif
             <button @click="filter = 'pending'" :class="filter === 'pending' ? 'bg-amber-600 text-white' : 'bg-slate-50 text-slate-600 hover:bg-slate-100'"
-                class="px-3 py-1.5 rounded-lg text-sm font-medium transition">{{ $isFutureMonth ? 'Upcoming' : 'Pending' }} ({{ $pendingCount }})</button>
+                class="px-3 py-1.5 rounded-lg text-sm font-medium transition">{{ $isFutureMonth ? __('messages.upcoming') : __('messages.pending') }} ({{ $pendingCount }})</button>
             <button @click="filter = 'paid'" :class="filter === 'paid' ? 'bg-emerald-600 text-white' : 'bg-slate-50 text-slate-600 hover:bg-slate-100'"
-                class="px-3 py-1.5 rounded-lg text-sm font-medium transition">Paid ({{ $paidCount }})</button>
+                class="px-3 py-1.5 rounded-lg text-sm font-medium transition">{{ __('messages.paid') }} ({{ $paidCount }})</button>
         </div>
         <div class="flex-1"></div>
         <div class="relative">
-            <input type="text" x-model="searchQuery" placeholder="Search tenant or apartment..."
+            <input type="text" x-model="searchQuery" placeholder="{{ __('messages.search_tenant_apartment') }}"
                 class="pl-9 pr-4 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-sky-500 focus:border-sky-500 w-64">
             <svg class="w-4 h-4 text-slate-400 absolute left-3 top-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
         </div>
@@ -178,14 +174,14 @@
             <table class="min-w-full">
                 <thead class="bg-slate-50/80">
                     <tr>
-                        <th class="px-4 py-3 text-left text-[11px] font-medium text-slate-400 uppercase tracking-wider">Apartment</th>
-                        <th class="px-4 py-3 text-left text-[11px] font-medium text-slate-400 uppercase tracking-wider">Tenant</th>
-                        <th class="hidden lg:table-cell px-4 py-3 text-right text-[11px] font-medium text-slate-400 uppercase tracking-wider">Rent</th>
-                        <th class="hidden lg:table-cell px-4 py-3 text-right text-[11px] font-medium text-slate-400 uppercase tracking-wider">Charges</th>
-                        <th class="px-4 py-3 text-right text-[11px] font-medium text-slate-400 uppercase tracking-wider">Total</th>
-                        <th class="px-3 py-3 text-center text-[11px] font-medium text-slate-400 uppercase tracking-wider">Due</th>
-                        <th class="px-3 py-3 text-center text-[11px] font-medium text-slate-400 uppercase tracking-wider">Status</th>
-                        <th class="px-3 py-3 text-center text-[11px] font-medium text-slate-400 uppercase tracking-wider">Actions</th>
+                        <th class="px-4 py-3 text-left text-[11px] font-medium text-slate-400 uppercase tracking-wider">{{ __('messages.apartment') }}</th>
+                        <th class="px-4 py-3 text-left text-[11px] font-medium text-slate-400 uppercase tracking-wider">{{ __('messages.tenant') }}</th>
+                        <th class="hidden lg:table-cell px-4 py-3 text-right text-[11px] font-medium text-slate-400 uppercase tracking-wider">{{ __('messages.rent') }}</th>
+                        <th class="hidden lg:table-cell px-4 py-3 text-right text-[11px] font-medium text-slate-400 uppercase tracking-wider">{{ __('messages.charges') }}</th>
+                        <th class="px-4 py-3 text-right text-[11px] font-medium text-slate-400 uppercase tracking-wider">{{ __('messages.total') }}</th>
+                        <th class="px-3 py-3 text-center text-[11px] font-medium text-slate-400 uppercase tracking-wider">{{ __('messages.due_date') }}</th>
+                        <th class="px-3 py-3 text-center text-[11px] font-medium text-slate-400 uppercase tracking-wider">{{ __('messages.status') }}</th>
+                        <th class="px-3 py-3 text-center text-[11px] font-medium text-slate-400 uppercase tracking-wider">{{ __('messages.actions') }}</th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-slate-50">
@@ -199,7 +195,7 @@
                                 </div>
                                 <div>
                                     <p class="font-semibold text-slate-800">{{ $bill['apartment']->apartment_number }}</p>
-                                    <p class="text-xs text-slate-400">Floor {{ $bill['apartment']->floor->floor_number ?? 'N/A' }}</p>
+                                    <p class="text-xs text-slate-400">{{ __('messages.floor') }} {{ $bill['apartment']->floor->floor_number ?? 'N/A' }}</p>
                                 </div>
                             </div>
                         </td>
@@ -217,7 +213,7 @@
                             @endphp
                             @if($extraCharges > 0)
                                 <span class="font-medium text-amber-600">${{ number_format($extraCharges, 2) }}</span>
-                                <p class="text-xs text-slate-400">{{ $chargesCount }} charge(s)</p>
+                                <p class="text-xs text-slate-400">{{ __('messages.charges_count', ['count' => $chargesCount]) }}</p>
                             @else
                                 <span class="text-slate-300">—</span>
                             @endif
@@ -228,7 +224,7 @@
                         <td class="px-3 py-4 text-center">
                             <span class="text-sm text-slate-600 whitespace-nowrap">{{ $bill['due_date']->format('M d') }}</span>
                             @if($bill['status'] === 'overdue')
-                                <p class="text-xs text-red-500 font-medium">{{ (int) ($isPastMonth ? $selectedDate->copy()->endOfMonth() : now())->diffInDays($bill['due_date']) }} days late</p>
+                                <p class="text-xs text-red-500 font-medium">{{ (int) ($isPastMonth ? $selectedDate->copy()->endOfMonth() : now())->diffInDays($bill['due_date']) }} {{ __('messages.days_word') }}</p>
                             @elseif($bill['status'] === 'pending' && ($isFutureMonth || $isCurrentMonth))
                                 @php
                                     // Time-elapsed progress (matches Active Tenants): days elapsed in the selected month / total days in month
@@ -258,7 +254,7 @@
                                         @if($isFutureMonth)
                                             Upcoming
                                         @else
-                                            {{ $daysRemaining }} day{{ $daysRemaining !== 1 ? 's' : '' }} left
+                                            {{ __('messages.days_left', ['days' => $daysRemaining]) }}
                                         @endif
                                     </p>
                                 </div>
@@ -276,21 +272,17 @@
                                     Overdue
                                 </span>
                             @elseif($isFutureMonth)
-                                <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-semibold bg-sky-50 text-sky-700">
-                                    Upcoming
-                                </span>
+                                <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-semibold bg-sky-50 text-sky-700">{{ __('messages.upcoming') }}</span>
                             @else
-                                <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-semibold bg-yellow-100 text-yellow-700">
-                                    Pending
-                                </span>
+                                <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-semibold bg-yellow-100 text-yellow-700">{{ __('messages.pending') }}</span>
                             @endif
                         </td>
                         <td class="px-2 py-4 text-center">
                             <div class="flex items-center justify-center gap-1">
                                 <!-- Add Charge Button -->
                                 @if($bill['status'] !== 'paid')
-                                <button @click="openAddCharge({{ $bill['rental']->id }}, '{{ addslashes($bill['tenant']->name ?? 'Tenant') }}', '{{ $bill['apartment']->apartment_number }}')"
-                                    class="p-2 text-orange-600 hover:bg-orange-50 rounded-lg transition" title="Add Charge">
+                                <button @click="openAddCharge({{ $bill['rental']->id }}, '{{ addslashes($bill['tenant']->name ?? __('messages.tenant')) }}', '{{ $bill['apartment']->apartment_number }}')"
+                                    class="p-2 text-orange-600 hover:bg-orange-50 rounded-lg transition" title="{{ __('messages.add_charge') }}">
                                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/></svg>
                                 </button>
                                 @endif
@@ -304,21 +296,21 @@
                                     'paid'   => (bool) $u->paid_status,
                                 ])->values();
                                 @endphp
-                                <button @click="openChargesReceipt({{ $bill['rental']->id }}, '{{ addslashes($bill['tenant']->name ?? 'Tenant') }}', '{{ $bill['apartment']->apartment_number }}', {{ $chargesJson->toJson() }}, {{ $bill['monthly_rent'] }}, {{ $bill['total_fixed'] }})"
-                                    class="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition" title="View Charges">
+                                <button @click="openChargesReceipt({{ $bill['rental']->id }}, '{{ addslashes($bill['tenant']->name ?? __('messages.tenant')) }}', '{{ $bill['apartment']->apartment_number }}', {{ $chargesJson->toJson() }}, {{ $bill['monthly_rent'] }}, {{ $bill['total_fixed'] }})"
+                                    class="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition" title="{{ __('messages.view_charges') }}">
                                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
                                 </button>
 
                                 <!-- Print Bill -->
                                 <a href="{{ route('supervisor.revenue_expense.print_bill', $bill['rental']->id) }}" target="_blank"
-                                    class="p-2 text-purple-600 hover:bg-purple-50 rounded-lg transition" title="Print Bill">
+                                    class="p-2 text-purple-600 hover:bg-purple-50 rounded-lg transition" title="{{ __('messages.print_bill') }}">
                                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>
                                 </a>
 
                                 <!-- Checkout / Pay -->
                                 @if($bill['status'] !== 'paid')
-                                <button @click="openCheckout({{ $bill['rental']->id }}, '{{ addslashes($bill['tenant']->name ?? 'Tenant') }}', '{{ $bill['apartment']->apartment_number }}', {{ $bill['monthly_rent'] }}, {{ $bill['total_utility_only'] }}, {{ $bill['total_other_charges'] }}, {{ $bill['total_fixed'] }}, {{ $bill['total_bill'] }})"
-                                    class="p-2 text-green-600 hover:bg-green-50 rounded-lg transition" title="Checkout & Pay">
+                                <button @click="openCheckout({{ $bill['rental']->id }}, '{{ addslashes($bill['tenant']->name ?? __('messages.tenant')) }}', '{{ $bill['apartment']->apartment_number }}', {{ $bill['monthly_rent'] }}, {{ $bill['total_utility_only'] }}, {{ $bill['total_other_charges'] }}, {{ $bill['total_fixed'] }}, {{ $bill['total_bill'] }})"
+                                    class="p-2 text-green-600 hover:bg-green-50 rounded-lg transition" title="{{ __('messages.checkout_pay') }}">
                                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
                                 </button>
                                 @endif
@@ -333,8 +325,8 @@
         @else
         <div class="text-center py-16">
             <svg class="w-16 h-16 mx-auto text-slate-300 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/></svg>
-            <p class="text-slate-500 text-lg">No active rentals found</p>
-            <p class="text-slate-400 text-sm mt-1">Tenants with active rental agreements will appear here automatically.</p>
+            <p class="text-slate-500 text-lg">{{ __('messages.no_active_rentals_found') }}</p>
+            <p class="text-slate-400 text-sm mt-1">{{ __('messages.tenants_appear_auto') }}</p>
         </div>
         @endif
         @if((isset($tenantBills) && method_exists($tenantBills, 'links')))
@@ -357,7 +349,7 @@
                         </div>
                         <div>
                             <p class="font-semibold text-slate-800 text-sm" x-text="viewApt + ' — ' + viewTenant"></p>
-                            <p class="text-xs text-slate-400">Charge Receipt</p>
+                            <p class="text-xs text-slate-400">{{ __('messages.charge_receipt') }}</p>
                         </div>
                     </div>
                     <button @click="showChargesReceipt = false" class="text-slate-400 hover:text-slate-600 w-7 h-7 flex items-center justify-center rounded-lg hover:bg-slate-100 transition text-lg">&times;</button>
@@ -367,7 +359,7 @@
                 <div class="px-5 py-4 space-y-1 max-h-72 overflow-y-auto">
                     <!-- Rent row (read-only) -->
                     <div class="flex items-center justify-between py-1.5 px-3 rounded-lg bg-sky-50/60">
-                        <span class="text-sm text-slate-600 font-medium">Rent</span>
+                        <span class="text-sm text-slate-600 font-medium">{{ __('messages.rent') }}</span>
                         <span class="text-sm font-semibold text-slate-800" x-text="'$' + parseFloat(viewRent).toFixed(2)"></span>
                     </div>
 
@@ -384,14 +376,14 @@
                                         'bg-teal-400': c.type === 'trash',
                                         'bg-slate-400': c.type === 'other'
                                     }"></span>
-                                <span class="text-sm text-slate-600 capitalize" x-text="c.type"></span>
-                                <span x-show="c.paid" class="text-[10px] font-medium text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded">paid</span>
+                                <span class="text-sm text-slate-600 capitalize" x-text="typeLabels[c.type] || c.type"></span>
+                                <span x-show="c.paid" class="text-[10px] font-medium text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded">{{ __('messages.paid_lower') }}</span>
                             </div>
                             <div class="flex items-center gap-2">
                                 <span class="text-sm font-semibold" :class="c.paid ? 'text-emerald-600' : 'text-amber-700'" x-text="'$' + parseFloat(c.amount).toFixed(2)"></span>
                                 <button x-show="!c.paid" @click="removeViewCharge(c.id, i)"
                                     class="opacity-0 group-hover:opacity-100 w-5 h-5 flex items-center justify-center text-red-400 hover:text-red-600 rounded transition"
-                                    title="Remove charge">
+                                    title="{{ __('messages.remove_charge') }}">
                                     <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
                                 </button>
                             </div>
@@ -401,21 +393,19 @@
                     <!-- Apartment costs -->
                     <template x-if="viewFixed > 0">
                         <div class="flex items-center justify-between py-1.5 px-3 rounded-lg bg-purple-50/60">
-                            <span class="text-sm text-slate-600">Apartment Costs</span>
+                            <span class="text-sm text-slate-600">{{ __('messages.apartment_costs') }}</span>
                             <span class="text-sm font-semibold text-slate-700" x-text="'$' + parseFloat(viewFixed).toFixed(2)"></span>
                         </div>
                     </template>
 
                     <!-- Empty state -->
-                    <div x-show="viewCharges.length === 0 && viewFixed <= 0" class="text-center py-6 text-slate-400 text-sm">
-                        No charges added yet
-                    </div>
+                    <div x-show="viewCharges.length === 0 && viewFixed <= 0" class="text-center py-6 text-slate-400 text-sm">{{ __('messages.no_charges_yet') }}</div>
                 </div>
 
                 <!-- Total + actions -->
                 <div class="px-5 pt-3 pb-5 border-t border-slate-100 space-y-3">
                     <div class="flex items-center justify-between">
-                        <span class="text-sm font-semibold text-slate-700">Total Bill</span>
+                        <span class="text-sm font-semibold text-slate-700">{{ __('messages.total_bill') }}</span>
                         <span class="text-xl font-bold text-sky-600" x-text="'$' + viewBillTotal()"></span>
                     </div>
 
@@ -423,14 +413,10 @@
                     <button x-show="viewCharges.some(c => !c.paid)"
                         @click="clearAllCharges()"
                         class="w-full flex items-center justify-center gap-2 py-2 text-sm font-medium text-red-600 bg-red-50 hover:bg-red-100 rounded-lg transition">
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
-                        Delete All Unpaid Charges
-                    </button>
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>{{ __('messages.delete_all_unpaid') }}</button>
 
                     <button @click="showChargesReceipt = false"
-                        class="w-full py-2 text-sm font-medium text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-lg transition">
-                        Close
-                    </button>
+                        class="w-full py-2 text-sm font-medium text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-lg transition">{{ __('messages.close') }}</button>
                 </div>
             </div>
         </div>
@@ -462,34 +448,34 @@
                             <div class="w-7 h-7 rounded-full bg-sky-50 flex items-center justify-center text-sky-600 font-semibold"> <span x-text="stepIndex + 1"></span> </div>
                             <div class="text-sm font-medium" x-text="currentStepLabel()"></div>
                         </div>
-                        <div class="text-xs text-slate-400">Queued: <span x-text="collectedCharges.length"></span></div>
+                        <div class="text-xs text-slate-400">{{ __('messages.queued') }} <span x-text="collectedCharges.length"></span></div>
                     </div>
 
                     <div class="grid grid-cols-3 gap-2 items-end">
                         <div class="col-span-1" x-show="['electricity','water'].includes(currentCharge.type)" x-cloak>
-                            <label class="sr-only">Meter In</label>
-                            <input type="number" x-model="currentCharge.meter_in" step="0.01" min="0" placeholder="In" class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm">
+                            <label class="sr-only">{{ __('messages.meter_in') }}</label>
+                            <input type="number" x-model="currentCharge.meter_in" step="0.01" min="0" placeholder="{{ __('messages.meter_in_ph') }}" class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm">
                         </div>
                         <div class="col-span-1" x-show="['electricity','water'].includes(currentCharge.type)" x-cloak>
-                            <label class="sr-only">Meter Out</label>
-                            <input type="number" x-model="currentCharge.meter_out" step="0.01" min="0" placeholder="Out" class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm">
+                            <label class="sr-only">{{ __('messages.meter_out') }}</label>
+                            <input type="number" x-model="currentCharge.meter_out" step="0.01" min="0" placeholder="{{ __('messages.meter_out_ph') }}" class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm">
                         </div>
                         <div class="col-span-1" :class="{'col-span-3 text-right': !['electricity','water'].includes(currentCharge.type)}">
-                            <label class="sr-only">Amount</label>
-                            <input type="number" x-model="currentCharge.amount" step="0.01" min="0.01" placeholder="Amount" class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm font-semibold text-right">
+                            <label class="sr-only">{{ __('messages.amount') }}</label>
+                            <input type="number" x-model="currentCharge.amount" step="0.01" min="0.01" placeholder="{{ __('messages.amount') }}" class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm font-semibold text-right">
                         </div>
                     </div>
 
                     <div class="flex items-center gap-2">
-                        <button type="button" @click="addCurrentCharge(); if(!isLastStep()) nextStep();" class="px-3 py-2 bg-amber-600 text-white rounded-lg text-sm">Next</button>
-                        <button type="button" x-show="stepIndex > 0" @click="prevStep()" class="px-3 py-2 bg-slate-100 text-slate-600 rounded-lg text-sm">Back</button>
+                        <button type="button" @click="addCurrentCharge(); if(!isLastStep()) nextStep();" class="px-3 py-2 bg-amber-600 text-white rounded-lg text-sm">{{ __('messages.next') }}</button>
+                        <button type="button" x-show="stepIndex > 0" @click="prevStep()" class="px-3 py-2 bg-slate-100 text-slate-600 rounded-lg text-sm">{{ __('messages.back') }}</button>
                         <div class="flex-1"></div>
                         <button type="button" @click="saveDone()" :disabled="isSubmitting"
                             class="px-3 py-2 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-60 text-white rounded-lg text-sm font-medium flex items-center gap-1.5">
                             <svg x-show="isSubmitting" class="w-3.5 h-3.5 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/></svg>
                             <span x-text="isSubmitting ? 'Saving…' : 'Save'"></span>
                         </button>
-                        <button type="button" @click="showAddCharge = false" class="px-3 py-2 bg-transparent text-slate-500 rounded-lg text-sm">Cancel</button>
+                        <button type="button" @click="showAddCharge = false" class="px-3 py-2 bg-transparent text-slate-500 rounded-lg text-sm">{{ __('messages.cancel') }}</button>
                     </div>
                 </form>
             </div>
@@ -511,7 +497,7 @@
                         </div>
                         <div>
                             <p class="font-semibold text-slate-800"><span x-text="checkoutApt"></span> — <span x-text="checkoutTenant"></span></p>
-                            <p class="text-xs text-slate-400">Monthly Payment</p>
+                            <p class="text-xs text-slate-400">{{ __('messages.monthly_payment') }}</p>
                         </div>
                     </div>
                     <button @click="showCheckout = false" class="text-slate-400 hover:text-slate-600 p-1 rounded-lg hover:bg-slate-100 transition text-lg leading-none">&times;</button>
@@ -525,7 +511,7 @@
                         <div class="flex items-center justify-between py-2 px-3 rounded-lg bg-slate-50">
                             <label class="flex items-center gap-2 text-sm text-slate-600 cursor-pointer select-none">
                                 <input type="checkbox" name="pay_rent" value="1" x-model="payRent" class="rounded border-slate-300 text-emerald-600 focus:ring-emerald-500">
-                                Rent
+                                {{ __('messages.rent') }}
                             </label>
                             <span class="text-sm font-semibold text-slate-800" x-text="'$' + parseFloat(checkoutRent).toFixed(2)"></span>
                         </div>
@@ -533,7 +519,7 @@
                              class="flex items-center justify-between py-2 px-3 rounded-lg bg-slate-50">
                             <label class="flex items-center gap-2 text-sm text-slate-600 cursor-pointer select-none">
                                 <input type="checkbox" name="pay_utilities" value="1" x-model="payUtilities" class="rounded border-slate-300 text-emerald-600 focus:ring-emerald-500">
-                                Charges
+                                {{ __('messages.charges') }}
                             </label>
                             <span class="text-sm font-semibold text-slate-800" x-text="'$' + (parseFloat(checkoutUtilities) + parseFloat(checkoutOtherCharges)).toFixed(2)"></span>
                         </div>
@@ -546,22 +532,22 @@
                             <span class="text-xs text-slate-500" x-text="'$' + parseFloat(checkoutOtherCharges).toFixed(2)"></span>
                         </div>
                         <div x-show="checkoutFixed > 0" class="flex items-center justify-between py-2 px-3 rounded-lg bg-slate-50">
-                            <span class="text-sm text-slate-500 pl-6">Apartment Costs</span>
+                            <span class="text-sm text-slate-500 pl-6">{{ __('messages.apartment_costs') }}</span>
                             <span class="text-sm font-medium text-slate-700" x-text="'$' + parseFloat(checkoutFixed).toFixed(2)"></span>
                         </div>
                         <div class="flex items-center justify-between py-2 px-3 rounded-lg bg-slate-50">
-                            <span class="text-sm text-slate-500">Late Fee</span>
+                            <span class="text-sm text-slate-500">{{ __('messages.late_fee') }}</span>
                             <input type="number" name="late_fee" x-model="checkoutLateFee" step="0.01" min="0" value="0"
                                 class="w-20 text-right text-sm border border-slate-200 rounded-lg px-2 py-1 focus:ring-1 focus:ring-emerald-500 focus:border-emerald-500">
                         </div>
                         <div class="flex items-center justify-between pt-2 px-1 border-t border-slate-200">
-                            <span class="font-bold text-slate-700">Total</span>
+                            <span class="font-bold text-slate-700">{{ __('messages.total') }}</span>
                             <span class="text-xl font-bold text-emerald-600" x-text="'$' + calculateCheckoutTotal()"></span>
                         </div>
                     </div>
                     <!-- Payment method chips -->
                     <div>
-                        <p class="text-xs text-slate-400 mb-1.5">Payment Method <span class="text-red-400">*</span></p>
+                        <p class="text-xs text-slate-400 mb-1.5">{{ __('messages.payment_method') }} <span class="text-red-400">*</span></p>
                         <div class="grid grid-cols-2 gap-2">
                             <label class="flex items-center justify-center gap-2 py-2.5 border rounded-xl cursor-pointer text-sm transition select-none"
                                 :class="checkoutMethod === 'cash' ? 'bg-emerald-50 border-emerald-300 text-emerald-700 font-medium' : 'border-slate-200 text-slate-500 hover:border-slate-300'">
@@ -578,30 +564,26 @@
                     <!-- Date + Reference -->
                     <div class="grid grid-cols-1 gap-3">
                         <div class="min-w-0">
-                            <label class="block text-xs text-slate-400 mb-1">Date <span class="text-red-400">*</span></label>
+                            <label class="block text-xs text-slate-400 mb-1">{{ __('messages.date') }} <span class="text-red-400">*</span></label>
                             <input type="date" name="payment_date" required value="{{ date('Y-m-d') }}"
                                 style="max-width:100%;box-sizing:border-box;"
                                 class="w-full min-w-0 px-3 py-2 text-sm border border-slate-200 rounded-lg focus:ring-1 focus:ring-emerald-500 focus:border-emerald-500 bg-white">
                         </div>
                         <div class="min-w-0">
-                            <label class="block text-xs text-slate-400 mb-1">Reference</label>
+                            <label class="block text-xs text-slate-400 mb-1">{{ __('messages.reference') }}</label>
                             <input type="text" name="transaction_reference" placeholder="TXN-…"
                                 style="max-width:99%;box-sizing:border-box;"
                                 class="w-full min-w-0 px-3 py-2 text-sm border border-slate-200 rounded-lg focus:ring-1 focus:ring-emerald-500 focus:border-emerald-500">
                         </div>
                     </div>
-                    <input type="text" name="note" placeholder="Note (optional)"
+                    <input type="text" name="note" placeholder="{{ __('messages.note_optional') }}"
                         class="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:ring-1 focus:ring-emerald-500 focus:border-emerald-500">
                     <!-- Buttons -->
                     <div class="flex gap-2 pt-1">
                         <button type="submit"
-                            class="flex-1 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold rounded-lg transition">
-                            Confirm Payment
-                        </button>
+                            class="flex-1 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold rounded-lg transition">{{ __('messages.confirm_payment') }}</button>
                         <button type="button" @click="showCheckout = false"
-                            class="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-600 text-sm font-medium rounded-lg transition">
-                            Cancel
-                        </button>
+                            class="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-600 text-sm font-medium rounded-lg transition">{{ __('messages.cancel') }}</button>
                     </div>
                 </form>
             </div>
@@ -617,6 +599,7 @@
 <script>
 function billingManager() {
     return {
+        typeLabels: { electricity: '{{ __('messages.electric') }}', water: '{{ __('messages.water') }}', internet: '{{ __('messages.type_internet') }}', parking: '{{ __('messages.type_parking') }}', trash: '{{ __('messages.type_trash') }}', other: '{{ __('messages.type_other') }}' },
         filter: 'all',
         searchQuery: '',
 
@@ -678,7 +661,7 @@ function billingManager() {
             return (parseFloat(this.viewRent) + parseFloat(this.viewFixed) + chargesSum).toFixed(2);
         },
         async removeViewCharge(chargeId, index) {
-            if (!confirm('Remove this charge?')) return;
+            if (!confirm('{{ __('messages.remove_charge_confirm') }}')) return;
             const csrf = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
             try {
                 const res = await fetch('/admin/revenue-expense/remove-charge/' + chargeId, {
@@ -693,7 +676,7 @@ function billingManager() {
             } catch(e) { window.location.reload(); }
         },
         async clearAllCharges() {
-            if (!confirm('Delete ALL unpaid charges for this tenant? This cannot be undone.')) return;
+            if (!confirm('{{ __('messages.delete_all_confirm') }}')) return;
             const csrf = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
             try {
                 await fetch('/admin/revenue-expense/clear-charges/' + this.viewRentalId, {
@@ -796,7 +779,7 @@ function billingManager() {
             // Add current charge if an amount was entered
             this.addCurrentCharge();
             if (this.collectedCharges.length === 0) {
-                alert('Please enter at least one charge amount before saving.');
+                alert('{{ __('messages.enter_charge_alert') }}');
                 return;
             }
             this.submitAllCharges();
@@ -842,7 +825,7 @@ function billingManager() {
 
             if (failures.length > 0) {
                 this.isSubmitting = false;
-                alert('Failed to save: ' + failures.map(f => f.type + ' (' + f.msg + ')').join(', '));
+                alert('{{ __('messages.failed_to_save') }} ' + failures.map(f => f.type + ' (' + f.msg + ')').join(', '));
             } else {
                 window.location.reload();
             }

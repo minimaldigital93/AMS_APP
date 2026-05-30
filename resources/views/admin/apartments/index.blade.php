@@ -7,8 +7,8 @@
     <!-- Header -->
     <div class="flex items-center justify-between">
         <div>
-            <h1 class="text-2xl font-semibold text-slate-800 tracking-tight">Apartment Management</h1>
-            <p class="text-slate-400 text-sm mt-1">Manage apartment units across all floors</p>
+            <h1 class="text-2xl font-semibold text-slate-800 tracking-tight">{{ __('messages.apartment_management') }}</h1>
+            <p class="text-slate-400 text-sm mt-1">{{ __('messages.manage_units_floors') }}</p>
         </div>
      
     </div>
@@ -63,13 +63,13 @@
                     <thead>
                         <tr class="bg-slate-50/80">
                             <th class="px-4 py-3 text-left text-[11px] font-medium text-slate-400 uppercase tracking-wider">No</th>
-                            <th class="px-4 py-3 text-left text-[11px] font-medium text-slate-400 uppercase tracking-wider">Apartment</th>
-                            <th class="px-4 py-3 text-left text-[11px] font-medium text-slate-400 uppercase tracking-wider">Monthly Rent</th>
-                            <th class="px-4 py-3 text-left text-[11px] font-medium text-slate-400 uppercase tracking-wider">Status</th>
-                            <th class="px-4 py-3 text-left text-[11px] font-medium text-slate-400 uppercase tracking-wider">Tenant</th>
-                            <th class="px-4 py-3 text-left text-[11px] font-medium text-slate-400 uppercase tracking-wider">Stay Duration</th>
-                            <th class="px-4 py-3 text-left text-[11px] font-medium text-slate-400 uppercase tracking-wider">Supervisor</th>
-                            <th class="px-4 py-3 text-right text-[11px] font-medium text-slate-400 uppercase tracking-wider">Actions</th>
+                            <th class="px-4 py-3 text-left text-[11px] font-medium text-slate-400 uppercase tracking-wider">{{ __('messages.apartment') }}</th>
+                            <th class="px-4 py-3 text-left text-[11px] font-medium text-slate-400 uppercase tracking-wider">{{ __('messages.monthly_rent') }}</th>
+                            <th class="px-4 py-3 text-left text-[11px] font-medium text-slate-400 uppercase tracking-wider">{{ __('messages.status') }}</th>
+                            <th class="px-4 py-3 text-left text-[11px] font-medium text-slate-400 uppercase tracking-wider">{{ __('messages.tenant') }}</th>
+                            <th class="px-4 py-3 text-left text-[11px] font-medium text-slate-400 uppercase tracking-wider">{{ __('messages.stay_duration') }}</th>
+                            <th class="px-4 py-3 text-left text-[11px] font-medium text-slate-400 uppercase tracking-wider">{{ __('messages.supervisor') }}</th>
+                            <th class="px-4 py-3 text-right text-[11px] font-medium text-slate-400 uppercase tracking-wider">{{ __('messages.actions') }}</th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-slate-50">
@@ -213,7 +213,7 @@
                                         <div class="flex items-center justify-between mt-1 text-[11px]">
                                             <span class="{{ $monthTextColor }} font-medium">{{ $periodPercent }}%</span>
                                             @if($paymentPercent >= 100)
-                                                <span class="inline-flex items-center text-emerald-500" title="Paid">
+                                                <span class="inline-flex items-center text-emerald-500" title="{{ __('messages.paid') }}">
                                                     <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="3" viewBox="0 0 24 24">
                                                         <path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5" />
                                                     </svg>
@@ -249,7 +249,7 @@
                                             data-apartment-id="{{ $apartment->id }}"
                                             data-apartment-number="{{ $apartment->apartment_number }}"
                                             class="assign-tenant-btn text-emerald-600 hover:text-emerald-700 p-1.5 rounded-lg bg-emerald-50/20 hover:bg-emerald-50 transition"
-                                            title="Assign tenant">
+                                            title="{{ __('messages.assign_tenant') }}">
                                         <svg class="w-[16px] h-[16px]" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
                                             <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" />
                                         </svg>
@@ -257,7 +257,7 @@
                                     @endif
 
                                     <a href="{{ route('admin.apartments.show', $apartment->id) }}" 
-                                       title="View apartment"
+                                       title="{{ __('messages.view_apartment') }}"
                                        class="text-slate-600 hover:text-slate-800 p-1.5 rounded-lg hover:bg-slate-50 transition">
                                         <svg class="w-[16px] h-[16px]" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
                                             <path stroke-linecap="round" stroke-linejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z" />
@@ -266,7 +266,7 @@
                                     </a>
 
                                     <a href="{{ route('admin.apartments.edit', $apartment->id) }}" 
-                                       title="Edit apartment"
+                                       title="{{ __('messages.edit_apartment') }}"
                                        class="text-sky-600 hover:text-sky-700 p-1.5 rounded-lg bg-sky-50/20 hover:bg-slate-50 transition">
                                         <svg class="w-[16px] h-[16px]" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
                                             <path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125" />
@@ -288,8 +288,8 @@
                 <path stroke-linecap="round" stroke-linejoin="round" d="M8.25 21v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21m0 0h4.5V3.545M12.75 21h7.5V10.75M2.25 21h1.5m18 0h-18M2.25 9l4.5-1.636M18.75 3l-1.5.545m0 6.205l3 1m1.5.5l-1.5-.5M6.75 7.364V3h-3v18m3-13.636l10.5-3.819" />
             </svg>
         </div>
-        <p class="font-medium text-slate-600">No apartments found</p>
-        <p class="text-slate-400 text-sm mt-1">Click "Add Apartment" to create your first unit</p>
+        <p class="font-medium text-slate-600">{{ __('messages.apartments_none') }}</p>
+        <p class="text-slate-400 text-sm mt-1">{{ __('messages.click_add_apartment') }}</p>
     </div>
     @endforelse
     </div>

@@ -101,7 +101,9 @@
                 @foreach($categorySettings as $key => $defaultValue)
                 @php
                     $currentValue = $settings->flatten()->firstWhere('key', $key)->value ?? $defaultValue;
-                    $label = ucwords(str_replace('_', ' ', substr($key, strlen($category) + 1)));
+                    $label = \Illuminate\Support\Facades\Lang::has('messages.' . $key)
+                        ? __('messages.' . $key)
+                        : ucwords(str_replace('_', ' ', substr($key, strlen($category) + 1)));
                 @endphp
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-4 items-center pb-4 border-b border-gray-100 last:border-b-0 last:pb-0">
                     <div>
@@ -112,12 +114,12 @@
                         @if(in_array($key, ['company_address']))
                         <textarea name="settings[{{ $key }}]" id="{{ $key }}" rows="2"
                             class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-500 focus:border-transparent"
-                            placeholder="Enter {{ strtolower($label) }}">{{ $currentValue }}</textarea>
+                            placeholder="{{ __('messages.enter') }} {{ $label }}">{{ $currentValue }}</textarea>
                         @elseif(str_contains($key, 'auto_close') || str_contains($key, 'reminder') || str_contains($key, 'expiry'))
                         <select name="settings[{{ $key }}]" id="{{ $key }}"
                             class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-500 focus:border-transparent">
-                            <option value="yes" {{ $currentValue == 'yes' ? 'selected' : '' }}>Yes</option>
-                            <option value="no" {{ $currentValue == 'no' ? 'selected' : '' }}>No</option>
+                            <option value="yes" {{ $currentValue == 'yes' ? 'selected' : '' }}>{{ __('messages.yes') }}</option>
+                            <option value="no" {{ $currentValue == 'no' ? 'selected' : '' }}>{{ __('messages.no') }}</option>
                         </select>
                         @elseif($key == 'app_timezone')
                         <select name="settings[{{ $key }}]" id="{{ $key }}"
@@ -139,7 +141,7 @@
                         @else
                             <input type="text" name="settings[{{ $key }}]" id="{{ $key }}" value="{{ $currentValue }}"
                                 class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-500 focus:border-transparent"
-                                placeholder="Enter {{ strtolower($label) }}">
+                                placeholder="{{ __('messages.enter') }} {{ $label }}">
                         @endif
                     </div>
                 </div>

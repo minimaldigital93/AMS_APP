@@ -10,7 +10,7 @@
         <!-- Phone Number -->
         <div>
             <x-input-label for="phone" :value="__('Phone Number')" class="form-label" />
-            <x-text-input id="phone" class="form-input block mt-1 w-full rounded-xl" type="text" name="phone" :value="old('phone')" required autofocus autocomplete="username" placeholder="Enter your phone number" />
+            <x-text-input id="phone" class="form-input block mt-1 w-full rounded-xl" type="text" name="phone" :value="old('phone')" required autofocus autocomplete="username" :placeholder="__('messages.enter_phone')" />
             <x-input-error :messages="$errors->get('phone')" class="mt-2" />
         </div>
 
@@ -21,7 +21,7 @@
             <x-text-input id="password" class="form-input block mt-1 w-full rounded-xl"
                             type="password"
                             name="password"
-                            required autocomplete="current-password" placeholder="Enter your password" />
+                            required autocomplete="current-password" :placeholder="__('messages.enter_password')" />
 
             <x-input-error :messages="$errors->get('password')" class="mt-2" />
         </div>

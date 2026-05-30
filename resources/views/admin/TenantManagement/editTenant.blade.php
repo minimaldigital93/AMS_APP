@@ -6,12 +6,10 @@
         <!-- Header -->
         <div class="flex items-center justify-between mb-8">
             <div>
-                <h1 class="text-2xl font-semibold text-slate-800 tracking-tight">Edit Tenant</h1>
-                <p class="text-slate-400 text-sm mt-1">Update tenant information</p>
+                <h1 class="text-2xl font-semibold text-slate-800 tracking-tight">{{ __('messages.edit_tenant') }}</h1>
+                <p class="text-slate-400 text-sm mt-1">{{ __('messages.update_tenant_info') }}</p>
             </div>
-            <a href="{{ route('admin.tenants.show', $tenant->id) }}" class="text-slate-400 hover:text-slate-600 text-sm font-medium py-2 px-4 rounded-lg border border-slate-200 hover:border-slate-300 transition">
-                Back to Details
-            </a>
+            <a href="{{ route('admin.tenants.show', $tenant->id) }}" class="text-slate-400 hover:text-slate-600 text-sm font-medium py-2 px-4 rounded-lg border border-slate-200 hover:border-slate-300 transition">{{ __('messages.back_to_details') }}</a>
         </div>
 
         <!-- Form Card -->
@@ -22,7 +20,7 @@
 
                 <!-- Photo Upload -->
                 <div>
-                            <label for="photo" class="block text-sm font-medium text-slate-500 mb-2">Tenant Photo</label>
+                            <label for="photo" class="block text-sm font-medium text-slate-500 mb-2">{{ __('messages.tenant_photo') }}</label>
                     <div class="flex items-start gap-6">
                         <!-- Current Photo -->
                         @if($tenant->photo_path && !str_ends_with($tenant->photo_path, '.pdf'))
@@ -52,8 +50,8 @@
                                     <svg class="w-8 h-8 text-gray-400 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
                                     </svg>
-                                    <p class="text-sm text-gray-700"><span class="font-semibold">Click to upload</span> or drag and drop</p>
-                                    <p class="text-xs text-gray-500">PNG, JPG, GIF up to 5MB</p>
+                                    <p class="text-sm text-gray-700"><span class="font-semibold">{{ __('messages.click_to_upload') }}</span> {{ __('messages.or_drag_drop') }}</p>
+                                    <p class="text-xs text-gray-500">{{ __('messages.png_jpg_gif') }}</p>
                                 </div>
                                 <input id="photo" type="file" name="photo" class="hidden" accept="image/*" onchange="previewPhoto(event)">
                             </label>
@@ -68,9 +66,9 @@
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <!-- Apartment -->
                     <div>
-                        <label for="apartment_id" class="block text-sm font-medium text-slate-500 mb-2">Apartment *</label>
+                        <label for="apartment_id" class="block text-sm font-medium text-slate-500 mb-2">{{ __('messages.apartment') }} *</label>
                             <select id="apartment_id" name="apartment_id" required class="w-full px-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-slate-200 focus:border-transparent text-slate-600 {{ $errors->has('apartment_id') ? 'border-red-500' : '' }}">
-                            <option value="">Select an Apartment</option>
+                            <option value="">{{ __('messages.select_apartment') }}</option>
                             @foreach($apartments as $apartment)
                                 <option value="{{ $apartment->id }}" {{ $tenant->apartment_id == $apartment->id ? 'selected' : '' }}>
                                     {{ $apartment->apartment_number }}
@@ -84,8 +82,8 @@
 
                     <!-- Tenant Name -->
                     <div>
-                        <label for="name" class="block text-sm font-medium text-slate-500 mb-2">Tenant Name *</label>
-                        <input type="text" id="name" name="name" required placeholder="Full Name" value="{{ old('name', $tenant->name) }}" class="w-full px-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-slate-200 focus:border-transparent text-slate-600 {{ $errors->has('name') ? 'border-red-500' : '' }}">
+                        <label for="name" class="block text-sm font-medium text-slate-500 mb-2">{{ __('messages.tenant_name') }} *</label>
+                        <input type="text" id="name" name="name" required placeholder="{{ __('messages.full_name') }}" value="{{ old('name', $tenant->name) }}" class="w-full px-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-slate-200 focus:border-transparent text-slate-600 {{ $errors->has('name') ? 'border-red-500' : '' }}">
                         @error('name')
                             <p class="text-red-500 text-sm mt-1">{{ $message }}</p>
                         @enderror
@@ -93,7 +91,7 @@
 
                     <!-- Email -->
                     <div>
-                        <label for="email" class="block text-sm font-medium text-slate-500 mb-2">Email</label>
+                        <label for="email" class="block text-sm font-medium text-slate-500 mb-2">{{ __('messages.email') }}</label>
                         <input type="email" id="email" name="email" placeholder="email@example.com" value="{{ old('email', $tenant->email) }}" class="w-full px-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-slate-200 focus:border-transparent text-slate-600 {{ $errors->has('email') ? 'border-red-500' : '' }}">
                         @error('email')
                             <p class="text-red-500 text-sm mt-1">{{ $message }}</p>
@@ -102,7 +100,7 @@
 
                     <!-- Phone -->
                     <div>
-                        <label for="phone" class="block text-sm font-medium text-gray-700 mb-2">Phone *</label>
+                        <label for="phone" class="block text-sm font-medium text-gray-700 mb-2">{{ __('messages.phone') }} *</label>
                         <input type="tel" id="phone" name="phone" required placeholder="+1 (555) 000-0000" value="{{ old('phone', $tenant->phone) }}" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent {{ $errors->has('phone') ? 'border-red-500' : '' }}">
                         @error('phone')
                             <p class="text-red-500 text-sm mt-1">{{ $message }}</p>
@@ -111,7 +109,7 @@
 
                     <!-- Move In Date -->
                     <div>
-                        <label for="move_in_date" class="block text-sm font-medium text-gray-700 mb-2">Move In Date *</label>
+                        <label for="move_in_date" class="block text-sm font-medium text-gray-700 mb-2">{{ __('messages.move_in_date') }} *</label>
                         <input type="date" id="move_in_date" name="move_in_date" required value="{{ old('move_in_date', $tenant->move_in_date) }}" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white appearance-none h-10 {{ $errors->has('move_in_date') ? 'border-red-500' : '' }}">
                         @error('move_in_date')
                             <p class="text-red-500 text-sm mt-1">{{ $message }}</p>
@@ -120,7 +118,7 @@
 
                     <!-- Move Out Date -->
                     <div>
-                        <label for="move_out_date" class="block text-sm font-medium text-gray-700 mb-2">Move Out Date</label>
+                        <label for="move_out_date" class="block text-sm font-medium text-gray-700 mb-2">{{ __('messages.move_out_date') }}</label>
                         <input type="date" id="move_out_date" name="move_out_date" value="{{ old('move_out_date', $tenant->move_out_date) }}" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white appearance-none h-10 {{ $errors->has('move_out_date') ? 'border-red-500' : '' }}">
                         @error('move_out_date')
                             <p class="text-red-500 text-sm mt-1">{{ $message }}</p>
@@ -129,7 +127,7 @@
 
                     <!-- Date of Birth -->
                     <div>
-                        <label for="date_of_birth" class="block text-sm font-medium text-gray-700 mb-2">Date of Birth</label>
+                        <label for="date_of_birth" class="block text-sm font-medium text-gray-700 mb-2">{{ __('messages.date_of_birth') }}</label>
                         <input type="date" id="date_of_birth" name="date_of_birth" value="{{ old('date_of_birth', $tenant->date_of_birth) }}" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white appearance-none h-10 {{ $errors->has('date_of_birth') ? 'border-red-500' : '' }}">
                         @error('date_of_birth')
                             <p class="text-red-500 text-sm mt-1">{{ $message }}</p>
@@ -138,12 +136,12 @@
 
                     <!-- Status -->
                     <div>
-                        <label for="status" class="block text-sm font-medium text-slate-500 mb-2">Status *</label>
+                        <label for="status" class="block text-sm font-medium text-slate-500 mb-2">{{ __('messages.status') }} *</label>
                             <select id="status" name="status" required class="w-full px-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-slate-200 focus:border-transparent text-slate-600 {{ $errors->has('status') ? 'border-red-500' : '' }}">
-                            <option value="">Select Status</option>
-                            <option value="pending" {{ old('status', $tenant->status) === 'pending' ? 'selected' : '' }}>Pending</option>
-                            <option value="active" {{ old('status', $tenant->status) === 'active' ? 'selected' : '' }}>Active</option>
-                            <option value="inactive" {{ old('status', $tenant->status) === 'inactive' ? 'selected' : '' }}>Inactive</option>
+                            <option value="">{{ __('messages.select_status') }}</option>
+                            <option value="pending" {{ old('status', $tenant->status) === 'pending' ? 'selected' : '' }}>{{ __('messages.pending') }}</option>
+                            <option value="active" {{ old('status', $tenant->status) === 'active' ? 'selected' : '' }}>{{ __('messages.active') }}</option>
+                            <option value="inactive" {{ old('status', $tenant->status) === 'inactive' ? 'selected' : '' }}>{{ __('messages.inactive') }}</option>
                         </select>
                         @error('status')
                             <p class="text-red-500 text-sm mt-1">{{ $message }}</p>
@@ -152,7 +150,7 @@
 
                     <!-- Deposit -->
                     <div>
-                        <label for="deposit" class="block text-sm font-medium text-gray-700 mb-2">Deposit Amount</label>
+                        <label for="deposit" class="block text-sm font-medium text-gray-700 mb-2">{{ __('messages.deposit_amount') }}</label>
                         <input type="number" id="deposit" name="deposit" step="0.01" min="0" placeholder="0.00" value="{{ old('deposit', $tenant->deposit) }}" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent {{ $errors->has('deposit') ? 'border-red-500' : '' }}">
                         @error('deposit')
                             <p class="text-red-500 text-sm mt-1">{{ $message }}</p>
@@ -162,8 +160,8 @@
 
                 <!-- Address -->
                 <div>
-                    <label for="address" class="block text-sm font-medium text-gray-700 mb-2">Address</label>
-                    <textarea id="address" name="address" rows="2" placeholder="Enter tenant address" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent {{ $errors->has('address') ? 'border-red-500' : '' }}">{{ old('address', $tenant->address) }}</textarea>
+                    <label for="address" class="block text-sm font-medium text-gray-700 mb-2">{{ __('messages.address') }}</label>
+                    <textarea id="address" name="address" rows="2" placeholder="{{ __('messages.enter_tenant_address') }}" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent {{ $errors->has('address') ? 'border-red-500' : '' }}">{{ old('address', $tenant->address) }}</textarea>
                     @error('address')
                         <p class="text-red-500 text-sm mt-1">{{ $message }}</p>
                     @enderror
@@ -171,8 +169,8 @@
 
                 <!-- Notes -->
                 <div>
-                    <label for="notes" class="block text-sm font-medium text-gray-700 mb-2">Notes</label>
-                    <textarea id="notes" name="notes" rows="3" placeholder="Any additional notes" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent {{ $errors->has('notes') ? 'border-red-500' : '' }}">{{ old('notes', $tenant->notes) }}</textarea>
+                    <label for="notes" class="block text-sm font-medium text-gray-700 mb-2">{{ __('messages.notes') }}</label>
+                    <textarea id="notes" name="notes" rows="3" placeholder="{{ __('messages.any_additional_notes') }}" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent {{ $errors->has('notes') ? 'border-red-500' : '' }}">{{ old('notes', $tenant->notes) }}</textarea>
                     @error('notes')
                         <p class="text-red-500 text-sm mt-1">{{ $message }}</p>
                     @enderror
@@ -180,12 +178,8 @@
 
                 <!-- Buttons -->
                 <div class="flex gap-3 pt-6">
-                    <button type="submit" class="flex-1 px-6 py-2 border border-transparent text-base font-medium rounded-md text-white bg-slate-800 hover:bg-slate-700 transition">
-                        Update Tenant
-                    </button>
-                    <a href="{{ route('admin.tenants.show', $tenant->id) }}" class="flex-1 px-6 py-2 border border-slate-200 text-base font-medium rounded-md text-slate-700 hover:bg-slate-50 transition text-center">
-                        Cancel
-                    </a>
+                    <button type="submit" class="flex-1 px-6 py-2 border border-transparent text-base font-medium rounded-md text-white bg-slate-800 hover:bg-slate-700 transition">{{ __('messages.update_tenant') }}</button>
+                    <a href="{{ route('admin.tenants.show', $tenant->id) }}" class="flex-1 px-6 py-2 border border-slate-200 text-base font-medium rounded-md text-slate-700 hover:bg-slate-50 transition text-center">{{ __('messages.cancel') }}</a>
                 </div>
             </form>
         </div>

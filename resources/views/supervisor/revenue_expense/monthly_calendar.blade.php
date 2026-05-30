@@ -6,7 +6,7 @@
     {{-- Header --}}
     <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
-            <h1 class="text-2xl font-bold text-gray-900">Monthly Calendar</h1>
+            <h1 class="text-2xl font-bold text-gray-900">{{ __('messages.monthly_calendar') }}</h1>
             <p class="text-sm text-gray-500 mt-1">
                 {{ $activePeriod->name }} &middot; {{ $startOfMonth->format('F Y') }}
             </p>
@@ -25,7 +25,7 @@
             </a>
             <a href="{{ route('supervisor.revenue_expense.index') }}"
                class="inline-flex items-center px-3 py-1.5 bg-gray-100 border border-gray-300 rounded-md text-sm text-gray-600 hover:bg-gray-200 ml-2">
-                ← Back to Dashboard
+                {{ __('messages.back_to_dashboard') }}
             </a>
         </div>
     </div>
@@ -33,43 +33,43 @@
     {{-- Summary Cards --}}
     <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
         <div class="bg-white rounded-lg border p-4">
-            <p class="text-xs text-gray-500 uppercase tracking-wide">Total Income</p>
+            <p class="text-xs text-gray-500 uppercase tracking-wide">{{ __('messages.total_income') }}</p>
             <p class="text-lg font-bold text-green-600">${{ number_format($monthTotalIncome, 2) }}</p>
         </div>
         <div class="bg-white rounded-lg border p-4">
-            <p class="text-xs text-gray-500 uppercase tracking-wide">Total Expenses</p>
+            <p class="text-xs text-gray-500 uppercase tracking-wide">{{ __('messages.total_expenses') }}</p>
             <p class="text-lg font-bold text-red-600">${{ number_format($monthTotalExpense, 2) }}</p>
         </div>
         <div class="bg-white rounded-lg border p-4">
-            <p class="text-xs text-gray-500 uppercase tracking-wide">Net Profit/Loss</p>
+            <p class="text-xs text-gray-500 uppercase tracking-wide">{{ __('messages.net_profit_loss') }}</p>
             <p class="text-lg font-bold {{ $monthNet >= 0 ? 'text-green-600' : 'text-red-600' }}">
                 {{ $monthNet >= 0 ? '+' : '' }}${{ number_format($monthNet, 2) }}
             </p>
         </div>
         <div class="bg-white rounded-lg border p-4">
-            <p class="text-xs text-gray-500 uppercase tracking-wide">Best Day</p>
+            <p class="text-xs text-gray-500 uppercase tracking-wide">{{ __('messages.best_day') }}</p>
             @if($bestDay)
                 <p class="text-lg font-bold text-gray-800">{{ $startOfMonth->copy()->day($bestDay)->format('M d') }}</p>
                 <p class="text-xs text-green-600">+${{ number_format($calendarDays[$bestDay]['net'], 2) }}</p>
             @else
-                <p class="text-sm text-gray-400">No data</p>
+                <p class="text-sm text-gray-400">{{ __('messages.no_data') }}</p>
             @endif
         </div>
     </div>
 
     {{-- Legend --}}
     <div class="flex items-center gap-4 text-xs text-gray-500">
-        <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 bg-green-500 rounded-full inline-block"></span> Income</span>
-        <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 bg-red-500 rounded-full inline-block"></span> Expense</span>
-        <span class="flex items-center gap-1"><span class="w-3 h-3 border-2 border-blue-500 rounded inline-block"></span> Today</span>
+        <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 bg-green-500 rounded-full inline-block"></span> {{ __('messages.income') }}</span>
+        <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 bg-red-500 rounded-full inline-block"></span> {{ __('messages.expense') }}</span>
+        <span class="flex items-center gap-1"><span class="w-3 h-3 border-2 border-blue-500 rounded inline-block"></span> {{ __('messages.today') }}</span>
     </div>
 
     {{-- Calendar Grid --}}
     <div class="bg-white rounded-xl border shadow-sm overflow-hidden">
         {{-- Day Headers --}}
         <div class="grid grid-cols-7 bg-gray-50 border-b">
-            @foreach(['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'] as $dayName)
-                <div class="text-center text-xs font-semibold text-gray-500 py-2 uppercase tracking-wider">{{ $dayName }}</div>
+            @foreach(['day_sun','day_mon','day_tue','day_wed','day_thu','day_fri','day_sat'] as $dayKey)
+                <div class="text-center text-xs font-semibold text-gray-500 py-2 uppercase tracking-wider">{{ __('messages.' . $dayKey) }}</div>
             @endforeach
         </div>
 
@@ -157,7 +157,7 @@
     {{-- Daily Breakdown List (scrollable) --}}
     <div class="bg-white rounded-xl border shadow-sm overflow-hidden">
         <div class="px-4 py-3 border-b bg-gray-50">
-            <h3 class="text-sm font-semibold text-gray-700">Daily Breakdown</h3>
+            <h3 class="text-sm font-semibold text-gray-700">{{ __('messages.daily_breakdown') }}</h3>
         </div>
         <div class="max-h-80 overflow-y-auto divide-y">
             @for($d = $daysInMonth; $d >= 1; $d--)
@@ -168,7 +168,7 @@
                             <span class="text-sm font-medium text-gray-700 w-20">
                                 {{ \Carbon\Carbon::parse($dayData['date'])->format('M d, D') }}
                             </span>
-                            <span class="text-xs text-gray-400">{{ $dayData['tx_count'] }} transactions</span>
+                            <span class="text-xs text-gray-400">{{ $dayData['tx_count'] }} {{ __('messages.transactions') }}</span>
                         </div>
                         <div class="flex items-center gap-4 text-sm">
                             @if($dayData['income'] > 0)

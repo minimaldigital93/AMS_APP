@@ -7,8 +7,8 @@
     <!-- Header -->
     <div class="flex items-center justify-between">
         <div>
-            <h1 class="text-2xl font-semibold text-slate-800 tracking-tight">Create New User</h1>
-            <p class="text-slate-400 text-sm mt-1">Add a new user account</p>
+            <h1 class="text-2xl font-semibold text-slate-800 tracking-tight">{{ __('messages.create_new_user') }}</h1>
+            <p class="text-slate-400 text-sm mt-1">{{ __('messages.add_new_user_subtitle') }}</p>
         </div>
         <a href="{{ route('admin.users.index') }}" class="text-slate-400 hover:text-slate-600 text-sm font-medium py-2 px-4 rounded-lg border border-slate-200 hover:border-slate-300 transition">
             Back to Users
@@ -22,14 +22,14 @@
 
             <!-- Name -->
             <div>
-                <label class="block text-sm font-medium text-gray-700 mb-2">Name</label>
+                <label class="block text-sm font-medium text-gray-700 mb-2">{{ __('messages.name') }}</label>
                 <input 
                     type="text" 
                     name="name" 
                     value="{{ old('name') }}"
                     required 
                     class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 @error('name') border-red-500 @else border-gray-300 @enderror"
-                    placeholder="Enter user name"
+                    placeholder="{{ __('messages.enter_username') }}"
                 >
                 @error('name')
                     <p class="text-red-600 text-sm mt-1">{{ $message }}</p>
@@ -38,14 +38,14 @@
 
             <!-- Phone -->
             <div>
-                <label class="block text-sm font-medium text-gray-700 mb-2">Phone Number</label>
+                <label class="block text-sm font-medium text-gray-700 mb-2">{{ __('messages.phone') }}</label>
                 <input
                     type="text"
                     name="phone"
                     value="{{ old('phone') }}"
                     required
                     class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 @error('phone') border-red-500 @else border-gray-300 @enderror"
-                    placeholder="Enter phone number"
+                    placeholder="{{ __('messages.enter_phone') }}"
                 >
                 @error('phone')
                     <p class="text-red-600 text-sm mt-1">{{ $message }}</p>
@@ -54,29 +54,29 @@
 
             <!-- Password -->
             <div>
-                <label class="block text-sm font-medium text-gray-700 mb-2">Password</label>
+                <label class="block text-sm font-medium text-gray-700 mb-2">{{ __('messages.password') }}</label>
                 <input 
                     type="password" 
                     name="password" 
                     required 
                     class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 @error('password') border-red-500 @else border-gray-300 @enderror"
-                    placeholder="Enter password"
+                    placeholder="{{ __('messages.enter_password') }}"
                 >
                 @error('password')
                     <p class="text-red-600 text-sm mt-1">{{ $message }}</p>
                 @enderror
-                <p class="text-gray-500 text-sm mt-1">Password must be at least 8 characters and contain uppercase, lowercase, numbers, and special characters.</p>
+                <p class="text-gray-500 text-sm mt-1">{{ __('messages.password_requirements') }}</p>
             </div>
 
             <!-- Role -->
             <div>
-                <label class="block text-sm font-medium text-gray-700 mb-2">Role</label>
+                <label class="block text-sm font-medium text-gray-700 mb-2">{{ __('messages.role') }}</label>
                 <select 
                     name="role" 
                     required 
                     class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 @error('role') border-red-500 @else border-gray-300 @enderror"
                 >
-                    <option value="">Select a role</option>
+                    <option value="">{{ __('messages.select_a_role') }}</option>
                     @foreach($roles as $role)
                         <option value="{{ $role->name }}" {{ old('role') == $role->name ? 'selected' : '' }}>
                             {{ ucfirst($role->name) }}
@@ -100,7 +100,7 @@
                     href="{{ route('admin.users.index') }}" 
                     class="px-6 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 transition font-medium"
                 >
-                    Cancel
+                    {{ __('messages.cancel') }}
                 </a>
             </div>
         </form>

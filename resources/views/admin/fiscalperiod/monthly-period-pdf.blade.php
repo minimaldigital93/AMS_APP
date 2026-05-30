@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{{ $monthlyPeriod->name }} – Transaction Summary</title>
+    <title>{{ $monthlyPeriod->name }} – {{ __('messages.transaction_summary') }}</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: Arial, sans-serif; font-size: 13px; color: #1a1a1a; background: #fff; padding: 32px; }
@@ -46,26 +46,26 @@
 <body>
 
 <div class="no-print" style="background:#1e40af;color:#fff;padding:10px 20px;display:flex;justify-content:space-between;align-items:center;margin:-32px -32px 28px -32px;">
-    <span style="font-weight:600;">Monthly Period Summary – Print Preview</span>
+    <span style="font-weight:600;">{{ __('messages.monthly_period_preview') }}</span>
     <div style="display:flex;gap:12px;">
-        <button onclick="window.print()" style="background:#fff;color:#1e40af;border:none;padding:6px 16px;border-radius:4px;cursor:pointer;font-weight:600;">Print / Save PDF</button>
+        <button onclick="window.print()" style="background:#fff;color:#1e40af;border:none;padding:6px 16px;border-radius:4px;cursor:pointer;font-weight:600;">{{ __('messages.print_save_pdf') }}</button>
         <button onclick="window.history.back()" style="background:transparent;color:#fff;border:1px solid #fff;padding:6px 16px;border-radius:4px;cursor:pointer;">← Back</button>
     </div>
 </div>
 
 <div class="header">
-    <h1>Monthly Transaction Summary</h1>
+    <h1>{{ __('messages.monthly_transaction_summary') }}</h1>
     <p>{{ $monthlyPeriod->name }} &nbsp;|&nbsp; {{ $monthlyPeriod->start_date->format('M d, Y') }} – {{ $monthlyPeriod->end_date->format('M d, Y') }}</p>
     <p>Fiscal Period: {{ $fiscalperiod->name }}</p>
 </div>
 
 <div class="meta">
     <div>
-        <div class="label">Period</div>
+        <div class="label">{{ __('messages.period') }}</div>
         <div class="value">{{ $monthlyPeriod->name }}</div>
     </div>
     <div>
-        <div class="label">Status</div>
+        <div class="label">{{ __('messages.status') }}</div>
         <div class="value">
             <span class="status-badge {{ $monthlyPeriod->status === 'open' ? 'status-open' : 'status-closed' }}">
                 {{ ucfirst($monthlyPeriod->status) }}
@@ -73,11 +73,11 @@
         </div>
     </div>
     <div>
-        <div class="label">Opening Balance</div>
+        <div class="label">{{ __('messages.opening_balance') }}</div>
         <div class="value">${{ number_format($monthlyPeriod->opening_balance, 2) }}</div>
     </div>
     <div>
-        <div class="label">Closing Balance</div>
+        <div class="label">{{ __('messages.closing_balance') }}</div>
         <div class="value">
             @if($monthlyPeriod->isClosed())
                 ${{ number_format($monthlyPeriod->closing_balance, 2) }}
@@ -87,7 +87,7 @@
         </div>
     </div>
     <div>
-        <div class="label">Generated</div>
+        <div class="label">{{ __('messages.generated') }}</div>
         <div class="value">{{ now()->format('M d, Y') }}</div>
     </div>
 </div>
@@ -95,7 +95,7 @@
 {{-- Balance Flow --}}
 <div class="balance-flow">
     <div class="flow-card">
-        <div class="label">Opening</div>
+        <div class="label">{{ __('messages.opening') }}</div>
         <div class="amount">${{ number_format($monthlyPeriod->opening_balance, 2) }}</div>
     </div>
     <div class="flow-card income">
@@ -107,7 +107,7 @@
         <div class="amount">${{ number_format($financials['total_expenses'], 2) }}</div>
     </div>
     <div class="flow-card net">
-        <div class="label">Net</div>
+        <div class="label">{{ __('messages.net') }}</div>
         <div class="amount" style="{{ $financials['net_income'] >= 0 ? 'color:#16a34a' : 'color:#dc2626' }}">
             {{ $financials['net_income'] >= 0 ? '+' : '' }}${{ number_format($financials['net_income'], 2) }}
         </div>
@@ -119,7 +119,7 @@
     </div>
     @endif
     <div class="flow-card">
-        <div class="label">Closing</div>
+        <div class="label">{{ __('messages.closing') }}</div>
         <div class="amount">
             @if($monthlyPeriod->isClosed())
                 ${{ number_format($monthlyPeriod->closing_balance, 2) }}
@@ -132,12 +132,12 @@
 
 {{-- Income Section --}}
 <div class="section">
-    <h2>Income</h2>
+    <h2>{{ __('messages.income') }}</h2>
     <table>
         <thead>
             <tr>
-                <th>Category</th>
-                <th class="right">Amount</th>
+                <th>{{ __('messages.category') }}</th>
+                <th class="right">{{ __('messages.amount') }}</th>
             </tr>
         </thead>
         <tbody>
@@ -147,20 +147,20 @@
             </tr>
             @if($financials['late_fees'] > 0)
             <tr>
-                <td>Late Fees</td>
+                <td>{{ __('messages.late_fees') }}</td>
                 <td class="right">${{ number_format($financials['late_fees'], 2) }}</td>
             </tr>
             @endif
             @if($financials['other_income'] > 0)
             <tr>
-                <td>Other Income</td>
+                <td>{{ __('messages.other_income') }}</td>
                 <td class="right">${{ number_format($financials['other_income'], 2) }}</td>
             </tr>
             @endif
         </tbody>
         <tfoot>
             <tr>
-                <td>Total Income</td>
+                <td>{{ __('messages.total_income') }}</td>
                 <td class="right" style="color:#16a34a;">${{ number_format($financials['total_income'], 2) }}</td>
             </tr>
         </tfoot>
@@ -169,12 +169,12 @@
 
 {{-- Expenses Section --}}
 <div class="section">
-    <h2>Expenses</h2>
+    <h2>{{ __('messages.expenses_word') }}</h2>
     <table>
         <thead>
             <tr>
-                <th>Category</th>
-                <th class="right">Amount</th>
+                <th>{{ __('messages.category') }}</th>
+                <th class="right">{{ __('messages.amount') }}</th>
             </tr>
         </thead>
         <tbody>
@@ -187,19 +187,19 @@
             @endforelse
             @if($financials['fixed_expenses'] > 0)
             <tr>
-                <td>Fixed / Other Expenses</td>
+                <td>{{ __('messages.fixed_other_expenses') }}</td>
                 <td class="right">${{ number_format($financials['fixed_expenses'], 2) }}</td>
             </tr>
             @endif
             @if(empty($financials['utility_expenses']) && $financials['fixed_expenses'] == 0)
             <tr>
-                <td colspan="2" style="color:#9ca3af;text-align:center;">No expenses recorded</td>
+                <td colspan="2" style="color:#9ca3af;text-align:center;">{{ __('messages.no_expenses_recorded_short') }}</td>
             </tr>
             @endif
         </tbody>
         <tfoot>
             <tr>
-                <td>Total Expenses</td>
+                <td>{{ __('messages.total_expenses') }}</td>
                 <td class="right" style="color:#dc2626;">${{ number_format($financials['total_expenses'], 2) }}</td>
             </tr>
         </tfoot>
@@ -210,7 +210,7 @@
 <div style="background:{{ $financials['net_income'] >= 0 ? '#f0fdf4' : '#fef2f2' }};border:1px solid {{ $financials['net_income'] >= 0 ? '#86efac' : '#fca5a5' }};border-radius:6px;padding:16px 20px;display:flex;justify-content:space-between;align-items:center;margin-bottom:24px;">
     <div>
         <div style="font-size:12px;color:#6b7280;font-weight:600;text-transform:uppercase;">Net Result for {{ $monthlyPeriod->name }}</div>
-        <div style="font-size:11px;color:#9ca3af;margin-top:2px;">Total Income − Total Expenses</div>
+        <div style="font-size:11px;color:#9ca3af;margin-top:2px;">{{ __('messages.total_income_minus') }}</div>
     </div>
     <div style="font-size:24px;font-weight:700;color:{{ $financials['net_income'] >= 0 ? '#16a34a' : '#dc2626' }};">
         {{ $financials['net_income'] >= 0 ? '+' : '' }}${{ number_format($financials['net_income'], 2) }}
@@ -221,7 +221,7 @@
 {{-- Owner Profit Withdrawal (owner's draw — not an expense) --}}
 <div style="background:#faf5ff;border:1px solid #d8b4fe;border-radius:6px;padding:16px 20px;display:flex;justify-content:space-between;align-items:center;margin-bottom:24px;">
     <div>
-        <div style="font-size:12px;color:#6b7280;font-weight:600;text-transform:uppercase;">Owner Profit Withdrawal</div>
+        <div style="font-size:12px;color:#6b7280;font-weight:600;text-transform:uppercase;">{{ __('messages.owner_profit_withdrawal') }}</div>
         <div style="font-size:11px;color:#9ca3af;margin-top:2px;">Owner's draw — reduces carried-forward cash, not net income@if($monthlyPeriod->withdrawal_note) &nbsp;|&nbsp; {{ $monthlyPeriod->withdrawal_note }}@endif</div>
     </div>
     <div style="font-size:24px;font-weight:700;color:#7c3aed;">
@@ -239,15 +239,15 @@
     <table>
         <tbody>
             <tr>
-                <td>Assets</td>
+                <td>{{ __('messages.assets') }}</td>
                 <td class="right" style="color:#2563eb;font-weight:600;">${{ number_format($balanceSheet['total_assets'], 2) }}</td>
             </tr>
             <tr>
-                <td>Liabilities</td>
+                <td>{{ __('messages.liabilities') }}</td>
                 <td class="right" style="color:#dc2626;font-weight:600;">${{ number_format($balanceSheet['total_liabilities'], 2) }}</td>
             </tr>
             <tr>
-                <td>Equity</td>
+                <td>{{ __('messages.equity') }}</td>
                 <td class="right" style="color:#16a34a;font-weight:600;">${{ number_format($balanceSheet['total_equity'], 2) }}</td>
             </tr>
         </tbody>

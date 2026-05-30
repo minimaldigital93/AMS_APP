@@ -7,8 +7,8 @@
     <!-- Header -->
     <div class="flex items-center justify-between">
         <div>
-            <h1 class="text-2xl font-semibold text-slate-800 tracking-tight">Edit User</h1>
-            <p class="text-slate-400 text-sm mt-1">Update user account information</p>
+            <h1 class="text-2xl font-semibold text-slate-800 tracking-tight">{{ __('messages.edit_user') }}</h1>
+            <p class="text-slate-400 text-sm mt-1">{{ __('messages.edit_user_subtitle') }}</p>
         </div>
         <a href="{{ route('admin.users.index') }}" class="text-slate-400 hover:text-slate-600 text-sm font-medium py-2 px-4 rounded-lg border border-slate-200 hover:border-slate-300 transition">
             Back to Users
@@ -23,14 +23,14 @@
 
             <!-- Name -->
             <div>
-                <label class="block text-sm font-medium text-gray-700 mb-2">Name</label>
+                <label class="block text-sm font-medium text-gray-700 mb-2">{{ __('messages.name') }}</label>
                 <input 
                     type="text" 
                     name="name" 
                     value="{{ old('name', $user->name) }}"
                     required 
                     class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 {{ $errors->has('name') ? 'border-red-500' : 'border-gray-300' }}"
-                    placeholder="Enter user name"
+                    placeholder="{{ __('messages.enter_username') }}"
                 >
                 @error('name')
                     <p class="text-red-600 text-sm mt-1">{{ $message }}</p>
@@ -39,14 +39,14 @@
 
             <!-- Phone -->
             <div>
-                <label class="block text-sm font-medium text-gray-700 mb-2">Phone Number</label>
+                <label class="block text-sm font-medium text-gray-700 mb-2">{{ __('messages.phone') }}</label>
                 <input
                     type="text"
                     name="phone"
                     value="{{ old('phone', $user->phone) }}"
                     required
                     class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 {{ $errors->has('phone') ? 'border-red-500' : 'border-gray-300' }}"
-                    placeholder="Enter phone number"
+                    placeholder="{{ __('messages.enter_phone') }}"
                 >
                 @error('phone')
                     <p class="text-red-600 text-sm mt-1">{{ $message }}</p>
@@ -55,13 +55,13 @@
 
             <!-- Role -->
             <div>
-                <label class="block text-sm font-medium text-gray-700 mb-2">Role</label>
+                <label class="block text-sm font-medium text-gray-700 mb-2">{{ __('messages.role') }}</label>
                 <select 
                     name="role" 
                     required 
                     class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 {{ $errors->has('role') ? 'border-red-500' : 'border-gray-300' }}"
                 >
-                    <option value="">Select a role</option>
+                    <option value="">{{ __('messages.select_a_role') }}</option>
                     @foreach($roles as $role)
                         <option value="{{ $role->name }}" {{ old('role', $user->roles->first()?->name) == $role->name ? 'selected' : '' }}>
                             {{ ucfirst($role->name) }}
@@ -75,14 +75,14 @@
 
             <!-- Status -->
             <div>
-                <label class="block text-sm font-medium text-gray-700 mb-2">Status</label>
+                <label class="block text-sm font-medium text-gray-700 mb-2">{{ __('messages.status') }}</label>
                 <select 
                     name="status" 
                     class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 {{ $errors->has('status') ? 'border-red-500' : 'border-gray-300' }}"
                 >
-                    <option value="active" {{ $user->status === 'active' ? 'selected' : '' }}>Active</option>
-                    <option value="inactive" {{ $user->status === 'inactive' ? 'selected' : '' }}>Inactive</option>
-                    <option value="suspended" {{ $user->status === 'suspended' ? 'selected' : '' }}>Suspended</option>
+                    <option value="active" {{ $user->status === 'active' ? 'selected' : '' }}>{{ __('messages.active') }}</option>
+                    <option value="inactive" {{ $user->status === 'inactive' ? 'selected' : '' }}>{{ __('messages.inactive') }}</option>
+                    <option value="suspended" {{ $user->status === 'suspended' ? 'selected' : '' }}>{{ __('messages.suspended') }}</option>
                 </select>
                 @error('status')
                     <p class="text-red-600 text-sm mt-1">{{ $message }}</p>
@@ -101,7 +101,7 @@
                     href="{{ route('admin.users.index') }}" 
                     class="px-6 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 transition font-medium"
                 >
-                    Cancel
+                    {{ __('messages.cancel') }}
                 </a>
             </div>
         </form>

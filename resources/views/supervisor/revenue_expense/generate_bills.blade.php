@@ -5,7 +5,7 @@
     <!-- Header -->
     <div class="mb-8 flex items-center justify-between">
         <div>
-            <h1 class="text-3xl font-bold text-gray-900">Generate Monthly Bills</h1>
+            <h1 class="text-3xl font-bold text-gray-900">{{ __('messages.generate_monthly_bills') }}</h1>
             <p class="text-gray-600 mt-2">
                 Auto-generate monthly expenses for tenants —
                 <span class="font-semibold text-blue-600">{{ $activePeriod->name }}</span>
@@ -14,13 +14,9 @@
         </div>
         <div class="flex gap-3">
             <a href="{{ route('supervisor.revenue_expense.fixed_expenses') }}" class="inline-flex items-center px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition text-sm">
-                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
-                Manage Apartment Costs
-            </a>
+                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>{{ __('messages.manage_apartment_costs') }}</a>
             <a href="{{ route('supervisor.revenue_expense.index') }}" class="inline-flex items-center px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition text-sm">
-                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/></svg>
-                Back
-            </a>
+                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/></svg>{{ __('messages.back') }}</a>
         </div>
     </div>
 
@@ -56,19 +52,19 @@
             <div class="flex items-center justify-between">
                 <div class="flex items-center gap-6">
                     <div>
-                        <label for="billing_date" class="block text-sm font-medium text-gray-700 mb-1">Billing Date</label>
+                        <label for="billing_date" class="block text-sm font-medium text-gray-700 mb-1">{{ __('messages.billing_date') }}</label>
                         <input type="date" name="billing_date" id="billing_date" required value="{{ date('Y-m-d') }}"
                             class="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white appearance-none h-10">
                     </div>
                     <div class="text-center">
-                        <p class="text-sm text-gray-500">Total Monthly Apartment Costs</p>
+                        <p class="text-sm text-gray-500">{{ __('messages.total_monthly_apt_costs') }}</p>
                         <p class="text-2xl font-bold text-red-600">${{ number_format($totalMonthlyExpenses, 2) }}</p>
                     </div>
                 </div>
                 <div>
                     <label class="flex items-center gap-2 cursor-pointer">
                         <input type="checkbox" id="selectAllBills" class="w-4 h-4 text-blue-600 rounded focus:ring-blue-500" checked>
-                        <span class="text-sm font-medium text-gray-700">Select All Apartments</span>
+                        <span class="text-sm font-medium text-gray-700">{{ __('messages.select_all_apartments') }}</span>
                     </label>
                 </div>
             </div>
@@ -87,17 +83,17 @@
                         <div>
                             <h3 class="text-lg font-bold text-gray-900">
                                 {{ $bill['apartment']->apartment_number }}
-                                <span class="text-sm font-normal text-gray-500">— Floor {{ $bill['apartment']->floor->floor_number ?? 'N/A' }}</span>
+                                <span class="text-sm font-normal text-gray-500">— {{ __('messages.floor') }} {{ $bill['apartment']->floor->floor_number ?? 'N/A' }}</span>
                             </h3>
                             <p class="text-sm text-gray-600">
-                                Tenant: <span class="font-medium">{{ $bill['tenant_name'] }}</span>
+                                {{ __('messages.tenant') }}: <span class="font-medium">{{ $bill['tenant_name'] }}</span>
                             </p>
                         </div>
                     </div>
                     <div class="text-right">
-                        <p class="text-xs text-gray-500">Total Monthly Bill</p>
+                        <p class="text-xs text-gray-500">{{ __('messages.total_monthly_bill') }}</p>
                         <p class="text-xl font-bold text-red-600">${{ number_format($bill['total_bill'], 2) }}</p>
-                        <p class="text-xs text-gray-400">Rent: ${{ number_format($bill['monthly_rent'], 2) }} + Costs: ${{ number_format($bill['total_fixed'], 2) }}</p>
+                        <p class="text-xs text-gray-400">{{ __('messages.rent') }}: ${{ number_format($bill['monthly_rent'], 2) }} + {{ __('messages.costs') }}: ${{ number_format($bill['total_fixed'], 2) }}</p>
                     </div>
                 </div>
 
@@ -122,13 +118,9 @@
                                 </div>
                                 @if($expense['is_billed'])
                                 <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-700">
-                                    <svg class="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>
-                                    Billed
-                                </span>
+                                    <svg class="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>{{ __('messages.billed') }}</span>
                                 @else
-                                <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-700">
-                                    Pending
-                                </span>
+                                <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-700">{{ __('messages.pending') }}</span>
                                 @endif
                             </div>
                             <div>
@@ -141,7 +133,7 @@
                         @endforeach
                     </div>
                     @else
-                    <p class="text-sm text-gray-400 text-center py-2">No apartment costs assigned. <a href="{{ route('supervisor.revenue_expense.fixed_expenses') }}" class="text-blue-600 underline">Add some</a></p>
+                    <p class="text-sm text-gray-400 text-center py-2">{{ __('messages.no_apt_costs_assigned') }} <a href="{{ route('supervisor.revenue_expense.fixed_expenses') }}" class="text-blue-600 underline">{{ __('messages.add_some') }}</a></p>
                     @endif
                 </div>
             </div>
@@ -151,27 +143,21 @@
         <!-- Generate Button -->
         <div class="flex items-center justify-between bg-white rounded-lg shadow-md p-6">
             <div>
-                <p class="text-sm text-gray-500" id="billSelectedCount">{{ count($billSummary) }} apartment(s) selected</p>
-                <p class="text-xs text-gray-400">Only unbilled expenses will be generated. Already-billed items are skipped.</p>
+                <p class="text-sm text-gray-500" id="billSelectedCount">{{ __('messages.apartments_selected', ['count' => count($billSummary)]) }}</p>
+                <p class="text-xs text-gray-400">{{ __('messages.only_unbilled_note') }}</p>
             </div>
             <button type="submit" class="inline-flex items-center px-8 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition font-medium shadow-md text-lg">
-                <svg class="w-6 h-6 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/></svg>
-                Generate Monthly Expenses
-            </button>
+                <svg class="w-6 h-6 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/></svg>{{ __('messages.generate_monthly_expenses') }}</button>
         </div>
     </form>
     @else
     <div class="bg-white rounded-lg shadow-md p-12 text-center">
         <svg class="w-16 h-16 mx-auto text-gray-300 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/></svg>
-        <h3 class="text-xl font-bold text-gray-700 mb-2">No Active Rentals Found</h3>
-        <p class="text-gray-500 mb-4">There are no apartments with active tenants and apartment costs to generate bills for.</p>
+        <h3 class="text-xl font-bold text-gray-700 mb-2">{{ __('messages.no_active_rentals') }}</h3>
+        <p class="text-gray-500 mb-4">{{ __('messages.no_active_rentals_desc') }}</p>
         <div class="flex justify-center gap-4">
-            <a href="{{ route('supervisor.revenue_expense.fixed_expenses') }}" class="inline-flex items-center px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition">
-                Set Up Apartment Costs
-            </a>
-            <a href="{{ route('supervisor.apartments.index') }}" class="inline-flex items-center px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition">
-                Manage Apartments
-            </a>
+            <a href="{{ route('supervisor.revenue_expense.fixed_expenses') }}" class="inline-flex items-center px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition">{{ __('messages.setup_apt_costs') }}</a>
+            <a href="{{ route('supervisor.apartments.index') }}" class="inline-flex items-center px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition">{{ __('messages.manage_apartments') }}</a>
         </div>
     </div>
     @endif
@@ -199,7 +185,7 @@
 
     function updateBillCount() {
         const count = [...billCheckboxes].filter(c => c.checked).length;
-        document.getElementById('billSelectedCount').textContent = count + ' apartment(s) selected';
+        document.getElementById('billSelectedCount').textContent = '{{ __('messages.apartments_selected', ['count' => '__N__']) }}'.replace('__N__', count);
     }
 </script>
 @endsection

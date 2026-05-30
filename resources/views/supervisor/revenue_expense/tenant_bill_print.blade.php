@@ -312,7 +312,7 @@
         <!-- Header -->
         <div class="bill-header">
             <div>
-                <h1>MONTHLY BILL</h1>
+                <h1>{{ __('messages.monthly_bill_caps') }}</h1>
                 <p class="subtitle">{{ $monthYear }}</p>
                 @if($activePeriod)
                 <p class="subtitle">Fiscal Period: {{ $activePeriod->name }}</p>
@@ -328,13 +328,13 @@
         <!-- Tenant & Apartment Info -->
         <div class="info-section">
             <div class="info-block">
-                <h3>Tenant Information</h3>
+                <h3>{{ __('messages.tenant_information') }}</h3>
                 <p class="name">{{ $tenant->name ?? 'N/A' }}</p>
                 <p>{{ $tenant->phone ?? '' }}</p>
                 <p>{{ $tenant->email ?? '' }}</p>
             </div>
             <div class="info-block" style="text-align: right;">
-                <h3>Apartment Details</h3>
+                <h3>{{ __('messages.apartment_details') }}</h3>
                 <p class="name">{{ $apartment->apartment_number }}</p>
                 <p>Floor {{ $floor->floor_number ?? 'N/A' }}</p>
                 <p>Lease Start: {{ $rental->start_date ? $rental->start_date->format('M d, Y') : 'N/A' }}</p>
@@ -343,21 +343,21 @@
 
         <!-- Bill Items -->
         <div class="bill-body">
-            <h2>Bill Details</h2>
+            <h2>{{ __('messages.bill_details') }}</h2>
 
             <table class="items-table">
                 <thead>
                     <tr>
-                        <th>Description</th>
-                        <th>Category</th>
-                        <th>Amount</th>
+                        <th>{{ __('messages.description') }}</th>
+                        <th>{{ __('messages.category') }}</th>
+                        <th>{{ __('messages.amount') }}</th>
                     </tr>
                 </thead>
                 <tbody>
                     <!-- Rent -->
                     <tr>
                         <td><strong>Monthly Rent — {{ $monthYear }}</strong></td>
-                        <td><span class="category-label">Rent</span></td>
+                        <td><span class="category-label">{{ __('messages.rent') }}</span></td>
                         <td>${{ number_format($rent_amount, 2) }}</td>
                     </tr>
 
@@ -370,7 +370,7 @@
                                 <br><span class="category-label">Meter: {{ $utility->meter_reading_in }} → {{ $utility->meter_reading_out }}</span>
                             @endif
                         </td>
-                        <td><span class="category-label">Utility</span></td>
+                        <td><span class="category-label">{{ __('messages.utility') }}</span></td>
                         <td>${{ number_format($utility->charge_amount, 2) }}</td>
                     </tr>
                     @endforeach
@@ -379,7 +379,7 @@
                     @foreach($fixedExpenses as $expense)
                     <tr>
                         <td>{{ $expense->expense_name }}</td>
-                        <td><span class="category-label">Apartment Cost</span></td>
+                        <td><span class="category-label">{{ __('messages.apartment_cost') }}</span></td>
                         <td>${{ number_format($expense->amount, 2) }}</td>
                     </tr>
                     @endforeach
@@ -389,37 +389,37 @@
             <!-- Totals -->
             <div class="totals-section">
                 <div class="total-row">
-                    <span>Subtotal (Rent)</span>
+                    <span>{{ __('messages.subtotal_rent') }}</span>
                     <span>${{ number_format($rent_amount, 2) }}</span>
                 </div>
                 @if($totalUtilities > 0)
                 <div class="total-row">
-                    <span>Subtotal (Utilities)</span>
+                    <span>{{ __('messages.subtotal_utilities') }}</span>
                     <span>${{ number_format($totalUtilities, 2) }}</span>
                 </div>
                 @endif
                 @if($totalFixed > 0)
                 <div class="total-row">
-                    <span>Subtotal (Apartment Costs)</span>
+                    <span>{{ __('messages.subtotal_apt_costs') }}</span>
                     <span>${{ number_format($totalFixed, 2) }}</span>
                 </div>
                 @endif
 
                 <div class="total-row grand">
-                    <span class="label">TOTAL BILL</span>
+                    <span class="label">{{ __('messages.total_bill_caps') }}</span>
                     <span class="amount">${{ number_format($totalBill, 2) }}</span>
                 </div>
 
                 @if($totalPaid > 0)
                 <div class="total-row paid" style="margin-top: 12px;">
-                    <span>Amount Paid</span>
+                    <span>{{ __('messages.amount_paid') }}</span>
                     <span>-${{ number_format($totalPaid, 2) }}</span>
                 </div>
                 @endif
 
                 @if($balance > 0)
                 <div class="total-row balance">
-                    <span>BALANCE DUE</span>
+                    <span>{{ __('messages.balance_due_caps') }}</span>
                     <span>${{ number_format($balance, 2) }}</span>
                 </div>
                 @elseif($paidThisMonth)
@@ -452,7 +452,7 @@
         <div class="bill-footer">
             <div>
                 <p>Generated on {{ now()->format('M d, Y \a\t h:i A') }}</p>
-                <p>Thank you for your timely payment.</p>
+                <p>{{ __('messages.thank_you_payment') }}</p>
             </div>
             <div style="text-align: right;">
                 <span class="status-badge {{ $paidThisMonth ? 'paid' : ($balance > 0 && now()->gt($dueDate) ? 'overdue' : 'unpaid') }}">

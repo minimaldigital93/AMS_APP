@@ -44,7 +44,7 @@
     <!-- Current Tenant — universal tenant view (same as Active Tenants) -->
     @if($activeRental && $activeRental->tenant)
     <div>
-        <h2 class="text-sm font-medium text-slate-500 uppercase tracking-wide mb-4">Current Tenant</h2>
+        <h2 class="text-sm font-medium text-slate-500 uppercase tracking-wide mb-4">{{ __('messages.current_tenant') }}</h2>
         @include('partials.tenant-show', [
             'tenant' => $activeRental->tenant,
             'role' => 'admin',

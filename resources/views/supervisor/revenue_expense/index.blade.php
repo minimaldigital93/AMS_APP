@@ -8,7 +8,7 @@
     {{-- Header --}}
     <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-            <h1 class="text-2xl font-semibold text-slate-800 tracking-tight">Revenue & Expense</h1>
+            <h1 class="text-2xl font-semibold text-slate-800 tracking-tight">{{ __('messages.revenue_expense') }}</h1>
             <p class="text-slate-500 mt-2">
                 @if(isset($filterMonth) && $filterMonth)
                     Viewing <span class="font-semibold text-sky-600">{{ \Carbon\Carbon::create($filterYear, $filterMonth, 1)->format('F Y') }}</span>
@@ -62,7 +62,7 @@
             {{-- Previous Month --}}
             @if($prevMonth)
             <a href="{{ route('supervisor.revenue_expense.index', ['period' => $activePeriod->id, 'month' => $prevMonth['month'], 'year' => $prevMonth['year']]) }}"
-               class="inline-flex items-center justify-center w-10 h-10 rounded-lg text-slate-500 hover:bg-slate-50 hover:text-sky-600 transition" title="Previous Month">
+               class="inline-flex items-center justify-center w-10 h-10 rounded-lg text-slate-500 hover:bg-slate-50 hover:text-sky-600 transition" title="{{ __('messages.previous_month') }}">
                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
             </a>
             @else
@@ -77,22 +77,22 @@
                     <span class="text-lg font-bold text-slate-800">{{ $selectedMonth->format('F') }}</span>
                     <span class="text-lg text-slate-500 ml-1">{{ $selectedMonth->format('Y') }}</span>
                     @if($isCurrentMonth)
-                        <span class="ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-emerald-100 text-emerald-700">Current</span>
+                        <span class="ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-emerald-100 text-emerald-700">{{ __('messages.current') }}</span>
                     @elseif($selectedMonth->isFuture())
-                        <span class="ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-sky-100 text-sky-700">Upcoming</span>
+                        <span class="ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-sky-100 text-sky-700">{{ __('messages.upcoming') }}</span>
                     @else
-                        <span class="ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-600">Past</span>
+                        <span class="ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-600">{{ __('messages.past') }}</span>
                     @endif
                 @else
-                    <span class="text-lg font-bold text-slate-800">All Months</span>
-                    <span class="ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-sky-100 text-sky-700">Full Period</span>
+                    <span class="text-lg font-bold text-slate-800">{{ __('messages.all_months') }}</span>
+                    <span class="ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-sky-100 text-sky-700">{{ __('messages.full_period') }}</span>
                 @endif
             </div>
 
             {{-- Next Month --}}
             @if($nextMonth)
             <a href="{{ route('supervisor.revenue_expense.index', ['period' => $activePeriod->id, 'month' => $nextMonth['month'], 'year' => $nextMonth['year']]) }}"
-               class="inline-flex items-center justify-center w-10 h-10 rounded-lg text-slate-500 hover:bg-slate-50 hover:text-sky-600 transition" title="Next Month">
+               class="inline-flex items-center justify-center w-10 h-10 rounded-lg text-slate-500 hover:bg-slate-50 hover:text-sky-600 transition" title="{{ __('messages.next_month') }}">
                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
             </a>
             @else
@@ -104,7 +104,7 @@
             {{-- Quick Actions --}}
             @if($isFilterActive)
             <a href="{{ route('supervisor.revenue_expense.index', ['period' => $activePeriod->id]) }}"
-               class="ml-1 inline-flex items-center px-3 py-2 text-sm font-medium text-slate-600 bg-slate-50 rounded-lg hover:bg-slate-100 transition" title="View all months">
+               class="ml-1 inline-flex items-center px-3 py-2 text-sm font-medium text-slate-600 bg-slate-50 rounded-lg hover:bg-slate-100 transition" title="{{ __('messages.view_all_months') }}">
                 <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h16M4 18h16"/></svg>
                 All
             </a>
@@ -118,7 +118,7 @@
             @endphp
             @if($currentInPeriod)
             <a href="{{ route('supervisor.revenue_expense.index', ['period' => $activePeriod->id, 'month' => $nowMonth, 'year' => $nowYear]) }}"
-               class="ml-1 inline-flex items-center px-3 py-2 text-sm font-medium text-sky-600 bg-sky-50 rounded-lg hover:bg-sky-100 transition" title="Go to current month">
+               class="ml-1 inline-flex items-center px-3 py-2 text-sm font-medium text-sky-600 bg-sky-50 rounded-lg hover:bg-sky-100 transition" title="{{ __('messages.go_to_current_month') }}">
                 <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
                 Today
             </a>
@@ -136,7 +136,7 @@
                     <svg class="w-5 h-5 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
                 </div>
                 <div>
-                    <p class="text-xs text-slate-400 font-medium">Income</p>
+                    <p class="text-xs text-slate-400 font-medium">{{ __('messages.income') }}</p>
                     <p class="text-xl font-bold text-emerald-600">${{ number_format($income['total_income'], 2) }}</p>
                 </div>
             </div>
@@ -148,7 +148,7 @@
                     <svg class="w-5 h-5 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 17h8m0 0V9m0 8l-8-8-4 4-6-6"/></svg>
                 </div>
                 <div>
-                    <p class="text-xs text-slate-400 font-medium">Business Expenses</p>
+                    <p class="text-xs text-slate-400 font-medium">{{ __('messages.business_expenses') }}</p>
                     <p class="text-xl font-bold text-red-600">${{ number_format($expenses['total_expenses'], 2) }}</p>
                 </div>
             </div>
@@ -160,7 +160,7 @@
                     <svg class="w-5 h-5 {{ $summary['net_profit'] >= 0 ? 'text-sky-600' : 'text-orange-600' }}" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
                 </div>
                 <div>
-                    <p class="text-xs text-slate-400 font-medium">Net Profit</p>
+                    <p class="text-xs text-slate-400 font-medium">{{ __('messages.net_profit') }}</p>
                     <p class="text-xl font-bold {{ $summary['net_profit'] >= 0 ? 'text-sky-600' : 'text-orange-600' }}">
                         {{ $summary['net_profit'] >= 0 ? '+' : '' }}${{ number_format($summary['net_profit'], 2) }}
                     </p>
@@ -179,7 +179,7 @@
                     <svg class="w-5 h-5 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/></svg>
                 </div>
                 <div>
-                    <p class="text-xs text-slate-400 font-medium">Deposits</p>
+                    <p class="text-xs text-slate-400 font-medium">{{ __('messages.deposits') }}</p>
                     <p class="text-xl font-bold {{ $deposit_net >= 0 ? 'text-emerald-600' : 'text-red-600' }}">{{ $deposit_net >= 0 ? '+' : '' }}${{ number_format($deposit_net, 2) }}</p>
                 </div>
             </div>
@@ -212,7 +212,7 @@
         {{-- Fiscal Period Progress (condensed) --}}
         <div class="bg-white rounded-xl border border-slate-100 p-4 flex items-center justify-between">
             <div>
-                <p class="text-sm font-medium text-slate-700">Fiscal Period</p>
+                <p class="text-sm font-medium text-slate-700">{{ __('messages.fiscal_period') }}</p>
                 <p class="text-xs text-slate-400">{{ $activePeriod->name }}</p>
             </div>
             <div class="flex items-center gap-4">
@@ -238,7 +238,7 @@
         {{-- Monthly Rent Collection (condensed) --}}
         <div class="bg-white rounded-xl border border-slate-100 p-4 flex items-center justify-between">
             <div>
-                <p class="text-sm font-medium text-slate-700">Collected</p>
+                <p class="text-sm font-medium text-slate-700">{{ __('messages.collected') }}</p>
                 <p class="text-lg font-bold text-slate-800">${{ number_format($collected, 2) }}</p>
                 <p class="text-xs text-slate-400">Expected: ${{ number_format($expected, 2) }}</p>
             </div>
@@ -322,7 +322,7 @@
         {{-- Income & Expense Breakdown Charts --}}
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
             <div class="bg-white rounded-xl border border-slate-100 p-5">
-                <h2 class="text-sm font-semibold text-slate-800 mb-3">Income Breakdown</h2>
+                <h2 class="text-sm font-semibold text-slate-800 mb-3">{{ __('messages.income_breakdown') }}</h2>
                 <div class="relative" style="height:220px;">
                     <canvas id="incomeChart"></canvas>
                 </div>
@@ -331,25 +331,25 @@
                     {{-- Rent --}}
                     @if(($income['rent_income'] ?? 0) > 0)
                     <div class="flex items-center justify-between text-xs">
-                        <div class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full inline-block" style="background:#10B981"></span><span class="text-slate-500">Rent</span></div>
+                        <div class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full inline-block" style="background:#10B981"></span><span class="text-slate-500">{{ __('messages.rent') }}</span></div>
                         <span class="font-semibold text-slate-700">${{ number_format($income['rent_income'], 2) }}</span>
                     </div>
                     @endif
                     {{-- Utilities Income: electricity, water --}}
                     @if(($income['total_utility_income'] ?? 0) > 0)
                     <div class="flex items-center justify-between text-xs font-medium text-slate-600 pt-1">
-                        <span class="uppercase tracking-wider text-[10px] text-slate-400">Utilities Income</span>
+                        <span class="uppercase tracking-wider text-[10px] text-slate-400">{{ __('messages.utilities_income') }}</span>
                         <span class="text-slate-500">${{ number_format($income['total_utility_income'], 2) }}</span>
                     </div>
                     @if(($income['utility_breakdown']['electricity'] ?? 0) > 0)
                     <div class="flex items-center justify-between text-xs pl-3">
-                        <div class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full inline-block" style="background:#F59E0B"></span><span class="text-slate-500">Electricity</span></div>
+                        <div class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full inline-block" style="background:#F59E0B"></span><span class="text-slate-500">{{ __('messages.electric') }}</span></div>
                         <span class="font-semibold text-slate-700">${{ number_format($income['utility_breakdown']['electricity'], 2) }}</span>
                     </div>
                     @endif
                     @if(($income['utility_breakdown']['water'] ?? 0) > 0)
                     <div class="flex items-center justify-between text-xs pl-3">
-                        <div class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full inline-block" style="background:#38BDF8"></span><span class="text-slate-500">Water</span></div>
+                        <div class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full inline-block" style="background:#38BDF8"></span><span class="text-slate-500">{{ __('messages.water') }}</span></div>
                         <span class="font-semibold text-slate-700">${{ number_format($income['utility_breakdown']['water'], 2) }}</span>
                     </div>
                     @endif
@@ -357,30 +357,30 @@
                     {{-- Other Income: internet, parking, trash, other --}}
                     @if(($income['other_income'] ?? 0) > 0)
                     <div class="flex items-center justify-between text-xs font-medium text-slate-600 pt-1">
-                        <span class="uppercase tracking-wider text-[10px] text-slate-400">Other Income</span>
+                        <span class="uppercase tracking-wider text-[10px] text-slate-400">{{ __('messages.other_income') }}</span>
                         <span class="text-slate-500">${{ number_format($income['other_income'], 2) }}</span>
                     </div>
                     @if(($income['other_income_breakdown']['internet'] ?? 0) > 0)
                     <div class="flex items-center justify-between text-xs pl-3">
-                        <div class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full inline-block" style="background:#8B5CF6"></span><span class="text-slate-500">Internet</span></div>
+                        <div class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full inline-block" style="background:#8B5CF6"></span><span class="text-slate-500">{{ __('messages.type_internet') }}</span></div>
                         <span class="font-semibold text-slate-700">${{ number_format($income['other_income_breakdown']['internet'], 2) }}</span>
                     </div>
                     @endif
                     @if(($income['other_income_breakdown']['parking'] ?? 0) > 0)
                     <div class="flex items-center justify-between text-xs pl-3">
-                        <div class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full inline-block" style="background:#F97316"></span><span class="text-slate-500">Parking</span></div>
+                        <div class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full inline-block" style="background:#F97316"></span><span class="text-slate-500">{{ __('messages.type_parking') }}</span></div>
                         <span class="font-semibold text-slate-700">${{ number_format($income['other_income_breakdown']['parking'], 2) }}</span>
                     </div>
                     @endif
                     @if(($income['other_income_breakdown']['trash'] ?? 0) > 0)
                     <div class="flex items-center justify-between text-xs pl-3">
-                        <div class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full inline-block" style="background:#14B8A6"></span><span class="text-slate-500">Trash</span></div>
+                        <div class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full inline-block" style="background:#14B8A6"></span><span class="text-slate-500">{{ __('messages.type_trash') }}</span></div>
                         <span class="font-semibold text-slate-700">${{ number_format($income['other_income_breakdown']['trash'], 2) }}</span>
                     </div>
                     @endif
                     @if(($income['other_income_breakdown']['other'] ?? 0) > 0)
                     <div class="flex items-center justify-between text-xs pl-3">
-                        <div class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full inline-block" style="background:#EC4899"></span><span class="text-slate-500">Other</span></div>
+                        <div class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full inline-block" style="background:#EC4899"></span><span class="text-slate-500">{{ __('messages.type_other') }}</span></div>
                         <span class="font-semibold text-slate-700">${{ number_format($income['other_income_breakdown']['other'], 2) }}</span>
                     </div>
                     @endif
@@ -388,25 +388,25 @@
                     {{-- Deposits & Late Fees --}}
                     @if(($income['deposit_income'] ?? 0) > 0)
                     <div class="flex items-center justify-between text-xs">
-                        <div class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full inline-block" style="background:#6366F1"></span><span class="text-slate-500">Deposits</span></div>
+                        <div class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full inline-block" style="background:#6366F1"></span><span class="text-slate-500">{{ __('messages.deposits') }}</span></div>
                         <span class="font-semibold text-slate-700">${{ number_format($income['deposit_income'], 2) }}</span>
                     </div>
                     @endif
                     @if(($income['late_fees'] ?? 0) > 0)
                     <div class="flex items-center justify-between text-xs">
-                        <div class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full inline-block" style="background:#EF4444"></span><span class="text-slate-500">Late Fees</span></div>
+                        <div class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full inline-block" style="background:#EF4444"></span><span class="text-slate-500">{{ __('messages.late_fees') }}</span></div>
                         <span class="font-semibold text-slate-700">${{ number_format($income['late_fees'], 2) }}</span>
                     </div>
                     @endif
                     {{-- Total --}}
                     <div class="flex items-center justify-between text-xs font-bold border-t border-slate-100 pt-2 mt-1">
-                        <span class="text-slate-700">Total Income</span>
+                        <span class="text-slate-700">{{ __('messages.total_income') }}</span>
                         <span class="text-emerald-600">${{ number_format($income['total_income'], 2) }}</span>
                     </div>
                 </div>
             </div>
             <div class="bg-white rounded-xl border border-slate-100 p-5">
-                <h2 class="text-sm font-semibold text-slate-800 mb-3">Expense Breakdown</h2>
+                <h2 class="text-sm font-semibold text-slate-800 mb-3">{{ __('messages.expense_breakdown') }}</h2>
                 <div class="relative" style="height:220px;">
                     <canvas id="expenseChart"></canvas>
                 </div>
@@ -415,30 +415,30 @@
                     @php $businessExpensesTotal = ($expenses['fixed_expenses'] ?? 0) + ($expenses['variable_expenses'] ?? 0); @endphp
                     @if($businessExpensesTotal > 0)
                     <div class="flex items-center justify-between text-xs">
-                        <div class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full inline-block" style="background:#F97316"></span><span class="text-slate-500">Business</span></div>
+                        <div class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full inline-block" style="background:#F97316"></span><span class="text-slate-500">{{ __('messages.business_word') }}</span></div>
                         <span class="font-semibold text-slate-700">${{ number_format($businessExpensesTotal, 2) }}</span>
                     </div>
                     @endif
                     @if(($expenses['utility_expenses'] ?? 0) > 0)
                     <div class="flex items-center justify-between text-xs">
-                        <div class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full inline-block" style="background:#6366F1"></span><span class="text-slate-500">Utilities</span></div>
+                        <div class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full inline-block" style="background:#6366F1"></span><span class="text-slate-500">{{ __('messages.utilities') }}</span></div>
                         <span class="font-semibold text-slate-700">${{ number_format($expenses['utility_expenses'], 2) }}</span>
                     </div>
                     @endif
                     @if(($expenses['deposit_expenses'] ?? 0) > 0)
                     <div class="flex items-center justify-between text-xs">
-                        <div class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full inline-block" style="background:#EC4899"></span><span class="text-slate-500">Deposit Refunds</span></div>
+                        <div class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full inline-block" style="background:#EC4899"></span><span class="text-slate-500">{{ __('messages.deposit_refunds') }}</span></div>
                         <span class="font-semibold text-slate-700">${{ number_format($expenses['deposit_expenses'], 2) }}</span>
                     </div>
                     @endif
                     @if(($expenses['other_expenses'] ?? 0) > 0)
                     <div class="flex items-center justify-between text-xs">
-                        <div class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full inline-block" style="background:#64748B"></span><span class="text-slate-500">Other</span></div>
+                        <div class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full inline-block" style="background:#64748B"></span><span class="text-slate-500">{{ __('messages.type_other') }}</span></div>
                         <span class="font-semibold text-slate-700">${{ number_format($expenses['other_expenses'], 2) }}</span>
                     </div>
                     @endif
                     <div class="flex items-center justify-between text-xs font-bold border-t border-slate-100 pt-2 mt-1">
-                        <span class="text-slate-700">Total Expenses</span>
+                        <span class="text-slate-700">{{ __('messages.total_expenses') }}</span>
                         <span class="text-red-600">${{ number_format($expenses['total_expenses'], 2) }}</span>
                     </div>
                 </div>
@@ -458,14 +458,14 @@
         @php
             // Attempt to group by floor number from available keys
             $groupedByFloor = collect($perApartment)->groupBy(function($a) {
-                return $a['floor_number'] ?? $a['floor'] ?? $a['apartment_floor'] ?? 'Unspecified';
+                return $a['floor_number'] ?? $a['floor'] ?? $a['apartment_floor'] ?? __('messages.unspecified');
             });
         @endphp
         <div class="mt-4 space-y-3">
             <div class="bg-white rounded-xl border border-slate-100 p-2">
                 <nav class="flex gap-1" aria-label="Sub tabs">
-                    <button @click="subtab = 'apartments'" :class="subtab === 'apartments' ? 'bg-slate-800 text-white' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-50'" class="whitespace-nowrap px-4 py-2.5 text-sm font-medium transition rounded-lg">Apartment Summary</button>
-                    <button @click="subtab = 'transactions'" :class="subtab === 'transactions' ? 'bg-slate-800 text-white' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-50'" class="whitespace-nowrap px-4 py-2.5 text-sm font-medium transition rounded-lg">Recent Transactions</button>
+                    <button @click="subtab = 'apartments'" :class="subtab === 'apartments' ? 'bg-slate-800 text-white' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-50'" class="whitespace-nowrap px-4 py-2.5 text-sm font-medium transition rounded-lg">{{ __('messages.apartment_summary') }}</button>
+                    <button @click="subtab = 'transactions'" :class="subtab === 'transactions' ? 'bg-slate-800 text-white' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-50'" class="whitespace-nowrap px-4 py-2.5 text-sm font-medium transition rounded-lg">{{ __('messages.recent_transactions') }}</button>
                 </nav>
             </div>
 
@@ -473,19 +473,19 @@
                 <div class="bg-white rounded-xl border border-slate-100 overflow-hidden" x-data="{ showAll: false, expenseForm: null, groupBy: 'apartment' }">
             <div class="px-5 py-3 border-b border-slate-100 flex items-center justify-between">
                 <div class="flex items-center gap-3">
-                    <h2 class="text-sm font-semibold text-slate-800">Per-Apartment Summary</h2>
+                    <h2 class="text-sm font-semibold text-slate-800">{{ __('messages.per_apartment_summary') }}</h2>
                     <div class="text-xs text-slate-400">·</div>
-                    <div class="text-xs text-slate-400">Group by:</div>
+                    <div class="text-xs text-slate-400">{{ __('messages.group_by') }}</div>
                     <div class="inline-flex bg-slate-50 rounded-lg p-1">
-                        <button @click="groupBy = 'apartment'" :class="groupBy === 'apartment' ? 'bg-slate-800 text-white' : 'text-slate-600'" class="px-2 py-1 text-xs rounded">Apartment</button>
-                        <button @click="groupBy = 'floor'" :class="groupBy === 'floor' ? 'bg-slate-800 text-white' : 'text-slate-600'" class="px-2 py-1 text-xs rounded">Floor</button>
+                        <button @click="groupBy = 'apartment'" :class="groupBy === 'apartment' ? 'bg-slate-800 text-white' : 'text-slate-600'" class="px-2 py-1 text-xs rounded">{{ __('messages.apartment') }}</button>
+                        <button @click="groupBy = 'floor'" :class="groupBy === 'floor' ? 'bg-slate-800 text-white' : 'text-slate-600'" class="px-2 py-1 text-xs rounded">{{ __('messages.floor') }}</button>
                     </div>
                 </div>
                 <div>
                     <button @click="showAll = !showAll" class="text-xs text-sky-600 hover:text-sky-800 font-medium mr-3">
-                        <span x-text="showAll ? 'Occupied Only' : 'Show All'"></span>
+                        <span x-text="showAll ? '{{ __('messages.occupied_only') }}' : '{{ __('messages.show_all') }}'"></span>
                     </button>
-                    <button type="button" onclick="openSummaryPreview()" class="p-1 text-slate-400 hover:text-slate-600 rounded-lg" title="Preview apartment summary before export">
+                    <button type="button" onclick="openSummaryPreview()" class="p-1 text-slate-400 hover:text-slate-600 rounded-lg" title="{{ __('messages.preview_summary_title') }}">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>
                     </button>
                 </div>
@@ -497,13 +497,13 @@
                     <thead>
                         <tr class="border-b bg-slate-50/80 text-[11px] text-slate-400 uppercase tracking-wider">
                             <th class="text-center px-4 py-2 font-medium w-10">No</th>
-                            <th class="text-left px-4 py-2 font-medium">Unit</th>
-                            <th class="text-right px-4 py-2 font-medium">Rent Price</th>
-                            <th class="text-right px-4 py-2 font-medium" title="Electricity + Water charges">Utilities</th>
-                            <th class="text-right px-4 py-2 font-medium" title="Internet, Parking, Trash, and other service charges">Other Charge</th>
-                            <th class="text-right px-4 py-2 font-medium" title="Rent + Utilities + Other Charges">Net Profit</th>
-                            <th class="text-center px-4 py-2 font-medium">Status</th>
-                            <th class="text-center px-4 py-2 font-medium">Action</th>
+                            <th class="text-left px-4 py-2 font-medium">{{ __('messages.unit') }}</th>
+                            <th class="text-right px-4 py-2 font-medium">{{ __('messages.rent_price') }}</th>
+                            <th class="text-right px-4 py-2 font-medium" title="{{ __('messages.elec_water_title') }}">{{ __('messages.utilities') }}</th>
+                            <th class="text-right px-4 py-2 font-medium" title="{{ __('messages.other_charges_title') }}">{{ __('messages.other_charge') }}</th>
+                            <th class="text-right px-4 py-2 font-medium" title="{{ __('messages.rent_util_other_title') }}">{{ __('messages.net_profit') }}</th>
+                            <th class="text-center px-4 py-2 font-medium">{{ __('messages.status') }}</th>
+                            <th class="text-center px-4 py-2 font-medium">{{ __('messages.action') }}</th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-slate-50">
@@ -520,7 +520,7 @@
                                 @if($apt['has_active_rental'])
                                 <div class="text-[10px] text-slate-400 mt-0.5">{{ $apt['tenant'] }}</div>
                                 @else
-                                <div class="text-[10px] text-slate-300 mt-0.5">Vacant</div>
+                                <div class="text-[10px] text-slate-300 mt-0.5">{{ __('messages.vacant') }}</div>
                                 @endif
                             </td>
                             <td class="px-4 py-2 text-right">${{ number_format($apt['monthly_rent'], 2) }}</td>
@@ -533,7 +533,7 @@
                                     </button>
                                     <div x-show="showBreakdown" x-cloak @click.away="showBreakdown = false"
                                         class="absolute right-0 top-full mt-1 z-20 bg-white border border-slate-100 rounded-lg shadow-lg p-3 w-44 text-left">
-                                        <p class="text-[10px] font-semibold text-slate-400 uppercase mb-1.5">Utilities Detail</p>
+                                        <p class="text-[10px] font-semibold text-slate-400 uppercase mb-1.5">{{ __('messages.utilities_detail') }}</p>
                                         @if(($apt['expense_breakdown']['electricity'] ?? 0) > 0)
                                         <div class="flex justify-between text-xs py-0.5">
                                             <span class="text-slate-500">⚡ Electricity</span>
@@ -561,7 +561,7 @@
                                     </button>
                                     <div x-show="showOther" x-cloak @click.away="showOther = false"
                                         class="absolute right-0 top-full mt-1 z-20 bg-white border border-slate-100 rounded-lg shadow-lg p-3 w-44 text-left">
-                                        <p class="text-[10px] font-semibold text-slate-400 uppercase mb-1.5">Other Charges</p>
+                                        <p class="text-[10px] font-semibold text-slate-400 uppercase mb-1.5">{{ __('messages.other_charges_label') }}</p>
                                         @if(($apt['expense_breakdown']['internet'] ?? 0) > 0)
                                         <div class="flex justify-between text-xs py-0.5">
                                             <span class="text-slate-500">📡 Internet</span>
@@ -598,7 +598,7 @@
                             </td>
                             <td class="px-4 py-2 text-center">
                                 @if(!$apt['has_active_rental'])
-                                    <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-500">Vacant</span>
+                                    <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-500">{{ __('messages.vacant') }}</span>
                                 @else
                                     @php
                                         $isPaid = $apt['paid_this_month'] ?? ($apt['rent_status'] === 'paid');
@@ -609,14 +609,14 @@
                                     @endphp
 
                                     @if($isPaid)
-                                        <span class="inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-medium bg-emerald-100 text-emerald-700">Paid</span>
+                                        <span class="inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-medium bg-emerald-100 text-emerald-700">{{ __('messages.paid') }}</span>
                                     @else
                                         @if(($apt['rent_status'] ?? '') === 'partial')
-                                            <span class="inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-700">Partial</span>
+                                            <span class="inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-700">{{ __('messages.partial') }}</span>
                                         @elseif(($apt['rent_status'] ?? '') === 'overdue')
-                                            <span class="inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-700">Overdue</span>
+                                            <span class="inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-700">{{ __('messages.overdue') }}</span>
                                         @else
-                                            <span class="inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-700">Pending</span>
+                                            <span class="inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-700">{{ __('messages.pending') }}</span>
                                         @endif
                                     @endif
                                 @endif
@@ -625,12 +625,12 @@
                                 @if($apt['has_active_rental'] && $apt['rental_id'])
                                 <div class="flex items-center justify-center gap-1">
                                     @if($apt['tenant_id'])
-                                    <a href="{{ route('supervisor.tenants.show', $apt['tenant_id']) }}" title="View Tenant"
+                                    <a href="{{ route('supervisor.tenants.show', $apt['tenant_id']) }}" title="{{ __('messages.view_tenant') }}"
                                         class="p-1 rounded bg-sky-100 text-sky-600 hover:bg-sky-200 transition">
                                         <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
                                     </a>
                                     @endif
-                                    <a href="{{ route('supervisor.apartments.show', $apt['apartment_id']) }}" title="View Apartment"
+                                    <a href="{{ route('supervisor.apartments.show', $apt['apartment_id']) }}" title="{{ __('messages.view_apartment') }}"
                                         class="p-1 rounded bg-emerald-100 text-emerald-600 hover:bg-green-200 transition">
                                         <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-4 0h4"/></svg>
                                     </a>
@@ -651,7 +651,7 @@
                                         <p class="font-semibold text-slate-700 mb-1">Assign Expense — {{ $apt['apartment_number'] }} <span class="text-slate-400 font-normal">({{ $apt['tenant'] }})</span></p>
                                     </div>
                                     <div>
-                                        <label class="block text-[10px] font-medium text-slate-400 mb-0.5">Type</label>
+                                        <label class="block text-[10px] font-medium text-slate-400 mb-0.5">{{ __('messages.type') }}</label>
                                         <select name="utility_type" required class="px-2 py-1.5 text-xs border border-slate-200 rounded-md focus:ring-orange-500 focus:border-orange-500 w-28">
                                             <option value="electricity">⚡ Electricity</option>
                                             <option value="water">💧 Water</option>
@@ -660,28 +660,28 @@
                                         </select>
                                     </div>
                                     <div>
-                                        <label class="block text-[10px] font-medium text-slate-400 mb-0.5">Amount ($)</label>
+                                        <label class="block text-[10px] font-medium text-slate-400 mb-0.5">{{ __('messages.amount_dollar') }}</label>
                                         <input type="number" name="charge_amount" step="0.01" min="0.01" required
                                             class="px-2 py-1.5 text-xs border border-slate-200 rounded-md focus:ring-orange-500 focus:border-orange-500 w-24">
                                     </div>
                                     <div>
-                                        <label class="block text-[10px] font-medium text-slate-400 mb-0.5">Date</label>
+                                        <label class="block text-[10px] font-medium text-slate-400 mb-0.5">{{ __('messages.date') }}</label>
                                         <input type="date" name="transaction_date" value="{{ date('Y-m-d') }}" required
                                             class="px-2 py-1.5 text-xs border border-slate-200 rounded-md focus:ring-orange-500 focus:border-orange-500 w-32 bg-white appearance-none h-10">
                                     </div>
                                     <div>
-                                        <label class="block text-[10px] font-medium text-slate-400 mb-0.5">Meter In</label>
+                                        <label class="block text-[10px] font-medium text-slate-400 mb-0.5">{{ __('messages.meter_in') }}</label>
                                         <input type="number" name="meter_reading_in" step="0.01" min="0" placeholder="0"
                                             class="px-2 py-1.5 text-xs border border-slate-200 rounded-md focus:ring-orange-500 focus:border-orange-500 w-20">
                                     </div>
                                     <div>
-                                        <label class="block text-[10px] font-medium text-slate-400 mb-0.5">Meter Out</label>
+                                        <label class="block text-[10px] font-medium text-slate-400 mb-0.5">{{ __('messages.meter_out') }}</label>
                                         <input type="number" name="meter_reading_out" step="0.01" min="0" placeholder="0"
                                             class="px-2 py-1.5 text-xs border border-slate-200 rounded-md focus:ring-orange-500 focus:border-orange-500 w-20">
                                     </div>
                                     <div>
-                                        <label class="block text-[10px] font-medium text-slate-400 mb-0.5">Note</label>
-                                        <input type="text" name="note" placeholder="Optional" maxlength="1000"
+                                        <label class="block text-[10px] font-medium text-slate-400 mb-0.5">{{ __('messages.note') }}</label>
+                                        <input type="text" name="note" placeholder="{{ __('messages.optional') }}" maxlength="1000"
                                             class="px-2 py-1.5 text-xs border border-slate-200 rounded-md focus:ring-orange-500 focus:border-orange-500 w-32">
                                     </div>
                                     <button type="submit" class="px-3 py-1.5 bg-orange-600 text-white text-xs font-medium rounded-md hover:bg-orange-700 transition">
@@ -695,7 +695,7 @@
                     </tbody>
                     <tfoot>
                         <tr class="border-t-2 bg-slate-50/80 font-semibold text-slate-800">
-                            <td class="px-4 py-2" colspan="2">Total</td>
+                            <td class="px-4 py-2" colspan="2">{{ __('messages.total') }}</td>
                             <td class="px-4 py-2 text-right">${{ number_format(collect($perApartment)->sum('monthly_rent'), 2) }}</td>
                             <td class="px-4 py-2 text-right text-sky-600">
                                 ${{ number_format(collect($perApartment)->sum('utilities_income'), 2) }}
@@ -734,19 +734,19 @@
                         <table class="w-full text-sm">
                             <thead>
                                 <tr class="border-b bg-slate-50/80 text-[11px] text-slate-400 uppercase tracking-wider">
-                                    <th class="text-left px-4 py-2 font-medium">Unit</th>
-                                    <th class="text-left px-4 py-2 font-medium">Tenant</th>
-                                    <th class="text-right px-4 py-2 font-medium">Rent</th>
-                                    <th class="text-right px-4 py-2 font-medium">Income</th>
-                                    <th class="text-right px-4 py-2 font-medium">Utilities</th>
-                                    <th class="text-right px-4 py-2 font-medium">Net</th>
+                                    <th class="text-left px-4 py-2 font-medium">{{ __('messages.unit') }}</th>
+                                    <th class="text-left px-4 py-2 font-medium">{{ __('messages.tenant') }}</th>
+                                    <th class="text-right px-4 py-2 font-medium">{{ __('messages.rent') }}</th>
+                                    <th class="text-right px-4 py-2 font-medium">{{ __('messages.income') }}</th>
+                                    <th class="text-right px-4 py-2 font-medium">{{ __('messages.utilities') }}</th>
+                                    <th class="text-right px-4 py-2 font-medium">{{ __('messages.net') }}</th>
                                 </tr>
                             </thead>
                             <tbody class="divide-y divide-slate-50">
                                 @foreach($items as $aptIdx => $apt)
                                 <tr class="{{ !$apt['has_active_rental'] ? 'text-slate-300' : 'text-slate-700' }}">
                                     <td class="px-4 py-2 font-medium">{{ $apt['apartment_number'] }}</td>
-                                    <td class="px-4 py-2">{{ $apt['has_active_rental'] ? $apt['tenant'] : 'Vacant' }}</td>
+                                    <td class="px-4 py-2">{{ $apt['has_active_rental'] ? $apt['tenant'] : __('messages.vacant') }}</td>
                                     <td class="px-4 py-2 text-right">${{ number_format($apt['monthly_rent'], 2) }}</td>
                                     <td class="px-4 py-2 text-right">${{ number_format($apt['income'], 2) }}</td>
                                     <td class="px-4 py-2 text-right">${{ number_format($apt['expenses'], 2) }}</td>
@@ -780,17 +780,17 @@
         <div class="bg-white rounded-xl border border-slate-100 overflow-hidden">
             <div class="px-5 py-3 border-b border-slate-100 flex items-center justify-between">
                 <div class="flex items-center gap-3">
-                    <h2 class="text-sm font-semibold text-slate-800">Recent Transactions</h2>
+                    <h2 class="text-sm font-semibold text-slate-800">{{ __('messages.recent_transactions') }}</h2>
                     <p class="text-xs text-slate-400">· Income & Expenses</p>
                 </div>
-                <div class="text-xs text-slate-400">Showing recent activity across apartments</div>
+                <div class="text-xs text-slate-400">{{ __('messages.showing_recent_activity') }}</div>
             </div>
 
             <div class="p-4 grid grid-cols-1 lg:grid-cols-2 gap-4">
                 <div>
-                    <h3 class="text-xs font-medium text-slate-500 mb-2">Income</h3>
+                    <h3 class="text-xs font-medium text-slate-500 mb-2">{{ __('messages.income') }}</h3>
                             @if($recentIncome->isEmpty())
-                                <p class="text-sm text-slate-400">No income recorded yet</p>
+                                <p class="text-sm text-slate-400">{{ __('messages.no_income_recorded') }}</p>
                             @else
                                 <div class="space-y-2">
                                     @foreach($recentIncome as $record)
@@ -807,9 +807,9 @@
                 </div>
 
                 <div>
-                    <h3 class="text-xs font-medium text-slate-500 mb-2">Expenses</h3>
+                    <h3 class="text-xs font-medium text-slate-500 mb-2">{{ __('messages.expenses_word') }}</h3>
                     @if($recentExpenses->isEmpty())
-                        <p class="text-sm text-slate-400">No expenses recorded yet</p>
+                        <p class="text-sm text-slate-400">{{ __('messages.no_expenses_recorded') }}</p>
                     @else
                         <div class="space-y-2">
                             @foreach($recentExpenses as $record)
@@ -832,15 +832,15 @@
         {{-- Income Summary Row --}}
         <div class="grid grid-cols-3 gap-4 mb-4">
             <div class="bg-white rounded-xl border border-slate-100 p-5">
-                <p class="text-xs text-slate-400 font-medium">Expected Rent</p>
+                <p class="text-xs text-slate-400 font-medium">{{ __('messages.expected_rent') }}</p>
                 <p class="text-xl font-bold text-sky-600 mt-1">${{ number_format($totalRentExpected, 2) }}</p>
             </div>
             <div class="bg-white rounded-xl border border-slate-100 p-5">
-                <p class="text-xs text-slate-400 font-medium">Collected</p>
+                <p class="text-xs text-slate-400 font-medium">{{ __('messages.collected') }}</p>
                 <p class="text-xl font-bold text-emerald-600 mt-1">${{ number_format($totalRentCollected, 2) }}</p>
             </div>
             <div class="bg-white rounded-xl border border-slate-100 p-5">
-                <p class="text-xs text-slate-400 font-medium">Collection Rate</p>
+                <p class="text-xs text-slate-400 font-medium">{{ __('messages.collection_rate') }}</p>
                 <p class="text-xl font-bold {{ $totalRentCollected >= $totalRentExpected ? 'text-emerald-600' : 'text-orange-600' }} mt-1">
                     {{ $totalRentExpected > 0 ? round(($totalRentCollected / $totalRentExpected) * 100, 1) : 0 }}%
                 </p>
@@ -852,22 +852,22 @@
 
                 {{-- Bulk Monthly Rent --}}
                 <div class="bg-white rounded-xl border border-slate-100 p-5">
-                    <h2 class="text-sm font-semibold text-slate-800 mb-1 pb-2 border-b border-slate-100">Auto Generate Monthly Rent</h2>
-                    <p class="text-xs text-slate-400 mb-3">Select apartments and record rent for all at once.</p>
+                    <h2 class="text-sm font-semibold text-slate-800 mb-1 pb-2 border-b border-slate-100">{{ __('messages.auto_generate_rent') }}</h2>
+                    <p class="text-xs text-slate-400 mb-3">{{ __('messages.select_apts_record') }}</p>
 
                     @if($apartmentSummary && $apartmentSummary->total() > 0)
                     <form action="{{ route('supervisor.revenue_expense.store_income_bulk') }}" method="POST" id="bulkRentForm">
                         @csrf
                         <div class="grid grid-cols-2 gap-3 mb-4 p-3 bg-sky-50 rounded-lg">
                             <div>
-                                <label class="block text-xs font-medium text-slate-700 mb-1">Payment Date *</label>
+                                <label class="block text-xs font-medium text-slate-700 mb-1">{{ __('messages.payment_date') }} *</label>
                                 <input type="date" name="payment_date" required value="{{ date('Y-m-d') }}" class="w-full px-2 py-1.5 text-sm border border-slate-200 rounded focus:ring-sky-500 focus:border-sky-500 bg-white appearance-none h-10">
                             </div>
                             <div>
-                                <label class="block text-xs font-medium text-slate-700 mb-1">Payment Method *</label>
+                                <label class="block text-xs font-medium text-slate-700 mb-1">{{ __('messages.payment_method') }} *</label>
                                 <select name="payment_method" required class="w-full px-2 py-1.5 text-sm border border-slate-200 rounded focus:ring-sky-500 focus:border-sky-500">
-                                    <option value="cash">Cash</option>
-                                    <option value="bank">Bank Transfer</option>
+                                    <option value="cash">{{ __('messages.cash') }}</option>
+                                    <option value="bank">{{ __('messages.bank_transfer') }}</option>
                                 </select>
                             </div>
                         </div>
@@ -876,12 +876,12 @@
                             <table class="min-w-full text-sm" id="bulkRentTable">
                                 <thead class="bg-slate-50/80">
                                     <tr>
-                                        <th class="px-2 py-2 text-center w-8"><input type="checkbox" id="selectAll" class="w-4 h-4 text-sky-600 rounded cursor-pointer" title="Select All"></th>
-                                        <th class="px-3 py-2 text-left text-xs font-medium text-slate-400 uppercase">Apartment</th>
-                                        <th class="px-3 py-2 text-left text-xs font-medium text-slate-400 uppercase">Tenant</th>
-                                        <th class="px-3 py-2 text-right text-xs font-medium text-slate-400 uppercase">Rent ($)</th>
-                                        <th class="px-3 py-2 text-right text-xs font-medium text-slate-400 uppercase">Late Fee</th>
-                                        <th class="px-3 py-2 text-center text-xs font-medium text-slate-400 uppercase">Status</th>
+                                        <th class="px-2 py-2 text-center w-8"><input type="checkbox" id="selectAll" class="w-4 h-4 text-sky-600 rounded cursor-pointer" title="{{ __('messages.select_all') }}"></th>
+                                        <th class="px-3 py-2 text-left text-xs font-medium text-slate-400 uppercase">{{ __('messages.apartment') }}</th>
+                                        <th class="px-3 py-2 text-left text-xs font-medium text-slate-400 uppercase">{{ __('messages.tenant') }}</th>
+                                        <th class="px-3 py-2 text-right text-xs font-medium text-slate-400 uppercase">{{ __('messages.rent_dollar') }}</th>
+                                        <th class="px-3 py-2 text-right text-xs font-medium text-slate-400 uppercase">{{ __('messages.late_fee') }}</th>
+                                        <th class="px-3 py-2 text-center text-xs font-medium text-slate-400 uppercase">{{ __('messages.status') }}</th>
                                     </tr>
                                 </thead>
                                 <tbody class="divide-y">
@@ -908,9 +908,9 @@
                                         </td>
                                         <td class="px-3 py-2 text-center">
                                             @if($s['paid_this_month'])
-                                                <span class="inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-medium bg-emerald-100 text-emerald-700">Paid</span>
+                                                <span class="inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-medium bg-emerald-100 text-emerald-700">{{ __('messages.paid') }}</span>
                                             @else
-                                                <span class="inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-700">Pending</span>
+                                                <span class="inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-700">{{ __('messages.pending') }}</span>
                                             @endif
                                         </td>
                                     </tr>
@@ -919,7 +919,7 @@
                                 <tfoot class="bg-slate-50/80">
                                     <tr>
                                         <td class="px-2 py-2"></td>
-                                        <td class="px-3 py-2 font-semibold text-slate-800" colspan="2">Total Selected</td>
+                                        <td class="px-3 py-2 font-semibold text-slate-800" colspan="2">{{ __('messages.total_selected') }}</td>
                                         <td class="px-3 py-2 text-right font-bold text-sky-600" id="totalSelectedAmount">${{ number_format($totalRentExpected, 2) }}</td>
                                         <td class="px-3 py-2 text-right font-bold text-amber-600" id="totalSelectedLateFee">$0.00</td>
                                         <td class="px-3 py-2"></td>
@@ -937,18 +937,18 @@
                     </form>
                     <div class="mt-3">{{ $apartmentSummary->withQueryString()->links() }}</div>
                     @else
-                    <p class="text-center py-6 text-slate-400 text-sm">No apartments with active rentals.</p>
+                    <p class="text-center py-6 text-slate-400 text-sm">{{ __('messages.no_apts_active_rentals') }}</p>
                     @endif
                 </div>
 
                 {{-- Record Other Income --}}
                 <div class="bg-white rounded-xl border border-slate-100 p-5">
-                    <h2 class="text-sm font-semibold text-slate-800 mb-3 pb-2 border-b border-slate-100">Record Other Income</h2>
+                    <h2 class="text-sm font-semibold text-slate-800 mb-3 pb-2 border-b border-slate-100">{{ __('messages.record_other_income') }}</h2>
 
                     <form action="{{ route('supervisor.revenue_expense.store_income') }}" method="POST">
                         @csrf
                         <div class="mb-3">
-                            <label class="block text-xs font-medium text-slate-700 mb-1">Apartment *</label>
+                            <label class="block text-xs font-medium text-slate-700 mb-1">{{ __('messages.apartment') }} *</label>
                             <select name="rental_id" id="rental_id" required class="w-full px-3 py-2 text-sm border rounded-lg focus:ring-green-500 focus:border-green-500">
                                 <option value="">-- Select apartment --</option>
                                 @foreach($apartments as $apartment)
@@ -963,45 +963,45 @@
 
                         <div class="grid grid-cols-2 md:grid-cols-3 gap-3">
                             <div>
-                                <label class="block text-xs font-medium text-slate-700 mb-1">Type *</label>
+                                <label class="block text-xs font-medium text-slate-700 mb-1">{{ __('messages.type') }} *</label>
                                 <select name="payment_type" id="payment_type" required class="w-full px-3 py-2 text-sm border rounded-lg focus:ring-green-500 focus:border-green-500">
-                                    <option value="rent">Rent</option>
-                                    <option value="utilities">Utilities</option>
-                                    <option value="deposit">Deposit</option>
-                                    <option value="other">Other</option>
+                                    <option value="rent">{{ __('messages.rent') }}</option>
+                                    <option value="utilities">{{ __('messages.utilities') }}</option>
+                                    <option value="deposit">{{ __('messages.deposit') }}</option>
+                                    <option value="other">{{ __('messages.type_other') }}</option>
                                 </select>
                             </div>
                             <div>
-                                <label class="block text-xs font-medium text-slate-700 mb-1">Amount ($) *</label>
+                                <label class="block text-xs font-medium text-slate-700 mb-1">{{ __('messages.amount_dollar') }} *</label>
                                 <input type="number" name="amount" id="amount" step="0.01" min="0.01" required value="{{ old('amount') }}" placeholder="0.00"
                                     class="w-full px-3 py-2 text-sm border rounded-lg focus:ring-green-500 focus:border-green-500">
                             </div>
                             <div>
-                                <label class="block text-xs font-medium text-slate-700 mb-1">Method *</label>
+                                <label class="block text-xs font-medium text-slate-700 mb-1">{{ __('messages.method') }} *</label>
                                 <select name="payment_method" required class="w-full px-3 py-2 text-sm border rounded-lg focus:ring-green-500 focus:border-green-500">
-                                    <option value="cash">Cash</option>
-                                    <option value="bank">Bank Transfer</option>
+                                    <option value="cash">{{ __('messages.cash') }}</option>
+                                    <option value="bank">{{ __('messages.bank_transfer') }}</option>
                                 </select>
                             </div>
                             <div>
-                                <label class="block text-xs font-medium text-slate-700 mb-1">Date *</label>
+                                <label class="block text-xs font-medium text-slate-700 mb-1">{{ __('messages.date') }} *</label>
                                 <input type="date" name="transaction_date" required value="{{ old('transaction_date', date('Y-m-d')) }}" class="w-full px-3 py-2 text-sm border rounded-lg focus:ring-green-500 focus:border-green-500 bg-white appearance-none h-10">
                             </div>
                             <div>
-                                <label class="block text-xs font-medium text-slate-700 mb-1">Late Fee ($)</label>
+                                <label class="block text-xs font-medium text-slate-700 mb-1">{{ __('messages.late_fee_dollar') }}</label>
                                 <input type="number" name="late_fee" step="0.01" min="0" value="{{ old('late_fee', '0') }}" class="w-full px-3 py-2 text-sm border rounded-lg focus:ring-green-500 focus:border-green-500">
                             </div>
                             <div>
-                                <label class="block text-xs font-medium text-slate-700 mb-1">Reference</label>
+                                <label class="block text-xs font-medium text-slate-700 mb-1">{{ __('messages.reference') }}</label>
                                 <input type="text" name="transaction_reference" value="{{ old('transaction_reference') }}" placeholder="TXN-001234"
                                     class="w-full px-3 py-2 text-sm border rounded-lg focus:ring-green-500 focus:border-green-500">
                             </div>
                         </div>
                         <div class="mt-3">
-                            <textarea name="note" rows="1" placeholder="Optional note..." class="w-full px-3 py-2 text-sm border rounded-lg focus:ring-green-500 focus:border-green-500">{{ old('note') }}</textarea>
+                            <textarea name="note" rows="1" placeholder="{{ __('messages.optional_note') }}" class="w-full px-3 py-2 text-sm border rounded-lg focus:ring-green-500 focus:border-green-500">{{ old('note') }}</textarea>
                         </div>
                         <div class="mt-3">
-                            <button type="submit" class="px-4 py-2 bg-green-600 text-white text-sm rounded-lg hover:bg-green-700 transition font-medium">Record Income</button>
+                            <button type="submit" class="px-4 py-2 bg-green-600 text-white text-sm rounded-lg hover:bg-green-700 transition font-medium">{{ __('messages.record_income') }}</button>
                         </div>
                     </form>
                 </div>
@@ -1018,7 +1018,7 @@
 
         {{-- Expense Summary --}}
         <div class="bg-white rounded-xl border border-slate-100 p-5 mb-4">
-            <p class="text-xs text-slate-400 font-medium">Total Utility Expenses (This Period)</p>
+            <p class="text-xs text-slate-400 font-medium">{{ __('messages.total_utility_expenses') }}</p>
             <p class="text-xl font-bold text-red-600 mt-1">${{ number_format($totalExpensesAmount, 2) }}</p>
         </div>
 
@@ -1028,18 +1028,18 @@
                 {{-- Expenses per Apartment Table --}}
                 @if(count($apartmentExpenses) > 0)
                 <div class="bg-white rounded-xl border border-slate-100 p-5">
-                    <h2 class="text-sm font-semibold text-slate-800 mb-3 pb-2 border-b border-slate-100">Expenses per Apartment</h2>
+                    <h2 class="text-sm font-semibold text-slate-800 mb-3 pb-2 border-b border-slate-100">{{ __('messages.expenses_per_apartment') }}</h2>
                     <div class="overflow-x-auto">
                         <table class="min-w-full text-sm">
                             <thead class="bg-slate-50/80">
                                 <tr>
-                                    <th class="px-3 py-2 text-left text-xs font-medium text-slate-400 uppercase">Apartment</th>
-                                    <th class="px-3 py-2 text-center text-xs font-medium text-slate-400 uppercase">Status</th>
+                                    <th class="px-3 py-2 text-left text-xs font-medium text-slate-400 uppercase">{{ __('messages.apartment') }}</th>
+                                    <th class="px-3 py-2 text-center text-xs font-medium text-slate-400 uppercase">{{ __('messages.status') }}</th>
                                     <th class="px-3 py-2 text-right text-xs font-medium text-slate-400 uppercase">⚡</th>
                                     <th class="px-3 py-2 text-right text-xs font-medium text-slate-400 uppercase">💧</th>
                                     <th class="px-3 py-2 text-right text-xs font-medium text-slate-400 uppercase">📡</th>
                                     <th class="px-3 py-2 text-right text-xs font-medium text-slate-400 uppercase">🚗</th>
-                                    <th class="px-3 py-2 text-right text-xs font-medium text-slate-400 uppercase">Total</th>
+                                    <th class="px-3 py-2 text-right text-xs font-medium text-slate-400 uppercase">{{ __('messages.total') }}</th>
                                 </tr>
                             </thead>
                             <tbody class="divide-y">
@@ -1051,7 +1051,7 @@
                                     </td>
                                     <td class="px-3 py-2 text-center">
                                         <span class="px-1.5 py-0.5 rounded-full text-xs font-medium {{ $aptExp['has_active_rental'] ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-400' }}">
-                                            {{ $aptExp['has_active_rental'] ? 'Occupied' : 'Vacant' }}
+                                            {{ $aptExp['has_active_rental'] ? __('messages.occupied') : __('messages.vacant') }}
                                         </span>
                                     </td>
                                     <td class="px-3 py-2 text-right {{ $aptExp['electricity'] > 0 ? 'font-semibold text-amber-600' : 'text-slate-300' }}">${{ number_format($aptExp['electricity'], 2) }}</td>
@@ -1064,7 +1064,7 @@
                             </tbody>
                             <tfoot class="bg-slate-50/80">
                                 <tr class="font-semibold">
-                                    <td class="px-3 py-2 text-slate-800" colspan="2">Grand Total</td>
+                                    <td class="px-3 py-2 text-slate-800" colspan="2">{{ __('messages.grand_total') }}</td>
                                     <td class="px-3 py-2 text-right text-amber-600">${{ number_format(collect($apartmentExpenses)->sum('electricity'), 2) }}</td>
                                     <td class="px-3 py-2 text-right text-sky-600">${{ number_format(collect($apartmentExpenses)->sum('water'), 2) }}</td>
                                     <td class="px-3 py-2 text-right text-purple-600">${{ number_format(collect($apartmentExpenses)->sum('internet'), 2) }}</td>
@@ -1079,13 +1079,13 @@
 
                 {{-- Record Expense Form --}}
                 <div class="bg-white rounded-xl border border-slate-100 p-5">
-                    <h2 class="text-sm font-semibold text-slate-800 mb-3 pb-2 border-b border-slate-100">Record Utility Expense</h2>
+                    <h2 class="text-sm font-semibold text-slate-800 mb-3 pb-2 border-b border-slate-100">{{ __('messages.record_utility_expense') }}</h2>
 
                     <form action="{{ route('supervisor.revenue_expense.store_expense') }}" method="POST">
                         @csrf
                         <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
                             <div class="col-span-2">
-                                <label class="block text-xs font-medium text-slate-700 mb-1">Apartment *</label>
+                                <label class="block text-xs font-medium text-slate-700 mb-1">{{ __('messages.apartment') }} *</label>
                                 <select name="rental_id" required class="w-full px-3 py-2 text-sm border rounded-lg focus:ring-red-500 focus:border-red-500">
                                     <option value="">-- Select --</option>
                                     @foreach($expenseApartments as $apartment)
@@ -1098,7 +1098,7 @@
                                 </select>
                             </div>
                             <div>
-                                <label class="block text-xs font-medium text-slate-700 mb-1">Type *</label>
+                                <label class="block text-xs font-medium text-slate-700 mb-1">{{ __('messages.type') }} *</label>
                                 <select name="utility_type" id="utility_type" required class="w-full px-3 py-2 text-sm border rounded-lg focus:ring-red-500 focus:border-red-500">
                                     <option value="">-- Select --</option>
                                     @foreach($utilityTypes as $key => $label)
@@ -1107,33 +1107,33 @@
                                 </select>
                             </div>
                             <div>
-                                <label class="block text-xs font-medium text-slate-700 mb-1">Amount ($) *</label>
+                                <label class="block text-xs font-medium text-slate-700 mb-1">{{ __('messages.amount_dollar') }} *</label>
                                 <input type="number" name="charge_amount" step="0.01" min="0.01" required value="{{ old('charge_amount') }}" placeholder="0.00"
                                     class="w-full px-3 py-2 text-sm border rounded-lg focus:ring-red-500 focus:border-red-500">
                             </div>
                             <div>
-                                <label class="block text-xs font-medium text-slate-700 mb-1">Date *</label>
+                                <label class="block text-xs font-medium text-slate-700 mb-1">{{ __('messages.date') }} *</label>
                                 <input type="date" name="transaction_date" required value="{{ old('transaction_date', date('Y-m-d')) }}"
                                     class="w-full px-3 py-2 text-sm border rounded-lg focus:ring-red-500 focus:border-red-500">
                             </div>
                             <div>
-                                <label class="block text-xs font-medium text-slate-700 mb-1">Meter In</label>
+                                <label class="block text-xs font-medium text-slate-700 mb-1">{{ __('messages.meter_in') }}</label>
                                 <input type="number" name="meter_reading_in" step="0.01" min="0" value="{{ old('meter_reading_in') }}" placeholder="0"
                                     class="w-full px-3 py-2 text-sm border rounded-lg focus:ring-red-500 focus:border-red-500">
                             </div>
                             <div>
-                                <label class="block text-xs font-medium text-slate-700 mb-1">Meter Out</label>
+                                <label class="block text-xs font-medium text-slate-700 mb-1">{{ __('messages.meter_out') }}</label>
                                 <input type="number" name="meter_reading_out" step="0.01" min="0" value="{{ old('meter_reading_out') }}" placeholder="0"
                                     class="w-full px-3 py-2 text-sm border rounded-lg focus:ring-red-500 focus:border-red-500">
                             </div>
                             <div>
-                                <label class="block text-xs font-medium text-slate-700 mb-1">Note</label>
-                                <input type="text" name="note" value="{{ old('note') }}" placeholder="Optional..."
+                                <label class="block text-xs font-medium text-slate-700 mb-1">{{ __('messages.note') }}</label>
+                                <input type="text" name="note" value="{{ old('note') }}" placeholder="{{ __('messages.optional_dots') }}"
                                     class="w-full px-3 py-2 text-sm border rounded-lg focus:ring-red-500 focus:border-red-500">
                             </div>
                         </div>
                         <div class="mt-3">
-                            <button type="submit" class="px-4 py-2 bg-red-600 text-white text-sm rounded-lg hover:bg-red-700 transition font-medium">Record Expense</button>
+                            <button type="submit" class="px-4 py-2 bg-red-600 text-white text-sm rounded-lg hover:bg-red-700 transition font-medium">{{ __('messages.record_expense') }}</button>
                         </div>
                     </form>
                 </div>
@@ -1163,7 +1163,7 @@
                             @php $r = $fa->rentals->first(); @endphp
                             <p class="text-xs text-slate-400">{{ $r->tenant->name ?? 'N/A' }} — ${{ number_format($r->rent_amount, 2) }}/mo</p>
                             @else
-                            <p class="text-xs text-slate-400 italic">No active tenant</p>
+                            <p class="text-xs text-slate-400 italic">{{ __('messages.no_active_tenant') }}</p>
                             @endif
                         </div>
                         <span class="px-2 py-0.5 rounded-full text-xs font-medium {{ $fa->status === 'occupied' ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-400' }}">
@@ -1175,11 +1175,11 @@
                     <table class="min-w-full text-sm">
                         <thead class="bg-slate-50/80">
                             <tr>
-                                <th class="px-2 py-1.5 text-left text-xs font-medium text-slate-400">Expense</th>
-                                <th class="px-2 py-1.5 text-left text-xs font-medium text-slate-400">Type</th>
-                                <th class="px-2 py-1.5 text-right text-xs font-medium text-slate-400">Amount</th>
-                                <th class="px-2 py-1.5 text-center text-xs font-medium text-slate-400">Status</th>
-                                <th class="px-2 py-1.5 text-center text-xs font-medium text-slate-400 w-16">Actions</th>
+                                <th class="px-2 py-1.5 text-left text-xs font-medium text-slate-400">{{ __('messages.expense') }}</th>
+                                <th class="px-2 py-1.5 text-left text-xs font-medium text-slate-400">{{ __('messages.type') }}</th>
+                                <th class="px-2 py-1.5 text-right text-xs font-medium text-slate-400">{{ __('messages.amount') }}</th>
+                                <th class="px-2 py-1.5 text-center text-xs font-medium text-slate-400">{{ __('messages.status') }}</th>
+                                <th class="px-2 py-1.5 text-center text-xs font-medium text-slate-400 w-16">{{ __('messages.actions') }}</th>
                             </tr>
                         </thead>
                         <tbody class="divide-y">
@@ -1193,14 +1193,14 @@
                                 <td class="px-2 py-1.5 text-right font-semibold text-red-600">${{ number_format($expense->amount, 2) }}</td>
                                 <td class="px-2 py-1.5 text-center">
                                     <span class="px-1.5 py-0.5 rounded-full text-xs font-medium {{ $expense->is_active ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-400' }}">
-                                        {{ $expense->is_active ? 'Active' : 'Off' }}
+                                        {{ $expense->is_active ? __('messages.active') : __('messages.off') }}
                                     </span>
                                 </td>
                                 <td class="px-2 py-1.5 text-center">
                                     <div class="flex justify-center gap-1">
                                         <form action="{{ route('supervisor.revenue_expense.toggle_fixed_expense', $expense) }}" method="POST" class="inline">
                                             @csrf @method('PATCH')
-                                            <button type="submit" class="p-1 rounded hover:bg-slate-100" title="{{ $expense->is_active ? 'Disable' : 'Enable' }}">
+                                            <button type="submit" class="p-1 rounded hover:bg-slate-100" title="{{ $expense->is_active ? __('messages.disable') : __('messages.enable') }}">
                                                 <svg class="w-3.5 h-3.5 {{ $expense->is_active ? 'text-amber-600' : 'text-emerald-600' }}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                     @if($expense->is_active)
                                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"/>
@@ -1210,7 +1210,7 @@
                                                 </svg>
                                             </button>
                                         </form>
-                                        <form action="{{ route('supervisor.revenue_expense.delete_fixed_expense', $expense) }}" method="POST" class="inline" onsubmit="return confirm('Remove?')">
+                                        <form action="{{ route('supervisor.revenue_expense.delete_fixed_expense', $expense) }}" method="POST" class="inline" onsubmit="return confirm('{{ __('messages.remove_q') }}')">
                                             @csrf @method('DELETE')
                                             <button type="submit" class="p-1 rounded hover:bg-red-50"><svg class="w-3.5 h-3.5 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg></button>
                                         </form>
@@ -1221,31 +1221,31 @@
                         </tbody>
                         <tfoot class="bg-slate-50/80">
                             <tr>
-                                <td class="px-2 py-1.5 font-semibold text-slate-800" colspan="2">Monthly Total</td>
+                                <td class="px-2 py-1.5 font-semibold text-slate-800" colspan="2">{{ __('messages.monthly_total') }}</td>
                                 <td class="px-2 py-1.5 text-right font-bold text-red-600">${{ number_format($fa->fixedExpenses->where('is_active', true)->sum('amount'), 2) }}</td>
                                 <td colspan="2"></td>
                             </tr>
                         </tfoot>
                     </table>
                     @else
-                    <p class="text-center py-2 text-slate-400 text-xs">No apartment costs assigned</p>
+                    <p class="text-center py-2 text-slate-400 text-xs">{{ __('messages.no_apt_costs_assigned_short') }}</p>
                     @endif
                 </div>
                 @empty
-                <div class="bg-white rounded-xl border border-slate-100 p-8 text-center text-slate-400 text-sm">No apartments found.</div>
+                <div class="bg-white rounded-xl border border-slate-100 p-8 text-center text-slate-400 text-sm">{{ __('messages.no_apartments_found') }}</div>
                 @endforelse
             </div>
 
             {{-- Add Apartment Cost Form --}}
             <div class="lg:col-span-1">
                 <div class="bg-white rounded-xl border border-slate-100 p-5 sticky top-8">
-                    <h3 class="text-sm font-semibold text-slate-800 mb-3 pb-2 border-b border-slate-100">Add Apartment Cost</h3>
+                    <h3 class="text-sm font-semibold text-slate-800 mb-3 pb-2 border-b border-slate-100">{{ __('messages.add_apartment_cost') }}</h3>
 
                     <form action="{{ route('supervisor.revenue_expense.store_fixed_expense') }}" method="POST">
                         @csrf
                         <div class="space-y-3">
                             <div>
-                                <label class="block text-xs font-medium text-slate-700 mb-1">Apartment *</label>
+                                <label class="block text-xs font-medium text-slate-700 mb-1">{{ __('messages.apartment') }} *</label>
                                 <select name="apartment_id" required class="w-full px-3 py-2 text-sm border rounded-lg focus:ring-red-500 focus:border-red-500">
                                     <option value="">-- Select --</option>
                                     @foreach($fixedApartments as $fa)
@@ -1254,7 +1254,7 @@
                                 </select>
                             </div>
                             <div>
-                                <label class="block text-xs font-medium text-slate-700 mb-1">Type *</label>
+                                <label class="block text-xs font-medium text-slate-700 mb-1">{{ __('messages.type') }} *</label>
                                 <select name="expense_type" id="expense_type" required class="w-full px-3 py-2 text-sm border rounded-lg focus:ring-red-500 focus:border-red-500">
                                     <option value="">-- Select --</option>
                                     <option value="parking" {{ old('expense_type') == 'parking' ? 'selected' : '' }}>🚗 Parking</option>
@@ -1264,17 +1264,17 @@
                                 </select>
                             </div>
                             <div>
-                                <label class="block text-xs font-medium text-slate-700 mb-1">Name *</label>
-                                <input type="text" name="expense_name" id="expense_name" required value="{{ old('expense_name') }}" placeholder="e.g. Parking A1"
+                                <label class="block text-xs font-medium text-slate-700 mb-1">{{ __('messages.name') }} *</label>
+                                <input type="text" name="expense_name" id="expense_name" required value="{{ old('expense_name') }}" placeholder="{{ __('messages.eg_parking_a1') }}"
                                     class="w-full px-3 py-2 text-sm border rounded-lg focus:ring-red-500 focus:border-red-500">
                             </div>
                             <div>
-                                <label class="block text-xs font-medium text-slate-700 mb-1">Monthly Amount ($) *</label>
+                                <label class="block text-xs font-medium text-slate-700 mb-1">{{ __('messages.monthly_amount') }} *</label>
                                 <input type="number" name="amount" step="0.01" min="0.01" required value="{{ old('amount') }}" placeholder="0.00"
                                     class="w-full px-3 py-2 text-sm border rounded-lg focus:ring-red-500 focus:border-red-500">
                             </div>
                             <div>
-                                <label class="block text-xs font-medium text-slate-700 mb-1">Note</label>
+                                <label class="block text-xs font-medium text-slate-700 mb-1">{{ __('messages.note') }}</label>
                                 <textarea name="note" rows="2" class="w-full px-3 py-2 text-sm border rounded-lg focus:ring-red-500 focus:border-red-500">{{ old('note') }}</textarea>
                             </div>
                             <button type="submit" class="w-full px-4 py-2 bg-red-600 text-white text-sm rounded-lg hover:bg-red-700 transition font-medium">
@@ -1299,17 +1299,17 @@
             <div class="bg-white rounded-xl border border-slate-100 p-4 mb-4 flex items-center justify-between">
                 <div class="flex items-center gap-4">
                     <div>
-                        <label class="block text-xs font-medium text-slate-700 mb-1">Billing Date</label>
+                        <label class="block text-xs font-medium text-slate-700 mb-1">{{ __('messages.billing_date') }}</label>
                         <input type="date" name="billing_date" required value="{{ date('Y-m-d') }}" class="px-3 py-1.5 text-sm border rounded-lg focus:ring-sky-500 focus:border-sky-500 bg-white appearance-none h-10">
                     </div>
                     <div class="text-center">
-                        <p class="text-xs text-slate-400">Total Monthly</p>
+                        <p class="text-xs text-slate-400">{{ __('messages.total_monthly') }}</p>
                         <p class="text-xl font-bold text-red-600">${{ number_format($totalMonthlyExpenses, 2) }}</p>
                     </div>
                 </div>
                 <label class="flex items-center gap-2 cursor-pointer">
                     <input type="checkbox" id="selectAllBills" class="w-4 h-4 text-sky-600 rounded" checked>
-                    <span class="text-xs font-medium text-slate-700">Select All</span>
+                    <span class="text-xs font-medium text-slate-700">{{ __('messages.select_all') }}</span>
                 </label>
             </div>
 
@@ -1361,14 +1361,14 @@
                         </div>
                     </div>
                     @else
-                    <p class="p-3 text-xs text-slate-400 text-center">No apartment costs assigned</p>
+                    <p class="p-3 text-xs text-slate-400 text-center">{{ __('messages.no_apt_costs_assigned_short') }}</p>
                     @endif
                 </div>
                 @endforeach
             </div>
 
             <div class="flex items-center justify-between bg-white rounded-xl border border-slate-100 p-4">
-                <p class="text-xs text-slate-400">Only unbilled expenses will be generated</p>
+                <p class="text-xs text-slate-400">{{ __('messages.only_unbilled_short') }}</p>
                 <button type="submit" class="px-5 py-2 bg-slate-800 text-white text-sm rounded-lg hover:bg-slate-700 transition font-medium">
                     Generate Monthly Expenses
                 </button>
@@ -1376,8 +1376,8 @@
         </form>
         @else
         <div class="bg-white rounded-xl border border-slate-100 p-8 text-center">
-            <p class="text-slate-400 text-sm mb-2">No active rentals with apartment costs found.</p>
-            <button @click="tab = 'fixed'" class="text-sky-600 text-sm hover:underline">Set up apartment costs first</button>
+            <p class="text-slate-400 text-sm mb-2">{{ __('messages.no_active_rentals_costs') }}</p>
+            <button @click="tab = 'fixed'" class="text-sky-600 text-sm hover:underline">{{ __('messages.setup_costs_first') }}</button>
         </div>
         @endif
     </div>
@@ -1390,19 +1390,19 @@
         {{-- Key Metrics --}}
         <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
             <div class="bg-white rounded-xl border border-slate-100 p-5">
-                <p class="text-xs text-slate-400 font-medium">Total Apartments</p>
+                <p class="text-xs text-slate-400 font-medium">{{ __('messages.total_apartments') }}</p>
                 <p class="text-xl font-bold text-sky-600 mt-1">{{ $total_apartments }}</p>
             </div>
             <div class="bg-white rounded-xl border border-slate-100 p-5">
-                <p class="text-xs text-slate-400 font-medium">Avg. Rent/Unit</p>
+                <p class="text-xs text-slate-400 font-medium">{{ __('messages.avg_rent_unit') }}</p>
                 <p class="text-xl font-bold text-emerald-600 mt-1">${{ number_format($avg_rent_per_apartment, 2) }}</p>
             </div>
             <div class="bg-white rounded-xl border border-slate-100 p-5">
-                <p class="text-xs text-slate-400 font-medium">Occupancy</p>
+                <p class="text-xs text-slate-400 font-medium">{{ __('messages.occupancy') }}</p>
                 <p class="text-xl font-bold text-purple-600 mt-1">{{ $current_occupancy }}/{{ $total_apartments }}</p>
             </div>
             <div class="bg-white rounded-xl border border-slate-100 p-5">
-                <p class="text-xs text-slate-400 font-medium">Status</p>
+                <p class="text-xs text-slate-400 font-medium">{{ __('messages.status') }}</p>
                 <p class="text-lg font-bold mt-1 {{ $is_above_break_even ? 'text-emerald-600' : 'text-red-600' }}">
                     {{ $is_above_break_even ? '✓ ABOVE' : '✗ BELOW' }} Break-Even
                 </p>
@@ -1412,26 +1412,26 @@
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
             {{-- Break-Even Calculation --}}
             <div class="bg-white rounded-xl border border-slate-100 p-5">
-                <h2 class="text-sm font-semibold text-slate-800 mb-4 pb-2 border-b border-slate-100">Break-Even Calculation</h2>
+                <h2 class="text-sm font-semibold text-slate-800 mb-4 pb-2 border-b border-slate-100">{{ __('messages.break_even_calc') }}</h2>
                 <div class="space-y-3">
                     <div class="bg-slate-50 p-3 rounded-lg flex justify-between items-center">
-                        <div><p class="text-sm font-medium text-slate-700">Business Expenses</p><p class="text-xs text-slate-400">This month's recurring business costs</p></div>
+                        <div><p class="text-sm font-medium text-slate-700">{{ __('messages.business_expenses') }}</p><p class="text-xs text-slate-400">{{ __('messages.recurring_business_costs') }}</p></div>
                         <span class="text-lg font-bold text-slate-800">${{ number_format($business_expenses, 2) }}</span>
                     </div>
                     <div class="bg-slate-50 p-3 rounded-lg flex justify-between items-center">
-                        <div><p class="text-sm font-medium text-slate-700">Per-Unit Cost</p><p class="text-xs text-slate-400">Electricity, water, parking</p></div>
+                        <div><p class="text-sm font-medium text-slate-700">{{ __('messages.per_unit_cost') }}</p><p class="text-xs text-slate-400">{{ __('messages.elec_water_parking') }}</p></div>
                         <span class="text-lg font-bold text-slate-800">${{ number_format($variable_cost_per_unit, 2) }}</span>
                     </div>
                     <div class="bg-sky-50 border border-sky-200 p-3 rounded-lg flex justify-between items-center">
-                        <div><p class="text-sm font-medium text-slate-700">Contribution Margin/Unit</p><p class="text-xs text-slate-400">${{ number_format($avg_rent_per_apartment, 2) }} - ${{ number_format($variable_cost_per_unit, 2) }}</p></div>
+                        <div><p class="text-sm font-medium text-slate-700">{{ __('messages.contribution_margin') }}</p><p class="text-xs text-slate-400">${{ number_format($avg_rent_per_apartment, 2) }} - ${{ number_format($variable_cost_per_unit, 2) }}</p></div>
                         <span class="text-lg font-bold text-sky-600">${{ number_format($contribution_margin_per_unit, 2) }}</span>
                     </div>
                     <div class="bg-amber-50 border border-amber-200 p-3 rounded-lg flex justify-between items-center">
-                        <p class="text-sm font-medium text-slate-700">Break-Even Units</p>
+                        <p class="text-sm font-medium text-slate-700">{{ __('messages.break_even_units_label') }}</p>
                         <span class="text-lg font-bold text-amber-700">{{ $break_even_units }} units</span>
                     </div>
                     <div class="bg-amber-50 border border-amber-200 p-3 rounded-lg flex justify-between items-center">
-                        <p class="text-sm font-medium text-slate-700">Break-Even Revenue</p>
+                        <p class="text-sm font-medium text-slate-700">{{ __('messages.break_even_revenue') }}</p>
                         <span class="text-lg font-bold text-amber-700">${{ number_format($break_even_revenue, 2) }}</span>
                     </div>
                 </div>
@@ -1439,23 +1439,23 @@
 
             {{-- Current Performance --}}
             <div class="bg-white rounded-xl border border-slate-100 p-5">
-                <h2 class="text-sm font-semibold text-slate-800 mb-4 pb-2 border-b border-slate-100">Current Performance</h2>
+                <h2 class="text-sm font-semibold text-slate-800 mb-4 pb-2 border-b border-slate-100">{{ __('messages.current_performance') }}</h2>
                 <div class="space-y-3">
                     <div class="bg-emerald-50 p-3 rounded-lg flex justify-between items-center">
-                        <div><p class="text-sm font-medium text-slate-700">Current Monthly Revenue</p><p class="text-xs text-slate-400">{{ $current_occupancy }} units × ${{ number_format($avg_rent_per_apartment, 2) }}</p></div>
+                        <div><p class="text-sm font-medium text-slate-700">{{ __('messages.current_monthly_revenue') }}</p><p class="text-xs text-slate-400">{{ $current_occupancy }} units × ${{ number_format($avg_rent_per_apartment, 2) }}</p></div>
                         <span class="text-lg font-bold text-emerald-600">${{ number_format($current_revenue, 2) }}</span>
                     </div>
                     <div class="bg-emerald-50 border border-emerald-200 p-3 rounded-lg flex justify-between items-center">
-                        <div><p class="text-sm font-medium text-slate-700">Safety Margin ($)</p><p class="text-xs text-slate-400">Cushion above break-even</p></div>
+                        <div><p class="text-sm font-medium text-slate-700">{{ __('messages.safety_margin_dollar') }}</p><p class="text-xs text-slate-400">{{ __('messages.cushion_above') }}</p></div>
                         <span class="text-lg font-bold text-emerald-600">${{ number_format($safety_margin, 2) }}</span>
                     </div>
                     <div class="bg-emerald-50 border border-emerald-200 p-3 rounded-lg flex justify-between items-center">
-                        <p class="text-sm font-medium text-slate-700">Safety Margin (%)</p>
+                        <p class="text-sm font-medium text-slate-700">{{ __('messages.safety_margin_pct') }}</p>
                         <span class="text-lg font-bold text-emerald-600">{{ $safety_margin_percent }}%</span>
                     </div>
                     <div class="bg-sky-50 border border-sky-200 p-3 rounded-lg">
                         <div class="flex justify-between items-center mb-2">
-                            <p class="text-sm font-medium text-slate-700">Occupancy Rate</p>
+                            <p class="text-sm font-medium text-slate-700">{{ __('messages.occupancy_rate') }}</p>
                             <span class="text-lg font-bold text-sky-600">{{ $total_apartments > 0 ? round(($current_occupancy / $total_apartments) * 100, 1) : 0 }}%</span>
                         </div>
                         <div class="w-full bg-slate-200 rounded-full h-2">
@@ -1468,14 +1468,14 @@
 
         {{-- Revenue vs Break-Even Comparison --}}
         <div class="bg-white rounded-xl border border-slate-100 p-5 mt-4">
-            <h2 class="text-sm font-semibold text-slate-800 mb-4 pb-2 border-b border-slate-100">Revenue vs. Break-Even</h2>
+            <h2 class="text-sm font-semibold text-slate-800 mb-4 pb-2 border-b border-slate-100">{{ __('messages.revenue_vs_breakeven') }}</h2>
             @php
                 $maxVal = max($current_revenue, $break_even_revenue, 1);
             @endphp
             <div class="space-y-4">
                 <div>
                     <div class="flex justify-between text-sm mb-1">
-                        <span class="text-slate-500">Break-Even Required</span>
+                        <span class="text-slate-500">{{ __('messages.break_even_required') }}</span>
                         <span class="font-bold">${{ number_format($break_even_revenue, 2) }}</span>
                     </div>
                     <div class="w-full bg-slate-200 rounded h-6">
@@ -1486,7 +1486,7 @@
                 </div>
                 <div>
                     <div class="flex justify-between text-sm mb-1">
-                        <span class="text-slate-500">Current Revenue</span>
+                        <span class="text-slate-500">{{ __('messages.current_revenue') }}</span>
                         <span class="font-bold">${{ number_format($current_revenue, 2) }}</span>
                     </div>
                     <div class="w-full bg-slate-200 rounded h-6">
@@ -1509,12 +1509,12 @@ function revenueExpense() {
         tab: validTabs.includes(hash) ? hash : 'overview',
         subtab: 'apartments',
         tabs: [
-            { key: 'overview', label: 'Overview' },
-            { key: 'income', label: 'Income' },
-            { key: 'expense', label: 'Expenses' },
-            { key: 'fixed', label: 'Apartment Costs' },
-            { key: 'bills', label: 'Bills' },
-            { key: 'breakeven', label: 'Break-Even' },
+            { key: 'overview', label: '{{ __('messages.overview') }}' },
+            { key: 'income', label: '{{ __('messages.income') }}' },
+            { key: 'expense', label: '{{ __('messages.expenses_word') }}' },
+            { key: 'fixed', label: '{{ __('messages.apartment_costs') }}' },
+            { key: 'bills', label: '{{ __('messages.bills') }}' },
+            { key: 'breakeven', label: '{{ __('messages.break_even') }}' },
         ],
         init() {
             this.$watch('tab', (val) => { window.location.hash = val; });
@@ -1601,7 +1601,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const expName = document.getElementById('expense_name');
     if (expType && expName) {
         expType.addEventListener('change', function() {
-            const names = { parking: 'Parking', internet: 'Internet', trash: 'Trash Collection', other: '' };
+            const names = { parking: '{{ __('messages.type_parking') }}', internet: '{{ __('messages.type_internet') }}', trash: '{{ __('messages.trash_collection') }}', other: '' };
             if (!expName.value || Object.values(names).includes(expName.value)) {
                 expName.value = names[this.value] || '';
             }
@@ -1616,15 +1616,15 @@ var expenseChartObj = null;
 // Data injected directly from PHP — no DOM scraping needed
 var incomeData = {
     labels: [
-        @if(($income['rent_income'] ?? 0) > 0) 'Rent', @endif
-        @if(($income['utility_breakdown']['electricity'] ?? 0) > 0) 'Electricity', @endif
-        @if(($income['utility_breakdown']['water'] ?? 0) > 0) 'Water', @endif
-        @if(($income['other_income_breakdown']['internet'] ?? 0) > 0) 'Internet', @endif
-        @if(($income['other_income_breakdown']['parking'] ?? 0) > 0) 'Parking', @endif
-        @if(($income['other_income_breakdown']['trash'] ?? 0) > 0) 'Trash', @endif
-        @if(($income['other_income_breakdown']['other'] ?? 0) > 0) 'Other', @endif
-        @if(($income['deposit_income'] ?? 0) > 0) 'Deposits', @endif
-        @if(($income['late_fees'] ?? 0) > 0) 'Late Fees', @endif
+        @if(($income['rent_income'] ?? 0) > 0) '{{ __('messages.rent') }}', @endif
+        @if(($income['utility_breakdown']['electricity'] ?? 0) > 0) '{{ __('messages.electric') }}', @endif
+        @if(($income['utility_breakdown']['water'] ?? 0) > 0) '{{ __('messages.water') }}', @endif
+        @if(($income['other_income_breakdown']['internet'] ?? 0) > 0) '{{ __('messages.type_internet') }}', @endif
+        @if(($income['other_income_breakdown']['parking'] ?? 0) > 0) '{{ __('messages.type_parking') }}', @endif
+        @if(($income['other_income_breakdown']['trash'] ?? 0) > 0) '{{ __('messages.type_trash') }}', @endif
+        @if(($income['other_income_breakdown']['other'] ?? 0) > 0) '{{ __('messages.type_other') }}', @endif
+        @if(($income['deposit_income'] ?? 0) > 0) '{{ __('messages.deposits') }}', @endif
+        @if(($income['late_fees'] ?? 0) > 0) '{{ __('messages.late_fees') }}', @endif
     ],
     values: [
         @if(($income['rent_income'] ?? 0) > 0) {{ $income['rent_income'] }}, @endif
@@ -1642,10 +1642,10 @@ var incomeData = {
 @php $businessExpensesTotal = ($expenses['fixed_expenses'] ?? 0) + ($expenses['variable_expenses'] ?? 0); @endphp
 var expenseData = {
     labels: [
-        @if($businessExpensesTotal > 0) 'Business', @endif
-        @if(($expenses['utility_expenses'] ?? 0) > 0) 'Utilities', @endif
-        @if(($expenses['deposit_expenses'] ?? 0) > 0) 'Deposit Refunds', @endif
-        @if(($expenses['other_expenses'] ?? 0) > 0) 'Other', @endif
+        @if($businessExpensesTotal > 0) '{{ __('messages.business_word') }}', @endif
+        @if(($expenses['utility_expenses'] ?? 0) > 0) '{{ __('messages.utilities') }}', @endif
+        @if(($expenses['deposit_expenses'] ?? 0) > 0) '{{ __('messages.deposit_refunds') }}', @endif
+        @if(($expenses['other_expenses'] ?? 0) > 0) '{{ __('messages.type_other') }}', @endif
     ],
     values: [
         @if($businessExpensesTotal > 0) {{ $businessExpensesTotal }}, @endif

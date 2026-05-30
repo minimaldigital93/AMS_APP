@@ -4,8 +4,8 @@
     <div class="bg-white rounded-2xl shadow-xl max-w-lg w-full my-8">
         <div class="px-6 py-4 border-b border-slate-100 flex justify-between items-center rounded-t-2xl">
             <div>
-                <h3 id="modalTitle" class="text-base font-semibold text-slate-800">Assign Tenant to <span id="apartmentNumberDisplay"></span></h3>
-                <p class="text-slate-400 text-xs mt-0.5">Fill in tenant details below</p>
+                <h3 id="modalTitle" class="text-base font-semibold text-slate-800">{{ __('messages.assign_tenant_to') }} <span id="apartmentNumberDisplay"></span></h3>
+                <p class="text-slate-400 text-xs mt-0.5">{{ __('messages.fill_tenant_details') }}</p>
             </div>
             <button type="button" class="close-modal text-slate-300 hover:text-slate-500 p-1 transition">
                 <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
@@ -34,7 +34,7 @@
             <!-- Existing Tenant Tab -->
             <div id="existingTenantContent" class="tab-content space-y-4 hidden">
                 <div>
-                    <label for="tenant_id" class="block text-xs font-medium text-slate-500 mb-1.5 uppercase tracking-wide">Select Tenant</label>
+                    <label for="tenant_id" class="block text-xs font-medium text-slate-500 mb-1.5 uppercase tracking-wide">{{ __('messages.select_tenant') }}</label>
                     <select id="tenant_id" name="tenant_id" class="w-full px-3.5 py-2 text-sm border border-slate-200 rounded-lg bg-slate-50/50 focus:outline-none focus:ring-2 focus:ring-slate-300 focus:border-slate-300 transition">
                         <option value="">-- Choose an unassigned tenant --</option>
                         @foreach(($availableTenants ?? collect()) as $tenant)
@@ -42,7 +42,7 @@
                         @endforeach
                     </select>
                     @if(($availableTenants ?? collect())->isEmpty())
-                        <p class="text-xs text-amber-600 mt-1.5">No unassigned tenants available. Create a new tenant instead.</p>
+                        <p class="text-xs text-amber-600 mt-1.5">{{ __('messages.no_unassigned_tenants') }}</p>
                     @endif
                 </div>
             </div>
@@ -51,51 +51,51 @@
             <div id="newTenantContent" class="tab-content space-y-5">
                 <!-- Personal Information -->
                 <div class="space-y-3">
-                    <h4 class="text-xs font-medium text-slate-500 uppercase tracking-wide">Personal Information</h4>
+                    <h4 class="text-xs font-medium text-slate-500 uppercase tracking-wide">{{ __('messages.personal_information') }}</h4>
                     <div class="grid grid-cols-2 gap-3">
                         <div class="col-span-2">
-                            <label for="name" class="block text-xs font-medium text-slate-500 mb-1 uppercase tracking-wide">Full Name <span class="text-red-400">*</span></label>
+                            <label for="name" class="block text-xs font-medium text-slate-500 mb-1 uppercase tracking-wide">{{ __('messages.full_name') }} <span class="text-red-400">*</span></label>
                             <input type="text" id="name" name="name" required class="w-full px-3.5 py-2 text-sm border border-slate-200 rounded-lg bg-slate-50/50 placeholder-slate-300 focus:outline-none focus:ring-2 focus:ring-slate-300 focus:border-slate-300 transition">
                         </div>
                         <div>
-                            <label for="email" class="block text-xs font-medium text-slate-500 mb-1 uppercase tracking-wide">Email</label>
+                            <label for="email" class="block text-xs font-medium text-slate-500 mb-1 uppercase tracking-wide">{{ __('messages.email') }}</label>
                             <input type="email" id="email" name="email" class="w-full px-3.5 py-2 text-sm border border-slate-200 rounded-lg bg-slate-50/50 placeholder-slate-300 focus:outline-none focus:ring-2 focus:ring-slate-300 focus:border-slate-300 transition">
                         </div>
                         <div>
-                            <label for="phone" class="block text-xs font-medium text-slate-500 mb-1 uppercase tracking-wide">Phone <span class="text-red-400">*</span></label>
+                            <label for="phone" class="block text-xs font-medium text-slate-500 mb-1 uppercase tracking-wide">{{ __('messages.phone') }} <span class="text-red-400">*</span></label>
                             <input type="tel" id="phone" name="phone" required class="w-full px-3.5 py-2 text-sm border border-slate-200 rounded-lg bg-slate-50/50 placeholder-slate-300 focus:outline-none focus:ring-2 focus:ring-slate-300 focus:border-slate-300 transition">
                         </div>
                         <div class="col-span-2">
-                            <label for="address" class="block text-xs font-medium text-slate-500 mb-1 uppercase tracking-wide">Address</label>
+                            <label for="address" class="block text-xs font-medium text-slate-500 mb-1 uppercase tracking-wide">{{ __('messages.address') }}</label>
                             <input type="text" id="address" name="address" class="w-full px-3.5 py-2 text-sm border border-slate-200 rounded-lg bg-slate-50/50 placeholder-slate-300 focus:outline-none focus:ring-2 focus:ring-slate-300 focus:border-slate-300 transition">
                         </div>
                         <div class="col-span-2">
-                            <label for="date_of_birth" class="block text-xs font-medium text-slate-500 mb-1 uppercase tracking-wide">Date of Birth</label>
+                            <label for="date_of_birth" class="block text-xs font-medium text-slate-500 mb-1 uppercase tracking-wide">{{ __('messages.date_of_birth') }}</label>
                             <input type="date" id="date_of_birth" name="date_of_birth" class="w-full px-3.5 py-2 text-sm border border-slate-200 rounded-lg bg-slate-50/50 text-slate-600 focus:outline-none focus:ring-2 focus:ring-slate-300 focus:border-slate-300 transition bg-white appearance-none h-10">
                         </div>
                         <div class="col-span-2">
-                            <label for="attached_photo" class="block text-xs font-medium text-slate-500 mb-1 uppercase tracking-wide">Attached Photo</label>
+                            <label for="attached_photo" class="block text-xs font-medium text-slate-500 mb-1 uppercase tracking-wide">{{ __('messages.attached_photo') }}</label>
                             <input type="file" id="attached_photo" name="attached_photo" accept="image/*,.pdf" class="w-full px-3.5 py-2 text-sm border border-slate-200 rounded-lg bg-slate-50/50 text-slate-600 focus:outline-none focus:ring-2 focus:ring-slate-300 transition file:mr-3 file:py-1 file:px-3 file:rounded-md file:border-0 file:text-xs file:font-medium file:bg-slate-100 file:text-slate-600">
-                            <p class="text-[11px] text-slate-400 mt-1">JPG, PNG, GIF, PDF</p>
+                            <p class="text-[11px] text-slate-400 mt-1">{{ __('messages.file_types_1') }}</p>
                         </div>
                         <div class="col-span-2">
-                            <label for="id_pdf" class="block text-xs font-medium text-slate-500 mb-1 uppercase tracking-wide">Attached ID PDF</label>
+                            <label for="id_pdf" class="block text-xs font-medium text-slate-500 mb-1 uppercase tracking-wide">{{ __('messages.attached_id_pdf') }}</label>
                             <input type="file" id="id_pdf" name="id_pdf" accept=".pdf,image/*" class="w-full px-3.5 py-2 text-sm border border-slate-200 rounded-lg bg-slate-50/50 text-slate-600 focus:outline-none focus:ring-2 focus:ring-slate-300 transition file:mr-3 file:py-1 file:px-3 file:rounded-md file:border-0 file:text-xs file:font-medium file:bg-slate-100 file:text-slate-600">
-                            <p class="text-[11px] text-slate-400 mt-1">PDF, JPG, PNG, GIF</p>
+                            <p class="text-[11px] text-slate-400 mt-1">{{ __('messages.file_types_2') }}</p>
                         </div>
                     </div>
                 </div>
 
                 <!-- Rent Information -->
                 <div class="space-y-3 pt-4 border-t border-slate-100">
-                    <h4 class="text-xs font-medium text-slate-500 uppercase tracking-wide">Rent Information</h4>
+                    <h4 class="text-xs font-medium text-slate-500 uppercase tracking-wide">{{ __('messages.rent_information') }}</h4>
                     <div class="grid grid-cols-2 gap-3">
                         <div>
-                            <label for="move_in_date" class="block text-xs font-medium text-slate-500 mb-1 uppercase tracking-wide">Move In Date <span class="text-red-400">*</span></label>
+                            <label for="move_in_date" class="block text-xs font-medium text-slate-500 mb-1 uppercase tracking-wide">{{ __('messages.move_in_date') }} <span class="text-red-400">*</span></label>
                             <input type="date" id="move_in_date" name="move_in_date" required class="w-full px-3.5 py-2 text-sm border border-slate-200 rounded-lg bg-slate-50/50 text-slate-600 focus:outline-none focus:ring-2 focus:ring-slate-300 focus:border-slate-300 transition bg-white appearance-none h-10">
                         </div>
                         <div>
-                            <label for="deposit" class="block text-xs font-medium text-slate-500 mb-1 uppercase tracking-wide">Deposit <span class="text-red-400">*</span></label>
+                            <label for="deposit" class="block text-xs font-medium text-slate-500 mb-1 uppercase tracking-wide">{{ __('messages.deposit') }} <span class="text-red-400">*</span></label>
                             <input type="number" id="deposit" name="deposit" min="0" step="0.01" required class="w-full px-3.5 py-2 text-sm border border-slate-200 rounded-lg bg-slate-50/50 placeholder-slate-300 focus:outline-none focus:ring-2 focus:ring-slate-300 focus:border-slate-300 transition" placeholder="0.00">
                         </div>
                     </div>

@@ -3,7 +3,7 @@
 @section('content')
 <div class="container mx-auto py-8 max-w-4xl">
     <div class="flex items-center justify-between mb-6">
-        <h1 class="text-2xl font-bold">Fiscal Periods</h1>
+        <h1 class="text-2xl font-bold">{{ __('messages.fiscal_periods') }}</h1>
         <a href="{{ route('admin.fiscalperiod.create') }}" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 text-sm font-semibold">
             + New Period
         </a>
@@ -34,7 +34,7 @@
                             </p>
                         </div>
                         <div class="text-right">
-                            <p class="text-sm text-gray-500">Balance</p>
+                            <p class="text-sm text-gray-500">{{ __('messages.balance') }}</p>
                             <p class="text-lg font-bold">${{ number_format($period->opening_balance, 2) }}</p>
                             @if($period->status === 'closed' && $period->closing_balance != 0)
                                 <p class="text-xs {{ $period->closing_balance >= $period->opening_balance ? 'text-green-600' : 'text-red-600' }}">
@@ -50,7 +50,7 @@
         <div class="mt-6">{{ $fiscalPeriods->links() }}</div>
     @else
         <div class="bg-white rounded-lg shadow p-8 text-center">
-            <p class="text-gray-500 mb-4">No fiscal periods yet. Create one to start tracking finances.</p>
+            <p class="text-gray-500 mb-4">{{ __('messages.no_fiscal_periods_yet') }}</p>
             <a href="{{ route('admin.fiscalperiod.create') }}" class="inline-block bg-blue-600 text-white px-5 py-2 rounded-lg hover:bg-blue-700 font-semibold">
                 Create First Period
             </a>

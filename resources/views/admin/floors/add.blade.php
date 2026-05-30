@@ -2,8 +2,8 @@
 <div id="addFloorModal" class="hidden fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
     <div class="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto">
         <div class="p-6 border-b border-gray-200 sticky top-0 bg-white z-10">
-            <h2 class="text-xl font-bold text-gray-900">Add New Floor</h2>
-            <p class="text-sm text-gray-600 mt-1">Create a floor and optionally assign apartment units</p>
+            <h2 class="text-xl font-bold text-gray-900">{{ __('messages.add_new_floor') }}</h2>
+            <p class="text-sm text-gray-600 mt-1">{{ __('messages.create_floor_optionally') }}</p>
         </div>
         <form method="POST" action="{{ route('admin.floors.store') }}" class="p-6 space-y-6">
             @csrf
@@ -14,19 +14,19 @@
                     <svg class="w-5 h-5 text-blue-600" fill="currentColor" viewBox="0 0 20 20">
                         <path d="M10.707 2.293a1 1 0 00-1.414 0l-7 7a1 1 0 001.414 1.414L4 10.414V17a1 1 0 001 1h2a1 1 0 001-1v-2a1 1 0 011-1h2a1 1 0 011 1v2a1 1 0 001 1h2a1 1 0 001-1v-6.586l.293.293a1 1 0 001.414-1.414l-7-7z"/>
                     </svg>
-                    Floor Information
+                    {{ __('messages.floor_information') }}
                 </h3>
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-2">Floor Name <span class="text-red-500">*</span></label>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">{{ __('messages.floor_name') }} <span class="text-red-500">*</span></label>
                         <input type="text" name="floor_name" required 
-                               placeholder="e.g., 1st Floor, Ground Floor, Floor A"
+                               placeholder="{{ __('messages.eg_floor_2') }}"
                                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
                     </div>
                     <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-2">Description</label>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">{{ __('messages.description') }}</label>
                         <input type="text" name="description"
-                               placeholder="Optional description of the floor..."
+                               placeholder="{{ __('messages.opt_floor_desc') }}"
                                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
                     </div>
                 </div>
@@ -43,7 +43,7 @@
                         </div>
                         Assign Apartment Units
                     </h3>
-                    <p class="text-sm text-gray-600 ml-11">Add units one by one to build your floor</p>
+                    <p class="text-sm text-gray-600 ml-11">{{ __('messages.add_units_one_by_one') }}</p>
                 </div>
                 
                 <!-- Input Section with Creative Design -->
@@ -53,7 +53,7 @@
                             <div class="absolute left-0 top-0 w-1 h-8 bg-gradient-to-b from-emerald-500 to-transparent rounded-full"></div>
                             <label class="block text-xs font-semibold text-emerald-700 mb-2 uppercase tracking-wider">🏠 Unit Number</label>
                             <input type="text" id="unitNumber" 
-                                   placeholder="e.g., 101"
+                                   placeholder="{{ __('messages.eg_unit') }}"
                                    class="w-full px-4 py-2.5 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-emerald-500 focus:ring-4 focus:ring-emerald-50 transition text-sm font-medium">
                         </div>
                         <div class="relative">
@@ -78,7 +78,7 @@
                                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"/>
                                 </svg>
-                                <span>Add Unit</span>
+                                <span>{{ __('messages.add_unit') }}</span>
                             </button>
                         </div>
                     </div>
@@ -106,7 +106,7 @@
                     Create Floor
                 </button>
                 <button type="button" onclick="closeAddFloorModal()" class="flex-1 bg-gray-300 hover:bg-gray-400 text-gray-800 font-semibold py-3 px-4 rounded-lg transition">
-                    Cancel
+                    {{ __('messages.cancel') }}
                 </button>
             </div>
         </form>
@@ -225,7 +225,7 @@ function displayAddedUnits() {
                     </div>
                     <div>
                         <h4 class="text-lg font-bold text-gray-900">Unit ${unit.number}</h4>
-                        <p class="text-xs text-gray-500">Added to floor</p>
+                        <p class="text-xs text-gray-500">{{ __('messages.added_to_floor') }}</p>
                     </div>
                 </div>
                 <div class="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -245,7 +245,7 @@ function displayAddedUnits() {
                         <path d="M8.5 5a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0zm6.5 0a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0zM9 10a1 1 0 11-2 0 1 1 0 012 0zm6 0a1 1 0 11-2 0 1 1 0 012 0zM9 15a1 1 0 11-2 0 1 1 0 012 0zm6 0a1 1 0 11-2 0 1 1 0 012 0z"/>
                     </svg>
                     <div class="flex-1">
-                        <p class="text-xs font-semibold text-gray-600 uppercase">Rent</p>
+                        <p class="text-xs font-semibold text-gray-600 uppercase">{{ __('messages.rent') }}</p>
                         <p class="text-lg font-bold text-blue-700">${unit.rent ? '$' + parseFloat(unit.rent).toFixed(2) : '$0.00'}</p>
                     </div>
                 </div>
@@ -256,7 +256,7 @@ function displayAddedUnits() {
                             <path fill-rule="evenodd" d="M6.267 3.455a3.066 3.066 0 001.745-.723 3.066 3.066 0 013.976 0 3.066 3.066 0 001.745.723 3.066 3.066 0 012.812 3.062v6.050A3.066 3.066 0 0117 15.391v1.953a1.033 1.033 0 11-2.066 0v-.934a3.066 3.066 0 01-3.074 0 3.066 3.066 0 01-3.074 0 3.066 3.066 0 01-3.074 0V17.422a1.033 1.033 0 11-2.066 0v-1.953A3.066 3.066 0 016.267 6.517v-6.06zm9.466 5.882a1.033 1.033 0 00-1.457-1.457L10 8.543 7.724 6.267a1.033 1.033 0 11-1.457 1.457l2.276 2.276-2.276 2.276a1.033 1.033 0 001.457 1.457L10 11.457l2.276 2.276a1.033 1.033 0 001.457-1.457l-2.276-2.276 2.276-2.276z" clip-rule="evenodd"/>
                         </svg>
                         <div class="flex-1">
-                            <p class="text-xs font-semibold text-gray-600 uppercase">Status</p>
+                            <p class="text-xs font-semibold text-gray-600 uppercase">{{ __('messages.status') }}</p>
                             <p class="text-sm font-bold text-purple-700 capitalize">${unit.status}</p>
                         </div>
                     </div>

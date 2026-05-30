@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>{{ $fiscalperiod->name }} – Annual Summary</title>
+    <title>{{ $fiscalperiod->name }} – {{ __('messages.annual_summary') }}</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: Arial, sans-serif; font-size: 13px; color: #1a1a1a; background: #fff; padding: 32px; }
@@ -31,16 +31,16 @@
 <body>
 
 <div class="no-print" style="background:#1e40af;color:#fff;padding:10px 20px;display:flex;justify-content:space-between;align-items:center;margin:-32px -32px 28px -32px;">
-    <span style="font-weight:600;">Annual Summary – Print Preview</span>
+    <span style="font-weight:600;">{{ __('messages.annual_summary_preview') }}</span>
     <div style="display:flex;gap:12px;">
-        <button onclick="window.print()" style="background:#fff;color:#1e40af;border:none;padding:6px 16px;border-radius:4px;cursor:pointer;font-weight:600;">Print / Save PDF</button>
+        <button onclick="window.print()" style="background:#fff;color:#1e40af;border:none;padding:6px 16px;border-radius:4px;cursor:pointer;font-weight:600;">{{ __('messages.print_save_pdf') }}</button>
         <button onclick="window.history.back()" style="background:transparent;color:#fff;border:1px solid #fff;padding:6px 16px;border-radius:4px;cursor:pointer;">← Back</button>
     </div>
 </div>
 
 <div style="text-align:center;margin-bottom:28px;border-bottom:2px solid #1e40af;padding-bottom:16px;">
     <h1 style="font-size:22px;font-weight:700;color:#1e40af;">{{ $fiscalperiod->name }}</h1>
-    <p style="color:#555;margin-top:4px;font-size:13px;">Annual Financial Summary</p>
+    <p style="color:#555;margin-top:4px;font-size:13px;">{{ __('messages.annual_financial_summary') }}</p>
     <p style="color:#9ca3af;font-size:11px;margin-top:3px;">
         {{ $fiscalperiod->opening_date->format('M d, Y') }} – {{ $fiscalperiod->closing_date->format('M d, Y') }}
         &nbsp;|&nbsp; Status: {{ ucfirst($fiscalperiod->status) }}
@@ -50,15 +50,15 @@
 
 {{-- Period Details --}}
 <div class="section">
-    <h2>Period Details</h2>
+    <h2>{{ __('messages.period_details') }}</h2>
     <div class="two-col">
         <div class="box">
-            <div class="row"><span class="label">Opening Date</span><span style="font-weight:600;">{{ $fiscalperiod->opening_date->format('M d, Y') }}</span></div>
-            <div class="row"><span class="label">Closing Date</span><span style="font-weight:600;">{{ $fiscalperiod->closing_date->format('M d, Y') }}</span></div>
+            <div class="row"><span class="label">{{ __('messages.opening_date') }}</span><span style="font-weight:600;">{{ $fiscalperiod->opening_date->format('M d, Y') }}</span></div>
+            <div class="row"><span class="label">{{ __('messages.closing_date') }}</span><span style="font-weight:600;">{{ $fiscalperiod->closing_date->format('M d, Y') }}</span></div>
         </div>
         <div class="box">
-            <div class="row"><span class="label">Opening Balance</span><span style="font-weight:700;">${{ number_format($fiscalperiod->opening_balance, 2) }}</span></div>
-            <div class="row"><span class="label">Closing Balance</span><span style="font-weight:700;">${{ number_format($fiscalperiod->closing_balance, 2) }}</span></div>
+            <div class="row"><span class="label">{{ __('messages.opening_balance') }}</span><span style="font-weight:700;">${{ number_format($fiscalperiod->opening_balance, 2) }}</span></div>
+            <div class="row"><span class="label">{{ __('messages.closing_balance') }}</span><span style="font-weight:700;">${{ number_format($fiscalperiod->closing_balance, 2) }}</span></div>
         </div>
     </div>
 </div>
@@ -66,28 +66,28 @@
 {{-- Income & Expense Summary --}}
 @if(isset($periodFinancials))
 <div class="section">
-    <h2>Income & Expense Summary</h2>
+    <h2>{{ __('messages.income_expense_summary') }}</h2>
     <div class="two-col">
         <div class="box">
-            <div class="box-title">Income</div>
-            <div class="row"><span class="label">Rent Payments</span><span style="color:#16a34a;font-weight:600;">${{ number_format($periodFinancials['rent_income'], 2) }}</span></div>
+            <div class="box-title">{{ __('messages.income') }}</div>
+            <div class="row"><span class="label">{{ __('messages.rent_payments') }}</span><span style="color:#16a34a;font-weight:600;">${{ number_format($periodFinancials['rent_income'], 2) }}</span></div>
             @if($periodFinancials['late_fees'] > 0)
-            <div class="row"><span class="label">Late Fees</span><span style="color:#16a34a;font-weight:600;">${{ number_format($periodFinancials['late_fees'], 2) }}</span></div>
+            <div class="row"><span class="label">{{ __('messages.late_fees') }}</span><span style="color:#16a34a;font-weight:600;">${{ number_format($periodFinancials['late_fees'], 2) }}</span></div>
             @endif
             @if($periodFinancials['other_income'] > 0)
-            <div class="row"><span class="label">Other Income</span><span style="color:#16a34a;font-weight:600;">${{ number_format($periodFinancials['other_income'], 2) }}</span></div>
+            <div class="row"><span class="label">{{ __('messages.other_income') }}</span><span style="color:#16a34a;font-weight:600;">${{ number_format($periodFinancials['other_income'], 2) }}</span></div>
             @endif
-            <div class="row-total"><span>Total Income</span><span style="color:#16a34a;">${{ number_format($periodFinancials['total_income'], 2) }}</span></div>
+            <div class="row-total"><span>{{ __('messages.total_income') }}</span><span style="color:#16a34a;">${{ number_format($periodFinancials['total_income'], 2) }}</span></div>
         </div>
         <div class="box">
-            <div class="box-title">Expenses</div>
+            <div class="box-title">{{ __('messages.expenses_word') }}</div>
             @foreach($periodFinancials['utility_expenses'] as $type => $amount)
             <div class="row"><span class="label" style="text-transform:capitalize;">{{ str_replace('_',' ',$type) }}</span><span style="color:#dc2626;font-weight:600;">${{ number_format($amount, 2) }}</span></div>
             @endforeach
             @if($periodFinancials['fixed_expenses'] > 0)
-            <div class="row"><span class="label">Fixed / Other</span><span style="color:#dc2626;font-weight:600;">${{ number_format($periodFinancials['fixed_expenses'], 2) }}</span></div>
+            <div class="row"><span class="label">{{ __('messages.fixed_other') }}</span><span style="color:#dc2626;font-weight:600;">${{ number_format($periodFinancials['fixed_expenses'], 2) }}</span></div>
             @endif
-            <div class="row-total"><span>Total Expenses</span><span style="color:#dc2626;">${{ number_format($periodFinancials['total_expenses'], 2) }}</span></div>
+            <div class="row-total"><span>{{ __('messages.total_expenses') }}</span><span style="color:#dc2626;">${{ number_format($periodFinancials['total_expenses'], 2) }}</span></div>
         </div>
     </div>
     <div class="net-box" style="background:{{ $periodFinancials['net_income'] >= 0 ? '#f0fdf4' : '#fef2f2' }};border:1px solid {{ $periodFinancials['net_income'] >= 0 ? '#86efac' : '#fca5a5' }};">
@@ -101,15 +101,15 @@
 
 {{-- Balance Sheet Items --}}
 <div class="section">
-    <h2>Balance Sheet Items</h2>
+    <h2>{{ __('messages.balance_sheet_items') }}</h2>
     <table>
         <thead>
             <tr>
-                <th>Type</th>
-                <th>Name</th>
-                <th class="right">Amount</th>
-                <th>As Of Date</th>
-                <th>Reference</th>
+                <th>{{ __('messages.type') }}</th>
+                <th>{{ __('messages.name') }}</th>
+                <th class="right">{{ __('messages.amount') }}</th>
+                <th>{{ __('messages.as_of_date') }}</th>
+                <th>{{ __('messages.reference') }}</th>
             </tr>
         </thead>
         <tbody>
@@ -123,7 +123,7 @@
             </tr>
             @empty
             <tr>
-                <td colspan="5" style="text-align:center;color:#9ca3af;">No balance sheet items recorded</td>
+                <td colspan="5" style="text-align:center;color:#9ca3af;">{{ __('messages.no_balance_items') }}</td>
             </tr>
             @endforelse
         </tbody>
@@ -132,18 +132,18 @@
 
 {{-- Balance Sheet Summary --}}
 <div class="section">
-    <h2>Balance Sheet Summary</h2>
+    <h2>{{ __('messages.balance_sheet_summary') }}</h2>
     <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:14px;">
         <div class="box" style="text-align:center;">
-            <div style="font-size:11px;color:#6b7280;font-weight:600;text-transform:uppercase;margin-bottom:6px;">Total Assets</div>
+            <div style="font-size:11px;color:#6b7280;font-weight:600;text-transform:uppercase;margin-bottom:6px;">{{ __('messages.total_assets') }}</div>
             <div style="font-size:20px;font-weight:700;color:#1e40af;">${{ number_format($summary['total_assets'], 2) }}</div>
         </div>
         <div class="box" style="text-align:center;">
-            <div style="font-size:11px;color:#6b7280;font-weight:600;text-transform:uppercase;margin-bottom:6px;">Total Liabilities</div>
+            <div style="font-size:11px;color:#6b7280;font-weight:600;text-transform:uppercase;margin-bottom:6px;">{{ __('messages.total_liabilities') }}</div>
             <div style="font-size:20px;font-weight:700;color:#dc2626;">${{ number_format($summary['total_liabilities'], 2) }}</div>
         </div>
         <div class="box" style="text-align:center;">
-            <div style="font-size:11px;color:#6b7280;font-weight:600;text-transform:uppercase;margin-bottom:6px;">Total Equity</div>
+            <div style="font-size:11px;color:#6b7280;font-weight:600;text-transform:uppercase;margin-bottom:6px;">{{ __('messages.total_equity') }}</div>
             <div style="font-size:20px;font-weight:700;color:#16a34a;">${{ number_format($summary['total_equity'], 2) }}</div>
         </div>
     </div>
