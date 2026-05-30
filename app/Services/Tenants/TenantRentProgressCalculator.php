@@ -15,7 +15,9 @@ use Carbon\Carbon;
  *
  * Returned shape per tenant id:
  *   ['rent', 'paid', 'percent', 'status', 'paid_date', 'days_stayed',
- *    'total_days', 'day_percent', 'due_date']
+ *    'total_days', 'day_percent', 'due_date',
+ *    'stay_percent', 'stay_label', 'lease_start_label', 'lease_end_label',
+ *    'lease_months_elapsed', 'lease_months_total']
  *
  * Status values: 'paid' | 'partial' | 'overdue' | 'unpaid'.
  */
@@ -54,10 +56,86 @@ class TenantRentProgressCalculator
                 continue;
             }
 
-            $rentProgressMap[$tenant->id] = $this->progressFor($rental, $currentMonth, $currentYear);
+            $rentProgressMap[$tenant->id] = $this->progressFor($rental, $currentMonth, $currentYear)
+                + $this->stayFor($rental);
         }
 
         return $rentProgressMap;
+    }
+
+    /**
+     * Lease-completion data: how far the tenant is through their lease term,
+     * from start_date to end_date. Open-ended leases (no end_date) report a
+     * null percent and just an elapsed-tenure label.
+     *
+     * @return array<string, mixed>
+     */
+    private function stayFor(Rentals $rental): array
+    {
+        if (! $rental->start_date) {
+            return [
+                'stay_percent' => null,
+                'stay_label' => null,
+                'lease_start_label' => null,
+                'lease_end_label' => null,
+                'lease_months_elapsed' => 0,
+                'lease_months_total' => 0,
+            ];
+        }
+
+        $start = Carbon::parse($rental->start_date)->startOfDay();
+        $end = $rental->end_date ? Carbon::parse($rental->end_date)->endOfDay() : null;
+        $now = now();
+
+        // If the lease has already ended, freeze tenure at the end date.
+        $tenureEnd = ($end && $end->lt($now)) ? $end : $now;
+        if ($tenureEnd->lt($start)) {
+            $tenureEnd = $start;
+        }
+
+        $monthsElapsed = (int) $start->diffInMonths($tenureEnd);
+        $monthsTotal = $end ? (int) $start->diffInMonths($end) : 0;
+
+        $stayPercent = null;
+        if ($end) {
+            $totalDays = (int) $start->diffInDays($end);
+            $elapsedDays = (int) $start->diffInDays($tenureEnd);
+            $stayPercent = $totalDays > 0 ? min(round(($elapsedDays / $totalDays) * 100), 100) : 100;
+        }
+
+        return [
+            'stay_percent' => $stayPercent,
+            'stay_label' => $this->durationLabel($monthsElapsed, $start, $tenureEnd),
+            'lease_start_label' => $start->format('M Y'),
+            'lease_end_label' => $end?->format('M Y'),
+            'lease_months_elapsed' => $monthsElapsed,
+            'lease_months_total' => $monthsTotal,
+        ];
+    }
+
+    /**
+     * Human-friendly tenure label, e.g. "1 yr 2 mo", "8 mo", "12 days".
+     */
+    private function durationLabel(int $months, Carbon $start, Carbon $end): string
+    {
+        if ($months < 1) {
+            $days = (int) $start->diffInDays($end);
+
+            return $days <= 1 ? '1 day' : "{$days} days";
+        }
+
+        $years = intdiv($months, 12);
+        $rem = $months % 12;
+
+        $parts = [];
+        if ($years > 0) {
+            $parts[] = "{$years} yr";
+        }
+        if ($rem > 0 || $years === 0) {
+            $parts[] = "{$rem} mo";
+        }
+
+        return implode(' ', $parts);
     }
 
     /**

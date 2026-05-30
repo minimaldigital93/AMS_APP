@@ -34,6 +34,43 @@ class FloorController extends Controller
         return view('admin.floors.create');
     }
 
+    /**
+     * 3D visualization of all floors and their apartments,
+     * highlighting available vs occupied units.
+     */
+    public function plan3d(): View
+    {
+        $floors = Floors::with(['apartments' => function ($query) {
+            $query->orderBy('apartment_number');
+        }])->orderBy('id')->get();
+
+        // Shape data for the 3D renderer.
+        $floorsData = $floors->map(function ($floor) {
+            return [
+                'id' => $floor->id,
+                'name' => $floor->floor_name,
+                'apartments' => $floor->apartments->map(function ($apt) {
+                    return [
+                        'id' => $apt->id,
+                        'number' => $apt->apartment_number,
+                        'status' => $apt->status,
+                        'rent' => (float) $apt->monthly_rent,
+                    ];
+                })->values(),
+            ];
+        })->values();
+
+        $summary = [
+            'floors' => $floors->count(),
+            'total' => $floors->sum(fn ($f) => $f->apartments->count()),
+            'available' => $floors->sum(fn ($f) => $f->apartments->where('status', 'available')->count()),
+            'occupied' => $floors->sum(fn ($f) => $f->apartments->where('status', 'occupied')->count()),
+            'maintenance' => $floors->sum(fn ($f) => $f->apartments->where('status', 'maintenance')->count()),
+        ];
+
+        return view('admin.floors.plan3d', compact('floorsData', 'summary'));
+    }
+
     public function edit(Floors $floor): View
     {
         $floor->load('apartments');

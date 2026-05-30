@@ -84,6 +84,7 @@
                             <th class="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">No</th>
                             <th class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Tenant Name</th>
                             <th class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Floor / Apartment</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Stay</th>
                             <th class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Progress</th>
                             <th class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Status</th>
                             <th class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Deposit</th>
@@ -113,6 +114,28 @@
                                     </div>
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{ $tenant->floor?->floor_name ?? ($tenant->apartment?->floor?->floor_name ?? 'N/A') }} / {{ $tenant->apartment?->apartment_number ?? 'N/A' }}</td>
+                                <td class="px-6 py-4 whitespace-nowrap">
+                                    @if($rp && $rp['stay_label'])
+                                        <div class="w-32">
+                                            @if($rp['stay_percent'] !== null)
+                                                <div class="w-full bg-slate-200 rounded-full h-1.5">
+                                                    <div class="h-1.5 rounded-full {{ $rp['stay_percent'] >= 90 ? 'bg-rose-500' : 'bg-indigo-500' }}" style="width: {{ $rp['stay_percent'] }}%"></div>
+                                                </div>
+                                                <p class="text-xs text-slate-500 font-medium mt-0.5">
+                                                    {{ $rp['stay_label'] }} · {{ $rp['lease_months_elapsed'] }}/{{ $rp['lease_months_total'] }} mo
+                                                </p>
+                                            @else
+                                                <div class="flex items-center gap-1.5">
+                                                    <span class="inline-block w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                                                    <p class="text-xs text-slate-600 font-medium">{{ $rp['stay_label'] }}</p>
+                                                </div>
+                                                <p class="text-[10px] text-slate-400 mt-0.5">Open-ended · since {{ $rp['lease_start_label'] }}</p>
+                                            @endif
+                                        </div>
+                                    @else
+                                        <span class="text-[10px] text-gray-300">—</span>
+                                    @endif
+                                </td>
                                 <td class="px-6 py-4 whitespace-nowrap">
                                     @php $rp = $rentProgressMap[$tenant->id] ?? null; @endphp
                                     @if($rp)
@@ -178,7 +201,7 @@
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="6" class="px-6 py-4 text-center text-gray-500">
+                                <td colspan="8" class="px-6 py-4 text-center text-gray-500">
                                     No tenants found
                                 </td>
                             </tr>

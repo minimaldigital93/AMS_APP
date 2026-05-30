@@ -70,6 +70,7 @@ Route::middleware('auth')->group(function () {
 Route::middleware(['auth', 'role:admin'])->group(function () {
     // Floor Management Routes
     Route::get('/admin/floors', [FloorController::class, 'index'])->name('admin.floors.index');
+    Route::get('/admin/floors-3d', [FloorController::class, 'plan3d'])->name('admin.floors.plan3d');
     Route::get('/admin/floors/create', [FloorController::class, 'create'])->name('admin.floors.create');
     Route::get('/admin/floors/{floor}/edit', [FloorController::class, 'edit'])->name('admin.floors.edit');
     Route::post('/admin/floors', [FloorController::class, 'store'])->name('admin.floors.store');
@@ -210,6 +211,7 @@ Route::middleware(['auth', 'role:supervisor'])->prefix('supervisor')->group(func
     Route::get('/tenants/{tenant}', [SupervisorTenantController::class, 'show'])->name('supervisor.tenants.show');
 
     // Apartment Management
+    Route::get('/floors-3d', [SupervisorApartmentController::class, 'plan3d'])->name('supervisor.floors.plan3d');
     Route::get('/apartments', [SupervisorApartmentController::class, 'index'])->name('supervisor.apartments.index');
     Route::get('/apartments/{apartment}', [SupervisorApartmentController::class, 'show'])->name('supervisor.apartments.show');
     Route::post('/apartments/{apartment}/assign-tenant', [SupervisorApartmentController::class, 'assignTenant'])->name('supervisor.apartments.assignTenant');

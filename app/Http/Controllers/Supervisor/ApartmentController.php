@@ -52,6 +52,42 @@ class ApartmentController extends Controller
     }
 
     /**
+     * 3D visualization of all floors and their apartments,
+     * highlighting available vs occupied units. Mirrors the admin view.
+     */
+    public function plan3d(): View
+    {
+        $floors = Floors::with(['apartments' => function ($query) {
+            $query->orderBy('apartment_number');
+        }])->orderBy('id')->get();
+
+        $floorsData = $floors->map(function ($floor) {
+            return [
+                'id' => $floor->id,
+                'name' => $floor->floor_name,
+                'apartments' => $floor->apartments->map(function ($apt) {
+                    return [
+                        'id' => $apt->id,
+                        'number' => $apt->apartment_number,
+                        'status' => $apt->status,
+                        'rent' => (float) $apt->monthly_rent,
+                    ];
+                })->values(),
+            ];
+        })->values();
+
+        $summary = [
+            'floors' => $floors->count(),
+            'total' => $floors->sum(fn ($f) => $f->apartments->count()),
+            'available' => $floors->sum(fn ($f) => $f->apartments->where('status', 'available')->count()),
+            'occupied' => $floors->sum(fn ($f) => $f->apartments->where('status', 'occupied')->count()),
+            'maintenance' => $floors->sum(fn ($f) => $f->apartments->where('status', 'maintenance')->count()),
+        ];
+
+        return view('supervisor.apartments.plan3d', compact('floorsData', 'summary'));
+    }
+
+    /**
      * Show apartment details with rent payment progress.
      */
     public function show(Apartments $apartment): View
