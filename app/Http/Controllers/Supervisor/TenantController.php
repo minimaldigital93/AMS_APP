@@ -168,7 +168,7 @@ class TenantController extends Controller
     public function show(Tenants $tenant): View
     {
         $this->authorizeTenant($tenant);
-        $tenant->load(['apartment', 'rentals', 'utilities']);
+        $tenant->load(['apartment.floor', 'rentals.apartment', 'rentals.payments', 'utilities']);
 
         return view('supervisor.tenants.show', compact('tenant'));
     }

@@ -107,13 +107,15 @@
                                     $isAvailable = $status === 'available';
                                 @endphp
                                 @if($isAvailable)
-                                <a href="{{ route('admin.tenants.create', ['apartment_id' => $apt['id']]) }}"
+                                <button type="button"
+                                   data-apartment-id="{{ $apt['id'] }}"
+                                   data-apartment-number="{{ $apt['number'] }}"
                                    title="Assign a tenant to unit {{ $apt['number'] }}"
-                                   class="group relative aspect-square rounded-xl {{ $cls }} flex flex-col items-center justify-center transition shadow-sm cursor-pointer select-none ring-1 ring-inset ring-white/20 hover:ring-2 hover:ring-white/60">
+                                   class="assign-tenant-btn group relative aspect-square rounded-xl {{ $cls }} flex flex-col items-center justify-center transition shadow-sm cursor-pointer select-none ring-1 ring-inset ring-white/20 hover:ring-2 hover:ring-white/60">
                                     <span class="text-base font-bold leading-none">{{ $apt['number'] }}</span>
                                     <span class="mt-1 text-[10px] uppercase tracking-wide opacity-80 group-hover:opacity-0 transition">{{ $status }}</span>
                                     <span class="absolute inset-x-0 bottom-1 text-center text-[10px] font-semibold opacity-0 group-hover:opacity-100 transition">+ Assign</span>
-                                </a>
+                                </button>
                                 @else
                                 <div class="group relative aspect-square rounded-xl {{ $cls }} flex flex-col items-center justify-center transition shadow-sm cursor-default select-none">
                                     <span class="text-base font-bold leading-none">{{ $apt['number'] }}</span>
@@ -133,4 +135,6 @@
         </div>
     @endif
 </div>
+
+@include('admin.apartments._assign-tenant-modal')
 @endsection

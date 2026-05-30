@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Floors;
+use App\Models\Tenants;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\Rule;
@@ -68,7 +69,10 @@ class FloorController extends Controller
             'maintenance' => $floors->sum(fn ($f) => $f->apartments->where('status', 'maintenance')->count()),
         ];
 
-        return view('admin.floors.plan3d', compact('floorsData', 'summary'));
+        // Unassigned active tenants for the "Existing Tenant" tab of the assign-tenant modal
+        $availableTenants = Tenants::where('status', 'active')->whereNull('apartment_id')->get();
+
+        return view('admin.floors.plan3d', compact('floorsData', 'summary', 'availableTenants'));
     }
 
     public function edit(Floors $floor): View

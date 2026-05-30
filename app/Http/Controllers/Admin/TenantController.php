@@ -420,7 +420,7 @@ class TenantController extends Controller
      */
     public function show(Tenants $tenant): View
     {
-        $tenant->load(['apartment', 'rentals', 'utilities']);
+        $tenant->load(['apartment.floor', 'rentals.apartment', 'rentals.payments', 'utilities']);
         Log::info('Show tenant details', [
             'tenant_id' => $tenant->id,
             'name' => $tenant->name,

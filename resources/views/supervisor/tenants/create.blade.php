@@ -6,8 +6,8 @@
     <!-- Header -->
     <div class="flex items-center justify-between">
         <div>
-            <h1 class="text-2xl font-semibold text-slate-800 tracking-tight">Register New Tenant</h1>
-            <p class="text-slate-400 text-sm mt-1">Add a tenant to one of your assigned apartments</p>
+            <h1 class="text-2xl font-semibold text-slate-800 tracking-tight">Assign Tenant</h1>
+            <p class="text-slate-400 text-sm mt-1">Fill in the details to assign a tenant to an apartment</p>
         </div>
         <a href="{{ route('supervisor.tenants.index') }}" class="text-slate-400 hover:text-slate-600 text-sm font-medium py-2 px-4 rounded-lg border border-slate-200 hover:border-slate-300 transition">
             Back to Tenants
@@ -48,34 +48,16 @@
                 <!-- Apartment -->
                 <div>
                     <label for="apartment_id" class="block text-xs font-medium text-slate-500 mb-1.5">Apartment <span class="text-red-400">*</span></label>
-                    @php
-                        $selectedApt = null;
-                        if(request()->has('apartment_id')) {
-                            $selectedApt = $apartments->firstWhere('id', request('apartment_id'));
-                        }
-                    @endphp
-                    @if($selectedApt)
-                        <div class="flex items-center justify-between gap-4 p-3 border border-slate-200 rounded-lg bg-slate-50 text-sm">
-                            <span class="font-medium text-slate-800">{{ $selectedApt->apartment_number }}</span>
-                            <span class="text-slate-500">${{ number_format($selectedApt->monthly_rent, 2) }}/mo</span>
-                        </div>
-                        <input type="hidden" name="apartment_id" value="{{ $selectedApt->id }}">
-                    @elseif($apartments->count() > 0)
-                        <select id="apartment_id" name="apartment_id" required
-                            class="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:ring-1 focus:ring-slate-400 focus:border-slate-400 bg-white {{ $errors->has('apartment_id') ? 'border-red-400' : '' }}">
-                            <option value="">Select apartment</option>
-                            @foreach($apartments as $apartment)
-                                <option value="{{ $apartment->id }}" {{ old('apartment_id') == $apartment->id ? 'selected' : '' }}>
-                                    {{ $apartment->apartment_number }} — ${{ number_format($apartment->monthly_rent, 2) }}/mo
-                                </option>
-                            @endforeach
-                        </select>
-                        @error('apartment_id')<p class="text-red-500 text-xs mt-1">{{ $message }}</p>@enderror
-                    @else
-                        <div class="bg-yellow-50 border border-yellow-200 px-4 py-3 rounded-lg text-yellow-800 text-sm">
-                            No available apartments. All your assigned apartments are currently occupied or under maintenance.
-                        </div>
-                    @endif
+                    <select id="apartment_id" name="apartment_id" required
+                        class="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:ring-1 focus:ring-slate-400 focus:border-slate-400 bg-white {{ $errors->has('apartment_id') ? 'border-red-400' : '' }}">
+                        <option value="">Select apartment</option>
+                        @foreach($apartments as $apartment)
+                            <option value="{{ $apartment->id }}" {{ old('apartment_id', request('apartment_id')) == $apartment->id ? 'selected' : '' }}>
+                                {{ $apartment->apartment_number }}
+                            </option>
+                        @endforeach
+                    </select>
+                    @error('apartment_id')<p class="text-red-500 text-xs mt-1">{{ $message }}</p>@enderror
                 </div>
 
                 <!-- Tenant Name -->
@@ -105,7 +87,7 @@
                 <!-- Move In Date -->
                 <div>
                     <label for="move_in_date" class="block text-xs font-medium text-slate-500 mb-1.5">Move In Date <span class="text-red-400">*</span></label>
-                    <input type="date" id="move_in_date" name="move_in_date" required value="{{ old('move_in_date', date('Y-m-d')) }}"
+                    <input type="date" id="move_in_date" name="move_in_date" required value="{{ old('move_in_date') }}"
                         style="max-width:100%;box-sizing:border-box;"
                         class="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:ring-1 focus:ring-slate-400 focus:border-slate-400 bg-white {{ $errors->has('move_in_date') ? 'border-red-400' : '' }}">
                     @error('move_in_date')<p class="text-red-500 text-xs mt-1">{{ $message }}</p>@enderror
@@ -135,8 +117,9 @@
                     <select id="status" name="status" required
                         class="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:ring-1 focus:ring-slate-400 focus:border-slate-400 bg-white {{ $errors->has('status') ? 'border-red-400' : '' }}">
                         <option value="">Select status</option>
-                        <option value="active" {{ old('status') === 'active' ? 'selected' : '' }}>Active</option>
                         <option value="pending" {{ old('status') === 'pending' ? 'selected' : '' }}>Pending</option>
+                        <option value="active" {{ old('status') === 'active' ? 'selected' : '' }}>Active</option>
+                        <option value="inactive" {{ old('status') === 'inactive' ? 'selected' : '' }}>Inactive</option>
                     </select>
                     @error('status')<p class="text-red-500 text-xs mt-1">{{ $message }}</p>@enderror
                 </div>
@@ -144,7 +127,7 @@
                 <!-- Deposit -->
                 <div>
                     <label for="deposit" class="block text-xs font-medium text-slate-500 mb-1.5">Deposit Amount <span class="text-slate-300">(optional)</span></label>
-                    <input type="number" id="deposit" name="deposit" step="0.01" min="0" placeholder="0.00" value="{{ old('deposit', 0) }}"
+                    <input type="number" id="deposit" name="deposit" step="0.01" min="0" placeholder="0.00" value="{{ old('deposit') }}"
                         class="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:ring-1 focus:ring-slate-400 focus:border-slate-400 {{ $errors->has('deposit') ? 'border-red-400' : '' }}">
                     @error('deposit')<p class="text-red-500 text-xs mt-1">{{ $message }}</p>@enderror
                 </div>
@@ -169,9 +152,8 @@
 
             <!-- Buttons -->
             <div class="flex gap-2 pt-2">
-                <button type="submit" {{ $apartments->count() === 0 && !isset($selectedApt) ? 'disabled' : '' }}
-                    class="flex-1 py-2.5 bg-slate-800 hover:bg-slate-700 text-white text-sm font-semibold rounded-lg transition disabled:opacity-50 disabled:cursor-not-allowed">
-                    Register Tenant
+                <button type="submit" class="flex-1 py-2.5 bg-slate-800 hover:bg-slate-700 text-white text-sm font-semibold rounded-lg transition">
+                    Assign Tenant
                 </button>
                 <a href="{{ route('supervisor.tenants.index') }}" class="px-5 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-600 text-sm font-medium rounded-lg transition text-center">
                     Cancel

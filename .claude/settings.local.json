@@ -59,7 +59,12 @@
       "Bash(./vendor/bin/pint app/Services/FiscalPeriod/BalanceSheetService.php app/Services/FiscalPeriod/FiscalPeriodReportsService.php app/Http/Controllers/Admin/FiscalPeriodController.php app/Http/Requests/FiscalPeriod/StoreFiscalPeriodRequest.php app/Http/Requests/FiscalPeriod/UpdateFiscalPeriodRequest.php app/Models/FiscalPeriods.php database/migrations/2026_05_29_000002_add_opening_balance_sheet_to_fiscal_periods.php tests/Feature/FiscalPeriod/)",
       "Bash(./vendor/bin/pint --quiet)",
       "Bash(php -l resources/views/admin/floors/plan3d.blade.php)",
-      "Bash(php -l app/Services/Tenants/TenantRentProgressCalculator.php)"
+      "Bash(php -l app/Services/Tenants/TenantRentProgressCalculator.php)",
+      "Bash(php -l app/Http/Controllers/Admin/FloorController.php)",
+      "Bash(php -r 'require '\\\\''vendor/autoload.php'\\\\''; $app=require '\\\\''bootstrap/app.php'\\\\''; $k=$app->make\\(Illuminate\\\\Contracts\\\\Console\\\\Kernel::class\\); $k->bootstrap\\(\\); try { view\\(\\)->getFinder\\(\\)->find\\('\\\\''__TRACKED_VAR__'\\\\''\\); echo '\\\\''__TRACKED_VAR__: found\\\\n'\\\\''; } catch \\(Exception $e\\){ echo '\\\\''__TRACKED_VAR__: '\\\\''.$e->getMessage\\(\\).\"\\\\n\"; }')",
+      "Bash(echo \"exit: $?\")",
+      "Bash(php -l app/Models/Tenants.php)",
+      "Bash(php -r ' *)"
     ]
   }
 }

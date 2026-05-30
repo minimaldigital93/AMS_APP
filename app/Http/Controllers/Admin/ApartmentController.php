@@ -7,7 +7,6 @@ use App\Models\Accounts;
 use App\Models\Apartments;
 use App\Models\FiscalPeriods;
 use App\Models\Floors;
-use App\Models\Payments;
 use App\Models\Rentals;
 use App\Models\Tenants;
 use App\Models\User;
@@ -66,91 +65,21 @@ class ApartmentController extends Controller
     {
         $apartment = $apartment->load('floor', 'supervisor');
 
-        // Get active rental with payments
+        // Get the active rental for this apartment
         $activeRental = Rentals::where('apartment_id', $apartment->id)
             ->where(function ($q) {
                 $q->whereNull('end_date')->orWhere('end_date', '>=', now());
             })
-            ->with(['tenant', 'payments' => function ($q) {
-                $q->where('payment_type', 'rent')
-                    ->where('payment_status', 'paid')
-                    ->orderBy('paid_at', 'asc');
-            }])
+            ->with('tenant')
             ->latest('start_date')
             ->first();
 
-        $rentProgress = [];
-
-        if ($activeRental) {
-            $startDate = Carbon::parse($activeRental->start_date)->startOfMonth();
-            $endDate = $activeRental->end_date
-                ? Carbon::parse($activeRental->end_date)->endOfMonth()
-                : now()->endOfMonth();
-            $monthlyRent = $activeRental->rent_amount;
-
-            $rentalStartDay = Carbon::parse($activeRental->start_date)->day;
-            $rentalStartMonth = Carbon::parse($activeRental->start_date)->month;
-            $rentalStartYear = Carbon::parse($activeRental->start_date)->year;
-
-            $current = $startDate->copy();
-            while ($current->lte($endDate)) {
-                $month = $current->month;
-                $year = $current->year;
-
-                // Find payments for this month
-                $monthPayments = $activeRental->payments->filter(function ($p) use ($month, $year) {
-                    return Carbon::parse($p->paid_at)->month === $month
-                        && Carbon::parse($p->paid_at)->year === $year;
-                });
-
-                $paidAmount = $monthPayments->sum('amount');
-                $lateFees = $monthPayments->sum('late_fee');
-                $paidDate = $monthPayments->first()?->paid_at;
-                $percent = $monthlyRent > 0 ? min(round(($paidAmount / $monthlyRent) * 100, 1), 100) : 0;
-
-                // Due date is the rental start day-of-month within the current month
-                $dueDay = min($rentalStartDay, $current->copy()->daysInMonth);
-                $dueDate = Carbon::create($year, $month, $dueDay)->endOfDay();
-                $isFirstMonth = ($month === $rentalStartMonth && $year === $rentalStartYear);
-                $isPastDue = now()->gt($dueDate);
-                $isCurrent = $current->month === now()->month && $current->year === now()->year;
-
-                $status = 'upcoming';
-                if ($percent >= 100) {
-                    $status = 'paid';
-                } elseif ($percent > 0) {
-                    $status = 'partial';
-                } elseif ($isPastDue && ! $isFirstMonth) {
-                    $status = 'overdue';
-                } elseif ($isCurrent) {
-                    $status = 'due';
-                }
-
-                $rentProgress[] = [
-                    'month' => $current->format('M'),
-                    'year' => $current->format('Y'),
-                    'label' => $current->format('M Y'),
-                    'rent' => $monthlyRent,
-                    'paid' => $paidAmount,
-                    'late_fee' => $lateFees,
-                    'percent' => $percent,
-                    'paid_date' => $paidDate ? Carbon::parse($paidDate)->format('M d') : null,
-                    'status' => $status,
-                    'is_current' => $isCurrent,
-                ];
-
-                $current->addMonth();
-            }
+        // Load the tenant's own relations for the embedded universal tenant view.
+        if ($activeRental && $activeRental->tenant) {
+            $activeRental->tenant->load(['apartment.floor', 'rentals.apartment', 'rentals.payments']);
         }
 
-        $totalPaid = collect($rentProgress)->sum('paid');
-        $totalExpected = collect($rentProgress)->sum('rent');
-        $overallPercent = $totalExpected > 0 ? round(($totalPaid / $totalExpected) * 100, 1) : 0;
-
-        return view('admin.apartments.show', compact(
-            'apartment', 'activeRental', 'rentProgress',
-            'totalPaid', 'totalExpected', 'overallPercent'
-        ));
+        return view('admin.apartments.show', compact('apartment', 'activeRental'));
     }
 
     public function edit(Apartments $apartment): View
@@ -330,7 +259,6 @@ class ApartmentController extends Controller
 
     public function destroy(Apartments $apartment)
     {
-        $floor = $apartment->floor;
         $apartment->delete();
 
         // Check if request came from floor edit page
