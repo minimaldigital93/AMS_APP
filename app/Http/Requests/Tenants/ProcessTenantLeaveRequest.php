@@ -30,6 +30,7 @@ class ProcessTenantLeaveRequest extends FormRequest
             'extra_charges.*.description' => 'required_with:extra_charges.*.amount|string|max:255',
             'extra_charges.*.amount' => 'required_with:extra_charges.*.description|numeric|min:0.01',
             'notes' => 'nullable|string',
+            'deposit_action' => 'nullable|in:return_deposit,last_payment',
         ];
     }
 }

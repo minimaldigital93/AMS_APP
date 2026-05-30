@@ -156,6 +156,35 @@
                     <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>{{ __('messages.add_extra_charge') }}</button>
             </div>
 
+            <!-- Deposit Handling (only shown when tenant has a deposit) -->
+            @if(($tenant->deposit ?? 0) > 0)
+            <div>
+                <p class="text-sm font-medium text-gray-700 mb-2">{{ __('messages.deposit_handling') }}</p>
+                <div class="space-y-2">
+                    <label class="flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition"
+                        :class="depositAction === 'return_deposit' ? 'bg-blue-50 border-blue-300' : 'bg-slate-50 border-slate-200'">
+                        <input type="radio" name="deposit_action" value="return_deposit"
+                            x-model="depositAction" @change="updateCalculations()"
+                            class="mt-0.5 text-blue-600">
+                        <div>
+                            <p class="text-sm font-medium text-gray-700">{{ __('messages.return_deposit_option') }}</p>
+                            <p class="text-xs text-gray-400 mt-0.5">{{ __('messages.return_deposit_hint') }}</p>
+                        </div>
+                    </label>
+                    <label class="flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition"
+                        :class="depositAction === 'last_payment' ? 'bg-green-50 border-green-300' : 'bg-slate-50 border-slate-200'">
+                        <input type="radio" name="deposit_action" value="last_payment"
+                            x-model="depositAction" @change="updateCalculations()"
+                            class="mt-0.5 text-green-600">
+                        <div>
+                            <p class="text-sm font-medium text-gray-700">{{ __('messages.deposit_as_last_payment_option') }}</p>
+                            <p class="text-xs text-gray-400 mt-0.5">{{ __('messages.deposit_as_last_payment_hint') }}</p>
+                        </div>
+                    </label>
+                </div>
+            </div>
+            @endif
+
             <!-- Notes -->
             <div>
                 <label class="block text-sm font-medium text-gray-700 mb-1">{{ __('messages.notes') }}</label>
@@ -243,18 +272,40 @@
 
                 <!-- Deposit / Balance / Refund -->
                 <div class="space-y-2 pt-1">
-                    <div class="flex justify-between text-gray-600">
-                        <span>{{ __('messages.deposit_applied') }}</span>
-                        <span class="font-semibold text-green-600" x-text="'$' + depositApplied.toFixed(2)"></span>
-                    </div>
-                    <div class="flex justify-between text-gray-600">
-                        <span>{{ __('messages.balance_due_from_tenant') }}</span>
-                        <span class="font-semibold" :class="balanceDue > 0 ? 'text-red-600' : 'text-slate-400'" x-text="'$' + balanceDue.toFixed(2)"></span>
-                    </div>
-                    <div class="flex justify-between text-gray-600">
-                        <span>{{ __('messages.refund_to_tenant') }}</span>
-                        <span class="font-semibold" :class="refundAmount > 0 ? 'text-green-600' : 'text-slate-400'" x-text="'$' + refundAmount.toFixed(2)"></span>
-                    </div>
+                    <!-- return_deposit mode -->
+                    <template x-if="depositAction === 'return_deposit'">
+                        <div class="space-y-2">
+                            <div class="flex justify-between text-gray-600">
+                                <span>{{ __('messages.deposit_applied') }}</span>
+                                <span class="font-semibold text-green-600" x-text="'$' + depositApplied.toFixed(2)"></span>
+                            </div>
+                            <div class="flex justify-between text-gray-600">
+                                <span>{{ __('messages.balance_due_from_tenant') }}</span>
+                                <span class="font-semibold" :class="balanceDue > 0 ? 'text-red-600' : 'text-slate-400'" x-text="'$' + balanceDue.toFixed(2)"></span>
+                            </div>
+                            <div class="flex justify-between text-gray-600">
+                                <span>{{ __('messages.refund_to_tenant') }}</span>
+                                <span class="font-semibold" :class="refundAmount > 0 ? 'text-green-600' : 'text-slate-400'" x-text="'$' + refundAmount.toFixed(2)"></span>
+                            </div>
+                        </div>
+                    </template>
+                    <!-- last_payment mode -->
+                    <template x-if="depositAction === 'last_payment'">
+                        <div class="space-y-2">
+                            <div class="flex justify-between text-gray-600">
+                                <span>{{ __('messages.deposit_as_last_payment_label') }}</span>
+                                <span class="font-semibold text-green-600" x-text="'$' + deposit.toFixed(2)"></span>
+                            </div>
+                            <div class="flex justify-between text-gray-600">
+                                <span>{{ __('messages.balance_due_from_tenant') }}</span>
+                                <span class="font-semibold" :class="balanceDue > 0 ? 'text-red-600' : 'text-slate-400'" x-text="'$' + balanceDue.toFixed(2)"></span>
+                            </div>
+                            <div class="flex justify-between text-gray-600">
+                                <span>{{ __('messages.refund_to_tenant') }}</span>
+                                <span class="font-semibold text-slate-400">$0.00</span>
+                            </div>
+                        </div>
+                    </template>
                 </div>
 
                 <!-- Warning if balance due -->
@@ -264,10 +315,16 @@
                         <span>{{ __('messages.tenant_owes') }} <strong x-text="'$' + balanceDue.toFixed(2)"></strong> {{ __('messages.after_deposit_applied') }}</span>
                     </div>
                 </template>
-                <template x-if="refundAmount > 0">
+                <template x-if="depositAction === 'return_deposit' && refundAmount > 0">
                     <div class="flex items-start gap-2 bg-green-50 border border-green-200 rounded-lg px-3 py-2.5 text-xs text-green-700">
                         <svg class="w-4 h-4 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
                         <span>{{ __('messages.refund_prefix') }} <strong x-text="'$' + refundAmount.toFixed(2)"></strong> {{ __('messages.refund_suffix') }}</span>
+                    </div>
+                </template>
+                <template x-if="depositAction === 'last_payment' && deposit > 0">
+                    <div class="flex items-start gap-2 bg-green-50 border border-green-200 rounded-lg px-3 py-2.5 text-xs text-green-700">
+                        <svg class="w-4 h-4 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                        <span>Deposit <strong x-text="'$' + deposit.toFixed(2)"></strong> recorded as rent income — no refund issued.</span>
                     </div>
                 </template>
             </div>
@@ -297,6 +354,7 @@
 
             fullMonth: {{ old('charge_full_month') ? 'true' : 'false' }},
             extraCharges: @json(old('extra_charges', [])),
+            depositAction: '{{ old('deposit_action', 'return_deposit') }}',
             showModal: false,
 
             stayDays: 0,
@@ -341,9 +399,16 @@
                 this.extraTotal = this.extraCharges.reduce((sum, r) => sum + (parseFloat(r.amount) || 0), 0);
 
                 this.totalDue = this.proRataRent + this.outstandingCharges + this.extraTotal;
-                this.depositApplied = Math.min(this.deposit, this.totalDue);
-                this.balanceDue = Math.max(0, this.totalDue - this.depositApplied);
-                this.refundAmount = this.deposit - this.depositApplied;
+
+                if (this.depositAction === 'last_payment') {
+                    this.depositApplied = Math.min(this.deposit, this.totalDue);
+                    this.balanceDue = Math.max(0, this.totalDue - this.deposit);
+                    this.refundAmount = 0;
+                } else {
+                    this.depositApplied = Math.min(this.deposit, this.totalDue);
+                    this.balanceDue = Math.max(0, this.totalDue - this.depositApplied);
+                    this.refundAmount = this.deposit - this.depositApplied;
+                }
             },
 
             bindChargeCheckboxes() {

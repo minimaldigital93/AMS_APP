@@ -300,8 +300,7 @@ function prepareFormSubmit() {
         `;
         container.appendChild(div);
     });
-    
-    console.log(`Prepared ${unitsAdded.length} apartments for submission`);
+
     return true; // Allow form to submit
 }
 

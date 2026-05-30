@@ -9,6 +9,7 @@ use App\Models\Apartments;
 use App\Models\FiscalPeriods;
 use App\Models\Floors;
 use App\Models\Payments;
+use App\Models\Rentals;
 use App\Models\Tenants;
 use App\Models\User;
 use App\Services\Tenants\TenantLeaveProcessor;
@@ -162,6 +163,7 @@ class TenantController extends Controller
 
             DB::transaction(function () use ($tenant, $validated) {
                 $context = $this->leaveProcessor->prepare($tenant, $validated);
+                $context['deposit_action'] = $validated['deposit_action'] ?? 'return_deposit';
                 $this->leaveProcessor->persist($tenant, $context, $validated['notes'] ?? null);
 
                 $this->recordAdminLeaveAccounting($tenant, $context);
@@ -204,6 +206,7 @@ class TenantController extends Controller
         $selectedPayments = $context['selected_payments'];
         $selectedUtilities = $context['selected_utilities'];
         $extraCharges = $context['extra_charges'] ?? [];
+        $depositAction = $context['deposit_action'] ?? 'return_deposit';
 
         $activePeriod = FiscalPeriods::where('user_id', Auth::id())
             ->where('status', 'open')
@@ -314,21 +317,50 @@ class TenantController extends Controller
             ]);
         }
 
-        // 3) Refund actually paid back to the tenant is the only cash leaving
-        // the business; deposit_applied already shows up as income via 2a/2b/2c.
-        $refundAmount = $settlement['refund_amount'] ?? 0;
-        if ($refundAmount > 0) {
+        // 3) Deposit disposition — return or apply as last rent payment
+        $depositAmount = (float) ($tenant->deposit ?? 0);
+        if ($depositAction === 'last_payment' && $depositAmount > 0) {
+            // Deposit is kept as the last month's rent payment — record as rent income
+            $depositPayment = Payments::create([
+                'rental_id' => $rental->id,
+                'amount' => $depositAmount,
+                'due_date' => $leaveDate,
+                'paid_at' => $leaveDate,
+                'payment_method' => 'cash',
+                'payment_status' => 'paid',
+                'payment_type' => 'rent',
+                'transaction_reference' => null,
+                'late_fee' => 0,
+                'note' => 'Deposit applied as last month rent payment on leave',
+            ]);
+
             Accounts::create([
                 'fiscal_period_id' => $activePeriod->id,
-                'payment_id' => null,
+                'payment_id' => $depositPayment->id,
                 'user_id' => Auth::id(),
-                'account_type' => Accounts::TYPE_EXPENSE,
-                'category' => Accounts::CAT_DEPOSIT_EXPENSE,
-                'description' => '[Apt '.$apartmentNumber.'] Deposit refunded — '.$tenant->name,
-                'amount' => $refundAmount,
+                'account_type' => Accounts::TYPE_INCOME,
+                'category' => Accounts::CAT_RENT_INCOME,
+                'description' => '[Apt '.$apartmentNumber.'] Deposit as last rent — '.$tenant->name,
+                'amount' => $depositAmount,
                 'transaction_date' => $leaveDate,
-                'note' => 'Deposit refund on leave. Applied to charges: $'.($settlement['deposit_applied'] ?? 0),
+                'note' => 'Deposit kept as last month rent payment (no refund issued)',
             ]);
+        } else {
+            // return_deposit: refund surplus deposit to tenant, recorded as expense
+            $refundAmount = $settlement['refund_amount'] ?? 0;
+            if ($refundAmount > 0) {
+                Accounts::create([
+                    'fiscal_period_id' => $activePeriod->id,
+                    'payment_id' => null,
+                    'user_id' => Auth::id(),
+                    'account_type' => Accounts::TYPE_EXPENSE,
+                    'category' => Accounts::CAT_DEPOSIT_EXPENSE,
+                    'description' => '[Apt '.$apartmentNumber.'] Deposit refunded — '.$tenant->name,
+                    'amount' => $refundAmount,
+                    'transaction_date' => $leaveDate,
+                    'note' => 'Deposit refund on leave. Applied to charges: $'.($settlement['deposit_applied'] ?? 0),
+                ]);
+            }
         }
     }
 
@@ -421,11 +453,6 @@ class TenantController extends Controller
     public function show(Tenants $tenant): View
     {
         $tenant->load(['apartment.floor', 'rentals.apartment', 'rentals.payments', 'utilities']);
-        Log::info('Show tenant details', [
-            'tenant_id' => $tenant->id,
-            'name' => $tenant->name,
-            'photo_path' => $tenant->photo_path,
-        ]);
 
         return view('admin.tenantManagement.showTenant', compact('tenant'));
     }

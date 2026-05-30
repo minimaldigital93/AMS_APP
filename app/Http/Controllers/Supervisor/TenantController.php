@@ -289,6 +289,7 @@ class TenantController extends Controller
 
             DB::transaction(function () use ($tenant, $validated) {
                 $context = $this->leaveProcessor->prepare($tenant, $validated);
+                $context['deposit_action'] = $validated['deposit_action'] ?? 'return_deposit';
                 $this->leaveProcessor->persist($tenant, $context, $validated['notes'] ?? null);
 
                 $this->recordSupervisorLeaveAccounting($tenant, $context);
@@ -331,6 +332,7 @@ class TenantController extends Controller
         $selectedPayments = $context['selected_payments'];
         $selectedUtilities = $context['selected_utilities'];
         $extraCharges = $context['extra_charges'] ?? [];
+        $depositAction = $context['deposit_action'] ?? 'return_deposit';
 
         $activePeriod = FiscalPeriods::where('status', 'open')
             ->whereHas('user', function ($q) {
@@ -429,19 +431,46 @@ class TenantController extends Controller
             ]);
         }
 
-        // Deposit refund expense — mirrors the admin flow.
-        $refundAmount = $settlement['refund_amount'] ?? 0;
-        if ($refundAmount > 0) {
+        // Deposit disposition — return or apply as last rent payment
+        $depositAmount = (float) ($tenant->deposit ?? 0);
+        if ($depositAction === 'last_payment' && $depositAmount > 0) {
+            $depositPayment = Payments::create([
+                'rental_id' => $rental->id,
+                'amount' => $depositAmount,
+                'due_date' => $leaveDate,
+                'paid_at' => $leaveDate,
+                'payment_method' => 'cash',
+                'payment_status' => 'paid',
+                'payment_type' => 'rent',
+                'late_fee' => 0,
+                'note' => 'Deposit applied as last month rent payment on leave (by supervisor)',
+            ]);
+
             Accounts::create([
                 'fiscal_period_id' => $activePeriod->id,
-                'payment_id' => null,
+                'payment_id' => $depositPayment->id,
                 'user_id' => $activePeriod->user_id,
-                'account_type' => Accounts::TYPE_EXPENSE,
-                'category' => Accounts::CAT_DEPOSIT_EXPENSE,
-                'description' => '[Apt '.$apartmentNumber.'] Deposit refunded — '.$tenant->name.' (by supervisor)',
-                'amount' => $refundAmount,
+                'account_type' => Accounts::TYPE_INCOME,
+                'category' => Accounts::CAT_RENT_INCOME,
+                'description' => '[Apt '.$apartmentNumber.'] Deposit as last rent — '.$tenant->name.' (by supervisor)',
+                'amount' => $depositAmount,
                 'transaction_date' => $leaveDate,
+                'note' => 'Deposit kept as last month rent payment (no refund issued)',
             ]);
+        } else {
+            $refundAmount = $settlement['refund_amount'] ?? 0;
+            if ($refundAmount > 0) {
+                Accounts::create([
+                    'fiscal_period_id' => $activePeriod->id,
+                    'payment_id' => null,
+                    'user_id' => $activePeriod->user_id,
+                    'account_type' => Accounts::TYPE_EXPENSE,
+                    'category' => Accounts::CAT_DEPOSIT_EXPENSE,
+                    'description' => '[Apt '.$apartmentNumber.'] Deposit refunded — '.$tenant->name.' (by supervisor)',
+                    'amount' => $refundAmount,
+                    'transaction_date' => $leaveDate,
+                ]);
+            }
         }
     }
 

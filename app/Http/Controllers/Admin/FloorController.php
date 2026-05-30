@@ -132,15 +132,6 @@ class FloorController extends Controller
 
     public function update(Request $request, Floors $floor)
     {
-        Log::info('=== FLOOR UPDATE METHOD CALLED ===', [
-            'method' => $request->method(),
-            'path' => $request->path(),
-            'action' => $request->input('action', 'update_floor'),
-            'all_inputs' => $request->all(),
-            'floor_id' => $floor->id,
-            '_method_input' => $request->input('_method'),
-        ]);
-
         $action = $request->input('action', 'update_floor');
 
         // ACTION: Add New Apartment to Existing Floor
@@ -187,8 +178,6 @@ class FloorController extends Controller
                 'description' => $validated['description'] ?? null,
             ]);
 
-            Log::info('Floor updated successfully, redirecting to index', ['floor_id' => $floor->id]);
-
             return redirect()
                 ->route('admin.floors.index')
                 ->with('success', 'Floor updated successfully');
@@ -203,10 +192,6 @@ class FloorController extends Controller
 
     public function destroy(Floors $floor)
     {
-        Log::warning('!!! FLOOR DESTROY METHOD CALLED !!!', [
-            'floor_id' => $floor->id,
-            'floor_name' => $floor->floor_name,
-        ]);
         $floor->delete();
 
         return redirect()->route('admin.floors.index')->with('success', 'Floor deleted successfully');

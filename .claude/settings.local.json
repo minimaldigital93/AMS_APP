@@ -103,7 +103,17 @@
       "Bash(grep -oE '>[ ]*[A-Z][A-Za-z][^<{}]{2,}<' resources/views/admin/fiscalperiod/balance_sheet_items.blade.php)",
       "Bash(echo \"leftover: $\\(grep -oE '>[ ]*[A-Z][A-Za-z][^<{}]{2,}<' resources/views/admin/fiscalperiod/balance_sheet_items.blade.php)",
       "Bash(perl -CSD -0pi -e \"s/sortAsc \\\\? 'Sort ▲' : 'Sort ▼'/sortAsc ? '{{ __\\(\\\\x27messages.sort_asc\\\\x27\\) }}' : 'Sort ▼'/g; s/sortBtn\\\\.textContent = 'Sort ▲'/sortBtn.textContent = '{{ __\\(\\\\x27messages.sort_asc\\\\x27\\) }}'/g;\" resources/views/admin/users/index.blade.php)",
-      "Bash(grep -noE \">[ ]*[A-Z][A-Za-z][^<{}]{2,55}<\" resources/views/admin/settings/index.blade.php)"
+      "Bash(grep -noE \">[ ]*[A-Z][A-Za-z][^<{}]{2,55}<\" resources/views/admin/settings/index.blade.php)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://127.0.0.1:8001)",
+      "Bash(php -l /Users/moniodom/AMS_APP/app/Http/Controllers/Admin/TenantController.php)",
+      "Bash(php -l /Users/moniodom/AMS_APP/app/Http/Controllers/Supervisor/TenantController.php)",
+      "Bash(./vendor/bin/pint --test)",
+      "Bash(grep -rn -e \"->floor\" -e \"->apartment\" -e \"->rentals\" -e \"->user\" resources/views/admin/TenantManagement/index.blade.php)",
+      "Bash(./vendor/bin/pint --test app/Http/Controllers/Admin/FloorController.php app/Http/Controllers/Admin/TenantController.php)",
+      "Bash(php -r \"json_decode\\(file_get_contents\\('composer.json'\\)\\); echo json_last_error\\(\\) === JSON_ERROR_NONE ? 'composer.json: valid JSON' : 'composer.json: INVALID';\")",
+      "Bash(composer validate *)",
+      "Bash(./vendor/bin/pint --test app/Services/Tenants/TenantRentProgressCalculator.php)",
+      "Bash(./vendor/bin/pest tests/Feature/Tenants)"
     ]
   }
 }

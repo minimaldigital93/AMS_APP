@@ -31,32 +31,45 @@ class TenantRentProgressCalculator
     {
         $currentMonth = now()->month;
         $currentYear = now()->year;
-        $rentProgressMap = [];
 
+        $tenantIds = [];
         foreach ($tenants as $tenant) {
-            $rental = Rentals::where('tenant_id', $tenant->id)
-                ->where(function ($q) {
-                    $q->whereNull('end_date')->orWhere('end_date', '>=', now());
-                })
-                ->with(['payments' => function ($q) use ($activePeriod, $currentMonth, $currentYear) {
-                    $q->where('payment_type', 'rent')
-                        ->where('payment_status', 'paid');
+            $tenantIds[] = $tenant->id;
+        }
 
-                    if ($activePeriod) {
-                        $q->whereBetween('paid_at', [$activePeriod->opening_date, $activePeriod->closing_date]);
-                    } else {
-                        $q->whereMonth('paid_at', $currentMonth)
-                            ->whereYear('paid_at', $currentYear);
-                    }
-                }])
-                ->latest('start_date')
-                ->first();
+        if ($tenantIds === []) {
+            return [];
+        }
 
-            if (! $rental) {
+        // Batch-load every candidate rental for the paginated tenants in one
+        // query (avoids an N+1 of one lookup per tenant). Ordered newest-first
+        // so the first row seen per tenant is the latest rental.
+        $rentals = Rentals::whereIn('tenant_id', $tenantIds)
+            ->where(function ($q) {
+                $q->whereNull('end_date')->orWhere('end_date', '>=', now());
+            })
+            ->with(['payments' => function ($q) use ($activePeriod, $currentMonth, $currentYear) {
+                $q->where('payment_type', 'rent')
+                    ->where('payment_status', 'paid');
+
+                if ($activePeriod) {
+                    $q->whereBetween('paid_at', [$activePeriod->opening_date, $activePeriod->closing_date]);
+                } else {
+                    $q->whereMonth('paid_at', $currentMonth)
+                        ->whereYear('paid_at', $currentYear);
+                }
+            }])
+            ->orderByDesc('start_date')
+            ->get();
+
+        $rentProgressMap = [];
+        foreach ($rentals as $rental) {
+            // Keep only the latest rental per tenant (first one wins).
+            if (isset($rentProgressMap[$rental->tenant_id])) {
                 continue;
             }
 
-            $rentProgressMap[$tenant->id] = $this->progressFor($rental, $currentMonth, $currentYear)
+            $rentProgressMap[$rental->tenant_id] = $this->progressFor($rental, $currentMonth, $currentYear)
                 + $this->stayFor($rental);
         }
 
