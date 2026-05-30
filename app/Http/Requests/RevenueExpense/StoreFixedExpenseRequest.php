@@ -12,8 +12,8 @@ class StoreFixedExpenseRequest extends FormRequest
             'apartment_id' => 'required|exists:apartments,id',
             'expense_name' => 'required|string|max:255',
             'expense_type' => 'required|in:parking,internet,trash,other',
-            'amount'       => 'required|numeric|min:0.01',
-            'note'         => 'nullable|string|max:1000',
+            'amount' => 'required|numeric|min:0.01',
+            'note' => 'nullable|string|max:1000',
         ];
     }
 }

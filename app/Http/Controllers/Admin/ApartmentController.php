@@ -3,22 +3,21 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\Accounts;
 use App\Models\Apartments;
+use App\Models\FiscalPeriods;
 use App\Models\Floors;
 use App\Models\Payments;
 use App\Models\Rentals;
 use App\Models\Tenants;
 use App\Models\User;
-use App\Models\Accounts;
-use App\Models\FiscalPeriods;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
-use Illuminate\View\View;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\View\View;
 
 class ApartmentController extends Controller
 {
-
     public function index(Request $request): View
     {
         $query = Apartments::with(['floor', 'tenants', 'supervisor']);
@@ -35,16 +34,16 @@ class ApartmentController extends Controller
         }
 
         $apartments = $query->get();
-        
+
         // Group apartments by floor in ascending order
-        $apartmentsByFloor = $apartments->filter(function($apartment) {
+        $apartmentsByFloor = $apartments->filter(function ($apartment) {
             return $apartment->floor !== null;
-        })->groupBy(function($apartment) {
+        })->groupBy(function ($apartment) {
             return $apartment->floor->id;
-        })->sortBy(function($group) {
+        })->sortBy(function ($group) {
             return $group->first()->floor->id;
         });
-        
+
         $floorsWithApartments = Floors::with('apartments')->orderBy('id', 'asc')->get();
         $floors = Floors::orderBy('id', 'asc')->get();
         $statuses = Apartments::getStatuses();
@@ -52,7 +51,7 @@ class ApartmentController extends Controller
         $availableTenants = Tenants::where('status', 'active')->whereNull('apartment_id')->get();
 
         return view('admin.apartments.index', compact('apartmentsByFloor', 'floors', 'floorsWithApartments', 'statuses', 'supervisors', 'availableTenants'));
-    }   
+    }
 
     public function create(): View
     {
@@ -121,7 +120,7 @@ class ApartmentController extends Controller
                     $status = 'paid';
                 } elseif ($percent > 0) {
                     $status = 'partial';
-                } elseif ($isPastDue && !$isFirstMonth) {
+                } elseif ($isPastDue && ! $isFirstMonth) {
                     $status = 'overdue';
                 } elseif ($isCurrent) {
                     $status = 'due';
@@ -183,7 +182,7 @@ class ApartmentController extends Controller
     public function update(Request $request, Apartments $apartment)
     {
         $validated = $request->validate([
-            'apartment_number' => 'required|string|unique:apartments,apartment_number,' . $apartment->id,
+            'apartment_number' => 'required|string|unique:apartments,apartment_number,'.$apartment->id,
             'monthly_rent' => 'required|numeric|min:0',
             'status' => Apartments::getStatusValidationRule(),
             'supervisor_id' => 'nullable|exists:users,id',
@@ -195,15 +194,14 @@ class ApartmentController extends Controller
         return redirect()->route('admin.apartments.index')->with('success', 'Apartment updated successfully');
     }
 
-
     public function assignTenant(Request $request, Apartments $apartment)
     {
         $validated = $request->validate([
             'tenant_option' => 'required|in:existing,new',
             'tenant_id' => 'nullable|required_if:tenant_option,existing|exists:tenants,id',
             'name' => 'nullable|required_if:tenant_option,new|string|max:255',
-            'email' => 'nullable|required_if:tenant_option,new|email|max:255',
-            'phone' => 'nullable|string|max:20',
+            'phone' => 'nullable|required_if:tenant_option,new|string|max:20',
+            'email' => 'nullable|email|max:255',
             'address' => 'nullable|string',
             'date_of_birth' => 'nullable|date',
             'attached_photo' => 'nullable|file|mimes:jpeg,jpg,png,gif,pdf|max:5120',
@@ -230,12 +228,12 @@ class ApartmentController extends Controller
             $tenant = Tenants::findOrFail($validated['tenant_id']);
 
             // If this existing tenant has no user account yet, create one now
-            if (!$tenant->user_id && $tenant->email) {
-                $existingUser = User::where('email', $tenant->email)->first();
-                if (!$existingUser) {
+            if (! $tenant->user_id && $tenant->phone) {
+                $existingUser = User::where('phone', $tenant->phone)->first();
+                if (! $existingUser) {
                     $existingUser = User::create([
-                        'name'     => $tenant->name,
-                        'email'    => $tenant->email,
+                        'name' => $tenant->name,
+                        'phone' => $tenant->phone,
                         'password' => '12345678',
                     ]);
                     $existingUser->assignRole('tenant');
@@ -245,26 +243,26 @@ class ApartmentController extends Controller
         } else {
             // Create a user account first, then create the tenant linked to it
             $tenantUser = User::create([
-                'name'     => $validated['name'],
-                'email'    => $validated['email'],
+                'name' => $validated['name'],
+                'phone' => $validated['phone'],
                 'password' => '12345678',
             ]);
             $tenantUser->assignRole('tenant');
 
             $tenant = Tenants::create([
-                'name'          => $validated['name'],
-                'email'         => $validated['email'],
-                'phone'         => $validated['phone'] ?? null,
-                'address'       => $validated['address'] ?? null,
+                'name' => $validated['name'],
+                'phone' => $validated['phone'],
+                'email' => $validated['email'] ?? null,
+                'address' => $validated['address'] ?? null,
                 'date_of_birth' => $validated['date_of_birth'] ?? null,
-                'photo_path'    => $photoPath,
+                'photo_path' => $photoPath,
                 'document_path' => $documentPath,
-                'apartment_id'  => $apartment->id,
-                'status'        => 'active',
-                'user_id'       => $tenantUser->id,
+                'apartment_id' => $apartment->id,
+                'status' => 'active',
+                'user_id' => $tenantUser->id,
             ]);
         }
-        
+
         // Update tenant information
         $updateData = [
             'apartment_id' => $apartment->id,
@@ -301,14 +299,14 @@ class ApartmentController extends Controller
         ]);
 
         // Record deposit as revenue (deposit income) in Accounts ledger
-        if (!empty($validated['deposit']) && $validated['deposit'] > 0) {
+        if (! empty($validated['deposit']) && $validated['deposit'] > 0) {
             // Determine active fiscal period for this user
             $activePeriod = FiscalPeriods::where('user_id', Auth::id())
                 ->where('status', 'open')
                 ->orderBy('opening_date', 'desc')
                 ->first();
 
-            $reference = 'deposit:rental:' . $rental->id;
+            $reference = 'deposit:rental:'.$rental->id;
 
             Accounts::firstOrCreate(
                 ['reference_number' => $reference],
@@ -318,7 +316,7 @@ class ApartmentController extends Controller
                     'user_id' => Auth::id(),
                     'account_type' => Accounts::TYPE_INCOME,
                     'category' => Accounts::CAT_DEPOSIT_INCOME,
-                    'description' => 'Security deposit — Apt ' . ($apartment->apartment_number ?? 'N/A'),
+                    'description' => 'Security deposit — Apt '.($apartment->apartment_number ?? 'N/A'),
                     'amount' => $validated['deposit'],
                     'transaction_date' => now()->toDateString(),
                     'note' => 'Initial deposit collected on tenant assignment',
@@ -330,18 +328,17 @@ class ApartmentController extends Controller
         return redirect()->route('admin.apartments.index')->with('success', 'Tenant assigned successfully with rental created.');
     }
 
-
     public function destroy(Apartments $apartment)
     {
         $floor = $apartment->floor;
         $apartment->delete();
-        
+
         // Check if request came from floor edit page
         $referrer = request()->headers->get('referer');
         if ($referrer && str_contains($referrer, '/admin/floors/') && str_contains($referrer, '/edit')) {
             return back()->with('success', 'Apartment deleted successfully');
         }
-        
+
         return redirect()->route('admin.apartments.index')->with('success', 'Apartment deleted successfully');
     }
 }

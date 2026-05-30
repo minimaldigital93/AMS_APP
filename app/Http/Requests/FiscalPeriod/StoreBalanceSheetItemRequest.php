@@ -22,14 +22,14 @@ class StoreBalanceSheetItemRequest extends FormRequest
             : '2999-12-31';
 
         return [
-            'item_type'        => 'required|in:asset,liability,equity',
-            'sub_type'         => 'required|string',
-            'name'             => 'required|string|max:255',
-            'description'      => 'nullable|string',
-            'amount'           => 'required|numeric|min:0',
-            'as_of_date'       => 'required|date|after_or_equal:' . $opening . '|before_or_equal:' . $closing,
+            'item_type' => 'required|in:asset,liability,equity',
+            'sub_type' => 'required|string',
+            'name' => 'required|string|max:255',
+            'description' => 'nullable|string',
+            'amount' => 'required|numeric|min:0',
+            'as_of_date' => 'required|date|after_or_equal:'.$opening.'|before_or_equal:'.$closing,
             'reference_number' => 'nullable|string|max:100',
-            'notes'            => 'nullable|string',
+            'notes' => 'nullable|string',
         ];
     }
 }

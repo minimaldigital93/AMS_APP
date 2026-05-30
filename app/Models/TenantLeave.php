@@ -68,4 +68,3 @@ class TenantLeave extends Model
         return $this->belongsTo(Apartments::class, 'apartment_id');
     }
 }
-

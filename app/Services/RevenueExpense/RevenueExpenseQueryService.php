@@ -4,7 +4,6 @@ namespace App\Services\RevenueExpense;
 
 use App\Models\Accounts;
 use App\Models\FiscalPeriods;
-use App\Models\Rentals;
 use App\Models\Utilities;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
@@ -32,14 +31,14 @@ class RevenueExpenseQueryService
      */
     public function getRevenueExpenseData($startDate = null, $endDate = null): array
     {
-        if ((!$startDate || !$endDate) && $this->period) {
+        if ((! $startDate || ! $endDate) && $this->period) {
             $startDate = $this->period->opening_date;
-            $endDate   = $this->period->closing_date;
+            $endDate = $this->period->closing_date;
         }
 
-        $income       = $this->calculateIncome($startDate, $endDate);
-        $expenses     = $this->calculateExpenses($startDate, $endDate);
-        $summary      = $this->calculateSummary($income, $expenses);
+        $income = $this->calculateIncome($startDate, $endDate);
+        $expenses = $this->calculateExpenses($startDate, $endDate);
+        $summary = $this->calculateSummary($income, $expenses);
         $perApartment = $this->calculatePerApartmentData($startDate, $endDate);
 
         return compact('income', 'expenses', 'summary', 'perApartment');
@@ -65,17 +64,17 @@ class RevenueExpenseQueryService
 
         $records = $query->get();
 
-        $rentIncome             = $records->where('category', Accounts::CAT_RENT_INCOME)->sum('amount');
-        $depositIncome          = $records->where('category', Accounts::CAT_DEPOSIT_INCOME)->sum('amount');
-        $lateFeesIncome         = $records->where('category', Accounts::CAT_LATE_FEE_INCOME)->sum('amount');
+        $rentIncome = $records->where('category', Accounts::CAT_RENT_INCOME)->sum('amount');
+        $depositIncome = $records->where('category', Accounts::CAT_DEPOSIT_INCOME)->sum('amount');
+        $lateFeesIncome = $records->where('category', Accounts::CAT_LATE_FEE_INCOME)->sum('amount');
         $utilityIncomeFromAccts = $records->where('category', Accounts::CAT_UTILITY_INCOME)->sum('amount');
-        $otherIncomeFromAccts   = $records->where('category', Accounts::CAT_OTHER_INCOME)->sum('amount');
+        $otherIncomeFromAccts = $records->where('category', Accounts::CAT_OTHER_INCOME)->sum('amount');
 
-        $totalIncome  = $records->sum('amount');
+        $totalIncome = $records->sum('amount');
         $paymentCount = $records->whereNotNull('payment_id')->pluck('payment_id')->unique()->count();
 
         $rangeStart = $startDate ? Carbon::parse($startDate) : ($this->period ? Carbon::parse($this->period->opening_date) : null);
-        $rangeEnd   = $endDate   ? Carbon::parse($endDate)   : ($this->period ? Carbon::parse($this->period->closing_date) : null);
+        $rangeEnd = $endDate ? Carbon::parse($endDate) : ($this->period ? Carbon::parse($this->period->closing_date) : null);
 
         $byType = [];
         if ($rangeStart && $rangeEnd) {
@@ -91,30 +90,30 @@ class RevenueExpenseQueryService
 
         $utilityBreakdown = [
             'electricity' => round($byType['electricity'] ?? 0, 2),
-            'water'       => round($byType['water']       ?? 0, 2),
+            'water' => round($byType['water'] ?? 0, 2),
         ];
 
         $otherIncomeBreakdown = [
             'internet' => round($byType['internet'] ?? 0, 2),
-            'parking'  => round($byType['parking']  ?? 0, 2),
-            'trash'    => round($byType['trash']     ?? 0, 2),
-            'other'    => max(0, round($otherIncomeFromAccts
+            'parking' => round($byType['parking'] ?? 0, 2),
+            'trash' => round($byType['trash'] ?? 0, 2),
+            'other' => max(0, round($otherIncomeFromAccts
                 - ($byType['internet'] ?? 0)
-                - ($byType['parking']  ?? 0)
-                - ($byType['trash']    ?? 0), 2)),
+                - ($byType['parking'] ?? 0)
+                - ($byType['trash'] ?? 0), 2)),
         ];
 
         return [
-            'rent_income'             => round($rentIncome, 2),
-            'late_fees'               => round($lateFeesIncome, 2),
-            'total_utility_income'    => round($utilityIncomeFromAccts, 2),
-            'utility_breakdown'       => $utilityBreakdown,
-            'other_income'            => round($otherIncomeFromAccts, 2),
-            'other_income_breakdown'  => $otherIncomeBreakdown,
-            'deposit_income'          => round($depositIncome, 2),
-            'total_income'            => round($totalIncome, 2),
-            'payment_count'           => $paymentCount,
-            'average_payment'         => $paymentCount > 0 ? round($rentIncome / $paymentCount, 2) : 0,
+            'rent_income' => round($rentIncome, 2),
+            'late_fees' => round($lateFeesIncome, 2),
+            'total_utility_income' => round($utilityIncomeFromAccts, 2),
+            'utility_breakdown' => $utilityBreakdown,
+            'other_income' => round($otherIncomeFromAccts, 2),
+            'other_income_breakdown' => $otherIncomeBreakdown,
+            'deposit_income' => round($depositIncome, 2),
+            'total_income' => round($totalIncome, 2),
+            'payment_count' => $paymentCount,
+            'average_payment' => $paymentCount > 0 ? round($rentIncome / $paymentCount, 2) : 0,
         ];
     }
 
@@ -134,11 +133,11 @@ class RevenueExpenseQueryService
 
         $records = $query->get();
 
-        $fixedExpenses    = $records->where('category', Accounts::CAT_BUSINESS_FIXED)->sum('amount');
+        $fixedExpenses = $records->where('category', Accounts::CAT_BUSINESS_FIXED)->sum('amount');
         $variableExpenses = $records->where('category', Accounts::CAT_BUSINESS_VARIABLE)->sum('amount');
-        $utilityExpenses  = $records->where('category', Accounts::CAT_UTILITIES_EXPENSE)->sum('amount');
-        $depositExpenses  = $records->where('category', Accounts::CAT_DEPOSIT_EXPENSE)->sum('amount');
-        $otherExpenses    = $records->whereNotIn('category', [
+        $utilityExpenses = $records->where('category', Accounts::CAT_UTILITIES_EXPENSE)->sum('amount');
+        $depositExpenses = $records->where('category', Accounts::CAT_DEPOSIT_EXPENSE)->sum('amount');
+        $otherExpenses = $records->whereNotIn('category', [
             Accounts::CAT_BUSINESS_FIXED,
             Accounts::CAT_BUSINESS_VARIABLE,
             Accounts::CAT_UTILITIES_EXPENSE,
@@ -146,17 +145,17 @@ class RevenueExpenseQueryService
         ])->sum('amount');
 
         $totalExpenses = $fixedExpenses + $variableExpenses + $utilityExpenses + $depositExpenses + $otherExpenses;
-        $byCategory    = $records->groupBy('category')->map(fn ($items) => round($items->sum('amount'), 2))->toArray();
+        $byCategory = $records->groupBy('category')->map(fn ($items) => round($items->sum('amount'), 2))->toArray();
 
         return [
-            'fixed_expenses'    => round($fixedExpenses, 2),
+            'fixed_expenses' => round($fixedExpenses, 2),
             'variable_expenses' => round($variableExpenses, 2),
-            'utility_expenses'  => round($utilityExpenses, 2),
-            'deposit_expenses'  => round($depositExpenses, 2),
-            'other_expenses'    => round($otherExpenses, 2),
-            'by_category'       => $byCategory,
-            'total_expenses'    => round($totalExpenses, 2),
-            'expense_count'     => $records->count(),
+            'utility_expenses' => round($utilityExpenses, 2),
+            'deposit_expenses' => round($depositExpenses, 2),
+            'other_expenses' => round($otherExpenses, 2),
+            'by_category' => $byCategory,
+            'total_expenses' => round($totalExpenses, 2),
+            'expense_count' => $records->count(),
         ];
     }
 
@@ -168,18 +167,18 @@ class RevenueExpenseQueryService
      */
     public function calculateSummary(array $income, array $expenses): array
     {
-        $netProfit    = $income['total_income'] - $expenses['total_expenses'];
+        $netProfit = $income['total_income'] - $expenses['total_expenses'];
         $profitMargin = $income['total_income'] > 0
             ? round(($netProfit / $income['total_income']) * 100, 2)
             : 0;
 
         return [
-            'total_income'   => $income['total_income'],
-            'rent_income'    => $income['rent_income'],
+            'total_income' => $income['total_income'],
+            'rent_income' => $income['rent_income'],
             'total_expenses' => $expenses['total_expenses'],
-            'net_profit'     => round($netProfit, 2),
-            'profit_margin'  => $profitMargin,
-            'is_profitable'  => $netProfit > 0,
+            'net_profit' => round($netProfit, 2),
+            'profit_margin' => $profitMargin,
+            'is_profitable' => $netProfit > 0,
         ];
     }
 
@@ -190,8 +189,8 @@ class RevenueExpenseQueryService
     public function calculatePerApartmentData($startDate = null, $endDate = null): array
     {
         $rangeStart = Carbon::parse($startDate ?: now()->startOfMonth())->startOfDay();
-        $rangeEnd   = Carbon::parse($endDate ?: now()->endOfMonth())->endOfDay();
-        $period     = $this->period;
+        $rangeEnd = Carbon::parse($endDate ?: now()->endOfMonth())->endOfDay();
+        $period = $this->period;
 
         $apartments = $this->apartmentsScope->clone()
             ->with(['floor', 'activeFixedExpenses', 'rentals' => function ($q) use ($period, $startDate, $endDate) {
@@ -214,15 +213,15 @@ class RevenueExpenseQueryService
                     'utilities' => function ($uq) use ($startDate, $endDate) {
                         if ($startDate && $endDate) {
                             $start = Carbon::parse($startDate);
-                            $end   = Carbon::parse($endDate);
+                            $end = Carbon::parse($endDate);
                             $uq->where(function ($q) use ($start, $end) {
                                 $q->whereBetween('paid_at', [$start->startOfDay(), $end->copy()->endOfDay()])
-                                  ->orWhere(function ($q2) use ($start, $end) {
-                                      $q2->where('billing_year', '>=', $start->year)
-                                          ->where('billing_year', '<=', $end->year)
-                                          ->where('billing_month', '>=', $start->month)
-                                          ->where('billing_month', '<=', $end->month);
-                                  });
+                                    ->orWhere(function ($q2) use ($start, $end) {
+                                        $q2->where('billing_year', '>=', $start->year)
+                                            ->where('billing_year', '<=', $end->year)
+                                            ->where('billing_month', '>=', $start->month)
+                                            ->where('billing_month', '<=', $end->month);
+                                    });
                             });
                         }
                     },
@@ -236,21 +235,21 @@ class RevenueExpenseQueryService
 
         $perApartment = [];
         foreach ($apartments as $apartment) {
-            $income            = 0;
-            $expenses          = 0;
-            $otherIncome       = 0;
-            $utilitiesIncome   = 0;
-            $expenseBreakdown  = ['electricity' => 0, 'water' => 0, 'internet' => 0, 'parking' => 0, 'trash' => 0, 'other' => 0];
-            $tenantName        = 'Vacant';
-            $hasActiveRental   = false;
-            $rentPercent       = 0;
-            $rentPaid          = 0;
-            $rentStatus        = 'none';
-            $rentDue           = $apartment->monthly_rent;
-            $occupancyPercent  = 0;
-            $lastPaymentDate   = null;
-            $occupancyEndDate  = null;
-            $daysLeft          = null;
+            $income = 0;
+            $expenses = 0;
+            $otherIncome = 0;
+            $utilitiesIncome = 0;
+            $expenseBreakdown = ['electricity' => 0, 'water' => 0, 'internet' => 0, 'parking' => 0, 'trash' => 0, 'other' => 0];
+            $tenantName = 'Vacant';
+            $hasActiveRental = false;
+            $rentPercent = 0;
+            $rentPaid = 0;
+            $rentStatus = 'none';
+            $rentDue = $apartment->monthly_rent;
+            $occupancyPercent = 0;
+            $lastPaymentDate = null;
+            $occupancyEndDate = null;
+            $daysLeft = null;
 
             foreach ($apartment->rentals as $rental) {
                 $income += $rental->payments->sum('amount') + $rental->payments->sum('late_fee');
@@ -265,21 +264,21 @@ class RevenueExpenseQueryService
                 $rentPaid = $monthPayments->sum('amount');
 
                 $rentPeriodStart = Carbon::parse($rental->start_date)->startOfDay();
-                $rentPeriodEnd   = $rental->end_date ? Carbon::parse($rental->end_date)->endOfDay() : null;
+                $rentPeriodEnd = $rental->end_date ? Carbon::parse($rental->end_date)->endOfDay() : null;
 
                 $overlapStart = $rentPeriodStart->greaterThan($rangeStart) ? $rentPeriodStart : $rangeStart;
-                $overlapEnd   = $rentPeriodEnd
+                $overlapEnd = $rentPeriodEnd
                     ? ($rentPeriodEnd->lessThan($rangeEnd) ? $rentPeriodEnd : $rangeEnd)
                     : $rangeEnd;
 
                 $overlapDays = $overlapStart->lte($overlapEnd) ? $overlapStart->diffInDays($overlapEnd) + 1 : 0;
                 $daysInRange = $rangeStart->diffInDays($rangeEnd) + 1;
-                $proration   = $daysInRange > 0 ? ($overlapDays / $daysInRange) : 0;
-                $rentDue     = round($rental->rent_amount * $proration, 2);
+                $proration = $daysInRange > 0 ? ($overlapDays / $daysInRange) : 0;
+                $rentDue = round($rental->rent_amount * $proration, 2);
 
                 if ($proration <= 0) {
                     $rentPercent = 0;
-                    $rentStatus  = 'none';
+                    $rentStatus = 'none';
                 } else {
                     $rentPercent = $rentDue > 0 ? min(round(($rentPaid / $rentDue) * 100, 1), 100) : 0;
                     if ($rentPaid >= $rentDue) {
@@ -287,20 +286,20 @@ class RevenueExpenseQueryService
                     } elseif ($rentPercent > 0) {
                         $rentStatus = 'partial';
                     } else {
-                        $dueDay      = min($rentPeriodStart->day, $rangeStart->copy()->daysInMonth);
-                        $dueDate     = Carbon::create($rangeStart->year, $rangeStart->month, $dueDay)->endOfDay();
+                        $dueDay = min($rentPeriodStart->day, $rangeStart->copy()->daysInMonth);
+                        $dueDate = Carbon::create($rangeStart->year, $rangeStart->month, $dueDay)->endOfDay();
                         $isFirstMonth = ($rentPeriodStart->month === $rangeStart->month && $rentPeriodStart->year === $rangeStart->year);
-                        $rentStatus  = (now()->gt($dueDate) && !$isFirstMonth) ? 'overdue' : 'unpaid';
+                        $rentStatus = (now()->gt($dueDate) && ! $isFirstMonth) ? 'overdue' : 'unpaid';
                     }
                 }
 
                 $occupancyPercent = round($proration * 100, 1);
-                $lastPaymentDate  = $monthPayments->isNotEmpty()
+                $lastPaymentDate = $monthPayments->isNotEmpty()
                     ? Carbon::parse($monthPayments->max('paid_at'))->toDateString()
                     : null;
                 $occupancyEndDate = $overlapDays > 0 ? $overlapEnd->toDateString() : null;
                 if ($occupancyEndDate) {
-                    $diff     = Carbon::parse($occupancyEndDate)->startOfDay()->diffInDays(Carbon::now()->startOfDay());
+                    $diff = Carbon::parse($occupancyEndDate)->startOfDay()->diffInDays(Carbon::now()->startOfDay());
                     $daysLeft = $diff > 0 ? $diff : 0;
                 }
 
@@ -322,12 +321,12 @@ class RevenueExpenseQueryService
                 if ($rentalOtherFromAccounts > 0) {
                     $expenseBreakdown['other'] += $rentalOtherFromAccounts;
                     $otherIncome += $rentalOtherFromAccounts;
-                    $expenses    += $rentalOtherFromAccounts;
-                    $income      += $rentalOtherFromAccounts;
+                    $expenses += $rentalOtherFromAccounts;
+                    $income += $rentalOtherFromAccounts;
                 }
             }
 
-            $fixedExpTotal  = $apartment->activeFixedExpenses->sum('amount');
+            $fixedExpTotal = $apartment->activeFixedExpenses->sum('amount');
             $activeRentalId = null;
             $activeTenantId = null;
             foreach ($apartment->rentals as $r) {
@@ -336,33 +335,33 @@ class RevenueExpenseQueryService
             }
 
             $perApartment[] = [
-                'apartment_id'       => $apartment->id,
-                'rental_id'          => $activeRentalId,
-                'tenant_id'          => $activeTenantId,
-                'apartment_number'   => $apartment->apartment_number,
-                'floor'              => $apartment->floor->floor_number ?? 'N/A',
-                'floor_number'       => $apartment->floor->floor_number ?? 'N/A',
-                'tenant'             => $tenantName ?: 'Vacant',
-                'has_active_rental'  => $hasActiveRental,
-                'monthly_rent'       => $apartment->monthly_rent,
-                'income'             => round($income, 2),
-                'expenses'           => round($expenses, 2),
-                'utilities_income'   => round($utilitiesIncome, 2),
-                'other_income'       => round($otherIncome, 2),
-                'fixed_expenses'     => round($fixedExpTotal, 2),
-                'tenant_net'         => round($income - $expenses, 2),
-                'owner_expenses'     => round($fixedExpTotal, 2),
-                'net'                => round($income - $expenses - $fixedExpTotal, 2),
-                'expense_breakdown'  => $expenseBreakdown,
-                'status'             => $apartment->status,
-                'rent_percent'       => $rentPercent,
-                'rent_paid'          => round($rentPaid, 2),
-                'rent_due'           => round($rentDue, 2),
-                'occupancy_percent'  => $occupancyPercent,
-                'last_payment_date'  => $lastPaymentDate,
+                'apartment_id' => $apartment->id,
+                'rental_id' => $activeRentalId,
+                'tenant_id' => $activeTenantId,
+                'apartment_number' => $apartment->apartment_number,
+                'floor' => $apartment->floor->floor_number ?? 'N/A',
+                'floor_number' => $apartment->floor->floor_number ?? 'N/A',
+                'tenant' => $tenantName ?: 'Vacant',
+                'has_active_rental' => $hasActiveRental,
+                'monthly_rent' => $apartment->monthly_rent,
+                'income' => round($income, 2),
+                'expenses' => round($expenses, 2),
+                'utilities_income' => round($utilitiesIncome, 2),
+                'other_income' => round($otherIncome, 2),
+                'fixed_expenses' => round($fixedExpTotal, 2),
+                'tenant_net' => round($income - $expenses, 2),
+                'owner_expenses' => round($fixedExpTotal, 2),
+                'net' => round($income - $expenses - $fixedExpTotal, 2),
+                'expense_breakdown' => $expenseBreakdown,
+                'status' => $apartment->status,
+                'rent_percent' => $rentPercent,
+                'rent_paid' => round($rentPaid, 2),
+                'rent_due' => round($rentDue, 2),
+                'occupancy_percent' => $occupancyPercent,
+                'last_payment_date' => $lastPaymentDate,
                 'occupancy_end_date' => $occupancyEndDate,
-                'days_left'          => $daysLeft,
-                'rent_status'        => $hasActiveRental ? $rentStatus : 'none',
+                'days_left' => $daysLeft,
+                'rent_status' => $hasActiveRental ? $rentStatus : 'none',
             ];
         }
 

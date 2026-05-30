@@ -19,6 +19,7 @@ class Settings extends Model
     {
         $value = Cache::remember("setting.{$key}", 3600, function () use ($key) {
             $setting = static::where('key', $key)->first();
+
             return $setting ? $setting->value : null;
         });
 

@@ -27,7 +27,7 @@
                     @endif
                     <div>
                         <h2 class="text-lg font-semibold text-slate-800">{{ $tenant->name }}</h2>
-                        <p class="text-sm text-slate-500">{{ $tenant->email }}</p>
+                        <p class="text-sm text-slate-500">{{ $tenant->phone }}</p>
                     </div>
                     {{-- document link moved to Attached Document section below --}}
                 </div>
@@ -55,7 +55,7 @@
                         </div>
                         <div>
                             <p class="text-xs text-gray-500 uppercase tracking-wide">Email</p>
-                            <p class="text-sm font-medium text-gray-900 mt-1">{{ $tenant->email }}</p>
+                            <p class="text-sm font-medium text-gray-900 mt-1">{{ $tenant->email ?? '—' }}</p>
                         </div>
                         <div>
                             <p class="text-xs text-gray-500 uppercase tracking-wide">Phone</p>

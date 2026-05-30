@@ -98,7 +98,7 @@ trait HasFiscalPeriodScope
         while ($cursor->lte($end)) {
             $months[] = [
                 'month' => $cursor->month,
-                'year'  => $cursor->year,
+                'year' => $cursor->year,
                 'label' => $cursor->format('F Y'),
             ];
             $cursor->addMonth();
@@ -117,17 +117,17 @@ trait HasFiscalPeriodScope
     {
         if ($month && $year) {
             $filterStart = Carbon::create($year, $month, 1)->startOfMonth();
-            $filterEnd   = $filterStart->copy()->endOfMonth();
+            $filterEnd = $filterStart->copy()->endOfMonth();
 
             return [
                 'start' => $filterStart->lt($period->opening_date) ? Carbon::parse($period->opening_date) : $filterStart,
-                'end'   => $filterEnd->gt($period->closing_date) ? Carbon::parse($period->closing_date) : $filterEnd,
+                'end' => $filterEnd->gt($period->closing_date) ? Carbon::parse($period->closing_date) : $filterEnd,
             ];
         }
 
         return [
             'start' => $period->opening_date,
-            'end'   => $period->closing_date,
+            'end' => $period->closing_date,
         ];
     }
 }

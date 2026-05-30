@@ -4,15 +4,6 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Concerns\HasFiscalPeriodScope;
 use App\Http\Controllers\Controller;
-use App\Models\Accounts;
-use App\Models\ApartmentFixedExpense;
-use App\Models\BusinessExpense;
-use App\Models\FiscalPeriods;
-use App\Models\Payments;
-use App\Models\TenantLeave;
-use App\Models\Utilities;
-use App\Models\Rentals;
-use App\Models\Apartments;
 use App\Http\Requests\RevenueExpense\AddTenantChargeRequest;
 use App\Http\Requests\RevenueExpense\CheckoutTenantRequest;
 use App\Http\Requests\RevenueExpense\ProcessMonthlyBillsRequest;
@@ -22,17 +13,25 @@ use App\Http\Requests\RevenueExpense\StoreBusinessExpenseRequest;
 use App\Http\Requests\RevenueExpense\StoreFixedExpenseRequest;
 use App\Http\Requests\RevenueExpense\StoreOtherExpenseRequest;
 use App\Http\Requests\RevenueExpense\StoreUtilityExpenseRequest;
+use App\Models\Accounts;
+use App\Models\ApartmentFixedExpense;
+use App\Models\Apartments;
+use App\Models\BusinessExpense;
+use App\Models\FiscalPeriods;
+use App\Models\Payments;
+use App\Models\Rentals;
+use App\Models\TenantLeave;
+use App\Models\Utilities;
 use App\Services\RevenueExpense\BreakEvenService;
 use App\Services\RevenueExpense\ExpenseRecordingService;
 use App\Services\RevenueExpense\IncomeRecordingService;
 use App\Services\RevenueExpense\MonthlyBillingService;
 use App\Services\RevenueExpense\RevenueExpenseQueryService;
+use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
-use Carbon\Carbon;
 use Illuminate\Pagination\LengthAwarePaginator;
-
+use Illuminate\Support\Facades\Auth;
 
 class RevenueExpenseController extends Controller
 {
@@ -104,8 +103,8 @@ class RevenueExpenseController extends Controller
     {
         // Allow switching fiscal periods via ?period=ID
         $activePeriod = $this->resolveActivePeriod(request('period') ? (int) request('period') : null);
-        
-        if (!$activePeriod) {
+
+        if (! $activePeriod) {
             return redirect()->route('admin.fiscalperiod.create')
                 ->with('warning', 'Please create a fiscal period first to track revenue and expenses.');
         }
@@ -127,7 +126,7 @@ class RevenueExpenseController extends Controller
         $revenueExpenseData['filterMonth'] = $filterMonth;
         $revenueExpenseData['filterYear'] = $filterYear;
         $revenueExpenseData['periodMonths'] = $periodMonths;
-        
+
         $revenueExpenseData['fiscalPeriods'] = $this->getAllFiscalPeriods();
 
         $allApartments = $this->scopeApartments()->get();
@@ -145,12 +144,12 @@ class RevenueExpenseController extends Controller
             // include rentals that overlap the selected month/date range
             $rentalQuery->where(function ($q) use ($startDate, $endDate) {
                 $q->whereNull('end_date')->where('start_date', '<=', $endDate)
-                  ->orWhere(function ($q2) use ($startDate, $endDate) {
-                      $q2->where('start_date', '<=', $endDate)
-                         ->where(function ($q3) use ($startDate) {
-                             $q3->whereNull('end_date')->orWhere('end_date', '>=', $startDate);
-                         });
-                  });
+                    ->orWhere(function ($q2) use ($startDate, $endDate) {
+                        $q2->where('start_date', '<=', $endDate)
+                            ->where(function ($q3) use ($startDate) {
+                                $q3->whereNull('end_date')->orWhere('end_date', '>=', $startDate);
+                            });
+                    });
             });
         } else {
             $rentalQuery->active();
@@ -179,8 +178,8 @@ class RevenueExpenseController extends Controller
         $incomeApartments = $this->scopeApartments()
             ->with(['floor', 'rentals' => function ($q) use ($activePeriod) {
                 $q->where(function ($sq) {
-                        $sq->whereNull('end_date')->orWhere('end_date', '>=', now());
-                    })
+                    $sq->whereNull('end_date')->orWhere('end_date', '>=', now());
+                })
                     ->orderBy('start_date', 'desc')
                     ->with(['tenant', 'payments' => function ($pq) use ($activePeriod) {
                         $pq->where('payment_status', 'paid')
@@ -201,7 +200,7 @@ class RevenueExpenseController extends Controller
         foreach ($incomeApartments as $apartment) {
             foreach ($apartment->rentals as $rental) {
                 // Sum payments that occurred inside the selected date range
-                $monthPayments = $rental->payments->filter(function($p) use ($rangeStart, $rangeEnd) {
+                $monthPayments = $rental->payments->filter(function ($p) use ($rangeStart, $rangeEnd) {
                     return Carbon::parse($p->paid_at)->between($rangeStart, $rangeEnd);
                 });
                 $collected = $monthPayments->sum('amount');
@@ -301,10 +300,10 @@ class RevenueExpenseController extends Controller
                         $end = Carbon::parse($activePeriod->closing_date);
                         $uq->where(function ($q) use ($start, $end) {
                             $q->whereBetween('paid_at', [$start->startOfDay(), $end->copy()->endOfDay()])
-                              ->orWhere(function ($q2) use ($start, $end) {
-                                  $q2->where('billing_year', '>=', $start->year)
-                                      ->where('billing_year', '<=', $end->year);
-                              });
+                                ->orWhere(function ($q2) use ($start, $end) {
+                                    $q2->where('billing_year', '>=', $start->year)
+                                        ->where('billing_year', '<=', $end->year);
+                                });
                         });
                     }]);
             }])
@@ -364,8 +363,8 @@ class RevenueExpenseController extends Controller
         $billApartments = $this->scopeApartments()
             ->with(['floor', 'activeFixedExpenses', 'rentals' => function ($q) use ($currentMonth, $currentYear) {
                 $q->where(function ($q2) {
-                        $q2->whereNull('end_date')->orWhere('end_date', '>=', now());
-                    })
+                    $q2->whereNull('end_date')->orWhere('end_date', '>=', now());
+                })
                     ->orderBy('start_date', 'desc')
                     ->with(['tenant', 'utilities' => function ($uq) use ($currentMonth, $currentYear) {
                         $uq->where('billing_month', $currentMonth)
@@ -378,7 +377,9 @@ class RevenueExpenseController extends Controller
         $totalMonthlyExpenses = 0;
 
         foreach ($billApartments as $apartment) {
-            if ($apartment->rentals->isEmpty()) continue;
+            if ($apartment->rentals->isEmpty()) {
+                continue;
+            }
 
             foreach ($apartment->rentals as $rental) {
                 $fixedExpenses = $apartment->activeFixedExpenses;
@@ -438,14 +439,14 @@ class RevenueExpenseController extends Controller
     {
         $activePeriod = $this->getActiveFiscalPeriod();
 
-        if (!$activePeriod) {
+        if (! $activePeriod) {
             return redirect()->route('admin.fiscalperiod.create')
                 ->with('warning', 'Please create a fiscal period first.');
         }
 
         // Selected month/year, clamped to fiscal period bounds. Default = current month.
         $periodStart = Carbon::parse($activePeriod->opening_date)->startOfMonth();
-        $periodEnd   = Carbon::parse($activePeriod->closing_date)->endOfMonth();
+        $periodEnd = Carbon::parse($activePeriod->closing_date)->endOfMonth();
 
         $requested = Carbon::create(
             (int) $request->input('year', now()->year),
@@ -453,11 +454,15 @@ class RevenueExpenseController extends Controller
             1
         )->startOfMonth();
 
-        if ($requested->lt($periodStart)) $requested = $periodStart->copy();
-        if ($requested->gt($periodEnd))   $requested = $periodEnd->copy()->startOfMonth();
+        if ($requested->lt($periodStart)) {
+            $requested = $periodStart->copy();
+        }
+        if ($requested->gt($periodEnd)) {
+            $requested = $periodEnd->copy()->startOfMonth();
+        }
 
         $selectedMonth = $requested->month;
-        $selectedYear  = $requested->year;
+        $selectedYear = $requested->year;
 
         $prev = $requested->copy()->subMonth();
         $next = $requested->copy()->addMonth();
@@ -465,16 +470,16 @@ class RevenueExpenseController extends Controller
         $hasNext = $next->lte($periodEnd);
 
         $data = $this->calculateBreakEvenPoint($selectedMonth, $selectedYear);
-        $data['activePeriod']  = $activePeriod;
+        $data['activePeriod'] = $activePeriod;
         $data['selectedMonth'] = $selectedMonth;
-        $data['selectedYear']  = $selectedYear;
-        $data['selectedDate']  = $requested;
-        $data['prevMonth']     = $hasPrev ? $prev->month : null;
-        $data['prevYear']      = $hasPrev ? $prev->year  : null;
-        $data['nextMonth']     = $hasNext ? $next->month : null;
-        $data['nextYear']      = $hasNext ? $next->year  : null;
-        $data['hasPrev']       = $hasPrev;
-        $data['hasNext']       = $hasNext;
+        $data['selectedYear'] = $selectedYear;
+        $data['selectedDate'] = $requested;
+        $data['prevMonth'] = $hasPrev ? $prev->month : null;
+        $data['prevYear'] = $hasPrev ? $prev->year : null;
+        $data['nextMonth'] = $hasNext ? $next->month : null;
+        $data['nextYear'] = $hasNext ? $next->year : null;
+        $data['hasPrev'] = $hasPrev;
+        $data['hasNext'] = $hasNext;
 
         return view('admin.revenue_expense.break_event', $data);
     }
@@ -504,7 +509,6 @@ class RevenueExpenseController extends Controller
         return $this->queryService()->calculatePerApartmentData($startDate, $endDate);
     }
 
-
     public function calculateBreakEvenPoint(?int $month = null, ?int $year = null)
     {
         return $this->breakEvenService()->calculate($month, $year);
@@ -532,7 +536,6 @@ class RevenueExpenseController extends Controller
         return $this->breakEvenService()->calculateVariableCostPerUnit($month, $year);
     }
 
-
     /**
      * Show record income form — tenant billing management.
      * Auto-shows all tenants with due dates, charges, and payment status.
@@ -541,14 +544,14 @@ class RevenueExpenseController extends Controller
     {
         $activePeriod = $this->getActiveFiscalPeriod();
 
-        if (!$activePeriod) {
+        if (! $activePeriod) {
             return redirect()->route('admin.fiscalperiod.create')
                 ->with('warning', 'Please create a fiscal period first.');
         }
 
         // Accept month/year from query params, default to current
         $currentMonth = (int) $request->input('month', now()->month);
-        $currentYear  = (int) $request->input('year', now()->year);
+        $currentYear = (int) $request->input('year', now()->year);
 
         // Build a Carbon date for the selected month
         $selectedDate = Carbon::create($currentYear, $currentMonth, 1);
@@ -559,8 +562,8 @@ class RevenueExpenseController extends Controller
 
         // Determine if we're viewing the current (real) month, a past month, or a future month
         $isCurrentMonth = ($currentMonth === now()->month && $currentYear === now()->year);
-        $isFutureMonth  = $selectedDate->copy()->startOfMonth()->gt(now()->copy()->startOfMonth());
-        $isPastMonth    = !$isCurrentMonth && !$isFutureMonth;
+        $isFutureMonth = $selectedDate->copy()->startOfMonth()->gt(now()->copy()->startOfMonth());
+        $isPastMonth = ! $isCurrentMonth && ! $isFutureMonth;
 
         // Reference date for overdue comparison:
         // - Current month: use now()
@@ -579,8 +582,8 @@ class RevenueExpenseController extends Controller
         $apartments = $this->scopeApartments()
             ->with(['floor', 'activeFixedExpenses', 'rentals' => function ($q) use ($activePeriod, $currentMonth, $currentYear) {
                 $q->where(function ($sq) {
-                        $sq->whereNull('end_date')->orWhere('end_date', '>=', now());
-                    })
+                    $sq->whereNull('end_date')->orWhere('end_date', '>=', now());
+                })
                     ->orderBy('start_date', 'desc')
                     ->with(['tenant', 'payments' => function ($pq) use ($activePeriod) {
                         $pq->where('payment_status', 'paid')
@@ -619,7 +622,7 @@ class RevenueExpenseController extends Controller
                 // Determine if this is the tenant's first month in the selected period
                 $isFirstMonth = $rental->start_date
                     && $rental->start_date->month === $currentMonth
-                    && $rental->start_date->year  === $currentYear;
+                    && $rental->start_date->year === $currentYear;
 
                 // Calculate due date based on tenant start date:
                 // - For regular tenants: due on the same day-of-month as their `start_date` within the selected month.
@@ -636,7 +639,7 @@ class RevenueExpenseController extends Controller
                     }
                 } else {
                     // Fallback: end of selected month
-                    $dueDay  = Carbon::create($currentYear, $currentMonth)->daysInMonth;
+                    $dueDay = Carbon::create($currentYear, $currentMonth)->daysInMonth;
                     $dueDate = Carbon::create($currentYear, $currentMonth, $dueDay)->endOfDay();
                 }
 
@@ -663,10 +666,10 @@ class RevenueExpenseController extends Controller
                 $totalFixed = $fixedExpenses->sum('amount');
 
                 // Total bill = rent + utilities + fixed expenses + late fee
-                $lateFeeAmount = (!$paidThisMonth && $referenceNow->gt($dueDate)) ? ($rental->payments->isEmpty() ? 0 : $lateFees) : 0;
+                $lateFeeAmount = (! $paidThisMonth && $referenceNow->gt($dueDate)) ? ($rental->payments->isEmpty() ? 0 : $lateFees) : 0;
                 $totalBill = $rental->rent_amount + $totalUtilities + $totalFixed;
 
-                if (!$paidThisMonth) {
+                if (! $paidThisMonth) {
                     $totalPending += $totalBill;
                 }
 
@@ -702,6 +705,7 @@ class RevenueExpenseController extends Controller
             if ($floorA !== $floorB) {
                 return $floorA <=> $floorB;
             }
+
             return ($a['apartment']->apartment_number ?? '') <=> ($b['apartment']->apartment_number ?? '');
         });
 
@@ -757,12 +761,13 @@ class RevenueExpenseController extends Controller
             $this->incomeService($period)->addTenantCharge($rental, $validated);
         }
 
-        $successMsg = ucfirst($validated['charge_type']) . ' charge of $' . number_format($validated['charge_amount'], 2)
-            . ' added for ' . ($rental->tenant->name ?? 'tenant') . '.';
+        $successMsg = ucfirst($validated['charge_type']).' charge of $'.number_format($validated['charge_amount'], 2)
+            .' added for '.($rental->tenant->name ?? 'tenant').'.';
 
         if ($request->expectsJson()) {
             return response()->json(['success' => true, 'message' => $successMsg]);
         }
+
         return redirect()->back()->with('success', $successMsg);
     }
 
@@ -776,16 +781,18 @@ class RevenueExpenseController extends Controller
             ? $this->incomeService($period)->removeTenantCharge($charge)
             : false;
 
-        if (!$removed) {
+        if (! $removed) {
             if (request()->expectsJson()) {
                 return response()->json(['error' => 'Cannot remove a paid charge.'], 422);
             }
+
             return redirect()->back()->with('error', 'Cannot remove a charge that has already been paid.');
         }
 
         if (request()->expectsJson()) {
             return response()->json(['success' => true]);
         }
+
         return redirect()->back()->with('success', 'Charge removed successfully.');
     }
 
@@ -801,13 +808,14 @@ class RevenueExpenseController extends Controller
         if (request()->expectsJson()) {
             return response()->json(['success' => true]);
         }
+
         return redirect()->back()->with('success', 'All unpaid charges cleared.');
     }
 
     public function checkoutTenant(CheckoutTenantRequest $request)
     {
         $activePeriod = $this->getActiveFiscalPeriod();
-        if (!$activePeriod) {
+        if (! $activePeriod) {
             return redirect()->route('admin.fiscalperiod.create')
                 ->with('warning', 'Please create a fiscal period first.');
         }
@@ -821,11 +829,11 @@ class RevenueExpenseController extends Controller
         }
 
         $tenantName = $rental->tenant->name ?? 'Tenant';
-        $aptNumber  = $rental->apartment->apartment_number;
+        $aptNumber = $rental->apartment->apartment_number;
 
         return redirect()->back()->with(
             'success',
-            "Payment of \${$result['total_paid']} recorded for {$tenantName} (Apt {$aptNumber}). Items: " . implode(', ', $result['items'])
+            "Payment of \${$result['total_paid']} recorded for {$tenantName} (Apt {$aptNumber}). Items: ".implode(', ', $result['items'])
         );
     }
 
@@ -898,7 +906,7 @@ class RevenueExpenseController extends Controller
     public function storeIncome(RecordIncomeRequest $request)
     {
         $activePeriod = $this->getActiveFiscalPeriod();
-        if (!$activePeriod) {
+        if (! $activePeriod) {
             return redirect()->route('admin.fiscalperiod.create')
                 ->with('warning', 'Please create a fiscal period first.');
         }
@@ -909,15 +917,15 @@ class RevenueExpenseController extends Controller
 
         return redirect()->back()->with(
             'success',
-            ucfirst($validated['payment_type']) . ' income of $' . number_format($validated['amount'], 2)
-            . ' recorded for apartment ' . $rental->apartment->apartment_number . '.'
+            ucfirst($validated['payment_type']).' income of $'.number_format($validated['amount'], 2)
+            .' recorded for apartment '.$rental->apartment->apartment_number.'.'
         );
     }
 
     public function storeBulkIncome(RecordBulkIncomeRequest $request)
     {
         $activePeriod = $this->getActiveFiscalPeriod();
-        if (!$activePeriod) {
+        if (! $activePeriod) {
             return redirect()->route('admin.fiscalperiod.create')
                 ->with('warning', 'Please create a fiscal period first.');
         }
@@ -935,7 +943,7 @@ class RevenueExpenseController extends Controller
 
         return redirect()->back()->with(
             'success',
-            'Monthly rent recorded for ' . $result['count'] . ' apartment(s). Total: $' . number_format($result['total'], 2)
+            'Monthly rent recorded for '.$result['count'].' apartment(s). Total: $'.number_format($result['total'], 2)
         );
     }
 
@@ -947,7 +955,7 @@ class RevenueExpenseController extends Controller
     {
         $activePeriod = $this->getActiveFiscalPeriod();
 
-        if (!$activePeriod) {
+        if (! $activePeriod) {
             return redirect()->route('admin.fiscalperiod.create')
                 ->with('warning', 'Please create a fiscal period first.');
         }
@@ -972,7 +980,7 @@ class RevenueExpenseController extends Controller
                 $q->orderBy('start_date', 'desc')
                     ->with(['tenant', 'utilities' => function ($uq) use ($filterMonth, $filterYear) {
                         $uq->where('billing_month', $filterMonth)
-                           ->where('billing_year', $filterYear);
+                            ->where('billing_year', $filterYear);
                     }]);
             }])
             ->get();
@@ -1129,7 +1137,7 @@ class RevenueExpenseController extends Controller
     public function storeExpense(StoreUtilityExpenseRequest $request)
     {
         $activePeriod = $this->getActiveFiscalPeriod();
-        if (!$activePeriod) {
+        if (! $activePeriod) {
             return redirect()->route('admin.fiscalperiod.create')
                 ->with('warning', 'Please create a fiscal period first.');
         }
@@ -1140,15 +1148,15 @@ class RevenueExpenseController extends Controller
 
         return redirect()->back()->with(
             'success',
-            ucfirst($validated['utility_type']) . ' expense of $' . number_format($validated['charge_amount'], 2)
-            . ' recorded for apartment ' . $rental->apartment->apartment_number . '.'
+            ucfirst($validated['utility_type']).' expense of $'.number_format($validated['charge_amount'], 2)
+            .' recorded for apartment '.$rental->apartment->apartment_number.'.'
         );
     }
 
     public function storeOtherExpense(StoreOtherExpenseRequest $request)
     {
         $activePeriod = $this->getActiveFiscalPeriod();
-        if (!$activePeriod) {
+        if (! $activePeriod) {
             return redirect()->route('admin.fiscalperiod.create')
                 ->with('warning', 'Please create a fiscal period first.');
         }
@@ -1158,7 +1166,7 @@ class RevenueExpenseController extends Controller
 
         return redirect()->back()->with(
             'success',
-            'Other expense of $' . number_format($validated['amount'], 2) . ' recorded (' . $validated['description'] . ').'
+            'Other expense of $'.number_format($validated['amount'], 2).' recorded ('.$validated['description'].').'
         );
     }
 
@@ -1171,13 +1179,13 @@ class RevenueExpenseController extends Controller
 
         $desc = $this->expenseService()->deleteOtherExpense($expense);
 
-        return redirect()->back()->with('success', 'Expense "' . $desc . '" has been removed.');
+        return redirect()->back()->with('success', 'Expense "'.$desc.'" has been removed.');
     }
 
     public function storeBusinessExpense(StoreBusinessExpenseRequest $request)
     {
         $activePeriod = $this->getActiveFiscalPeriod();
-        if (!$activePeriod) {
+        if (! $activePeriod) {
             return redirect()->route('admin.fiscalperiod.create')
                 ->with('warning', 'Please create a fiscal period first.');
         }
@@ -1191,7 +1199,7 @@ class RevenueExpenseController extends Controller
 
         return redirect()->back()->with(
             'success',
-            'Business expense "' . $validated['expense_name'] . '" ($' . number_format($validated['amount'], 2) . ') recorded.'
+            'Business expense "'.$validated['expense_name'].'" ($'.number_format($validated['amount'], 2).') recorded.'
         );
     }
 
@@ -1199,7 +1207,7 @@ class RevenueExpenseController extends Controller
     {
         $name = $this->expenseService()->deleteBusinessExpense($businessExpense);
 
-        return redirect()->back()->with('success', 'Business expense "' . $name . '" has been removed.');
+        return redirect()->back()->with('success', 'Business expense "'.$name.'" has been removed.');
     }
 
     // ===========================================================================
@@ -1228,7 +1236,7 @@ class RevenueExpenseController extends Controller
 
         return redirect()->back()->with(
             'success',
-            $validated['expense_name'] . ' ($' . number_format($validated['amount'], 2) . ') assigned to apartment.'
+            $validated['expense_name'].' ($'.number_format($validated['amount'], 2).') assigned to apartment.'
         );
     }
 
@@ -1238,7 +1246,7 @@ class RevenueExpenseController extends Controller
 
         return redirect()->back()->with(
             'success',
-            $fixedExpense->expense_name . ' has been ' . ($isActive ? 'activated' : 'deactivated') . '.'
+            $fixedExpense->expense_name.' has been '.($isActive ? 'activated' : 'deactivated').'.'
         );
     }
 
@@ -1246,7 +1254,7 @@ class RevenueExpenseController extends Controller
     {
         $name = $this->expenseService()->deleteFixedExpense($fixedExpense);
 
-        return redirect()->back()->with('success', $name . ' has been removed.');
+        return redirect()->back()->with('success', $name.' has been removed.');
     }
 
     // ===========================================================================
@@ -1260,7 +1268,7 @@ class RevenueExpenseController extends Controller
     {
         $activePeriod = $this->getActiveFiscalPeriod();
 
-        if (!$activePeriod) {
+        if (! $activePeriod) {
             return redirect()->route('admin.fiscalperiod.create')
                 ->with('warning', 'Please create a fiscal period first.');
         }
@@ -1272,8 +1280,8 @@ class RevenueExpenseController extends Controller
         $apartments = $this->scopeApartments()
             ->with(['floor', 'activeFixedExpenses', 'rentals' => function ($q) use ($currentMonth, $currentYear) {
                 $q->where(function ($q2) {
-                        $q2->whereNull('end_date')->orWhere('end_date', '>=', now());
-                    })
+                    $q2->whereNull('end_date')->orWhere('end_date', '>=', now());
+                })
                     ->orderBy('start_date', 'desc')
                     ->with(['tenant', 'utilities' => function ($uq) use ($currentMonth, $currentYear) {
                         $uq->where('billing_month', $currentMonth)
@@ -1287,7 +1295,9 @@ class RevenueExpenseController extends Controller
         $totalMonthlyExpenses = 0;
 
         foreach ($apartments as $apartment) {
-            if ($apartment->rentals->isEmpty()) continue;
+            if ($apartment->rentals->isEmpty()) {
+                continue;
+            }
 
             foreach ($apartment->rentals as $rental) {
                 $fixedExpenses = $apartment->activeFixedExpenses;
@@ -1297,7 +1307,7 @@ class RevenueExpenseController extends Controller
 
                 // Check which fixed expenses are already billed this month
                 $billedTypes = $alreadyBilled->pluck('utility_type')->toArray();
-                
+
                 $expenses = [];
                 $totalForApt = 0;
 
@@ -1342,7 +1352,7 @@ class RevenueExpenseController extends Controller
     public function processMonthlyBills(ProcessMonthlyBillsRequest $request)
     {
         $activePeriod = $this->getActiveFiscalPeriod();
-        if (!$activePeriod) {
+        if (! $activePeriod) {
             return redirect()->route('admin.fiscalperiod.create')
                 ->with('warning', 'Please create a fiscal period first.');
         }
@@ -1359,14 +1369,14 @@ class RevenueExpenseController extends Controller
 
         return redirect()->back()->with(
             'success',
-            $result['count'] . ' expense(s) generated totaling $' . number_format($result['total'], 2) . ' for tenants to pay.'
+            $result['count'].' expense(s) generated totaling $'.number_format($result['total'], 2).' for tenants to pay.'
         );
     }
 
     public function autoProcessMonthlyBills(Request $request)
     {
         $activePeriod = $this->getActiveFiscalPeriod();
-        if (!$activePeriod) {
+        if (! $activePeriod) {
             return redirect()->route('admin.fiscalperiod.create')
                 ->with('warning', 'Please create a fiscal period first.');
         }
@@ -1383,7 +1393,7 @@ class RevenueExpenseController extends Controller
 
         return redirect()->back()->with(
             'success',
-            $result['count'] . ' expense(s) generated totaling $' . number_format($result['total'], 2) . ' for tenants to pay.'
+            $result['count'].' expense(s) generated totaling $'.number_format($result['total'], 2).' for tenants to pay.'
         );
     }
 
@@ -1406,7 +1416,8 @@ class RevenueExpenseController extends Controller
         try {
             if (class_exists('\\Barryvdh\\DomPDF\\Facade') || class_exists('\\PDF')) {
                 $pdf = \PDF::loadView('admin.revenue_expense.apartment_summary_pdf', compact('perApartment', 'activePeriod', 'start', 'end', 'summaryOnly', 'wholeNumbers'));
-                $filename = 'apartment-summary-' . now()->format('Y-m-d') . '.pdf';
+                $filename = 'apartment-summary-'.now()->format('Y-m-d').'.pdf';
+
                 return $pdf->download($filename);
             }
         } catch (\Exception $e) {
@@ -1443,7 +1454,7 @@ class RevenueExpenseController extends Controller
     {
         $activePeriod = $this->getActiveFiscalPeriod();
 
-        if (!$activePeriod) {
+        if (! $activePeriod) {
             return redirect()->route('admin.fiscalperiod.create')
                 ->with('warning', 'Please create a fiscal period first.');
         }
@@ -1504,8 +1515,12 @@ class RevenueExpenseController extends Controller
             ];
 
             if ($txCount > 0) {
-                if ($bestDay === null || $net > $calendarDays[$bestDay]['net']) $bestDay = $d;
-                if ($worstDay === null || $net < $calendarDays[$worstDay]['net']) $worstDay = $d;
+                if ($bestDay === null || $net > $calendarDays[$bestDay]['net']) {
+                    $bestDay = $d;
+                }
+                if ($worstDay === null || $net < $calendarDays[$worstDay]['net']) {
+                    $worstDay = $d;
+                }
             }
         }
 
@@ -1554,7 +1569,7 @@ class RevenueExpenseController extends Controller
     {
         $activePeriod = $this->resolveActivePeriod($request->integer('period') ?: null);
 
-        if (!$activePeriod) {
+        if (! $activePeriod) {
             return redirect()->route('admin.fiscalperiod.create')
                 ->with('warning', 'Please create a fiscal period first.');
         }
@@ -1576,8 +1591,8 @@ class RevenueExpenseController extends Controller
 
         // 1. Monthly Rent
         $rentPayments = Payments::whereHas('rental', function ($q) use ($apartmentIds) {
-                $q->whereIn('apartment_id', $apartmentIds);
-            })
+            $q->whereIn('apartment_id', $apartmentIds);
+        })
             ->where('payment_status', 'paid')
             ->where('payment_type', 'rent')
             ->whereBetween('paid_at', [$startDate, $endDate])
@@ -1600,10 +1615,10 @@ class RevenueExpenseController extends Controller
             Utilities::whereHas('rental', function ($q) use ($apartmentIds) {
                 $q->whereIn('apartment_id', $apartmentIds);
             })
-            ->where('utility_type', 'parking')
-            ->paid()
-            ->whereBetween('paid_at', [$startDate, $endDate])
-            ->sum('charge_amount'),
+                ->where('utility_type', 'parking')
+                ->paid()
+                ->whereBetween('paid_at', [$startDate, $endDate])
+                ->sum('charge_amount'),
             2
         );
 
@@ -1615,8 +1630,8 @@ class RevenueExpenseController extends Controller
         // ================================================
 
         $utilityCollected = Utilities::whereHas('rental', function ($q) use ($apartmentIds) {
-                $q->whereIn('apartment_id', $apartmentIds);
-            })
+            $q->whereIn('apartment_id', $apartmentIds);
+        })
             ->paid()
             ->whereBetween('paid_at', [$startDate, $endDate])
             ->get();
@@ -1655,26 +1670,26 @@ class RevenueExpenseController extends Controller
         // We use a reliable keyword match from the description since the utility_type
         // is embedded there when the expense is recorded.
         $electricityExpense = round(
-            $businessExpenses->filter(fn($e) => in_array($e->category, ['electricity', 'utilities_electricity']))->sum('amount')
-            + $utilityAccountExpenses->filter(fn($e) => str_contains(strtolower($e->description), 'electricity'))->sum('amount'),
+            $businessExpenses->filter(fn ($e) => in_array($e->category, ['electricity', 'utilities_electricity']))->sum('amount')
+            + $utilityAccountExpenses->filter(fn ($e) => str_contains(strtolower($e->description), 'electricity'))->sum('amount'),
             2
         );
 
         $waterExpense = round(
-            $businessExpenses->filter(fn($e) => in_array($e->category, ['water', 'utilities_water']))->sum('amount')
-            + $utilityAccountExpenses->filter(fn($e) => str_contains(strtolower($e->description), 'water'))->sum('amount'),
+            $businessExpenses->filter(fn ($e) => in_array($e->category, ['water', 'utilities_water']))->sum('amount')
+            + $utilityAccountExpenses->filter(fn ($e) => str_contains(strtolower($e->description), 'water'))->sum('amount'),
             2
         );
 
         $internetExpense = round(
-            $businessExpenses->filter(fn($e) => in_array($e->category, ['internet', 'utilities_internet']))->sum('amount')
-            + $utilityAccountExpenses->filter(fn($e) => str_contains(strtolower($e->description), 'internet'))->sum('amount'),
+            $businessExpenses->filter(fn ($e) => in_array($e->category, ['internet', 'utilities_internet']))->sum('amount')
+            + $utilityAccountExpenses->filter(fn ($e) => str_contains(strtolower($e->description), 'internet'))->sum('amount'),
             2
         );
 
         // Tax expense
         $taxExpense = round(
-            $businessExpenses->filter(fn($e) => in_array($e->category, ['property_tax', 'tax']))->sum('amount')
+            $businessExpenses->filter(fn ($e) => in_array($e->category, ['property_tax', 'tax']))->sum('amount')
             + Accounts::expense()
                 ->forUser(Auth::id())
                 ->forPeriod($activePeriod->id)
@@ -1692,7 +1707,7 @@ class RevenueExpenseController extends Controller
         ];
 
         $otherBusinessExpense = round(
-            $businessExpenses->filter(fn($e) => !in_array($e->category, $countedBusinessCategories))->sum('amount'),
+            $businessExpenses->filter(fn ($e) => ! in_array($e->category, $countedBusinessCategories))->sum('amount'),
             2
         );
 

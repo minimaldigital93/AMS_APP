@@ -42,32 +42,32 @@ class DashboardController extends Controller
     {
         $apartmentIds = Apartments::pluck('id')->toArray();
 
-        $activePeriod  = $this->getActiveFiscalPeriod();
-        $periodMonths  = $activePeriod ? $this->buildPeriodMonths($activePeriod) : [];
-        $isFullPeriod  = $activePeriod && $request->query('view') === 'all';
+        $activePeriod = $this->getActiveFiscalPeriod();
+        $periodMonths = $activePeriod ? $this->buildPeriodMonths($activePeriod) : [];
+        $isFullPeriod = $activePeriod && $request->query('view') === 'all';
         $selectedMonth = $isFullPeriod ? null : $this->resolveSelectedMonth(
             $activePeriod,
             $request->integer('month'),
             $request->integer('year')
         );
-        $dateRange    = $this->resolveDateRange($activePeriod, $selectedMonth, $isFullPeriod);
+        $dateRange = $this->resolveDateRange($activePeriod, $selectedMonth, $isFullPeriod);
         $displayMonth = $selectedMonth ?: $this->resolveDisplayMonth($activePeriod, $periodMonths);
 
         $userId = $this->ledgerUserId() ?? 0; // ?? 0 keeps the type contract; period absent → no rows match anyway
 
-        $stats        = (new DashboardStatsService($userId, $apartmentIds))
+        $stats = (new DashboardStatsService($userId, $apartmentIds))
             ->build($dateRange['start'], $dateRange['end'], $displayMonth);
-        $fiscalData   = (new FiscalPeriodSummaryService($userId, $apartmentIds))
+        $fiscalData = (new FiscalPeriodSummaryService($userId, $apartmentIds))
             ->build($activePeriod);
         $calendarData = $isFullPeriod
             ? null
             : (new DashboardCalendarService($userId, $apartmentIds))->build($activePeriod, $displayMonth);
 
         $apartmentsWithRentals = Apartments::with(['rentals' => function ($q) {
-                $q->where(function ($q2) {
-                    $q2->whereNull('end_date')->orWhere('end_date', '>=', now());
-                })->with('tenant');
-            }])
+            $q->where(function ($q2) {
+                $q2->whereNull('end_date')->orWhere('end_date', '>=', now());
+            })->with('tenant');
+        }])
             ->whereIn('id', $apartmentIds)
             ->where('status', 'occupied')
             ->orderBy('apartment_number')
@@ -98,7 +98,7 @@ class DashboardController extends Controller
      */
     private function loadRecentTransactions(?FiscalPeriods $activePeriod, array $apartmentIds, array $dateRange)
     {
-        if (!$activePeriod) {
+        if (! $activePeriod) {
             return collect();
         }
 

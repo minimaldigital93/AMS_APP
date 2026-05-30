@@ -19,11 +19,11 @@ class StoreOtherExpenseRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'category'         => 'required|string|in:' . implode(',', self::ALLOWED_CATEGORIES),
-            'description'      => 'required|string|max:500',
-            'amount'           => 'required|numeric|min:0.01',
+            'category' => 'required|string|in:'.implode(',', self::ALLOWED_CATEGORIES),
+            'description' => 'required|string|max:500',
+            'amount' => 'required|numeric|min:0.01',
             'transaction_date' => 'required|date',
-            'note'             => 'nullable|string|max:1000',
+            'note' => 'nullable|string|max:1000',
         ];
     }
 }

@@ -13,7 +13,9 @@ class Apartments extends Model
 
     // Status constants
     public const STATUS_AVAILABLE = 'available';
+
     public const STATUS_OCCUPIED = 'occupied';
+
     public const STATUS_MAINTENANCE = 'maintenance';
 
     protected $fillable = [
@@ -49,7 +51,7 @@ class Apartments extends Model
      */
     public static function getStatusValidationRule(): string
     {
-        return 'required|in:' . implode(',', self::getStatuses());
+        return 'required|in:'.implode(',', self::getStatuses());
     }
 
     // Relationships

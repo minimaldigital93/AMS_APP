@@ -46,7 +46,7 @@ trait HasDashboardMonthNavigation
                 }
             }
 
-            if (!empty($periodMonths)) {
+            if (! empty($periodMonths)) {
                 return Carbon::create($periodMonths[0]['year'], $periodMonths[0]['month'], 1)->startOfMonth();
             }
         }
@@ -72,7 +72,7 @@ trait HasDashboardMonthNavigation
         if ($activePeriod && $isFullPeriod) {
             return [
                 'start' => Carbon::parse($activePeriod->opening_date)->startOfDay(),
-                'end'   => Carbon::parse($activePeriod->closing_date)->endOfDay(),
+                'end' => Carbon::parse($activePeriod->closing_date)->endOfDay(),
             ];
         }
 
@@ -80,7 +80,7 @@ trait HasDashboardMonthNavigation
 
         return [
             'start' => $month->copy()->startOfMonth(),
-            'end'   => $month->copy()->endOfMonth(),
+            'end' => $month->copy()->endOfMonth(),
         ];
     }
 
@@ -99,7 +99,7 @@ trait HasDashboardMonthNavigation
                 }
             }
 
-            if (!empty($periodMonths)) {
+            if (! empty($periodMonths)) {
                 return Carbon::create($periodMonths[0]['year'], $periodMonths[0]['month'], 1)->startOfMonth();
             }
         }
@@ -129,14 +129,14 @@ trait HasDashboardMonthNavigation
             }
         }
 
-        $hasPrev = !$isFullPeriod && $currentIndex !== null && $currentIndex > 0;
-        $hasNext = !$isFullPeriod && $currentIndex !== null && $currentIndex < count($periodMonths) - 1;
+        $hasPrev = ! $isFullPeriod && $currentIndex !== null && $currentIndex > 0;
+        $hasNext = ! $isFullPeriod && $currentIndex !== null && $currentIndex < count($periodMonths) - 1;
 
         return [
-            'previousMonth'        => $hasPrev ? $periodMonths[$currentIndex - 1] : null,
-            'nextMonth'            => $hasNext ? $periodMonths[$currentIndex + 1] : null,
-            'isCurrentMonth'       => $selectedMonth->month === now()->month && $selectedMonth->year === now()->year,
-            'isFullPeriod'         => $isFullPeriod,
+            'previousMonth' => $hasPrev ? $periodMonths[$currentIndex - 1] : null,
+            'nextMonth' => $hasNext ? $periodMonths[$currentIndex + 1] : null,
+            'isCurrentMonth' => $selectedMonth->month === now()->month && $selectedMonth->year === now()->year,
+            'isFullPeriod' => $isFullPeriod,
             'currentMonthInPeriod' => collect($periodMonths)->first(
                 fn ($pm) => $pm['month'] === now()->month && $pm['year'] === now()->year
             ),

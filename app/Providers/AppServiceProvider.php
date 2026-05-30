@@ -15,7 +15,7 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        $this->app->singleton(NotificationService::class, fn() => new NotificationService());
+        $this->app->singleton(NotificationService::class, fn () => new NotificationService);
     }
 
     /**

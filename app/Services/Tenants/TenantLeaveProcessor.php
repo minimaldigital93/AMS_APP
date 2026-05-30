@@ -70,10 +70,10 @@ class TenantLeaveProcessor
 
         $utilitiesTotal = $selectedPayments->where('payment_type', 'utilities')->sum('amount')
                        + $selectedUtilities->sum('charge_amount');
-        $otherTotal     = $selectedPayments->where('payment_type', 'other')->sum('amount');
+        $otherTotal = $selectedPayments->where('payment_type', 'other')->sum('amount');
 
         $extraCharges = $this->normalizeExtraCharges($validated['extra_charges'] ?? []);
-        $extraTotal   = array_sum(array_column($extraCharges, 'amount'));
+        $extraTotal = array_sum(array_column($extraCharges, 'amount'));
 
         $settlement = $this->calculator->calculateSettlement(
             rental: $rental,
@@ -81,22 +81,22 @@ class TenantLeaveProcessor
             leaveDate: $leaveDate,
             charges: [
                 'pro_rata_rent' => $proRataRent,
-                'electricity'   => $utilitiesTotal,
-                'water'         => 0,
-                'internet'      => 0,
-                'parking'       => $otherTotal,
-                'extra'         => $extraTotal,
+                'electricity' => $utilitiesTotal,
+                'water' => 0,
+                'internet' => 0,
+                'parking' => $otherTotal,
+                'extra' => $extraTotal,
             ],
             deposit: (float) ($tenant->deposit ?? 0),
         );
 
         return [
-            'rental'             => $rental,
-            'leave_date'         => $leaveDate,
-            'selected_payments'  => $selectedPayments,
+            'rental' => $rental,
+            'leave_date' => $leaveDate,
+            'selected_payments' => $selectedPayments,
             'selected_utilities' => $selectedUtilities,
-            'extra_charges'      => $extraCharges,
-            'settlement'         => $settlement,
+            'extra_charges' => $extraCharges,
+            'settlement' => $settlement,
         ];
     }
 
@@ -111,12 +111,13 @@ class TenantLeaveProcessor
         $cleaned = [];
         foreach ($rows as $row) {
             $description = trim((string) ($row['description'] ?? ''));
-            $amount      = (float) ($row['amount'] ?? 0);
+            $amount = (float) ($row['amount'] ?? 0);
             if ($description === '' || $amount <= 0) {
                 continue;
             }
             $cleaned[] = ['description' => $description, 'amount' => round($amount, 2)];
         }
+
         return $cleaned;
     }
 
@@ -128,27 +129,27 @@ class TenantLeaveProcessor
     public function persist(Tenants $tenant, array $context, ?string $notes = null): TenantLeave
     {
         $settlement = $context['settlement'];
-        $leaveDate  = $context['leave_date'];
-        $rental     = $context['rental'];
+        $leaveDate = $context['leave_date'];
+        $rental = $context['rental'];
 
         $leave = TenantLeave::create([
-            'tenant_id'              => $tenant->id,
-            'rental_id'              => $rental->id,
-            'apartment_id'           => $tenant->apartment_id,
-            'leave_date'             => $leaveDate,
+            'tenant_id' => $tenant->id,
+            'rental_id' => $rental->id,
+            'apartment_id' => $tenant->apartment_id,
+            'leave_date' => $leaveDate,
             'original_move_out_date' => $rental->end_date,
-            'stay_days'              => $settlement['stay_days'],
-            'pro_rata_rent'          => $settlement['pro_rata_rent'],
-            'electricity_charge'     => $settlement['electricity_charge'],
-            'water_charge'           => $settlement['water_charge'],
-            'internet_charge'        => $settlement['internet_charge'],
-            'parking_charge'         => $settlement['parking_charge'],
-            'total_amount_due'       => $settlement['total_amount_due'],
-            'deposit_applied'        => $settlement['deposit_applied'],
-            'balance_due'            => $settlement['balance_due'],
-            'refund_amount'          => $settlement['refund_amount'],
-            'status'                 => 'completed',
-            'notes'                  => $notes,
+            'stay_days' => $settlement['stay_days'],
+            'pro_rata_rent' => $settlement['pro_rata_rent'],
+            'electricity_charge' => $settlement['electricity_charge'],
+            'water_charge' => $settlement['water_charge'],
+            'internet_charge' => $settlement['internet_charge'],
+            'parking_charge' => $settlement['parking_charge'],
+            'total_amount_due' => $settlement['total_amount_due'],
+            'deposit_applied' => $settlement['deposit_applied'],
+            'balance_due' => $settlement['balance_due'],
+            'refund_amount' => $settlement['refund_amount'],
+            'status' => 'completed',
+            'notes' => $notes,
         ]);
 
         $rental->update(['end_date' => $leaveDate]);
@@ -200,10 +201,10 @@ class TenantLeaveProcessor
 
         return Rentals::create([
             'apartment_id' => $tenant->apartment_id,
-            'tenant_id'    => $tenant->id,
-            'rent_amount'  => $tenant->apartment?->monthly_rent ?? 0,
-            'start_date'   => $tenant->move_in_date,
-            'end_date'     => null,
+            'tenant_id' => $tenant->id,
+            'rent_amount' => $tenant->apartment?->monthly_rent ?? 0,
+            'start_date' => $tenant->move_in_date,
+            'end_date' => null,
         ]);
     }
 

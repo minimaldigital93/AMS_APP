@@ -14,7 +14,6 @@ use App\Services\Dashboard\ApartmentRevenueComparisonService;
 use App\Services\Dashboard\DashboardCalendarService;
 use App\Services\Dashboard\DashboardStatsService;
 use App\Services\Dashboard\FiscalPeriodSummaryService;
-use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -37,20 +36,20 @@ class DashboardController extends Controller
 
     public function index(Request $request): View
     {
-        $activePeriod  = $this->getActiveFiscalPeriod();
-        $periodMonths  = $activePeriod ? $this->buildPeriodMonths($activePeriod) : [];
-        $isFullPeriod  = $activePeriod && $request->query('view') === 'all';
+        $activePeriod = $this->getActiveFiscalPeriod();
+        $periodMonths = $activePeriod ? $this->buildPeriodMonths($activePeriod) : [];
+        $isFullPeriod = $activePeriod && $request->query('view') === 'all';
         $selectedMonth = $isFullPeriod ? null : $this->resolveSelectedMonth(
             $activePeriod,
             $request->integer('month'),
             $request->integer('year')
         );
-        $dateRange    = $this->resolveDateRange($activePeriod, $selectedMonth, $isFullPeriod);
+        $dateRange = $this->resolveDateRange($activePeriod, $selectedMonth, $isFullPeriod);
         $displayMonth = $selectedMonth ?: $this->resolveDisplayMonth($activePeriod, $periodMonths);
 
-        $stats        = (new DashboardStatsService($this->ledgerUserId()))
+        $stats = (new DashboardStatsService($this->ledgerUserId()))
             ->build($dateRange['start'], $dateRange['end'], $displayMonth);
-        $fiscalData   = (new FiscalPeriodSummaryService($this->ledgerUserId()))
+        $fiscalData = (new FiscalPeriodSummaryService($this->ledgerUserId()))
             ->build($activePeriod);
         $calendarData = $isFullPeriod
             ? null
@@ -58,10 +57,10 @@ class DashboardController extends Controller
 
         // Apartments with active rentals for the quick-record-revenue modal
         $apartmentsWithRentals = Apartments::with(['rentals' => function ($q) {
-                $q->where(function ($q2) {
-                    $q2->whereNull('end_date')->orWhere('end_date', '>=', now());
-                })->with('tenant');
-            }])
+            $q->where(function ($q2) {
+                $q2->whereNull('end_date')->orWhere('end_date', '>=', now());
+            })->with('tenant');
+        }])
             ->where('status', 'occupied')
             ->orderBy('apartment_number')
             ->get();
@@ -78,7 +77,7 @@ class DashboardController extends Controller
 
         $apartmentRevenues = $isFullPeriod
             ? []
-            : (new ApartmentRevenueComparisonService())->build($displayMonth);
+            : (new ApartmentRevenueComparisonService)->build($displayMonth);
 
         $monthNavigation = $this->getMonthNavigation($periodMonths, $displayMonth, $isFullPeriod);
 
@@ -96,53 +95,53 @@ class DashboardController extends Controller
     public function storeQuickRevenue(Request $request)
     {
         $request->validate([
-            'rental_id'        => 'required|exists:rentals,id',
-            'amount'           => 'required|numeric|min:0.01',
+            'rental_id' => 'required|exists:rentals,id',
+            'amount' => 'required|numeric|min:0.01',
             'transaction_date' => 'required|date',
-            'payment_type'     => 'required|in:rent,deposit,late_fee,other',
-            'payment_method'   => 'required|in:cash,bank_transfer,mobile_payment',
-            'note'             => 'nullable|string|max:500',
+            'payment_type' => 'required|in:rent,deposit,late_fee,other',
+            'payment_method' => 'required|in:cash,bank_transfer,mobile_payment',
+            'note' => 'nullable|string|max:500',
         ]);
 
         $activePeriod = $this->getActiveFiscalPeriod();
-        if (!$activePeriod) {
+        if (! $activePeriod) {
             return back()->with('error', 'No active fiscal period.');
         }
 
         $rental = Rentals::with('tenant', 'apartment')->findOrFail($request->rental_id);
 
         $payment = Payments::create([
-            'rental_id'      => $rental->id,
-            'amount'         => $request->amount,
-            'late_fee'       => 0,
-            'payment_type'   => $request->payment_type,
+            'rental_id' => $rental->id,
+            'amount' => $request->amount,
+            'late_fee' => 0,
+            'payment_type' => $request->payment_type,
             'payment_method' => $request->payment_method,
             'payment_status' => 'paid',
-            'paid_at'        => $request->transaction_date,
-            'note'           => $request->note,
+            'paid_at' => $request->transaction_date,
+            'note' => $request->note,
         ]);
 
         $category = match ($request->payment_type) {
-            'rent'     => Accounts::CAT_RENT_INCOME,
+            'rent' => Accounts::CAT_RENT_INCOME,
             'late_fee' => Accounts::CAT_LATE_FEE_INCOME,
-            'deposit'  => Accounts::CAT_DEPOSIT_INCOME,
-            default    => Accounts::CAT_OTHER_INCOME,
+            'deposit' => Accounts::CAT_DEPOSIT_INCOME,
+            default => Accounts::CAT_OTHER_INCOME,
         };
 
         Accounts::create([
-            'user_id'          => Auth::id(),
+            'user_id' => Auth::id(),
             'fiscal_period_id' => $activePeriod->id,
-            'payment_id'       => $payment->id,
-            'account_type'     => Accounts::TYPE_INCOME,
-            'category'         => $category,
-            'amount'           => $request->amount,
-            'description'      => ucfirst($request->payment_type) . ' - '
-                                  . ($rental->apartment->apartment_number ?? 'N/A')
-                                  . ' (' . ($rental->tenant->name ?? 'N/A') . ')',
+            'payment_id' => $payment->id,
+            'account_type' => Accounts::TYPE_INCOME,
+            'category' => $category,
+            'amount' => $request->amount,
+            'description' => ucfirst($request->payment_type).' - '
+                                  .($rental->apartment->apartment_number ?? 'N/A')
+                                  .' ('.($rental->tenant->name ?? 'N/A').')',
             'transaction_date' => $request->transaction_date,
         ]);
 
-        return back()->with('success', 'Revenue of $' . number_format($request->amount, 2) . ' recorded.');
+        return back()->with('success', 'Revenue of $'.number_format($request->amount, 2).' recorded.');
     }
 
     /**
@@ -152,35 +151,35 @@ class DashboardController extends Controller
     public function storeQuickExpense(Request $request)
     {
         $request->validate([
-            'category' => 'required|in:' . implode(',', [
+            'category' => 'required|in:'.implode(',', [
                 Accounts::CAT_UTILITIES_EXPENSE,
                 Accounts::CAT_MAINTENANCE_EXPENSE,
                 Accounts::CAT_BUSINESS_FIXED,
                 Accounts::CAT_BUSINESS_VARIABLE,
                 Accounts::CAT_OTHER_EXPENSE,
             ]),
-            'description'      => 'required|string|max:500',
-            'amount'           => 'required|numeric|min:0.01',
+            'description' => 'required|string|max:500',
+            'amount' => 'required|numeric|min:0.01',
             'transaction_date' => 'required|date',
-            'note'             => 'nullable|string|max:500',
+            'note' => 'nullable|string|max:500',
         ]);
 
         $activePeriod = $this->getActiveFiscalPeriod();
-        if (!$activePeriod) {
+        if (! $activePeriod) {
             return back()->with('error', 'No active fiscal period.');
         }
 
         Accounts::create([
-            'user_id'          => Auth::id(),
+            'user_id' => Auth::id(),
             'fiscal_period_id' => $activePeriod->id,
-            'account_type'     => Accounts::TYPE_EXPENSE,
-            'category'         => $request->category,
-            'amount'           => $request->amount,
-            'description'      => $request->description,
+            'account_type' => Accounts::TYPE_EXPENSE,
+            'category' => $request->category,
+            'amount' => $request->amount,
+            'description' => $request->description,
             'transaction_date' => $request->transaction_date,
-            'note'             => $request->note,
+            'note' => $request->note,
         ]);
 
-        return back()->with('success', 'Expense of $' . number_format($request->amount, 2) . ' recorded.');
+        return back()->with('success', 'Expense of $'.number_format($request->amount, 2).' recorded.');
     }
 }

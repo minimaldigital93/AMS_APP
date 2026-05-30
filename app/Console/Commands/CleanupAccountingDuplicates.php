@@ -37,9 +37,9 @@ class CleanupAccountingDuplicates extends Command
             ->where('category', Accounts::CAT_UTILITIES_EXPENSE);
 
         $accrualCount = (clone $accrualQuery)->count();
-        $accrualSum   = (clone $accrualQuery)->sum('amount');
-        $offsetCount  = (clone $offsetQuery)->count();
-        $offsetSum    = (clone $offsetQuery)->sum('amount');
+        $accrualSum = (clone $accrualQuery)->sum('amount');
+        $offsetCount = (clone $offsetQuery)->count();
+        $offsetSum = (clone $offsetQuery)->sum('amount');
 
         $this->info($isDryRun ? 'DRY-RUN — no rows will be deleted. Re-run with --force to apply.' : 'APPLYING — deleting matched rows.');
         $this->newLine();
@@ -55,18 +55,20 @@ class CleanupAccountingDuplicates extends Command
 
         if ($accrualCount === 0 && $offsetCount === 0) {
             $this->info('Nothing to clean up.');
+
             return self::SUCCESS;
         }
 
         if ($isDryRun) {
             $this->newLine();
             $this->line('Re-run with <info>--force</info> to delete these rows.');
+
             return self::SUCCESS;
         }
 
         DB::transaction(function () use ($accrualQuery, $offsetQuery, $accrualCount, $offsetCount) {
             $accrualDeleted = $accrualQuery->delete();
-            $offsetDeleted  = $offsetQuery->delete();
+            $offsetDeleted = $offsetQuery->delete();
 
             $this->info("Deleted {$accrualDeleted} accrual rows and {$offsetDeleted} offset rows.");
 

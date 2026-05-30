@@ -88,8 +88,8 @@
 
                 <!-- Email -->
                 <div>
-                    <label for="email" class="block text-xs font-medium text-slate-500 mb-1.5">Email <span class="text-red-400">*</span></label>
-                    <input type="email" id="email" name="email" required placeholder="email@example.com" value="{{ old('email') }}"
+                    <label for="email" class="block text-xs font-medium text-slate-500 mb-1.5">Email <span class="text-slate-300">(optional)</span></label>
+                    <input type="email" id="email" name="email" placeholder="email@example.com" value="{{ old('email') }}"
                         class="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:ring-1 focus:ring-slate-400 focus:border-slate-400 {{ $errors->has('email') ? 'border-red-400' : '' }}">
                     @error('email')<p class="text-red-500 text-xs mt-1">{{ $message }}</p>@enderror
                 </div>

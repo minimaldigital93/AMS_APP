@@ -23,25 +23,25 @@ class FiscalPeriodSummaryService
 
     public function build(?FiscalPeriods $activePeriod): array
     {
-        if (!$activePeriod) {
+        if (! $activePeriod) {
             return $this->emptyShape();
         }
 
-        $incomeRecords  = $this->scopedAccountsQuery($activePeriod)
+        $incomeRecords = $this->scopedAccountsQuery($activePeriod)
             ->where('account_type', Accounts::TYPE_INCOME)->get();
         $expenseRecords = $this->scopedAccountsQuery($activePeriod)
             ->where('account_type', Accounts::TYPE_EXPENSE)->get();
 
-        $revenue     = $incomeRecords->where('category', Accounts::CAT_RENT_INCOME)->sum('amount');
-        $lateFees    = $incomeRecords->where('category', Accounts::CAT_LATE_FEE_INCOME)->sum('amount');
+        $revenue = $incomeRecords->where('category', Accounts::CAT_RENT_INCOME)->sum('amount');
+        $lateFees = $incomeRecords->where('category', Accounts::CAT_LATE_FEE_INCOME)->sum('amount');
         $totalIncome = $incomeRecords->sum('amount');
 
-        $expenses      = $expenseRecords->groupBy('category')
+        $expenses = $expenseRecords->groupBy('category')
             ->map(fn ($items) => round($items->sum('amount'), 2))
             ->toArray();
         $totalExpenses = $expenseRecords->sum('amount');
 
-        $netProfit    = $totalIncome - $totalExpenses;
+        $netProfit = $totalIncome - $totalExpenses;
         $profitMargin = $totalIncome > 0 ? round(($netProfit / $totalIncome) * 100, 2) : 0;
 
         // Supervisor reads the admin's recent periods (period->user_id is the
@@ -52,31 +52,31 @@ class FiscalPeriodSummaryService
             ->take(5)
             ->get();
 
-        $totalAssets      = $activePeriod->balanceSheets()->where('item_type', 'asset')->sum('amount');
+        $totalAssets = $activePeriod->balanceSheets()->where('item_type', 'asset')->sum('amount');
         $totalLiabilities = $activePeriod->balanceSheets()->where('item_type', 'liability')->sum('amount');
-        $totalEquity      = $activePeriod->balanceSheets()->where('item_type', 'equity')->sum('amount');
+        $totalEquity = $activePeriod->balanceSheets()->where('item_type', 'equity')->sum('amount');
 
         return [
             'has_active_period' => true,
-            'period'            => $activePeriod,
-            'revenue'           => $revenue,
-            'late_fees'         => $lateFees,
-            'total_income'      => $totalIncome,
-            'expenses'          => $expenses,
-            'total_expenses'    => $totalExpenses,
-            'net_profit'        => $netProfit,
-            'is_profitable'     => $netProfit > 0,
-            'profit_margin'     => $profitMargin,
-            'opening_balance'   => $activePeriod->opening_balance,
-            'current_balance'   => $activePeriod->opening_balance + $netProfit,
-            'balance_sheet'     => [
-                'total_assets'      => $totalAssets,
+            'period' => $activePeriod,
+            'revenue' => $revenue,
+            'late_fees' => $lateFees,
+            'total_income' => $totalIncome,
+            'expenses' => $expenses,
+            'total_expenses' => $totalExpenses,
+            'net_profit' => $netProfit,
+            'is_profitable' => $netProfit > 0,
+            'profit_margin' => $profitMargin,
+            'opening_balance' => $activePeriod->opening_balance,
+            'current_balance' => $activePeriod->opening_balance + $netProfit,
+            'balance_sheet' => [
+                'total_assets' => $totalAssets,
                 'total_liabilities' => $totalLiabilities,
-                'total_equity'      => $totalEquity,
+                'total_equity' => $totalEquity,
             ],
-            'recent_periods'    => $recentPeriods,
-            'monthly_revenue'   => $this->monthlyTotals($activePeriod, Accounts::TYPE_INCOME),
-            'monthly_expenses'  => $this->monthlyTotals($activePeriod, Accounts::TYPE_EXPENSE),
+            'recent_periods' => $recentPeriods,
+            'monthly_revenue' => $this->monthlyTotals($activePeriod, Accounts::TYPE_INCOME),
+            'monthly_expenses' => $this->monthlyTotals($activePeriod, Accounts::TYPE_EXPENSE),
         ];
     }
 
@@ -113,6 +113,7 @@ class FiscalPeriodSummaryService
 
         if ($this->apartmentIds === null) {
             $query->where('user_id', $this->userId);
+
             return $query;
         }
 
@@ -132,21 +133,21 @@ class FiscalPeriodSummaryService
     {
         return [
             'has_active_period' => false,
-            'period'            => null,
-            'revenue'           => 0,
-            'late_fees'         => 0,
-            'total_income'      => 0,
-            'expenses'          => [],
-            'total_expenses'    => 0,
-            'net_profit'        => 0,
-            'is_profitable'     => false,
-            'profit_margin'     => 0,
-            'opening_balance'   => 0,
-            'current_balance'   => 0,
-            'balance_sheet'     => ['total_assets' => 0, 'total_liabilities' => 0, 'total_equity' => 0],
-            'recent_periods'    => [],
-            'monthly_revenue'   => [],
-            'monthly_expenses'  => [],
+            'period' => null,
+            'revenue' => 0,
+            'late_fees' => 0,
+            'total_income' => 0,
+            'expenses' => [],
+            'total_expenses' => 0,
+            'net_profit' => 0,
+            'is_profitable' => false,
+            'profit_margin' => 0,
+            'opening_balance' => 0,
+            'current_balance' => 0,
+            'balance_sheet' => ['total_assets' => 0, 'total_liabilities' => 0, 'total_equity' => 0],
+            'recent_periods' => [],
+            'monthly_revenue' => [],
+            'monthly_expenses' => [],
         ];
     }
 }

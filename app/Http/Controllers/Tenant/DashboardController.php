@@ -8,7 +8,6 @@ use App\Models\Rentals;
 use App\Models\Tenants;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\View\View;
-use Carbon\Carbon;
 
 class DashboardController extends Controller
 {
@@ -69,13 +68,13 @@ class DashboardController extends Controller
                 $percent = $monthlyRent > 0 ? min(round(($paidThisMonth / $monthlyRent) * 100, 1), 100) : 0;
 
                 $paymentStats = [
-                    'this_month_paid'    => $paidThisMonth,
-                    'this_month_total'   => $monthlyRent,
+                    'this_month_paid' => $paidThisMonth,
+                    'this_month_total' => $monthlyRent,
                     'this_month_percent' => $percent,
-                    'this_month_status'  => $percent >= 100 ? 'paid' : ($percent > 0 ? 'partial' : 'unpaid'),
-                    'all_time_paid'      => Payments::where('rental_id', $rental->id)
-                                            ->where('payment_status', 'paid')
-                                            ->sum('amount'),
+                    'this_month_status' => $percent >= 100 ? 'paid' : ($percent > 0 ? 'partial' : 'unpaid'),
+                    'all_time_paid' => Payments::where('rental_id', $rental->id)
+                        ->where('payment_status', 'paid')
+                        ->sum('amount'),
                 ];
             }
         }

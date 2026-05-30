@@ -7,11 +7,11 @@
     <form method="POST" action="{{ route('login') }}">
         @csrf
 
-        <!-- Email Address -->
+        <!-- Phone Number -->
         <div>
-            <x-input-label for="email" :value="__('Email')" class="form-label" />
-            <x-text-input id="email" class="form-input block mt-1 w-full rounded-xl" type="email" name="email" :value="old('email')" required autofocus autocomplete="username" placeholder="Enter your email" />
-            <x-input-error :messages="$errors->get('email')" class="mt-2" />
+            <x-input-label for="phone" :value="__('Phone Number')" class="form-label" />
+            <x-text-input id="phone" class="form-input block mt-1 w-full rounded-xl" type="text" name="phone" :value="old('phone')" required autofocus autocomplete="username" placeholder="Enter your phone number" />
+            <x-input-error :messages="$errors->get('phone')" class="mt-2" />
         </div>
 
         <!-- Password -->

@@ -3,12 +3,12 @@
 namespace Database\Seeders;
 
 use Illuminate\Database\Seeder;
-use Spatie\Permission\Models\Role;
 use Spatie\Permission\Models\Permission;
+use Spatie\Permission\Models\Role;
 
 class RolePermissionSeeder extends Seeder
 {
-   public function run(): void
+    public function run(): void
     {
         app()[\Spatie\Permission\PermissionRegistrar::class]->forgetCachedPermissions();
 
@@ -21,7 +21,7 @@ class RolePermissionSeeder extends Seeder
             'manage expenses',
             'view reports',
             'export reports',
-            'view dashboard'
+            'view dashboard',
         ];
 
         foreach ($permissions as $permission) {
@@ -40,11 +40,11 @@ class RolePermissionSeeder extends Seeder
             'manage payments',
             'view reports',
             'export reports',
-            'view dashboard'
+            'view dashboard',
         ]);
 
         $tenant->givePermissionTo([
-            'view dashboard'
+            'view dashboard',
         ]);
     }
 }

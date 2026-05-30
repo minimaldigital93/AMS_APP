@@ -6,23 +6,23 @@ use App\Models\Utilities;
 use App\Services\RevenueExpense\IncomeRecordingService;
 
 beforeEach(function () {
-    $this->admin     = makeAdmin();
-    $this->period    = makeFiscalPeriod($this->admin);
+    $this->admin = makeAdmin();
+    $this->period = makeFiscalPeriod($this->admin);
     $this->apartment = makeApartment(null, ['apartment_number' => 'A-101', 'monthly_rent' => 500]);
-    $this->tenant    = makeTenant($this->apartment);
-    $this->rental    = makeRental($this->tenant, $this->apartment, ['rent_amount' => 500]);
-    $this->service   = new IncomeRecordingService(userId: $this->admin->id, period: $this->period);
+    $this->tenant = makeTenant($this->apartment);
+    $this->rental = makeRental($this->tenant, $this->apartment, ['rent_amount' => 500]);
+    $this->service = new IncomeRecordingService(userId: $this->admin->id, period: $this->period);
 });
 
 it('records rent payment with paired Accounts entry', function () {
     $this->service->recordPayment($this->rental, [
-        'amount'                => 500,
-        'transaction_date'      => '2026-05-01',
-        'payment_method'        => 'cash',
-        'payment_type'          => 'rent',
-        'late_fee'              => 0,
+        'amount' => 500,
+        'transaction_date' => '2026-05-01',
+        'payment_method' => 'cash',
+        'payment_type' => 'rent',
+        'late_fee' => 0,
         'transaction_reference' => null,
-        'note'                  => null,
+        'note' => null,
     ]);
 
     expect(Payments::count())->toBe(1);
@@ -41,13 +41,13 @@ it('records rent payment with paired Accounts entry', function () {
 
 it('records a separate late-fee Accounts row when late_fee > 0', function () {
     $this->service->recordPayment($this->rental, [
-        'amount'                => 500,
-        'transaction_date'      => '2026-05-15',
-        'payment_method'        => 'cash',
-        'payment_type'          => 'rent',
-        'late_fee'              => 25,
+        'amount' => 500,
+        'transaction_date' => '2026-05-15',
+        'payment_method' => 'cash',
+        'payment_type' => 'rent',
+        'late_fee' => 25,
         'transaction_reference' => null,
-        'note'                  => null,
+        'note' => null,
     ]);
 
     expect(Accounts::count())->toBe(2);
@@ -57,22 +57,22 @@ it('records a separate late-fee Accounts row when late_fee > 0', function () {
 
 it('checkout creates Payments + Accounts for rent and settles utilities atomically', function () {
     Utilities::create([
-        'tenant_id'     => $this->tenant->id,
-        'rental_id'     => $this->rental->id,
-        'utility_type'  => 'electricity',
+        'tenant_id' => $this->tenant->id,
+        'rental_id' => $this->rental->id,
+        'utility_type' => 'electricity',
         'charge_amount' => 30,
         'billing_month' => now()->month,
-        'billing_year'  => now()->year,
-        'paid_status'   => false,
+        'billing_year' => now()->year,
+        'paid_status' => false,
     ]);
 
     $result = $this->service->checkout($this->rental, [
-        'payment_date'   => now()->toDateString(),
+        'payment_date' => now()->toDateString(),
         'payment_method' => 'cash',
-        'pay_rent'       => true,
-        'rent_amount'    => 500,
-        'pay_utilities'  => true,
-        'late_fee'       => 0,
+        'pay_rent' => true,
+        'rent_amount' => 500,
+        'pay_utilities' => true,
+        'late_fee' => 0,
     ]);
 
     expect($result['total_paid'])->toEqual(530.0);
@@ -85,13 +85,13 @@ it('checkout creates Payments + Accounts for rent and settles utilities atomical
 
 it('rolls the whole checkout back when a write fails mid-flow', function () {
     Utilities::create([
-        'tenant_id'     => $this->tenant->id,
-        'rental_id'     => $this->rental->id,
-        'utility_type'  => 'electricity',
+        'tenant_id' => $this->tenant->id,
+        'rental_id' => $this->rental->id,
+        'utility_type' => 'electricity',
         'charge_amount' => 30,
         'billing_month' => now()->month,
-        'billing_year'  => now()->year,
-        'paid_status'   => false,
+        'billing_year' => now()->year,
+        'paid_status' => false,
     ]);
 
     // Force a failure after the rent rows are written by deleting the rental's
@@ -105,12 +105,12 @@ it('rolls the whole checkout back when a write fails mid-flow', function () {
 
     try {
         $this->service->checkout($this->rental, [
-            'payment_date'   => now()->toDateString(),
+            'payment_date' => now()->toDateString(),
             'payment_method' => 'cash',
-            'pay_rent'       => true,
-            'rent_amount'    => 500,
-            'pay_utilities'  => true,
-            'late_fee'       => 0,
+            'pay_rent' => true,
+            'rent_amount' => 500,
+            'pay_utilities' => true,
+            'late_fee' => 0,
         ]);
         $this->fail('Expected exception was not thrown');
     } catch (RuntimeException $e) {

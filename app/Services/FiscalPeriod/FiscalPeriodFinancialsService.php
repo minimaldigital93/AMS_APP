@@ -48,9 +48,9 @@ class FiscalPeriodFinancialsService
     public function forRange(FiscalPeriods $fiscalPeriod, Carbon $start, Carbon $end): array
     {
         $start = $start->copy()->startOfDay();
-        $end   = $end->copy()->endOfDay();
+        $end = $end->copy()->endOfDay();
 
-        $incomeRecords  = $fiscalPeriod->accounts()
+        $incomeRecords = $fiscalPeriod->accounts()
             ->where('account_type', Accounts::TYPE_INCOME)
             ->whereBetween('transaction_date', [$start, $end])
             ->get();
@@ -60,8 +60,8 @@ class FiscalPeriodFinancialsService
             ->whereBetween('transaction_date', [$start, $end])
             ->get();
 
-        $rentIncome  = $incomeRecords->where('category', Accounts::CAT_RENT_INCOME)->sum('amount');
-        $lateFees    = $incomeRecords->where('category', Accounts::CAT_LATE_FEE_INCOME)->sum('amount');
+        $rentIncome = $incomeRecords->where('category', Accounts::CAT_RENT_INCOME)->sum('amount');
+        $lateFees = $incomeRecords->where('category', Accounts::CAT_LATE_FEE_INCOME)->sum('amount');
         $otherIncome = $incomeRecords->whereIn('category', [
             Accounts::CAT_UTILITY_INCOME,
             Accounts::CAT_OTHER_INCOME,
@@ -70,8 +70,8 @@ class FiscalPeriodFinancialsService
         $totalIncome = $incomeRecords->sum('amount');
 
         $utilityExpensesTotal = $expenseRecords->where('category', Accounts::CAT_UTILITIES_EXPENSE)->sum('amount');
-        $fixedExpenses        = $expenseRecords->where('category', '!=', Accounts::CAT_UTILITIES_EXPENSE)->sum('amount');
-        $totalExpenses        = $expenseRecords->sum('amount');
+        $fixedExpenses = $expenseRecords->where('category', '!=', Accounts::CAT_UTILITIES_EXPENSE)->sum('amount');
+        $totalExpenses = $expenseRecords->sum('amount');
 
         $utilityExpensesByCategory = $expenseRecords
             ->where('category', Accounts::CAT_UTILITIES_EXPENSE)
@@ -83,20 +83,20 @@ class FiscalPeriodFinancialsService
         }
 
         $paymentCount = $incomeRecords->whereNotNull('payment_id')->pluck('payment_id')->unique()->count();
-        $netIncome    = $totalIncome - $totalExpenses;
+        $netIncome = $totalIncome - $totalExpenses;
 
         return [
-            'rent_income'         => round($rentIncome, 2),
-            'late_fees'           => round($lateFees, 2),
-            'other_income'        => round($otherIncome, 2),
-            'total_income'        => round($totalIncome, 2),
-            'utility_expenses'    => $utilityExpensesByCategory,
+            'rent_income' => round($rentIncome, 2),
+            'late_fees' => round($lateFees, 2),
+            'other_income' => round($otherIncome, 2),
+            'total_income' => round($totalIncome, 2),
+            'utility_expenses' => $utilityExpensesByCategory,
             'total_util_expenses' => round($utilityExpensesTotal, 2),
-            'fixed_expenses'      => round($fixedExpenses, 2),
-            'total_expenses'      => round($totalExpenses, 2),
-            'net_income'          => round($netIncome, 2),
-            'is_profitable'       => $netIncome >= 0,
-            'payment_count'       => $paymentCount,
+            'fixed_expenses' => round($fixedExpenses, 2),
+            'total_expenses' => round($totalExpenses, 2),
+            'net_income' => round($netIncome, 2),
+            'is_profitable' => $netIncome >= 0,
+            'payment_count' => $paymentCount,
         ];
     }
 }

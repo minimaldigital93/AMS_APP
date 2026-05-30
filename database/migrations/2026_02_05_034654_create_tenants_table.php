@@ -18,8 +18,8 @@ return new class extends Migration
             $table->foreignId('managed_by')->nullable()->constrained('users')->onDelete('set null');
 
             $table->string('name');
-            $table->string('email')->unique();
-            $table->string('phone')->nullable();
+            $table->string('phone')->unique();
+            $table->string('email')->nullable();
             $table->text('address')->nullable();
             $table->date('date_of_birth')->nullable();
             $table->string('place_of_birth')->nullable();

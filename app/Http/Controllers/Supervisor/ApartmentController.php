@@ -28,7 +28,7 @@ class ApartmentController extends Controller
         $query = Apartments::with(['floor', 'tenants', 'supervisor']);
 
         if ($request->filled('search')) {
-            $query->where('apartment_number', 'like', '%' . $request->search . '%');
+            $query->where('apartment_number', 'like', '%'.$request->search.'%');
         }
 
         if ($request->filled('status')) {
@@ -37,9 +37,9 @@ class ApartmentController extends Controller
 
         $apartments = $query->get();
 
-        $apartmentsByFloor = $apartments->filter(fn($apt) => $apt->floor !== null)
-            ->groupBy(fn($apt) => $apt->floor->id)
-            ->sortBy(fn($group) => $group->first()->floor->id);
+        $apartmentsByFloor = $apartments->filter(fn ($apt) => $apt->floor !== null)
+            ->groupBy(fn ($apt) => $apt->floor->id)
+            ->sortBy(fn ($group) => $group->first()->floor->id);
 
         $floors = Floors::whereHas('apartments')
             ->orderBy('id', 'asc')->get();
@@ -122,7 +122,7 @@ class ApartmentController extends Controller
                     $status = 'paid';
                 } elseif ($percent > 0) {
                     $status = 'partial';
-                } elseif ($isPastDue && !$isFirstMonth) {
+                } elseif ($isPastDue && ! $isFirstMonth) {
                     $status = 'overdue';
                 } elseif ($isCurrent) {
                     $status = 'due';
@@ -166,15 +166,15 @@ class ApartmentController extends Controller
             'tenant_option' => 'required|in:existing,new',
             'tenant_id' => 'nullable|required_if:tenant_option,existing|exists:tenants,id',
             'name' => 'nullable|required_if:tenant_option,new|string|max:255',
-            'email' => [
+            'phone' => [
                 'nullable',
                 'required_if:tenant_option,new',
-                'email',
-                'max:255',
-                Rule::unique('users', 'email')->where(fn ($q) => $request->input('tenant_option') === 'new'),
-                Rule::unique('tenants', 'email')->where(fn ($q) => $request->input('tenant_option') === 'new'),
+                'string',
+                'max:20',
+                Rule::unique('users', 'phone')->where(fn ($q) => $request->input('tenant_option') === 'new'),
+                Rule::unique('tenants', 'phone')->where(fn ($q) => $request->input('tenant_option') === 'new'),
             ],
-            'phone' => 'required_if:tenant_option,new|nullable|string|max:20',
+            'email' => 'nullable|email|max:255',
             'address' => 'nullable|string',
             'date_of_birth' => 'nullable|date|before:today',
             'attached_photo' => 'nullable|file|mimes:jpeg,jpg,png,gif,pdf|max:5120',
@@ -208,39 +208,39 @@ class ApartmentController extends Controller
             if ($validated['tenant_option'] === 'existing') {
                 $tenant = Tenants::findOrFail($validated['tenant_id']);
 
-                if (!$tenant->user_id && $tenant->email) {
+                if (! $tenant->user_id && $tenant->phone) {
                     $existingUser = User::firstOrCreate(
-                        ['email' => $tenant->email],
+                        ['phone' => $tenant->phone],
                         [
-                            'name'     => $tenant->name,
+                            'name' => $tenant->name,
                             'password' => Str::random(16),
                         ]
                     );
-                    if (!$existingUser->hasRole('tenant')) {
+                    if (! $existingUser->hasRole('tenant')) {
                         $existingUser->assignRole('tenant');
                     }
                     $tenant->update(['user_id' => $existingUser->id]);
                 }
             } else {
                 $tenantUser = User::create([
-                    'name'     => $validated['name'],
-                    'email'    => $validated['email'],
+                    'name' => $validated['name'],
+                    'phone' => $validated['phone'],
                     'password' => Str::random(16),
                 ]);
                 $tenantUser->assignRole('tenant');
 
                 $tenant = Tenants::create([
-                    'name'          => $validated['name'],
-                    'email'         => $validated['email'],
-                    'phone'         => $validated['phone'] ?? null,
-                    'address'       => $validated['address'] ?? null,
+                    'name' => $validated['name'],
+                    'phone' => $validated['phone'],
+                    'email' => $validated['email'] ?? null,
+                    'address' => $validated['address'] ?? null,
                     'date_of_birth' => $validated['date_of_birth'] ?? null,
-                    'photo_path'    => $photoPath,
+                    'photo_path' => $photoPath,
                     'document_path' => $documentPath,
-                    'apartment_id'  => $apartment->id,
-                    'status'        => 'active',
-                    'managed_by'    => Auth::id(),
-                    'user_id'       => $tenantUser->id,
+                    'apartment_id' => $apartment->id,
+                    'status' => 'active',
+                    'managed_by' => Auth::id(),
+                    'user_id' => $tenantUser->id,
                 ]);
             }
 
@@ -252,8 +252,12 @@ class ApartmentController extends Controller
                 'managed_by' => Auth::id(),
             ];
 
-            if ($photoPath) $updateData['photo_path'] = $photoPath;
-            if ($documentPath) $updateData['document_path'] = $documentPath;
+            if ($photoPath) {
+                $updateData['photo_path'] = $photoPath;
+            }
+            if ($documentPath) {
+                $updateData['document_path'] = $documentPath;
+            }
 
             $tenant->update($updateData);
             $apartment->update(['status' => 'occupied']);
@@ -268,10 +272,10 @@ class ApartmentController extends Controller
                 'deposit' => $validated['deposit'],
             ]);
 
-            if (!empty($validated['deposit']) && $validated['deposit'] > 0) {
+            if (! empty($validated['deposit']) && $validated['deposit'] > 0) {
                 $activePeriod = $this->activeAdminFiscalPeriod();
 
-                $reference = 'deposit:rental:' . $rental->id;
+                $reference = 'deposit:rental:'.$rental->id;
 
                 Accounts::firstOrCreate(
                     ['reference_number' => $reference],
@@ -281,7 +285,7 @@ class ApartmentController extends Controller
                         'user_id' => Auth::id(),
                         'account_type' => Accounts::TYPE_INCOME,
                         'category' => Accounts::CAT_DEPOSIT_INCOME,
-                        'description' => 'Security deposit — Apt ' . ($apartment->apartment_number ?? 'N/A'),
+                        'description' => 'Security deposit — Apt '.($apartment->apartment_number ?? 'N/A'),
                         'amount' => $validated['deposit'],
                         'transaction_date' => now()->toDateString(),
                         'note' => 'Initial deposit collected on tenant assignment',

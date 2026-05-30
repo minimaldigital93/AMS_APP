@@ -2,10 +2,10 @@
 
 namespace App\Http\Middleware;
 
+use App\Models\Settings;
 use Closure;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\App;
-use App\Models\Settings;
 use Symfony\Component\HttpFoundation\Response;
 
 class SetLocale
@@ -15,7 +15,7 @@ class SetLocale
         // Priority: session > DB setting > config default
         $locale = session('locale');
 
-        if (!$locale) {
+        if (! $locale) {
             $locale = Settings::get('app_locale', config('app.locale'));
         }
 

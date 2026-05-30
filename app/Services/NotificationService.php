@@ -14,11 +14,12 @@ use Illuminate\Support\Collection;
 class NotificationService
 {
     const WINDOW_DAYS = 7;
+
     const MAX_ITEMS = 12;
 
     public function for(?User $user): Collection
     {
-        if (!$user) {
+        if (! $user) {
             return collect();
         }
 
@@ -45,6 +46,7 @@ class NotificationService
     protected function forSupervisor(/** @phpstan-ignore-line */ User $user): Collection
     {
         unset($user);
+
         return $this->forStaff('supervisor');
     }
 
@@ -58,7 +60,7 @@ class NotificationService
         $now = Carbon::now();
         $since = $now->copy()->subDays(self::WINDOW_DAYS);
 
-        $tenantUrl = fn($id) => $role === 'admin'
+        $tenantUrl = fn ($id) => $role === 'admin'
             ? route('admin.tenants.show', $id)
             : route('supervisor.tenants.show', $id);
 
@@ -292,7 +294,7 @@ class NotificationService
             ->whereIn('status', ['active', 'pending'])
             ->first();
 
-        if (!$tenant) {
+        if (! $tenant) {
             return $items;
         }
 
@@ -433,7 +435,7 @@ class NotificationService
     protected function sortAndLimit(Collection $items): Collection
     {
         return $items
-            ->sortByDesc(fn($i) => $i['time'] ? Carbon::parse($i['time'])->timestamp : 0)
+            ->sortByDesc(fn ($i) => $i['time'] ? Carbon::parse($i['time'])->timestamp : 0)
             ->values()
             ->take(self::MAX_ITEMS);
     }

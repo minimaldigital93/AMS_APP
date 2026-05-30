@@ -27,7 +27,7 @@
                     </div>
                     <div>
                         <label class="text-xs font-medium text-gray-500 uppercase">Email</label>
-                        <p class="text-sm text-gray-700">{{ $tenant->email }}</p>
+                        <p class="text-sm text-gray-700">{{ $tenant->email ?? '—' }}</p>
                     </div>
                     <div>
                         <label class="text-xs font-medium text-gray-500 uppercase">Phone</label>

@@ -37,18 +37,18 @@ class BreakEvenService
     public function calculate(?int $month = null, ?int $year = null): array
     {
         $month = $month ?: now()->month;
-        $year  = $year  ?: now()->year;
+        $year = $year ?: now()->year;
         $monthStart = Carbon::create($year, $month, 1)->startOfMonth();
-        $monthEnd   = $monthStart->copy()->endOfMonth();
+        $monthEnd = $monthStart->copy()->endOfMonth();
 
-        $apartments      = $this->apartmentsScope->clone()->get();
-        $apartmentIds    = $apartments->pluck('id');
+        $apartments = $this->apartmentsScope->clone()->get();
+        $apartmentIds = $apartments->pluck('id');
         $totalApartments = $apartments->count();
 
-        $income   = $this->queryService->calculateIncome($monthStart, $monthEnd);
+        $income = $this->queryService->calculateIncome($monthStart, $monthEnd);
         $expenses = $this->queryService->calculateExpenses($monthStart, $monthEnd);
 
-        $totalRevenue  = (float) $income['total_income'];
+        $totalRevenue = (float) $income['total_income'];
         $totalExpenses = (float) $expenses['total_expenses'];
 
         $avgRentPerApartment = (float) ($this->activeRentalsQuery($apartmentIds, $monthStart, $monthEnd)
@@ -56,8 +56,8 @@ class BreakEvenService
 
         $currentOccupancy = $this->activeRentalsQuery($apartmentIds, $monthStart, $monthEnd)->count();
 
-        $businessExpenses    = $this->calculateBusinessExpenses($month, $year);
-        $variableTotal       = max(0, $totalExpenses - $businessExpenses);
+        $businessExpenses = $this->calculateBusinessExpenses($month, $year);
+        $variableTotal = max(0, $totalExpenses - $businessExpenses);
         $variableCostPerUnit = $currentOccupancy > 0 ? $variableTotal / $currentOccupancy : 0;
 
         $contributionMarginPerUnit = $avgRentPerApartment - $variableCostPerUnit;
@@ -65,7 +65,7 @@ class BreakEvenService
         // Standard break-even: Fixed Costs / Contribution Margin per Unit.
         // If CM ≤ 0, every new tenant loses money — no occupancy level breaks even.
         $breakEvenFeasible = $contributionMarginPerUnit > 0 || $businessExpenses <= 0;
-        $breakEvenUnits    = $breakEvenFeasible && $contributionMarginPerUnit > 0
+        $breakEvenUnits = $breakEvenFeasible && $contributionMarginPerUnit > 0
             ? round($businessExpenses / $contributionMarginPerUnit, 2)
             : 0;
 
@@ -73,14 +73,14 @@ class BreakEvenService
             ? round($breakEvenUnits * $avgRentPerApartment, 2)
             : 0;
 
-        $safetyMargin        = $totalRevenue - $totalExpenses;
+        $safetyMargin = $totalRevenue - $totalExpenses;
         $safetyMarginPercent = $totalRevenue > 0
             ? round(($safetyMargin / $totalRevenue) * 100, 2)
             : 0;
 
         $isAboveBreakEven = $safetyMargin >= 0;
-        $amountNeeded     = max(0, -$safetyMargin);
-        $unitsNeeded      = $breakEvenFeasible
+        $amountNeeded = max(0, -$safetyMargin);
+        $unitsNeeded = $breakEvenFeasible
             ? max(0, (int) ceil($breakEvenUnits) - $currentOccupancy)
             : 0;
 
@@ -88,26 +88,26 @@ class BreakEvenService
         $variableBreakdown = $this->getVariableCostBreakdown($month, $year);
 
         return [
-            'total_apartments'             => $totalApartments,
-            'avg_rent_per_apartment'       => round($avgRentPerApartment, 2),
-            'business_expenses'            => round($businessExpenses, 2),
-            'variable_cost_per_unit'       => round($variableCostPerUnit, 2),
+            'total_apartments' => $totalApartments,
+            'avg_rent_per_apartment' => round($avgRentPerApartment, 2),
+            'business_expenses' => round($businessExpenses, 2),
+            'variable_cost_per_unit' => round($variableCostPerUnit, 2),
             'contribution_margin_per_unit' => round($contributionMarginPerUnit, 2),
-            'break_even_units'             => $breakEvenUnits,
-            'break_even_revenue'           => round($breakEvenRevenue, 2),
-            'current_occupancy'            => $currentOccupancy,
-            'current_revenue'              => round($totalRevenue, 2),
-            'total_expenses'               => round($totalExpenses, 2),
-            'safety_margin'                => round($safetyMargin, 2),
-            'safety_margin_percent'        => $safetyMarginPercent,
-            'is_above_break_even'          => $isAboveBreakEven,
-            'amount_needed'                => round($amountNeeded, 2),
-            'units_needed'                 => $unitsNeeded,
-            'business_expense_breakdown'   => $businessBreakdown,
-            'variable_cost_breakdown'      => $variableBreakdown,
-            'break_even_feasible'          => $breakEvenFeasible,
-            'utility_analysis'             => $this->getUtilityAnalysis($apartmentIds, $month, $year),
-            'biggest_expense'              => $this->biggestExpense($businessBreakdown, $variableBreakdown),
+            'break_even_units' => $breakEvenUnits,
+            'break_even_revenue' => round($breakEvenRevenue, 2),
+            'current_occupancy' => $currentOccupancy,
+            'current_revenue' => round($totalRevenue, 2),
+            'total_expenses' => round($totalExpenses, 2),
+            'safety_margin' => round($safetyMargin, 2),
+            'safety_margin_percent' => $safetyMarginPercent,
+            'is_above_break_even' => $isAboveBreakEven,
+            'amount_needed' => round($amountNeeded, 2),
+            'units_needed' => $unitsNeeded,
+            'business_expense_breakdown' => $businessBreakdown,
+            'variable_cost_breakdown' => $variableBreakdown,
+            'break_even_feasible' => $breakEvenFeasible,
+            'utility_analysis' => $this->getUtilityAnalysis($apartmentIds, $month, $year),
+            'biggest_expense' => $this->biggestExpense($businessBreakdown, $variableBreakdown),
         ];
     }
 
@@ -122,7 +122,7 @@ class BreakEvenService
     public function getUtilityAnalysis($apartmentIds, ?int $month = null, ?int $year = null): array
     {
         $month = $month ?: now()->month;
-        $year  = $year  ?: now()->year;
+        $year = $year ?: now()->year;
 
         $base = Utilities::query()
             ->join('rentals', 'utilities.rental_id', '=', 'rentals.id')
@@ -132,12 +132,12 @@ class BreakEvenService
 
         $typeLabels = [
             'electricity' => 'Electricity',
-            'water'       => 'Water',
-            'internet'    => 'Internet',
-            'trash'       => 'Trash',
-            'parking'     => 'Parking',
-            'cleaning'    => 'Cleaning',
-            'other'       => 'Other',
+            'water' => 'Water',
+            'internet' => 'Internet',
+            'trash' => 'Trash',
+            'parking' => 'Parking',
+            'cleaning' => 'Cleaning',
+            'other' => 'Other',
         ];
 
         $byTypeRaw = (clone $base)
@@ -149,15 +149,17 @@ class BreakEvenService
 
         $byType = [];
         foreach ($byTypeRaw as $type => $amount) {
-            if ($amount <= 0) continue;
+            if ($amount <= 0) {
+                continue;
+            }
             $byType[] = [
-                'label'  => $typeLabels[$type] ?? ucfirst((string) $type),
+                'label' => $typeLabels[$type] ?? ucfirst((string) $type),
                 'amount' => round((float) $amount, 2),
             ];
         }
 
-        $total      = (float) array_sum(array_column($byType, 'amount'));
-        $roomsUsed  = (int) (clone $base)->distinct()->count('rentals.apartment_id');
+        $total = (float) array_sum(array_column($byType, 'amount'));
+        $roomsUsed = (int) (clone $base)->distinct()->count('rentals.apartment_id');
         $avgPerRoom = $roomsUsed > 0 ? $total / $roomsUsed : 0;
 
         $topApt = (clone $base)
@@ -168,12 +170,12 @@ class BreakEvenService
             ->first();
 
         return [
-            'total'         => round($total, 2),
-            'avg_per_room'  => round($avgPerRoom, 2),
-            'rooms_used'    => $roomsUsed,
-            'by_type'       => $byType,
+            'total' => round($total, 2),
+            'avg_per_room' => round($avgPerRoom, 2),
+            'rooms_used' => $roomsUsed,
+            'by_type' => $byType,
             'top_apartment' => $topApt ? [
-                'label'  => $topApt->num,
+                'label' => $topApt->num,
                 'amount' => round((float) $topApt->total, 2),
             ] : null,
         ];
@@ -202,7 +204,7 @@ class BreakEvenService
     public function getBusinessExpenseBreakdown(?int $month = null, ?int $year = null): array
     {
         $month = $month ?: now()->month;
-        $year  = $year  ?: now()->year;
+        $year = $year ?: now()->year;
 
         $query = BusinessExpense::where('user_id', $this->userId)
             ->where('billing_month', $month)
@@ -213,7 +215,7 @@ class BreakEvenService
         }
 
         return $query->get()->map(fn ($e) => [
-            'label'  => $e->expense_name ?: ($e->category ?: 'Business Expense'),
+            'label' => $e->expense_name ?: ($e->category ?: 'Business Expense'),
             'amount' => round((float) $e->amount, 2),
         ])->toArray();
     }
@@ -225,7 +227,7 @@ class BreakEvenService
     public function getVariableCostBreakdown(?int $month = null, ?int $year = null): array
     {
         $month = $month ?: now()->month;
-        $year  = $year  ?: now()->year;
+        $year = $year ?: now()->year;
 
         $query = Accounts::expense()
             ->forUser($this->userId)
@@ -248,28 +250,30 @@ class BreakEvenService
 
         $labels = [
             'utilities_expense' => 'Utilities (vendor bills)',
-            'maintenance'       => 'Maintenance & Repairs',
-            'repairs'           => 'Repairs',
-            'insurance'         => 'Insurance',
-            'property_tax'      => 'Property Tax',
-            'management'        => 'Property Management',
-            'cleaning'          => 'Cleaning Services',
-            'security'          => 'Security',
-            'landscaping'       => 'Landscaping',
-            'supplies'          => 'Supplies & Materials',
-            'marketing'         => 'Marketing & Advertising',
-            'legal'             => 'Legal & Professional Fees',
-            'salaries'          => 'Salaries & Wages',
-            'taxes'             => 'Taxes',
-            'other_expense'     => 'Other Expense',
-            'miscellaneous'     => 'Miscellaneous',
+            'maintenance' => 'Maintenance & Repairs',
+            'repairs' => 'Repairs',
+            'insurance' => 'Insurance',
+            'property_tax' => 'Property Tax',
+            'management' => 'Property Management',
+            'cleaning' => 'Cleaning Services',
+            'security' => 'Security',
+            'landscaping' => 'Landscaping',
+            'supplies' => 'Supplies & Materials',
+            'marketing' => 'Marketing & Advertising',
+            'legal' => 'Legal & Professional Fees',
+            'salaries' => 'Salaries & Wages',
+            'taxes' => 'Taxes',
+            'other_expense' => 'Other Expense',
+            'miscellaneous' => 'Miscellaneous',
         ];
 
         $breakdown = [];
         foreach ($rows as $cat => $amount) {
-            if ($amount <= 0) continue;
+            if ($amount <= 0) {
+                continue;
+            }
             $breakdown[] = [
-                'label'  => $labels[$cat] ?? ucfirst(str_replace('_', ' ', (string) $cat)),
+                'label' => $labels[$cat] ?? ucfirst(str_replace('_', ' ', (string) $cat)),
                 'amount' => round((float) $amount, 2),
             ];
         }
@@ -284,7 +288,7 @@ class BreakEvenService
     public function calculateBusinessExpenses(?int $month = null, ?int $year = null): float
     {
         $month = $month ?: now()->month;
-        $year  = $year  ?: now()->year;
+        $year = $year ?: now()->year;
 
         $query = BusinessExpense::where('user_id', $this->userId)
             ->where('billing_month', $month)
@@ -313,9 +317,9 @@ class BreakEvenService
     {
         $apartmentIds = $this->apartmentsScope->clone()->pluck('id');
         $month = $month ?: now()->month;
-        $year  = $year  ?: now()->year;
+        $year = $year ?: now()->year;
         $monthStart = Carbon::create($year, $month, 1)->startOfMonth();
-        $monthEnd   = $monthStart->copy()->endOfMonth();
+        $monthEnd = $monthStart->copy()->endOfMonth();
 
         $occupiedCount = $this->activeRentalsQuery($apartmentIds, $monthStart, $monthEnd)->count();
         if ($occupiedCount === 0) {

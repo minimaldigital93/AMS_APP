@@ -14,6 +14,7 @@ class SettingsController extends Controller
     {
         $settings = Settings::orderBy('key')->get()->groupBy(function ($setting) {
             $parts = explode('_', $setting->key);
+
             return $parts[0] ?? 'general';
         });
 

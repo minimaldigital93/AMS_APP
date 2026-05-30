@@ -23,10 +23,6 @@
                     <p class="text-sm font-medium text-gray-800 mt-0.5">{{ $tenant->name }}</p>
                 </div>
                 <div>
-                    <p class="text-xs text-gray-400 uppercase">Email</p>
-                    <p class="text-sm font-medium text-gray-800 mt-0.5">{{ $tenant->email }}</p>
-                </div>
-                <div>
                     <p class="text-xs text-gray-400 uppercase">Phone</p>
                     <p class="text-sm font-medium text-gray-800 mt-0.5">{{ $tenant->phone ?? '—' }}</p>
                 </div>

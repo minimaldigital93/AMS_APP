@@ -38,30 +38,30 @@ class MonthlyBillingService
     public function processSelected(array $bills, Carbon $billingDate): array
     {
         return DB::transaction(function () use ($bills, $billingDate) {
-        $recordedCount = 0;
-        $totalAmount   = 0.0;
+            $recordedCount = 0;
+            $totalAmount = 0.0;
 
-        foreach ($bills as $billData) {
-            if (empty($billData['selected']) || empty($billData['expenses'])) {
-                continue;
-            }
-
-            $rental = Rentals::with(['tenant', 'apartment'])->findOrFail($billData['rental_id']);
-
-            foreach ($billData['expenses'] as $expData) {
-                if (empty($expData['selected'])) {
+            foreach ($bills as $billData) {
+                if (empty($billData['selected']) || empty($billData['expenses'])) {
                     continue;
                 }
 
-                $fixedExpense = ApartmentFixedExpense::findOrFail($expData['expense_id']);
-                $amount       = (float) $expData['amount'];
+                $rental = Rentals::with(['tenant', 'apartment'])->findOrFail($billData['rental_id']);
 
-                if ($this->bill($rental, $fixedExpense->expense_type, $fixedExpense->expense_name, $amount, $billingDate)) {
-                    $recordedCount++;
-                    $totalAmount += $amount;
+                foreach ($billData['expenses'] as $expData) {
+                    if (empty($expData['selected'])) {
+                        continue;
+                    }
+
+                    $fixedExpense = ApartmentFixedExpense::findOrFail($expData['expense_id']);
+                    $amount = (float) $expData['amount'];
+
+                    if ($this->bill($rental, $fixedExpense->expense_type, $fixedExpense->expense_name, $amount, $billingDate)) {
+                        $recordedCount++;
+                        $totalAmount += $amount;
+                    }
                 }
             }
-        }
 
             return ['count' => $recordedCount, 'total' => $totalAmount];
         });
@@ -77,30 +77,30 @@ class MonthlyBillingService
     public function processAll(Builder $apartmentsScope, Carbon $billingDate): array
     {
         return DB::transaction(function () use ($apartmentsScope, $billingDate) {
-        $recordedCount = 0;
-        $totalAmount   = 0.0;
+            $recordedCount = 0;
+            $totalAmount = 0.0;
 
-        $apartments = $apartmentsScope->clone()
-            ->with(['activeFixedExpenses', 'rentals' => function ($q) {
-                $q->where(function ($q2) {
-                    $q2->whereNull('end_date')->orWhere('end_date', '>=', now());
-                })->with('tenant');
-            }])
-            ->get();
+            $apartments = $apartmentsScope->clone()
+                ->with(['activeFixedExpenses', 'rentals' => function ($q) {
+                    $q->where(function ($q2) {
+                        $q2->whereNull('end_date')->orWhere('end_date', '>=', now());
+                    })->with('tenant');
+                }])
+                ->get();
 
-        foreach ($apartments as $apartment) {
-            foreach ($apartment->rentals as $rental) {
-                // ensure description has access to apartment number without re-loading
-                $rental->setRelation('apartment', $apartment);
+            foreach ($apartments as $apartment) {
+                foreach ($apartment->rentals as $rental) {
+                    // ensure description has access to apartment number without re-loading
+                    $rental->setRelation('apartment', $apartment);
 
-                foreach ($apartment->activeFixedExpenses as $fe) {
-                    if ($this->bill($rental, $fe->expense_type, $fe->expense_name, (float) $fe->amount, $billingDate)) {
-                        $recordedCount++;
-                        $totalAmount += (float) $fe->amount;
+                    foreach ($apartment->activeFixedExpenses as $fe) {
+                        if ($this->bill($rental, $fe->expense_type, $fe->expense_name, (float) $fe->amount, $billingDate)) {
+                            $recordedCount++;
+                            $totalAmount += (float) $fe->amount;
+                        }
                     }
                 }
             }
-        }
 
             return ['count' => $recordedCount, 'total' => $totalAmount];
         });
@@ -124,28 +124,28 @@ class MonthlyBillingService
         }
 
         Utilities::create([
-            'tenant_id'         => $rental->tenant_id,
-            'rental_id'         => $rental->id,
-            'utility_type'      => $utilityType,
-            'meter_reading_in'  => 0,
+            'tenant_id' => $rental->tenant_id,
+            'rental_id' => $rental->id,
+            'utility_type' => $utilityType,
+            'meter_reading_in' => 0,
             'meter_reading_out' => 0,
-            'charge_amount'     => $amount,
-            'billing_month'     => $billingDate->month,
-            'billing_year'      => $billingDate->year,
-            'paid_status'       => false,
-            'paid_at'           => null,
+            'charge_amount' => $amount,
+            'billing_month' => $billingDate->month,
+            'billing_year' => $billingDate->year,
+            'paid_status' => false,
+            'paid_at' => null,
         ]);
 
         Accounts::create([
             'fiscal_period_id' => $this->period->id,
-            'payment_id'       => null,
-            'user_id'          => $this->userId,
-            'account_type'     => Accounts::TYPE_EXPENSE,
-            'category'         => Accounts::CAT_BUSINESS_FIXED,
-            'description'      => '[Apt ' . $rental->apartment->apartment_number . '] ' . $expenseName . ' (monthly)',
-            'amount'           => $amount,
+            'payment_id' => null,
+            'user_id' => $this->userId,
+            'account_type' => Accounts::TYPE_EXPENSE,
+            'category' => Accounts::CAT_BUSINESS_FIXED,
+            'description' => '[Apt '.$rental->apartment->apartment_number.'] '.$expenseName.' (monthly)',
+            'amount' => $amount,
             'transaction_date' => $billingDate->toDateString(),
-            'note'             => 'Auto-generated monthly fixed expense',
+            'note' => 'Auto-generated monthly fixed expense',
         ]);
 
         return true;

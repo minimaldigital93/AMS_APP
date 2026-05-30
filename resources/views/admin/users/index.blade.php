@@ -18,7 +18,7 @@
     <!-- Realtime Search and Filters -->
     <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
         <div class="flex gap-4 items-center">
-            <input id="userSearch" type="text" placeholder="search by name or email..."
+            <input id="userSearch" type="text" placeholder="search by name or phone..."
                 class="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
 
             <select id="roleFilter" class="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
@@ -45,7 +45,7 @@
                     <tr>
                         <th class="px-6 py-3 text-left text-sm font-semibold text-gray-900">No</th>
                         <th class="px-6 py-3 text-left text-sm font-semibold text-gray-900">Name</th>
-                        <th class="px-6 py-3 text-left text-sm font-semibold text-gray-900">Email</th>
+                        <th class="px-6 py-3 text-left text-sm font-semibold text-gray-900">Phone</th>
                         <th class="px-6 py-3 text-left text-sm font-semibold text-gray-900">Role</th>
                         <th class="px-6 py-3 text-left text-sm font-semibold text-gray-900">Apartment</th>
                         <th class="px-6 py-3 text-left text-sm font-semibold text-gray-900">Status</th>
@@ -58,7 +58,7 @@
                     <tr class="hover:bg-gray-50 transition">
                         <td class="px-6 py-4 text-gray-600">{{ ($users->currentPage()-1) * $users->perPage() + $loop->iteration }}</td>
                         <td class="px-6 py-4 font-medium text-gray-900">{{ $user->name }}</td>
-                        <td class="px-6 py-4 text-gray-600">{{ $user->email }}</td>
+                        <td class="px-6 py-4 text-gray-600">{{ $user->phone }}</td>
                         <td class="px-6 py-4">
                             <span class="px-3 py-1 text-sm font-semibold rounded-full bg-blue-100 text-blue-700">{{ ucfirst($user->roles->first()?->name ?? 'N/A') }}</span>
                         </td>
@@ -147,10 +147,10 @@
                     // skip empty/no-data row
                     if (row.querySelectorAll('td').length === 1) return;
                     const name = normalize(row.children[1].innerText);
-                    const email = normalize(row.children[2].innerText);
+                    const phone = normalize(row.children[2].innerText);
                     const roleText = normalize(row.children[3].innerText); // col 3 = Role
 
-                    const matchesQuery = q === '' || name.includes(q) || email.includes(q);
+                    const matchesQuery = q === '' || name.includes(q) || phone.includes(q);
                     const matchesRole = role === '' || roleText === role;
 
                     row.style.display = (matchesQuery && matchesRole) ? '' : 'none';
@@ -158,9 +158,9 @@
             } else {
                 Array.from(cards).forEach(card => {
                     const name = card.dataset.name || '';
-                    const email = card.dataset.email || '';
+                    const phone = card.dataset.phone || '';
                     const roleText = card.dataset.role || '';
-                    const matchesQuery = q === '' || name.includes(q) || email.includes(q);
+                    const matchesQuery = q === '' || name.includes(q) || phone.includes(q);
                     const matchesRole = role === '' || roleText === role;
                     card.style.display = (matchesQuery && matchesRole) ? '' : 'none';
                 });

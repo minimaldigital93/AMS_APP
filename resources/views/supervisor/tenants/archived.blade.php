@@ -57,7 +57,7 @@
         <div class="bg-white rounded-xl border border-slate-100 mb-6 p-6">
             <form method="GET" action="{{ route('supervisor.tenants.archived') }}" class="grid grid-cols-1 md:grid-cols-4 gap-4">
                 <div class="md:col-span-2">
-                    <label class="block text-sm font-medium text-slate-500 mb-2">Search by Name or Email</label>
+                    <label class="block text-sm font-medium text-slate-500 mb-2">Search by Name or Phone</label>
                     <input type="text" name="search" placeholder="Search archived tenants..." value="{{ request('search') }}" class="w-full h-10 px-3 text-sm border border-slate-200 rounded-lg focus:ring-2 focus:ring-slate-300 focus:border-transparent">
                 </div>
                 <div class="md:col-span-1">
@@ -252,10 +252,10 @@ function viewTenantSettlement(tenantId, tenantName) {
                                 <div>
                                     <p class="text-xs text-gray-500">Full Name</p>
                                     <p class="text-sm font-medium text-gray-900">${t.name}</p>
-                                    <p class="text-xs text-gray-500 mt-2">Email</p>
-                                    <p class="text-sm font-medium text-gray-900">${t.email}</p>
                                     <p class="text-xs text-gray-500 mt-2">Phone</p>
                                     <p class="text-sm font-medium text-gray-900">${t.phone}</p>
+                                    <p class="text-xs text-gray-500 mt-2">Email</p>
+                                    <p class="text-sm font-medium text-gray-900">${t.email || '—'}</p>
                                 </div>
                             </div>
                             <div>

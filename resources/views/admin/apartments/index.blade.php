@@ -127,7 +127,7 @@
                                         @endif
                                         <div>
                                             <div class="text-sm font-medium text-slate-700">{{ $tenant->name }}</div>
-                                            <div class="text-[11px] text-slate-400">{{ $tenant->email }}</div>
+                                            <div class="text-[11px] text-slate-400">{{ $tenant->phone }}</div>
                                         </div>
                                     </div>
                                 @else
@@ -334,7 +334,7 @@
                     <select id="tenant_id" name="tenant_id" class="w-full px-3.5 py-2 text-sm border border-slate-200 rounded-lg bg-slate-50/50 focus:outline-none focus:ring-2 focus:ring-slate-300 focus:border-slate-300 transition">
                         <option value="">-- Choose an unassigned tenant --</option>
                         @foreach($availableTenants as $tenant)
-                            <option value="{{ $tenant->id }}">{{ $tenant->name }} ({{ $tenant->email }})</option>
+                            <option value="{{ $tenant->id }}">{{ $tenant->name }} ({{ $tenant->phone }})</option>
                         @endforeach
                     </select>
                     @if($availableTenants->isEmpty())
@@ -354,8 +354,8 @@
                             <input type="text" id="name" name="name" required class="w-full px-3.5 py-2 text-sm border border-slate-200 rounded-lg bg-slate-50/50 placeholder-slate-300 focus:outline-none focus:ring-2 focus:ring-slate-300 focus:border-slate-300 transition">
                         </div>
                         <div>
-                            <label for="email" class="block text-xs font-medium text-slate-500 mb-1 uppercase tracking-wide">Email <span class="text-red-400">*</span></label>
-                            <input type="email" id="email" name="email" required class="w-full px-3.5 py-2 text-sm border border-slate-200 rounded-lg bg-slate-50/50 placeholder-slate-300 focus:outline-none focus:ring-2 focus:ring-slate-300 focus:border-slate-300 transition">
+                            <label for="email" class="block text-xs font-medium text-slate-500 mb-1 uppercase tracking-wide">Email</label>
+                            <input type="email" id="email" name="email" class="w-full px-3.5 py-2 text-sm border border-slate-200 rounded-lg bg-slate-50/50 placeholder-slate-300 focus:outline-none focus:ring-2 focus:ring-slate-300 focus:border-slate-300 transition">
                         </div>
                         <div>
                             <label for="phone" class="block text-xs font-medium text-slate-500 mb-1 uppercase tracking-wide">Phone <span class="text-red-400">*</span></label>

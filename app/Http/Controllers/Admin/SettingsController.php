@@ -15,9 +15,10 @@ class SettingsController extends Controller
      */
     public function index(): View
     {
-        $settings = Settings::orderBy('key')->get()->groupBy(function($setting) {
+        $settings = Settings::orderBy('key')->get()->groupBy(function ($setting) {
             // Group settings by category (prefix before first underscore)
             $parts = explode('_', $setting->key);
+
             return $parts[0] ?? 'general';
         });
 

@@ -16,39 +16,36 @@ class DatabaseSeeder extends Seeder
             RolePermissionSeeder::class,
         ]);
 
-        //Create admin user 
+        // Create admin user
         $admin = User::firstOrCreate([
-            'email' => 'admin@example.com',
+            'phone' => '017552223',
         ], [
             'name' => 'Admin User',
             'password' => bcrypt('12345678'),
-            'email_verified_at' => now(),
             'status' => 'active',
         ]);
 
         $admin->syncRoles(['admin']);
 
-        //Create supervisor user
+        // Create supervisor user
         $supervisor = User::firstOrCreate([
-            'email' => 'sup@example.com',
+            'phone' => '017552224',
         ], [
             'name' => 'Supervisor User',
             'password' => bcrypt('12345678'),
-            'email_verified_at' => now(),
             'status' => 'active',
         ]);
 
         $supervisor->syncRoles(['supervisor']);
 
-        //Create tenant user
+        // Create tenant user
         $tenant = User::firstOrCreate([
-            'email' => 'tenant@example.com',
+            'phone' => '017552225',
         ], [
             'name' => 'Tenant User',
             'password' => bcrypt('12345678'),
-            'email_verified_at' => now(),
             'status' => 'active',
-        ]);    
+        ]);
 
         $tenant->syncRoles(['tenant']);
     }

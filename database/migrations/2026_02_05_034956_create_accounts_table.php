@@ -25,7 +25,7 @@ return new class extends Migration
                 $table->enum('account_type', ['income', 'expense']);
                 $table->enum('category', [
                     'rent_income', 'utility_income', 'deposit_income', 'other_income',
-                    'maintenance', 'repairs', 'utilities_expense', 'salaries', 'taxes', 'insurance', 'other_expense'
+                    'maintenance', 'repairs', 'utilities_expense', 'salaries', 'taxes', 'insurance', 'other_expense',
                 ]);
             } else {
                 $table->string('account_type');

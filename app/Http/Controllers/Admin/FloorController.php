@@ -5,9 +5,9 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Floors;
 use Illuminate\Http\Request;
-use Illuminate\View\View;
-use Illuminate\Validation\Rule;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Validation\Rule;
+use Illuminate\View\View;
 
 class FloorController extends Controller
 {
@@ -19,7 +19,7 @@ class FloorController extends Controller
         if ($request->has('search')) {
             $search = $request->get('search');
             $query->where('floor_name', 'like', "%{$search}%")
-                  ->orWhere('description', 'like', "%{$search}%");
+                ->orWhere('description', 'like', "%{$search}%");
         }
 
         $floors = $query->with(['apartments' => function ($query) {
@@ -37,31 +37,33 @@ class FloorController extends Controller
     public function edit(Floors $floor): View
     {
         $floor->load('apartments');
+
         return view('admin.floors.edit', compact('floor'));
     }
 
     public function getApartments(Floors $floor): View
     {
         $apartments = $floor->apartments()->paginate(10);
+
         return view('admin.apartments.index', compact('floor', 'apartments'));
     }
 
     public function store(Request $request)
     {
         $validated = $request->validate([
-            'floor_name'                        => 'required|string|max:255',
-            'description'                       => 'nullable|string',
-            'apartments'                        => 'nullable|array',
-            'apartments.*.apartment_number'     => [
+            'floor_name' => 'required|string|max:255',
+            'description' => 'nullable|string',
+            'apartments' => 'nullable|array',
+            'apartments.*.apartment_number' => [
                 'required', 'string', 'max:255',
                 Rule::unique('apartments', 'apartment_number')->where('deleted_at', null),
             ],
-            'apartments.*.monthly_rent'         => 'nullable|numeric|min:0',
-            'apartments.*.status'               => 'nullable|in:available,occupied,maintenance',
+            'apartments.*.monthly_rent' => 'nullable|numeric|min:0',
+            'apartments.*.status' => 'nullable|in:available,occupied,maintenance',
         ]);
 
         $floor = Floors::create([
-            'floor_name'  => $validated['floor_name'],
+            'floor_name' => $validated['floor_name'],
             'description' => $validated['description'] ?? null,
         ]);
 
@@ -70,12 +72,12 @@ class FloorController extends Controller
             try {
                 $floor->apartments()->create([
                     'apartment_number' => $apt['apartment_number'],
-                    'monthly_rent'     => $apt['monthly_rent'] ?? 0,
-                    'status'           => $apt['status'] ?? 'available',
+                    'monthly_rent' => $apt['monthly_rent'] ?? 0,
+                    'status' => $apt['status'] ?? 'available',
                 ]);
                 $apartmentsCreated++;
             } catch (\Exception $e) {
-                Log::error('Error creating apartment for floor ' . $floor->id . ': ' . $e->getMessage());
+                Log::error('Error creating apartment for floor '.$floor->id.': '.$e->getMessage());
             }
         }
 
@@ -87,7 +89,6 @@ class FloorController extends Controller
         return redirect()->route('admin.floors.index')->with('success', $message);
     }
 
-
     public function update(Request $request, Floors $floor)
     {
         Log::info('=== FLOOR UPDATE METHOD CALLED ===', [
@@ -96,11 +97,11 @@ class FloorController extends Controller
             'action' => $request->input('action', 'update_floor'),
             'all_inputs' => $request->all(),
             'floor_id' => $floor->id,
-            '_method_input' => $request->input('_method')
+            '_method_input' => $request->input('_method'),
         ]);
-        
+
         $action = $request->input('action', 'update_floor');
-        
+
         // ACTION: Add New Apartment to Existing Floor
         if ($action === 'add_apartment') {
             $validated = $request->validate([
@@ -109,7 +110,7 @@ class FloorController extends Controller
                     'string',
                     'max:255',
                     Rule::unique('apartments', 'apartment_number')
-                        ->where('deleted_at', null)
+                        ->where('deleted_at', null),
                 ],
                 'monthly_rent' => 'nullable|numeric|min:0',
                 'apartment_status' => 'required|in:available,occupied,maintenance',
@@ -126,12 +127,12 @@ class FloorController extends Controller
                 return redirect()->route('admin.floors.edit', $floor)
                     ->with('success', 'Unit added successfully!');
             } catch (\Exception $e) {
-                Log::error('Error creating apartment for floor ' . $floor->id . ': ' . $e->getMessage());
+                Log::error('Error creating apartment for floor '.$floor->id.': '.$e->getMessage());
+
                 return redirect()->route('admin.floors.edit', $floor)
                     ->withErrors(['apartment_number' => 'Error adding apartment']);
             }
         }
-
 
         // ACTION: Update Floor Information
         $validated = $request->validate([
@@ -151,7 +152,8 @@ class FloorController extends Controller
                 ->route('admin.floors.index')
                 ->with('success', 'Floor updated successfully');
         } catch (\Exception $e) {
-            Log::error('Error updating floor ' . $floor->id . ': ' . $e->getMessage());
+            Log::error('Error updating floor '.$floor->id.': '.$e->getMessage());
+
             return redirect()
                 ->route('admin.floors.edit', $floor)
                 ->withErrors(['error' => 'Error updating floor']);
@@ -165,6 +167,7 @@ class FloorController extends Controller
             'floor_name' => $floor->floor_name,
         ]);
         $floor->delete();
+
         return redirect()->route('admin.floors.index')->with('success', 'Floor deleted successfully');
     }
 }

@@ -20,7 +20,7 @@ return new class extends Migration
             $table->enum('sub_type', [
                 'cash', 'accounts_receivable', 'property', 'equipment', 'other_asset',
                 'accounts_payable', 'loans', 'deposits_held', 'other_liability',
-                'retained_earnings', 'capital', 'other_equity'
+                'retained_earnings', 'capital', 'other_equity',
             ]);
 
             $table->string('name');

@@ -34,28 +34,28 @@ class ExpenseRecordingService
         $transactionDate = Carbon::parse($data['transaction_date']);
 
         Utilities::create([
-            'tenant_id'         => $rental->tenant_id,
-            'rental_id'         => $rental->id,
-            'utility_type'      => $data['utility_type'],
-            'meter_reading_in'  => $data['meter_reading_in'] ?? 0,
+            'tenant_id' => $rental->tenant_id,
+            'rental_id' => $rental->id,
+            'utility_type' => $data['utility_type'],
+            'meter_reading_in' => $data['meter_reading_in'] ?? 0,
             'meter_reading_out' => $data['meter_reading_out'] ?? 0,
-            'charge_amount'     => $data['charge_amount'],
-            'billing_month'     => $transactionDate->month,
-            'billing_year'      => $transactionDate->year,
-            'paid_status'       => true,
-            'paid_at'           => $data['transaction_date'],
+            'charge_amount' => $data['charge_amount'],
+            'billing_month' => $transactionDate->month,
+            'billing_year' => $transactionDate->year,
+            'paid_status' => true,
+            'paid_at' => $data['transaction_date'],
         ]);
 
         return Accounts::create([
             'fiscal_period_id' => $this->period->id,
-            'payment_id'       => null,
-            'user_id'          => $this->userId,
-            'account_type'     => Accounts::TYPE_EXPENSE,
-            'category'         => Accounts::CAT_UTILITIES_EXPENSE,
-            'description'      => '[Apt ' . $rental->apartment->apartment_number . '] ' . ucfirst($data['utility_type']),
-            'amount'           => $data['charge_amount'],
+            'payment_id' => null,
+            'user_id' => $this->userId,
+            'account_type' => Accounts::TYPE_EXPENSE,
+            'category' => Accounts::CAT_UTILITIES_EXPENSE,
+            'description' => '[Apt '.$rental->apartment->apartment_number.'] '.ucfirst($data['utility_type']),
+            'amount' => $data['charge_amount'],
             'transaction_date' => $data['transaction_date'],
-            'note'             => $data['note'] ?? null,
+            'note' => $data['note'] ?? null,
         ]);
     }
 
@@ -66,14 +66,14 @@ class ExpenseRecordingService
     {
         return Accounts::create([
             'fiscal_period_id' => $this->period->id,
-            'payment_id'       => null,
-            'user_id'          => $this->userId,
-            'account_type'     => Accounts::TYPE_EXPENSE,
-            'category'         => $data['category'],
-            'description'      => $data['description'],
-            'amount'           => $data['amount'],
+            'payment_id' => null,
+            'user_id' => $this->userId,
+            'account_type' => Accounts::TYPE_EXPENSE,
+            'category' => $data['category'],
+            'description' => $data['description'],
+            'amount' => $data['amount'],
             'transaction_date' => $data['transaction_date'],
-            'note'             => $data['note'] ?? null,
+            'note' => $data['note'] ?? null,
         ]);
     }
 
@@ -98,29 +98,29 @@ class ExpenseRecordingService
         $expenseDate = Carbon::parse($data['expense_date']);
 
         $expense = BusinessExpense::create([
-            'user_id'          => $this->userId,
+            'user_id' => $this->userId,
             'fiscal_period_id' => $this->period->id,
-            'expense_name'     => $data['expense_name'],
-            'category'         => $data['category'],
-            'amount'           => $data['amount'],
-            'expense_date'     => $data['expense_date'],
-            'billing_month'    => $expenseDate->month,
-            'billing_year'     => $expenseDate->year,
-            'is_recurring'     => (bool) ($data['is_recurring'] ?? false),
-            'note'             => $data['note'] ?? null,
-            'attachment'       => $attachmentPath,
+            'expense_name' => $data['expense_name'],
+            'category' => $data['category'],
+            'amount' => $data['amount'],
+            'expense_date' => $data['expense_date'],
+            'billing_month' => $expenseDate->month,
+            'billing_year' => $expenseDate->year,
+            'is_recurring' => (bool) ($data['is_recurring'] ?? false),
+            'note' => $data['note'] ?? null,
+            'attachment' => $attachmentPath,
         ]);
 
         Accounts::create([
             'fiscal_period_id' => $this->period->id,
-            'payment_id'       => null,
-            'user_id'          => $this->userId,
-            'account_type'     => Accounts::TYPE_EXPENSE,
-            'category'         => Accounts::CAT_BUSINESS_VARIABLE,
-            'description'      => '[Business] ' . $data['expense_name'],
-            'amount'           => $data['amount'],
+            'payment_id' => null,
+            'user_id' => $this->userId,
+            'account_type' => Accounts::TYPE_EXPENSE,
+            'category' => Accounts::CAT_BUSINESS_VARIABLE,
+            'description' => '[Business] '.$data['expense_name'],
+            'amount' => $data['amount'],
             'transaction_date' => $data['expense_date'],
-            'note'             => $data['note'] ?? null,
+            'note' => $data['note'] ?? null,
         ]);
 
         return $expense;
@@ -140,7 +140,7 @@ class ExpenseRecordingService
             ->where('category', Accounts::CAT_BUSINESS_VARIABLE)
             ->where('amount', $businessExpense->amount)
             ->where('transaction_date', $businessExpense->expense_date)
-            ->where('description', '[Business] ' . $businessExpense->expense_name)
+            ->where('description', '[Business] '.$businessExpense->expense_name)
             ->limit(1)
             ->delete();
 
@@ -163,9 +163,9 @@ class ExpenseRecordingService
             'apartment_id' => $data['apartment_id'],
             'expense_name' => $data['expense_name'],
             'expense_type' => $data['expense_type'],
-            'amount'       => $data['amount'],
-            'is_active'    => true,
-            'note'         => $data['note'] ?? null,
+            'amount' => $data['amount'],
+            'is_active' => true,
+            'note' => $data['note'] ?? null,
         ]);
     }
 
@@ -174,7 +174,7 @@ class ExpenseRecordingService
      */
     public function toggleFixedExpense(ApartmentFixedExpense $fixedExpense): bool
     {
-        $fixedExpense->update(['is_active' => !$fixedExpense->is_active]);
+        $fixedExpense->update(['is_active' => ! $fixedExpense->is_active]);
 
         return $fixedExpense->is_active;
     }

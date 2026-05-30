@@ -36,8 +36,8 @@ class DashboardStatsService
     /**
      * Build the full stats array for the given date window.
      *
-     * @param  Carbon  $startDate       inclusive start of the window
-     * @param  Carbon  $endDate         inclusive end of the window
+     * @param  Carbon  $startDate  inclusive start of the window
+     * @param  Carbon  $endDate  inclusive end of the window
      * @param  Carbon  $referenceMonth  the "selected" month — drives the
      *                                  paid/pending/overdue rent classification
      */
@@ -51,13 +51,13 @@ class DashboardStatsService
         $monthlyRevenueAccounts = $this->scopedIncomeAccountsInRange($startDate, $endDate)->get();
         $monthlyExpenseAccounts = $this->scopedExpenseAccountsInRange($startDate, $endDate)->get();
 
-        $monthlyCollected     = $monthlyRevenueAccounts->where('category', '!=', Accounts::CAT_LATE_FEE_INCOME)->sum('amount');
-        $monthlyLateFees      = $monthlyRevenueAccounts->where('category', Accounts::CAT_LATE_FEE_INCOME)->sum('amount');
-        $monthlyTotalRevenue  = $monthlyCollected + $monthlyLateFees;
+        $monthlyCollected = $monthlyRevenueAccounts->where('category', '!=', Accounts::CAT_LATE_FEE_INCOME)->sum('amount');
+        $monthlyLateFees = $monthlyRevenueAccounts->where('category', Accounts::CAT_LATE_FEE_INCOME)->sum('amount');
+        $monthlyTotalRevenue = $monthlyCollected + $monthlyLateFees;
 
-        $monthlyUtilities         = $monthlyExpenseAccounts->where('category', Accounts::CAT_UTILITIES_EXPENSE)->sum('amount');
-        $monthlyAccountExpenses   = $monthlyExpenseAccounts->where('category', '!=', Accounts::CAT_UTILITIES_EXPENSE)->sum('amount');
-        $monthlyExpensesTotal     = $monthlyExpenseAccounts->sum('amount');
+        $monthlyUtilities = $monthlyExpenseAccounts->where('category', Accounts::CAT_UTILITIES_EXPENSE)->sum('amount');
+        $monthlyAccountExpenses = $monthlyExpenseAccounts->where('category', '!=', Accounts::CAT_UTILITIES_EXPENSE)->sum('amount');
+        $monthlyExpensesTotal = $monthlyExpenseAccounts->sum('amount');
 
         $utilityBreakdown = $this->utilityBreakdown($startDate, $endDate);
 
@@ -79,11 +79,11 @@ class DashboardStatsService
         $tenantCounts['total'] = $this->scopedTenantQuery()->count();
 
         return [
-            'floors_count'    => $floorsCount,
-            'apartments'      => $apartmentCounts,
-            'tenants'         => $tenantCounts,
-            'rentals'         => [
-                'total'  => $this->scopedRentalQuery()->count(),
+            'floors_count' => $floorsCount,
+            'apartments' => $apartmentCounts,
+            'tenants' => $tenantCounts,
+            'rentals' => [
+                'total' => $this->scopedRentalQuery()->count(),
                 'active' => $this->scopedRentalQuery()
                     ->where('start_date', '<=', now())
                     ->where(function ($q) {
@@ -91,32 +91,32 @@ class DashboardStatsService
                     })
                     ->count(),
             ],
-            'leases'          => ['expiring_soon' => $expiringSoon],
-            'payments'        => [
-                'paid'            => $paidCount,
-                'pending'         => $pendingCount,
-                'overdue'         => $overdueCount,
+            'leases' => ['expiring_soon' => $expiringSoon],
+            'payments' => [
+                'paid' => $paidCount,
+                'pending' => $pendingCount,
+                'overdue' => $overdueCount,
                 'total_collected' => $this->collectedTotal($startDate, $endDate),
-                'total_pending'   => $totalPendingAmount,
+                'total_pending' => $totalPendingAmount,
             ],
-            'revenue'         => [
-                'total_monthly'        => round($monthlyTotalRevenue, 2),
-                'total_monthly_rent'   => $this->scopedApartmentQuery()->where('status', 'occupied')->sum('monthly_rent'),
+            'revenue' => [
+                'total_monthly' => round($monthlyTotalRevenue, 2),
+                'total_monthly_rent' => $this->scopedApartmentQuery()->where('status', 'occupied')->sum('monthly_rent'),
                 'collected_this_month' => round($monthlyCollected, 2),
                 'late_fees_this_month' => round($monthlyLateFees, 2),
-                'by_type'              => [
-                    'rent'      => round($monthlyRevenueAccounts->where('category', Accounts::CAT_RENT_INCOME)->sum('amount'), 2),
-                    'deposit'   => round($monthlyRevenueAccounts->where('category', Accounts::CAT_DEPOSIT_INCOME)->sum('amount'), 2),
+                'by_type' => [
+                    'rent' => round($monthlyRevenueAccounts->where('category', Accounts::CAT_RENT_INCOME)->sum('amount'), 2),
+                    'deposit' => round($monthlyRevenueAccounts->where('category', Accounts::CAT_DEPOSIT_INCOME)->sum('amount'), 2),
                     'utilities' => round($monthlyRevenueAccounts->where('category', Accounts::CAT_UTILITY_INCOME)->sum('amount'), 2),
-                    'other'     => round($monthlyRevenueAccounts->where('category', Accounts::CAT_OTHER_INCOME)->sum('amount'), 2),
+                    'other' => round($monthlyRevenueAccounts->where('category', Accounts::CAT_OTHER_INCOME)->sum('amount'), 2),
                 ],
-                'archived_deposits'    => 0,
+                'archived_deposits' => 0,
             ],
-            'expenses'        => [
-                'monthly_total'    => round($monthlyExpensesTotal, 2),
-                'utilities_total'  => round($monthlyUtilities, 2),
-                'account_total'    => round($monthlyAccountExpenses, 2),
-                'deposit_refunds'  => round($monthlyExpenseAccounts->where('category', Accounts::CAT_DEPOSIT_EXPENSE)->sum('amount'), 2),
+            'expenses' => [
+                'monthly_total' => round($monthlyExpensesTotal, 2),
+                'utilities_total' => round($monthlyUtilities, 2),
+                'account_total' => round($monthlyAccountExpenses, 2),
+                'deposit_refunds' => round($monthlyExpenseAccounts->where('category', Accounts::CAT_DEPOSIT_EXPENSE)->sum('amount'), 2),
                 'utility_breakdown' => $utilityBreakdown,
                 'account_breakdown' => $monthlyExpenseAccounts
                     ->where('category', '!=', Accounts::CAT_UTILITIES_EXPENSE)
@@ -124,7 +124,7 @@ class DashboardStatsService
                     ->map(fn ($items) => round($items->sum('amount'), 2))
                     ->toArray(),
             ],
-            'floor_labels'    => $floorLabels,
+            'floor_labels' => $floorLabels,
             'floor_occupancy' => $floorOccupancy,
             'tenants_on_leave' => $this->tenantsOnLeaveCount(),
         ];
@@ -141,24 +141,24 @@ class DashboardStatsService
     private function resolveReferenceDate(Carbon $referenceMonth, Carbon $endDate): Carbon
     {
         $isCurrentMonth = $referenceMonth->year === now()->year && $referenceMonth->month === now()->month;
-        $isFutureMonth  = $referenceMonth->copy()->startOfMonth()->gt(now()->copy()->startOfMonth());
+        $isFutureMonth = $referenceMonth->copy()->startOfMonth()->gt(now()->copy()->startOfMonth());
 
         return match (true) {
             $isCurrentMonth => now(),
-            $isFutureMonth  => $referenceMonth->copy()->startOfMonth(),
-            default         => $endDate->copy()->endOfDay(),
+            $isFutureMonth => $referenceMonth->copy()->startOfMonth(),
+            default => $endDate->copy()->endOfDay(),
         };
     }
 
     /**
      * Walk active rentals in the window and classify each as paid/pending/overdue.
      *
-     * @return array{0:int,1:int,2:int,3:float}  [paid, pending, overdue, totalPending]
+     * @return array{0:int,1:int,2:int,3:float} [paid, pending, overdue, totalPending]
      */
     private function countRentPaymentStatus(Carbon $startDate, Carbon $endDate, Carbon $referenceMonth, Carbon $referenceDate): array
     {
         $currentMonth = $referenceMonth->month;
-        $currentYear  = $referenceMonth->year;
+        $currentYear = $referenceMonth->year;
 
         $paidCount = $pendingCount = $overdueCount = 0;
         $totalPendingAmount = 0.0;
@@ -185,9 +185,10 @@ class DashboardStatsService
 
             // If the rental started in the reference month and hasn't paid yet,
             // treat the first partial month as pending (do not mark overdue).
-            if ($start && $start->month === $currentMonth && $start->year === $currentYear && !$paidThisMonth) {
+            if ($start && $start->month === $currentMonth && $start->year === $currentYear && ! $paidThisMonth) {
                 $pendingCount++;
                 $totalPendingAmount += $rental->rent_amount;
+
                 continue;
             }
 
@@ -221,10 +222,10 @@ class DashboardStatsService
         return $query
             ->where(function ($q) use ($startDate, $endDate) {
                 $q->whereBetween('paid_at', [$startDate->copy()->startOfDay(), $endDate->copy()->endOfDay()])
-                  ->orWhere(function ($q2) use ($startDate, $endDate) {
-                      $q2->whereRaw('(billing_year * 100 + billing_month) >= ?', [$startDate->year * 100 + $startDate->month])
-                         ->whereRaw('(billing_year * 100 + billing_month) <= ?', [$endDate->year * 100 + $endDate->month]);
-                  });
+                    ->orWhere(function ($q2) use ($startDate, $endDate) {
+                        $q2->whereRaw('(billing_year * 100 + billing_month) >= ?', [$startDate->year * 100 + $startDate->month])
+                            ->whereRaw('(billing_year * 100 + billing_month) <= ?', [$endDate->year * 100 + $endDate->month]);
+                    });
             })
             ->selectRaw('utility_type, SUM(charge_amount) as total')
             ->groupBy('utility_type')
@@ -258,7 +259,7 @@ class DashboardStatsService
             }
             $floorsWithApartments++;
             $occupied = $floor->apartments->where('status', 'occupied')->count();
-            $floorLabels[]    = $floor->floor_name ?? 'Floor ' . $floor->id;
+            $floorLabels[] = $floor->floor_name ?? 'Floor '.$floor->id;
             $floorOccupancy[] = round(($occupied / $total) * 100, 1);
         }
 
@@ -298,6 +299,7 @@ class DashboardStatsService
         if ($this->apartmentIds !== null) {
             $query->whereIn('apartment_id', $this->apartmentIds);
         }
+
         return $query->count();
     }
 
@@ -337,7 +339,7 @@ class DashboardStatsService
             $apartmentIds = $this->apartmentIds;
             $query->where(function ($q) use ($apartmentIds) {
                 $q->whereHas('payment.rental', fn ($r) => $r->whereIn('apartment_id', $apartmentIds))
-                  ->orWhereNull('payment_id');
+                    ->orWhereNull('payment_id');
             });
         }
 
@@ -350,6 +352,7 @@ class DashboardStatsService
         if ($this->apartmentIds !== null) {
             $query->whereIn('id', $this->apartmentIds);
         }
+
         return $query;
     }
 
@@ -359,6 +362,7 @@ class DashboardStatsService
         if ($this->apartmentIds !== null) {
             $query->whereIn('apartment_id', $this->apartmentIds);
         }
+
         return $query;
     }
 
@@ -368,13 +372,13 @@ class DashboardStatsService
         if ($this->apartmentIds !== null) {
             $query->whereIn('apartment_id', $this->apartmentIds);
         }
+
         return $query;
     }
 
     /**
      * Count() per status value, returning a keyed array.
      *
-     * @param  Builder  $base
      * @param  list<string>  $statuses
      * @return array<string, int>
      */
@@ -384,6 +388,7 @@ class DashboardStatsService
         foreach ($statuses as $status) {
             $result[$status] = (clone $base)->where('status', $status)->count();
         }
+
         return $result;
     }
 }

@@ -3,26 +3,26 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
-use App\Models\Tenants;
+use App\Http\Requests\Tenants\ProcessTenantLeaveRequest;
+use App\Models\Accounts;
 use App\Models\Apartments;
+use App\Models\FiscalPeriods;
 use App\Models\Floors;
 use App\Models\Payments;
-use App\Models\Accounts;
-use App\Models\FiscalPeriods;
+use App\Models\Tenants;
 use App\Models\User;
-use App\Http\Requests\Tenants\ProcessTenantLeaveRequest;
 use App\Services\Tenants\TenantLeaveProcessor;
 use App\Services\Tenants\TenantPendingChargesQuery;
 use App\Services\Tenants\TenantRentProgressCalculator;
-use Illuminate\Http\Request;
-use Illuminate\Http\RedirectResponse;
-use Illuminate\View\View;
+use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
-use Carbon\Carbon;
+use Illuminate\View\View;
 
 class TenantController extends Controller
 {
@@ -38,26 +38,26 @@ class TenantController extends Controller
             ->with(['apartment']);
 
         // Search filter
-        if ($request->has('search') && !empty($request->search)) {
+        if ($request->has('search') && ! empty($request->search)) {
             $search = $request->search;
-            $query->where(function(Builder $q) use ($search) {
+            $query->where(function (Builder $q) use ($search) {
                 $q->where('name', 'like', "%{$search}%")
-                  ->orWhere('email', 'like', "%{$search}%");
+                    ->orWhere('phone', 'like', "%{$search}%");
             });
         }
 
         // Apartment filter
-        if ($request->has('apartment') && !empty($request->apartment)) {
+        if ($request->has('apartment') && ! empty($request->apartment)) {
             $query->where('apartment_id', $request->apartment);
         }
 
         // Status filter
-        if ($request->has('status') && !empty($request->status)) {
+        if ($request->has('status') && ! empty($request->status)) {
             $query->where('status', $request->status);
         }
 
         // Floor filter (filter tenants by apartment's floor)
-        if ($request->has('floor') && !empty($request->floor)) {
+        if ($request->has('floor') && ! empty($request->floor)) {
             $floorId = $request->floor;
             $query->whereHas('apartment', function (Builder $q) use ($floorId) {
                 $q->where('floor_id', $floorId);
@@ -89,7 +89,7 @@ class TenantController extends Controller
         if ($search = $request->input('search')) {
             $query->where(function ($q) use ($search) {
                 $q->where('name', 'like', "%{$search}%")
-                  ->orWhere('email', 'like', "%{$search}%");
+                    ->orWhere('phone', 'like', "%{$search}%");
             });
         }
 
@@ -115,7 +115,7 @@ class TenantController extends Controller
     public function leave(Tenants $tenant): View|RedirectResponse
     {
         // Check if tenant exists
-        if (!$tenant) {
+        if (! $tenant) {
             return redirect()->route('admin.tenants.index')
                 ->with('error', 'Tenant not found');
         }
@@ -129,8 +129,8 @@ class TenantController extends Controller
             ->first();
 
         // If no rental exists, create a rental object with data from apartment
-        if (!$rental) {
-            $rental = new Rentals();
+        if (! $rental) {
+            $rental = new Rentals;
             $rental->id = null;
             $rental->apartment_id = $tenant->apartment_id;
             $rental->tenant_id = $tenant->id;
@@ -174,11 +174,12 @@ class TenantController extends Controller
                 ->with('success', 'Tenant leave processed successfully. Settlement created.');
 
         } catch (\Exception $e) {
-            Log::error('Error processing tenant leave: ' . $e->getMessage(), [
+            Log::error('Error processing tenant leave: '.$e->getMessage(), [
                 'tenant_id' => $tenant->id,
                 'exception' => $e,
             ]);
-            return back()->with('error', 'Error processing leave: ' . $e->getMessage());
+
+            return back()->with('error', 'Error processing leave: '.$e->getMessage());
         }
     }
 
@@ -197,23 +198,24 @@ class TenantController extends Controller
      */
     private function recordAdminLeaveAccounting(Tenants $tenant, array $context): void
     {
-        $settlement        = $context['settlement'];
-        $leaveDate         = $context['leave_date'];
-        $rental            = $context['rental'];
-        $selectedPayments  = $context['selected_payments'];
+        $settlement = $context['settlement'];
+        $leaveDate = $context['leave_date'];
+        $rental = $context['rental'];
+        $selectedPayments = $context['selected_payments'];
         $selectedUtilities = $context['selected_utilities'];
-        $extraCharges      = $context['extra_charges'] ?? [];
+        $extraCharges = $context['extra_charges'] ?? [];
 
         $activePeriod = FiscalPeriods::where('user_id', Auth::id())
             ->where('status', 'open')
             ->orderBy('opening_date', 'desc')
             ->first();
 
-        if (!$activePeriod) {
+        if (! $activePeriod) {
             Log::warning('No active fiscal period found - leave settlement not recorded', [
-                'tenant_id'        => $tenant->id,
+                'tenant_id' => $tenant->id,
                 'total_amount_due' => $settlement['total_amount_due'],
             ]);
+
             return;
         }
 
@@ -222,28 +224,28 @@ class TenantController extends Controller
         // 1) Pro-rata rent payment + income entry
         if ($settlement['total_amount_due'] > 0 && $settlement['pro_rata_rent'] > 0) {
             $rentPayment = Payments::create([
-                'rental_id'             => $rental->id,
-                'amount'                => $settlement['pro_rata_rent'],
-                'due_date'              => $leaveDate,
-                'paid_at'               => $leaveDate,
-                'payment_method'        => 'cash',
-                'payment_status'        => 'paid',
-                'payment_type'          => 'rent',
+                'rental_id' => $rental->id,
+                'amount' => $settlement['pro_rata_rent'],
+                'due_date' => $leaveDate,
+                'paid_at' => $leaveDate,
+                'payment_method' => 'cash',
+                'payment_status' => 'paid',
+                'payment_type' => 'rent',
                 'transaction_reference' => null,
-                'late_fee'              => 0,
-                'note'                  => 'Tenant leave settlement - pro-rata rent (' . $settlement['stay_days'] . ' days)',
+                'late_fee' => 0,
+                'note' => 'Tenant leave settlement - pro-rata rent ('.$settlement['stay_days'].' days)',
             ]);
 
             Accounts::create([
                 'fiscal_period_id' => $activePeriod->id,
-                'payment_id'       => $rentPayment->id,
-                'user_id'          => Auth::id(),
-                'account_type'     => Accounts::TYPE_INCOME,
-                'category'         => Accounts::CAT_RENT_INCOME,
-                'description'      => '[Apt ' . $apartmentNumber . '] Leave settlement - pro-rata rent',
-                'amount'           => $settlement['pro_rata_rent'],
+                'payment_id' => $rentPayment->id,
+                'user_id' => Auth::id(),
+                'account_type' => Accounts::TYPE_INCOME,
+                'category' => Accounts::CAT_RENT_INCOME,
+                'description' => '[Apt '.$apartmentNumber.'] Leave settlement - pro-rata rent',
+                'amount' => $settlement['pro_rata_rent'],
                 'transaction_date' => $leaveDate,
-                'note'             => 'Tenant: ' . $tenant->name . ' - ' . $settlement['stay_days'] . ' days stay',
+                'note' => 'Tenant: '.$tenant->name.' - '.$settlement['stay_days'].' days stay',
             ]);
         }
 
@@ -251,8 +253,8 @@ class TenantController extends Controller
         foreach ($selectedPayments as $charge) {
             $charge->update([
                 'payment_status' => 'paid',
-                'paid_at'        => $leaveDate,
-                'note'           => ($charge->note ? $charge->note . ' | ' : '') . 'Settled on tenant leave',
+                'paid_at' => $leaveDate,
+                'note' => ($charge->note ? $charge->note.' | ' : '').'Settled on tenant leave',
             ]);
 
             $category = $charge->payment_type === 'utilities'
@@ -261,14 +263,14 @@ class TenantController extends Controller
 
             Accounts::create([
                 'fiscal_period_id' => $activePeriod->id,
-                'payment_id'       => $charge->id,
-                'user_id'          => Auth::id(),
-                'account_type'     => Accounts::TYPE_INCOME,
-                'category'         => $category,
-                'description'      => '[Apt ' . $apartmentNumber . '] Leave settlement - ' . ucfirst($charge->payment_type) . ': ' . ($charge->note ?: '-'),
-                'amount'           => $charge->amount,
+                'payment_id' => $charge->id,
+                'user_id' => Auth::id(),
+                'account_type' => Accounts::TYPE_INCOME,
+                'category' => $category,
+                'description' => '[Apt '.$apartmentNumber.'] Leave settlement - '.ucfirst($charge->payment_type).': '.($charge->note ?: '-'),
+                'amount' => $charge->amount,
                 'transaction_date' => $leaveDate,
-                'note'             => 'Tenant: ' . $tenant->name,
+                'note' => 'Tenant: '.$tenant->name,
             ]);
         }
 
@@ -277,7 +279,7 @@ class TenantController extends Controller
         foreach ($selectedUtilities as $util) {
             $util->update([
                 'paid_status' => true,
-                'paid_at'     => $leaveDate,
+                'paid_at' => $leaveDate,
             ]);
 
             $category = in_array($util->utility_type, $utilityIncomeTypes, true)
@@ -286,14 +288,14 @@ class TenantController extends Controller
 
             Accounts::create([
                 'fiscal_period_id' => $activePeriod->id,
-                'payment_id'       => null,
-                'user_id'          => Auth::id(),
-                'account_type'     => Accounts::TYPE_INCOME,
-                'category'         => $category,
-                'description'      => '[Apt ' . $apartmentNumber . '] Leave settlement - ' . ucfirst($util->utility_type) . ' ' . Carbon::create($util->billing_year, $util->billing_month)->format('M Y'),
-                'amount'           => $util->charge_amount,
+                'payment_id' => null,
+                'user_id' => Auth::id(),
+                'account_type' => Accounts::TYPE_INCOME,
+                'category' => $category,
+                'description' => '[Apt '.$apartmentNumber.'] Leave settlement - '.ucfirst($util->utility_type).' '.Carbon::create($util->billing_year, $util->billing_month)->format('M Y'),
+                'amount' => $util->charge_amount,
                 'transaction_date' => $leaveDate,
-                'note'             => 'Tenant: ' . $tenant->name,
+                'note' => 'Tenant: '.$tenant->name,
             ]);
         }
 
@@ -301,14 +303,14 @@ class TenantController extends Controller
         foreach ($extraCharges as $extra) {
             Accounts::create([
                 'fiscal_period_id' => $activePeriod->id,
-                'payment_id'       => null,
-                'user_id'          => Auth::id(),
-                'account_type'     => Accounts::TYPE_INCOME,
-                'category'         => Accounts::CAT_OTHER_INCOME,
-                'description'      => '[Apt ' . $apartmentNumber . '] Leave settlement - Damage/Extra: ' . $extra['description'],
-                'amount'           => $extra['amount'],
+                'payment_id' => null,
+                'user_id' => Auth::id(),
+                'account_type' => Accounts::TYPE_INCOME,
+                'category' => Accounts::CAT_OTHER_INCOME,
+                'description' => '[Apt '.$apartmentNumber.'] Leave settlement - Damage/Extra: '.$extra['description'],
+                'amount' => $extra['amount'],
                 'transaction_date' => $leaveDate,
-                'note'             => 'Tenant: ' . $tenant->name . ' - deducted from deposit on leave',
+                'note' => 'Tenant: '.$tenant->name.' - deducted from deposit on leave',
             ]);
         }
 
@@ -318,14 +320,14 @@ class TenantController extends Controller
         if ($refundAmount > 0) {
             Accounts::create([
                 'fiscal_period_id' => $activePeriod->id,
-                'payment_id'       => null,
-                'user_id'          => Auth::id(),
-                'account_type'     => Accounts::TYPE_EXPENSE,
-                'category'         => Accounts::CAT_DEPOSIT_EXPENSE,
-                'description'      => '[Apt ' . $apartmentNumber . '] Deposit refunded — ' . $tenant->name,
-                'amount'           => $refundAmount,
+                'payment_id' => null,
+                'user_id' => Auth::id(),
+                'account_type' => Accounts::TYPE_EXPENSE,
+                'category' => Accounts::CAT_DEPOSIT_EXPENSE,
+                'description' => '[Apt '.$apartmentNumber.'] Deposit refunded — '.$tenant->name,
+                'amount' => $refundAmount,
                 'transaction_date' => $leaveDate,
-                'note'             => 'Deposit refund on leave. Applied to charges: $' . ($settlement['deposit_applied'] ?? 0),
+                'note' => 'Deposit refund on leave. Applied to charges: $'.($settlement['deposit_applied'] ?? 0),
             ]);
         }
     }
@@ -336,6 +338,7 @@ class TenantController extends Controller
     public function create(): View
     {
         $apartments = Apartments::all();
+
         return view('admin.tenantManagement.createTenant', compact('apartments'));
     }
 
@@ -347,8 +350,8 @@ class TenantController extends Controller
         $validated = $request->validate([
             'apartment_id' => 'required|exists:apartments,id',
             'name' => 'required|string|max:255',
-            'email' => 'required|email|unique:tenants|unique:users|max:255',
-            'phone' => 'required|string|max:20',
+            'phone' => 'required|string|max:20|unique:tenants,phone|unique:users,phone',
+            'email' => 'nullable|email|max:255',
             'address' => 'nullable|string',
             'date_of_birth' => 'nullable|date',
             'move_in_date' => 'required|date',
@@ -366,15 +369,15 @@ class TenantController extends Controller
                 $validated['photo_path'] = $photoPath;
             } catch (\Exception $e) {
                 // If photo upload fails, continue without it
-                Log::error('Photo upload failed: ' . $e->getMessage());
+                Log::error('Photo upload failed: '.$e->getMessage());
             }
         }
 
         // Create a user account for the tenant with default password
         // Do NOT call Hash::make() here — the User model's 'hashed' cast handles it
         $tenantUser = User::create([
-            'name'     => $validated['name'],
-            'email'    => $validated['email'],
+            'name' => $validated['name'],
+            'phone' => $validated['phone'],
             'password' => '12345678',
         ]);
         $tenantUser->assignRole('tenant');
@@ -400,7 +403,7 @@ class TenantController extends Controller
                     'user_id' => Auth::id(),
                     'account_type' => Accounts::TYPE_INCOME,
                     'category' => Accounts::CAT_DEPOSIT_INCOME,
-                    'description' => '[Apt ' . $aptNumber . '] Security deposit received — ' . $tenant->name,
+                    'description' => '[Apt '.$aptNumber.'] Security deposit received — '.$tenant->name,
                     'amount' => $depositAmount,
                     'transaction_date' => $validated['move_in_date'],
                     'note' => 'Deposit collected on move-in',
@@ -423,6 +426,7 @@ class TenantController extends Controller
             'name' => $tenant->name,
             'photo_path' => $tenant->photo_path,
         ]);
+
         return view('admin.tenantManagement.showTenant', compact('tenant'));
     }
 
@@ -432,6 +436,7 @@ class TenantController extends Controller
     public function edit(Tenants $tenant): View
     {
         $apartments = Apartments::all();
+
         return view('admin.tenantManagement.editTenant', compact('tenant', 'apartments'));
     }
 
@@ -443,8 +448,8 @@ class TenantController extends Controller
         $validated = $request->validate([
             'apartment_id' => 'required|exists:apartments,id',
             'name' => 'required|string|max:255',
-            'email' => 'required|email|max:255|unique:tenants,email,' . $tenant->id,
-            'phone' => 'required|string|max:20',
+            'phone' => 'required|string|max:20|unique:tenants,phone,'.$tenant->id,
+            'email' => 'nullable|email|max:255',
             'address' => 'nullable|string',
             'date_of_birth' => 'nullable|date',
             'move_in_date' => 'required|date',
@@ -462,12 +467,12 @@ class TenantController extends Controller
                 if ($tenant->photo_path && Storage::disk('public')->exists($tenant->photo_path)) {
                     Storage::disk('public')->delete($tenant->photo_path);
                 }
-                
+
                 $photoPath = $request->file('photo')->store('tenants', 'public');
                 $validated['photo_path'] = $photoPath;
             } catch (\Exception $e) {
                 // If photo upload fails, continue without updating photo
-                Log::error('Photo update failed: ' . $e->getMessage());
+                Log::error('Photo update failed: '.$e->getMessage());
             }
         }
 
@@ -477,4 +482,3 @@ class TenantController extends Controller
             ->with('success', 'Tenant updated successfully!');
     }
 }
-

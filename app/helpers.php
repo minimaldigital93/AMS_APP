@@ -2,16 +2,15 @@
 
 /**
  * Settings Helper Functions
- * 
+ *
  * These functions provide easy access to system settings throughout the application.
  */
-
-if (!function_exists('settings')) {
+if (! function_exists('settings')) {
     /**
      * Get or set a setting value
-     * 
-     * @param string|array|null $key
-     * @param mixed $default
+     *
+     * @param  string|array|null  $key
+     * @param  mixed  $default
      * @return mixed|\App\Models\Settings
      */
     function settings($key = null, $default = null)
@@ -24,6 +23,7 @@ if (!function_exists('settings')) {
             foreach ($key as $k => $v) {
                 \App\Models\Settings::set($k, $v);
             }
+
             return true;
         }
 
@@ -31,12 +31,12 @@ if (!function_exists('settings')) {
     }
 }
 
-if (!function_exists('setting')) {
+if (! function_exists('setting')) {
     /**
      * Alias for settings()
-     * 
-     * @param string|array|null $key
-     * @param mixed $default
+     *
+     * @param  string|array|null  $key
+     * @param  mixed  $default
      * @return mixed
      */
     function setting($key = null, $default = null)

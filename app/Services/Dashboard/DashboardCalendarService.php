@@ -30,36 +30,36 @@ class DashboardCalendarService
     public function build(?FiscalPeriods $activePeriod, Carbon $selectedMonth): array
     {
         $startOfMonth = $selectedMonth->copy()->startOfMonth();
-        $endOfMonth   = $selectedMonth->copy()->endOfMonth();
+        $endOfMonth = $selectedMonth->copy()->endOfMonth();
 
         $dailyIncome = $this->dailyTotals(Accounts::TYPE_INCOME, 'total_income', $activePeriod, $startOfMonth, $endOfMonth);
         $dailyExpenses = $this->dailyTotals(Accounts::TYPE_EXPENSE, 'total_expense', $activePeriod, $startOfMonth, $endOfMonth);
 
-        $daysInMonth      = $startOfMonth->daysInMonth;
-        $firstDayOfWeek   = $startOfMonth->dayOfWeek;
-        $calendarDays     = [];
+        $daysInMonth = $startOfMonth->daysInMonth;
+        $firstDayOfWeek = $startOfMonth->dayOfWeek;
+        $calendarDays = [];
         $monthTotalIncome = 0;
         $monthTotalExpense = 0;
         $bestDay = null;
 
         for ($d = 1; $d <= $daysInMonth; $d++) {
             $dateStr = $startOfMonth->copy()->day($d)->toDateString();
-            $income  = $dailyIncome[$dateStr]->total_income ?? 0;
+            $income = $dailyIncome[$dateStr]->total_income ?? 0;
             $expense = $dailyExpenses[$dateStr]->total_expense ?? 0;
-            $net     = $income - $expense;
+            $net = $income - $expense;
             $txCount = ($dailyIncome[$dateStr]->tx_count ?? 0) + ($dailyExpenses[$dateStr]->tx_count ?? 0);
 
-            $monthTotalIncome  += $income;
+            $monthTotalIncome += $income;
             $monthTotalExpense += $expense;
 
             $calendarDays[$d] = [
-                'date'      => $dateStr,
-                'day'       => $d,
-                'income'    => round($income, 2),
-                'expense'   => round($expense, 2),
-                'net'       => round($net, 2),
-                'tx_count'  => $txCount,
-                'is_today'  => $dateStr === now()->toDateString(),
+                'date' => $dateStr,
+                'day' => $d,
+                'income' => round($income, 2),
+                'expense' => round($expense, 2),
+                'net' => round($net, 2),
+                'tx_count' => $txCount,
+                'is_today' => $dateStr === now()->toDateString(),
                 'is_future' => Carbon::parse($dateStr)->gt(now()),
             ];
 
@@ -69,14 +69,14 @@ class DashboardCalendarService
         }
 
         return [
-            'startOfMonth'      => $startOfMonth,
-            'firstDayOfWeek'    => $firstDayOfWeek,
-            'daysInMonth'       => $daysInMonth,
-            'calendarDays'      => $calendarDays,
-            'monthTotalIncome'  => $monthTotalIncome,
+            'startOfMonth' => $startOfMonth,
+            'firstDayOfWeek' => $firstDayOfWeek,
+            'daysInMonth' => $daysInMonth,
+            'calendarDays' => $calendarDays,
+            'monthTotalIncome' => $monthTotalIncome,
             'monthTotalExpense' => $monthTotalExpense,
-            'monthNet'          => $monthTotalIncome - $monthTotalExpense,
-            'bestDay'           => $bestDay,
+            'monthNet' => $monthTotalIncome - $monthTotalExpense,
+            'bestDay' => $bestDay,
         ];
     }
 
@@ -90,7 +90,7 @@ class DashboardCalendarService
 
         $this->applyScope($query, $activePeriod);
 
-        return $query->selectRaw('DATE(transaction_date) as day, SUM(amount) as ' . $sumAlias . ', COUNT(*) as tx_count')
+        return $query->selectRaw('DATE(transaction_date) as day, SUM(amount) as '.$sumAlias.', COUNT(*) as tx_count')
             ->groupByRaw('DATE(transaction_date)')
             ->get()
             ->keyBy('day');
@@ -107,6 +107,7 @@ class DashboardCalendarService
     {
         if ($this->apartmentIds === null) {
             $query->where('user_id', $this->userId);
+
             return;
         }
 
@@ -117,9 +118,9 @@ class DashboardCalendarService
         $apartmentIds = $this->apartmentIds;
         $query->where(function ($q) use ($apartmentIds) {
             $q->whereHas('payment.rental', fn ($r) => $r->whereIn('apartment_id', $apartmentIds))
-              ->orWhere(function ($q2) {
-                  $q2->where('account_type', Accounts::TYPE_EXPENSE)->whereNull('payment_id');
-              });
+                ->orWhere(function ($q2) {
+                    $q2->where('account_type', Accounts::TYPE_EXPENSE)->whereNull('payment_id');
+                });
         });
     }
 }

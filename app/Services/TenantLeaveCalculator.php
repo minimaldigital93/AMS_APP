@@ -15,6 +15,7 @@ class TenantLeaveCalculator
     public function calculateStayDays(Rentals $rental, Carbon $leaveDate): int
     {
         $moveInDate = Carbon::parse($rental->start_date);
+
         return $moveInDate->diffInDays($leaveDate) + 1;
     }
 
@@ -25,6 +26,7 @@ class TenantLeaveCalculator
     {
         $stayDays = $this->calculateStayDays($rental, $leaveDate);
         $dailyRate = $rental->rent_amount / 30;
+
         return round($stayDays * $dailyRate, 2);
     }
 

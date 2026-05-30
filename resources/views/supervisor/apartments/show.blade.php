@@ -83,7 +83,7 @@
                 </div>
                 <div class="flex-1">
                     <p class="text-base font-semibold text-slate-800">{{ $activeRental->tenant->name ?? 'N/A' }}</p>
-                    <p class="text-sm text-slate-400">{{ $activeRental->tenant->email ?? '' }}</p>
+                    <p class="text-sm text-slate-400">{{ $activeRental->tenant->phone ?? '' }}</p>
                     <p class="text-xs text-slate-300 mt-0.5">Since {{ \Carbon\Carbon::parse($activeRental->start_date)->format('M d, Y') }}</p>
                 </div>
                 <div class="text-right">

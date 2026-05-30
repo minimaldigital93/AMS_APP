@@ -1,22 +1,21 @@
 <?php
 
 use App\Models\Accounts;
-use App\Models\Apartments;
 use App\Models\Payments;
 use App\Models\Tenants;
 
 beforeEach(function () {
-    $this->admin     = makeAdmin();
-    $this->period    = makeFiscalPeriod($this->admin);
+    $this->admin = makeAdmin();
+    $this->period = makeFiscalPeriod($this->admin);
     $this->apartment = makeApartment(null, ['apartment_number' => 'C-301', 'status' => 'occupied']);
-    $this->tenant    = makeTenant($this->apartment, ['deposit' => 200]);
-    $this->rental    = makeRental($this->tenant, $this->apartment, ['rent_amount' => 500, 'deposit' => 200]);
+    $this->tenant = makeTenant($this->apartment, ['deposit' => 200]);
+    $this->rental = makeRental($this->tenant, $this->apartment, ['rent_amount' => 500, 'deposit' => 200]);
 });
 
 it('processes admin leave: archives tenant, frees apartment, writes ledger', function () {
     $this->actingAs($this->admin)
         ->post(route('admin.tenants.processLeave', $this->tenant), [
-            'leave_date'        => now()->toDateString(),
+            'leave_date' => now()->toDateString(),
             'charge_full_month' => false,
         ])
         ->assertRedirect(route('admin.tenants.archived'));
@@ -43,7 +42,7 @@ it('rolls back the entire leave when ledger writes fail', function () {
 
     $response = $this->actingAs($this->admin)
         ->post(route('admin.tenants.processLeave', $this->tenant), [
-            'leave_date'        => now()->toDateString(),
+            'leave_date' => now()->toDateString(),
             'charge_full_month' => false,
         ]);
 

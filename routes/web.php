@@ -46,18 +46,18 @@ Route::get('/dashboard', function () {
     }
 
     return redirect('/');
-})->middleware(['auth', 'verified'])->name('dashboard');
+})->middleware(['auth'])->name('dashboard');
 
 Route::get('/admin/dashboard', [DashboardController::class, 'index'])
-    ->middleware(['auth', 'verified', 'role:admin'])
+    ->middleware(['auth', 'role:admin'])
     ->name('admin.dashboard');
 
 Route::get('/supervisor/dashboard', [SupervisorDashboardController::class, 'index'])
-    ->middleware(['auth', 'verified', 'role:supervisor'])
+    ->middleware(['auth', 'role:supervisor'])
     ->name('supervisor.dashboard');
 
 Route::get('/tenant/dashboard', [TenantDashboardController::class, 'index'])
-    ->middleware(['auth', 'verified', 'role:tenant'])
+    ->middleware(['auth', 'role:tenant'])
     ->name('tenant.dashboard');
 
 Route::middleware('auth')->group(function () {
