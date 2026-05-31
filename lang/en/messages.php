@@ -899,4 +899,13 @@ return [
     'confirm_password' => 'Confirm Password',
     'remember_me' => 'Remember Me',
     'forgot_password' => 'Forgot Password?',
+
+    // KHQR (KHQRPay) payment
+    'generate_khqr' => 'Generate KHQR',
+    'scan_to_pay' => 'Scan to pay',
+    'generating_qr' => 'Generating QR…',
+    'waiting_for_payment' => 'Waiting for payment…',
+    'payment_received' => 'Payment received!',
+    'khqr_no_qr' => 'Could not generate a QR. Check the KHQRPay configuration.',
+    'no_fiscal_period' => 'No active fiscal period.',
 ];

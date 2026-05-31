@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\Http\Controllers\Concerns\HandlesKhqrCheckout;
 use App\Http\Controllers\Concerns\HasFiscalPeriodScope;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\RevenueExpense\AddTenantChargeRequest;
@@ -35,11 +36,17 @@ use Illuminate\Support\Facades\Auth;
 
 class RevenueExpenseController extends Controller
 {
+    use HandlesKhqrCheckout;
     use HasFiscalPeriodScope;
 
     protected function fiscalPeriodsQuery(): Builder
     {
         return FiscalPeriods::where('user_id', Auth::id());
+    }
+
+    protected function khqrRoutePrefix(): string
+    {
+        return 'admin.revenue_expense';
     }
 
     protected function ledgerUserId(): ?int

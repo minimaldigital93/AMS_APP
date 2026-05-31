@@ -23,6 +23,11 @@ return Application::configure(basePath: dirname(__DIR__))
             'fiscal.period' => EnsureFiscalPeriodExists::class,
         ]);
 
+        // KHQRPay webhook is authenticated by its own signature, not a CSRF token.
+        $middleware->validateCsrfTokens(except: [
+            'khqr/callback',
+        ]);
+
         $middleware->statefulApi();
     })
     ->withExceptions(function (Exceptions $exceptions): void {

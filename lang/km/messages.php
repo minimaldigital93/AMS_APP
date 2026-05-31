@@ -899,4 +899,13 @@ return [
     'confirm_password' => 'បញ្ជាក់ពាក្យសម្ងាត់',
     'remember_me' => 'ចងចាំខ្ញុំ',
     'forgot_password' => 'ភ្លេចពាក្យសម្ងាត់?',
+
+    // KHQR (KHQRPay) payment
+    'generate_khqr' => 'បង្កើត KHQR',
+    'scan_to_pay' => 'ស្កេនដើម្បីទូទាត់',
+    'generating_qr' => 'កំពុងបង្កើត QR…',
+    'waiting_for_payment' => 'កំពុងរង់ចាំការទូទាត់…',
+    'payment_received' => 'បានទទួលការទូទាត់!',
+    'khqr_no_qr' => 'មិនអាចបង្កើត QR បានទេ។ សូមពិនិត្យការកំណត់ KHQRPay។',
+    'no_fiscal_period' => 'មិនមានវគ្គសារពើពន្ធសកម្មទេ។',
 ];

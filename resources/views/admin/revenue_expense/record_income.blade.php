@@ -480,7 +480,7 @@
     <!-- ============================================ -->
     <div x-show="showCheckout" x-cloak class="fixed inset-0 z-50 overflow-y-auto" aria-modal="true">
         <div class="flex items-center justify-center min-h-screen px-4 py-6">
-            <div class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm" @click="showCheckout = false"></div>
+            <div class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm" @click="closeCheckout()"></div>
             <div class="bg-white rounded-2xl shadow-xl w-full max-w-md relative z-10 flex flex-col" style="max-height:90dvh;max-height:90vh;">
                 <!-- Header -->
                 <div class="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
@@ -493,9 +493,9 @@
                             <p class="text-xs text-slate-400">{{ __('messages.monthly_payment') }}</p>
                         </div>
                     </div>
-                    <button @click="showCheckout = false" class="text-slate-400 hover:text-slate-600 p-1 rounded-lg hover:bg-slate-100 transition text-lg leading-none">&times;</button>
+                    <button @click="closeCheckout()" class="text-slate-400 hover:text-slate-600 p-1 rounded-lg hover:bg-slate-100 transition text-lg leading-none">&times;</button>
                 </div>
-                <form action="{{ route('admin.revenue_expense.checkout') }}" method="POST" class="p-5 space-y-4 overflow-y-auto flex-1">
+                <form action="{{ route('admin.revenue_expense.checkout') }}" method="POST" class="p-5 space-y-4 overflow-y-auto flex-1" x-show="!khqrActive" @submit="onCheckoutSubmit($event)">
                     @csrf
                     <input type="hidden" name="rental_id" x-model="checkoutRentalId">
                     <input type="hidden" name="rent_amount" x-model="checkoutRent">
@@ -541,16 +541,21 @@
                     <!-- Payment method chips -->
                     <div>
                         <p class="text-xs text-slate-400 mb-1.5">{{ __('messages.payment_method') }} <span class="text-red-400">*</span></p>
-                        <div class="grid grid-cols-2 gap-2">
+                        <div class="grid grid-cols-3 gap-2">
                             <label class="flex items-center justify-center gap-2 py-2.5 border rounded-xl cursor-pointer text-sm transition select-none"
                                 :class="checkoutMethod === 'cash' ? 'bg-emerald-50 border-emerald-300 text-emerald-700 font-medium' : 'border-slate-200 text-slate-500 hover:border-slate-300'">
                                 <input type="radio" name="payment_method" value="cash" x-model="checkoutMethod" class="sr-only" required>
-                                💵 Cash
+                                💵 {{ __('messages.cash') }}
                             </label>
                             <label class="flex items-center justify-center gap-2 py-2.5 border rounded-xl cursor-pointer text-sm transition select-none"
                                 :class="checkoutMethod === 'bank' ? 'bg-sky-50 border-sky-300 text-sky-700 font-medium' : 'border-slate-200 text-slate-500 hover:border-slate-300'">
                                 <input type="radio" name="payment_method" value="bank" x-model="checkoutMethod" class="sr-only">
-                                🏦 Bank Transfer
+                                🏦 {{ __('messages.bank') }}
+                            </label>
+                            <label class="flex items-center justify-center gap-2 py-2.5 border rounded-xl cursor-pointer text-sm transition select-none"
+                                :class="checkoutMethod === 'khqr' ? 'bg-rose-50 border-rose-300 text-rose-700 font-medium' : 'border-slate-200 text-slate-500 hover:border-slate-300'">
+                                <input type="radio" name="payment_method" value="khqr" x-model="checkoutMethod" class="sr-only">
+                                📱 KHQR
                             </label>
                         </div>
                     </div>
@@ -574,11 +579,50 @@
                     <!-- Buttons -->
                     <div class="flex gap-2 pt-1">
                         <button type="submit"
-                            class="flex-1 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold rounded-lg transition">{{ __('messages.confirm_payment') }}</button>
-                        <button type="button" @click="showCheckout = false"
+                            class="flex-1 py-2.5 text-white text-sm font-semibold rounded-lg transition"
+                            :class="checkoutMethod === 'khqr' ? 'bg-rose-600 hover:bg-rose-700' : 'bg-emerald-600 hover:bg-emerald-700'"
+                            x-text="checkoutMethod === 'khqr' ? '{{ __('messages.generate_khqr') }}' : '{{ __('messages.confirm_payment') }}'"></button>
+                        <button type="button" @click="closeCheckout()"
                             class="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-600 text-sm font-medium rounded-lg transition">{{ __('messages.cancel') }}</button>
                     </div>
                 </form>
+
+                <!-- KHQR QR panel (shown after Generate) -->
+                <div x-show="khqrActive" x-cloak class="p-5 overflow-y-auto flex-1 text-center space-y-4">
+                    <div>
+                        <p class="text-xs text-slate-400">{{ __('messages.scan_to_pay') }}</p>
+                        <p class="text-3xl font-bold text-rose-600 mt-1">$<span x-text="khqrAmount"></span></p>
+                    </div>
+
+                    <!-- Generating -->
+                    <div x-show="khqrLoading" class="py-12 flex flex-col items-center gap-3 text-slate-400">
+                        <svg class="w-8 h-8 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/></svg>
+                        <span class="text-sm">{{ __('messages.generating_qr') }}</span>
+                    </div>
+
+                    <!-- Error -->
+                    <div x-show="khqrError" class="bg-red-50 border border-red-100 rounded-lg px-4 py-3 text-red-600 text-sm" x-text="khqrError"></div>
+
+                    <!-- QR + waiting -->
+                    <template x-if="!khqrLoading && khqrUrl && !khqrError">
+                        <div class="space-y-4">
+                            <div class="inline-block p-3 bg-white border border-slate-200 rounded-2xl">
+                                <img :src="khqrUrl" alt="KHQR" class="w-56 h-56 object-contain mx-auto">
+                            </div>
+                            <div x-show="!khqrPaid" class="flex items-center justify-center gap-2 text-amber-600 text-sm">
+                                <svg class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/></svg>
+                                {{ __('messages.waiting_for_payment') }}
+                            </div>
+                            <div x-show="khqrPaid" class="flex flex-col items-center gap-2 text-emerald-600">
+                                <svg class="w-12 h-12" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/></svg>
+                                <span class="text-sm font-semibold">{{ __('messages.payment_received') }}</span>
+                            </div>
+                        </div>
+                    </template>
+
+                    <button type="button" @click="closeCheckout()"
+                        class="w-full py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-600 text-sm font-medium rounded-lg transition">{{ __('messages.cancel') }}</button>
+                </div>
             </div>
         </div>
     </div>
@@ -628,6 +672,16 @@ function billingManager() {
         checkoutMethod: 'cash',
         payRent: true,
         payUtilities: true,
+
+        // KHQR (KHQRPay) flow
+        khqrActive: false,
+        khqrLoading: false,
+        khqrUrl: '',
+        khqrAmount: '0.00',
+        khqrStatusUrl: '',
+        khqrPaid: false,
+        khqrError: '',
+        khqrTimer: null,
 
         matchesFilter(status, tenantName, aptNumber) {
             if (this.filter !== 'all' && status !== this.filter) return false;
@@ -705,7 +759,87 @@ function billingManager() {
             this.checkoutMethod = 'cash';
             this.payRent = true;
             this.payUtilities = true;
+            this.resetKhqr();
             this.showCheckout = true;
+        },
+
+        // ---- KHQR (KHQRPay) ----
+        onCheckoutSubmit(e) {
+            // Cash / Bank keep the normal form POST; KHQR is handled via fetch.
+            if (this.checkoutMethod === 'khqr') {
+                e.preventDefault();
+                this.generateKhqr(e.target);
+            }
+        },
+
+        resetKhqr() {
+            this.stopKhqrPoll();
+            this.khqrActive = false;
+            this.khqrLoading = false;
+            this.khqrUrl = '';
+            this.khqrAmount = '0.00';
+            this.khqrStatusUrl = '';
+            this.khqrPaid = false;
+            this.khqrError = '';
+        },
+
+        closeCheckout() {
+            this.resetKhqr();
+            this.showCheckout = false;
+        },
+
+        async generateKhqr(form) {
+            this.khqrError = '';
+            this.khqrPaid = false;
+            this.khqrUrl = '';
+            this.khqrLoading = true;
+            this.khqrActive = true;
+            const csrf = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+            try {
+                const res = await fetch('{{ route('admin.revenue_expense.khqr_generate') }}', {
+                    method: 'POST',
+                    headers: { 'X-CSRF-TOKEN': csrf, 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' },
+                    body: new FormData(form)
+                });
+                const j = await res.json().catch(() => ({}));
+                if (!res.ok) throw new Error(j.message || ('HTTP ' + res.status));
+                this.khqrUrl = j.qr_url || '';
+                this.khqrAmount = j.amount || this.khqrAmount;
+                this.khqrStatusUrl = j.status_url || '';
+                this.khqrLoading = false;
+                if (!this.khqrUrl) {
+                    this.khqrError = '{{ __('messages.khqr_no_qr') }}';
+                    return;
+                }
+                this.startKhqrPoll();
+            } catch (err) {
+                this.khqrLoading = false;
+                this.khqrError = err.message || 'Failed to generate KHQR.';
+            }
+        },
+
+        startKhqrPoll() {
+            this.stopKhqrPoll();
+            this.khqrTimer = setInterval(() => this.checkKhqr(), 3500);
+        },
+
+        stopKhqrPoll() {
+            if (this.khqrTimer) { clearInterval(this.khqrTimer); this.khqrTimer = null; }
+        },
+
+        async checkKhqr() {
+            if (!this.khqrStatusUrl) return;
+            try {
+                const res = await fetch(this.khqrStatusUrl, {
+                    headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' }
+                });
+                const j = await res.json().catch(() => ({}));
+                if (j.paid) {
+                    this.khqrPaid = true;
+                    this.stopKhqrPoll();
+                    setTimeout(() => window.location.reload(), 1300);
+                }
+            } catch (e) { /* keep polling */ }
         },
 
         saveDone() {

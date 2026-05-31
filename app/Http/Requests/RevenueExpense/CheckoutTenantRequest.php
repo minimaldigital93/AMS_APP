@@ -10,7 +10,7 @@ class CheckoutTenantRequest extends FormRequest
     {
         return [
             'rental_id' => 'required|exists:rentals,id',
-            'payment_method' => 'required|in:cash,bank',
+            'payment_method' => 'required|in:cash,bank,khqr',
             'payment_date' => 'required|date',
             'rent_amount' => 'required|numeric|min:0',
             'late_fee' => 'nullable|numeric|min:0',

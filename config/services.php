@@ -35,4 +35,21 @@ return [
         ],
     ],
 
+    /*
+    | KHQRPay (khqr.cc) — dynamic KHQR generation + Bakong payment verification.
+    | profile_id, secret, and bakong_id come from the merchant dashboard.
+    */
+    'khqrpay' => [
+        'base_url' => env('KHQRPAY_BASE_URL', 'https://khqr.cc'),
+        'profile_id' => env('KHQRPAY_PROFILE_ID'),
+        'secret' => env('KHQRPAY_SECRET'),
+        'bakong_id' => env('KHQRPAY_BAKONG_ID'),
+        'merchant_name' => env('KHQRPAY_MERCHANT_NAME', env('APP_NAME', 'AMS')),
+        'currency' => env('KHQRPAY_CURRENCY', 'USD'),
+        // Demo mode: build a local example KHQR instead of calling the live API,
+        // and auto-confirm the payment after a few seconds so the full flow is
+        // demonstrable while the real KHQRPay endpoint/signing is pending.
+        'demo' => (bool) env('KHQRPAY_DEMO', false),
+    ],
+
 ];

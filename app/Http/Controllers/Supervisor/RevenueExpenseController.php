@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Supervisor;
 
+use App\Http\Controllers\Concerns\HandlesKhqrCheckout;
 use App\Http\Controllers\Concerns\HasFiscalPeriodScope;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\RevenueExpense\AddTenantChargeRequest;
@@ -34,6 +35,7 @@ use Illuminate\Pagination\LengthAwarePaginator;
 
 class RevenueExpenseController extends Controller
 {
+    use HandlesKhqrCheckout;
     use HasFiscalPeriodScope;
 
     /**
@@ -42,6 +44,11 @@ class RevenueExpenseController extends Controller
     protected function fiscalPeriodsQuery(): Builder
     {
         return FiscalPeriods::whereHas('user', fn ($q) => $q->role('admin'));
+    }
+
+    protected function khqrRoutePrefix(): string
+    {
+        return 'supervisor.revenue_expense';
     }
 
     /**

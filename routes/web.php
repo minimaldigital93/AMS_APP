@@ -8,6 +8,7 @@ use App\Http\Controllers\Admin\RevenueExpenseController;
 use App\Http\Controllers\Admin\SettingsController;
 use App\Http\Controllers\Admin\TenantController;
 use App\Http\Controllers\Admin\UserController;
+use App\Http\Controllers\KhqrCallbackController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\Supervisor\ApartmentController as SupervisorApartmentController;
 use App\Http\Controllers\Supervisor\DashboardController as SupervisorDashboardController;
@@ -21,6 +22,9 @@ use Illuminate\Support\Facades\Route;
 Route::get('/', function () {
     return view('auth.login');
 });
+
+// KHQRPay webhook (signature-authenticated, CSRF-exempt — see bootstrap/app.php)
+Route::post('/khqr/callback', KhqrCallbackController::class)->name('khqr.callback');
 
 // Language Switch Route
 Route::post('/language/switch', function (\Illuminate\Http\Request $request) {
@@ -159,6 +163,9 @@ Route::middleware(['auth', 'role:admin'])->group(function () {
         Route::delete('/admin/revenue-expense/remove-charge/{charge}', [RevenueExpenseController::class, 'removeTenantCharge'])->name('admin.revenue_expense.remove_charge');
         Route::delete('/admin/revenue-expense/clear-charges/{rental}', [RevenueExpenseController::class, 'clearTenantCharges'])->name('admin.revenue_expense.clear_charges');
         Route::post('/admin/revenue-expense/checkout', [RevenueExpenseController::class, 'checkoutTenant'])->name('admin.revenue_expense.checkout');
+        // KHQR (KHQRPay) dynamic-QR payment
+        Route::post('/admin/revenue-expense/khqr/generate', [RevenueExpenseController::class, 'khqrGenerate'])->name('admin.revenue_expense.khqr_generate');
+        Route::get('/admin/revenue-expense/khqr/status/{transaction}', [RevenueExpenseController::class, 'khqrStatus'])->name('admin.revenue_expense.khqr_status');
         Route::get('/admin/revenue-expense/print-bill/{rental}', [RevenueExpenseController::class, 'printTenantBill'])->name('admin.revenue_expense.print_bill');
 
         Route::get('/admin/revenue-expense/record-expense', [RevenueExpenseController::class, 'recordExpense'])->name('admin.revenue_expense.record_expense');
@@ -226,6 +233,9 @@ Route::middleware(['auth', 'role:supervisor'])->prefix('supervisor')->group(func
         Route::delete('/revenue-expense/remove-charge/{charge}', [SupervisorRevenueExpenseController::class, 'removeTenantCharge'])->name('supervisor.revenue_expense.remove_charge');
         Route::delete('/revenue-expense/clear-charges/{rental}', [SupervisorRevenueExpenseController::class, 'clearTenantCharges'])->name('supervisor.revenue_expense.clear_charges');
         Route::post('/revenue-expense/checkout', [SupervisorRevenueExpenseController::class, 'checkoutTenant'])->name('supervisor.revenue_expense.checkout');
+        // KHQR (KHQRPay) dynamic-QR payment
+        Route::post('/revenue-expense/khqr/generate', [SupervisorRevenueExpenseController::class, 'khqrGenerate'])->name('supervisor.revenue_expense.khqr_generate');
+        Route::get('/revenue-expense/khqr/status/{transaction}', [SupervisorRevenueExpenseController::class, 'khqrStatus'])->name('supervisor.revenue_expense.khqr_status');
         Route::get('/revenue-expense/print-bill/{rental}', [SupervisorRevenueExpenseController::class, 'printTenantBill'])->name('supervisor.revenue_expense.print_bill');
         Route::get('/revenue-expense/record-expense', [SupervisorRevenueExpenseController::class, 'recordExpense'])->name('supervisor.revenue_expense.record_expense');
         Route::post('/revenue-expense/record-expense', [SupervisorRevenueExpenseController::class, 'storeExpense'])->name('supervisor.revenue_expense.store_expense');

@@ -113,7 +113,26 @@
       "Bash(php -r \"json_decode\\(file_get_contents\\('composer.json'\\)\\); echo json_last_error\\(\\) === JSON_ERROR_NONE ? 'composer.json: valid JSON' : 'composer.json: INVALID';\")",
       "Bash(composer validate *)",
       "Bash(./vendor/bin/pint --test app/Services/Tenants/TenantRentProgressCalculator.php)",
-      "Bash(./vendor/bin/pest tests/Feature/Tenants)"
+      "Bash(./vendor/bin/pest tests/Feature/Tenants)",
+      "WebSearch",
+      "WebFetch(domain:khqr.cc)",
+      "WebFetch(domain:docs.khqr.link)",
+      "Bash(curl -sL -A \"Mozilla/5.0 \\(Macintosh; Intel Mac OS X 10_15_7\\) AppleWebKit/537.36\" https://docs.khqr.link/)",
+      "Bash(curl -sL -A \"Mozilla/5.0\" https://docs.khqr.link/)",
+      "Bash(grep -iv '^\\\\s*$')",
+      "Bash(curl -sL -A \"Mozilla/5.0\" https://docs.khqr.link/api-reference.php)",
+      "Bash(grep -ivE '^\\\\s*$')",
+      "Bash(curl -sL -A \"Mozilla/5.0\" https://khqr.cc/)",
+      "Bash(curl -sL -A \"Mozilla/5.0\" https://khqr.cc/docs)",
+      "Bash(curl -sL -A \"Mozilla/5.0\" https://khqr.cc/docs/qr-payment)",
+      "Bash(curl -sL -A \"Mozilla/5.0\" https://khqr.cc/khqr-api-cambodia)",
+      "Bash(./vendor/bin/pint app/Models/KhqrPayment.php app/Services/RevenueExpense/KhqrPaymentService.php app/Http/Controllers/Concerns/HandlesKhqrCheckout.php app/Http/Controllers/KhqrCallbackController.php app/Http/Controllers/Admin/RevenueExpenseController.php app/Http/Controllers/Supervisor/RevenueExpenseController.php app/Http/Requests/RevenueExpense/CheckoutTenantRequest.php config/services.php bootstrap/app.php routes/web.php database/migrations/2026_05_31_114244_create_khqr_payments_table.php database/migrations/2026_05_31_114245_add_khqr_to_payment_method_enum_in_payments.php)",
+      "Bash(./vendor/bin/pest tests/Feature/RevenueExpense/KhqrPaymentServiceTest.php)",
+      "Bash(./vendor/bin/pest tests/Feature/RevenueExpense/)",
+      "Bash(curl -sL -A \"Mozilla/5.0\" https://khqr.cc/build/assets/app-CKl8NZMC.js)",
+      "Bash(php -l app/Services/RevenueExpense/KhqrPaymentService.php)",
+      "Bash(./vendor/bin/pint app/Services/RevenueExpense/KhqrPaymentService.php config/services.php tests/Feature/RevenueExpense/KhqrPaymentServiceTest.php)",
+      "Bash(./vendor/bin/pest tests/Feature/Auth tests/Feature/ProfileTest.php)"
     ]
   }
 }
