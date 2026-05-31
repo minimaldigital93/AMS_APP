@@ -22,7 +22,7 @@
 
     <!-- Form Card -->
     <div class="bg-white rounded-xl border border-slate-100 p-5">
-        <form action="{{ route('admin.tenants.store') }}" method="POST" enctype="multipart/form-data" class="space-y-4">
+        <form id="tenantForm" action="{{ route('admin.tenants.store') }}" method="POST" enctype="multipart/form-data" class="space-y-4">
             @csrf
 
             <!-- Photo Upload -->
@@ -75,6 +75,7 @@
                     <label for="phone" class="block text-xs font-medium text-slate-500 mb-1.5">{{ __('messages.phone') }} <span class="text-red-400">*</span></label>
                     <input type="tel" id="phone" name="phone" required placeholder="{{ __('messages.phone_number') }}" value="{{ old('phone') }}"
                         class="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:ring-1 focus:ring-slate-400 focus:border-slate-400 {{ $errors->has('phone') ? 'border-red-400' : '' }}">
+                    <p id="phoneError" class="text-red-500 text-xs mt-1 hidden">{{ __('messages.phone_must_be_english') }}</p>
                     @error('phone')<p class="text-red-500 text-xs mt-1">{{ $message }}</p>@enderror
                 </div>
 
@@ -82,6 +83,7 @@
                 <div>
                     <label for="move_in_date" class="block text-xs font-medium text-slate-500 mb-1.5">{{ __('messages.move_in_date') }} <span class="text-red-400">*</span></label>
                     <input type="date" id="move_in_date" name="move_in_date" required value="{{ old('move_in_date') }}"
+                        min="{{ now()->subDays(3)->toDateString() }}"
                         style="max-width:100%;box-sizing:border-box;"
                         class="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:ring-1 focus:ring-slate-400 focus:border-slate-400 bg-white {{ $errors->has('move_in_date') ? 'border-red-400' : '' }}">
                     @error('move_in_date')<p class="text-red-500 text-xs mt-1">{{ $message }}</p>@enderror
@@ -100,6 +102,7 @@
                 <div>
                     <label for="date_of_birth" class="block text-xs font-medium text-slate-500 mb-1.5">{{ __('messages.date_of_birth') }} <span class="text-slate-300">({{ __('messages.optional') }})</span></label>
                     <input type="date" id="date_of_birth" name="date_of_birth" value="{{ old('date_of_birth') }}"
+                        max="{{ now()->subYears(18)->toDateString() }}"
                         style="max-width:100%;box-sizing:border-box;"
                         class="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:ring-1 focus:ring-slate-400 focus:border-slate-400 bg-white {{ $errors->has('date_of_birth') ? 'border-red-400' : '' }}">
                     @error('date_of_birth')<p class="text-red-500 text-xs mt-1">{{ $message }}</p>@enderror
@@ -173,5 +176,57 @@ function clearPhoto() {
     document.getElementById('photo').value = '';
     document.getElementById('photoPreview').innerHTML = '';
 }
+
+// Allow only English (ASCII) phone characters — alert if Khmer is entered.
+const KHMER_RE = /[ក-៿᧠-᧿]/;
+const ALLOWED_PHONE_RE = /^[0-9+\-\s()]+$/;
+
+const phoneInput = document.getElementById('phone');
+const phoneError = document.getElementById('phoneError');
+
+function phoneHasKhmer() {
+    return KHMER_RE.test(phoneInput.value) || (phoneInput.value !== '' && !ALLOWED_PHONE_RE.test(phoneInput.value));
+}
+
+phoneInput.addEventListener('input', function () {
+    if (phoneHasKhmer()) {
+        phoneError.classList.remove('hidden');
+        phoneInput.classList.add('border-red-400');
+    } else {
+        phoneError.classList.add('hidden');
+        phoneInput.classList.remove('border-red-400');
+    }
+});
+
+document.getElementById('tenantForm').addEventListener('submit', function (e) {
+    if (phoneHasKhmer()) {
+        e.preventDefault();
+        phoneError.classList.remove('hidden');
+        phoneInput.classList.add('border-red-400');
+        alert(@json(__('messages.phone_must_be_english')));
+        phoneInput.focus();
+        return;
+    }
+
+    // Date of birth must be 18 years or older.
+    const dob = document.getElementById('date_of_birth').value;
+    if (dob) {
+        const maxDob = document.getElementById('date_of_birth').max;
+        if (dob > maxDob) {
+            e.preventDefault();
+            alert(@json(__('messages.tenant_must_be_18')));
+            return;
+        }
+    }
+
+    // Move-in date cannot be more than 3 days in the past.
+    const moveIn = document.getElementById('move_in_date').value;
+    const minMoveIn = document.getElementById('move_in_date').min;
+    if (moveIn && moveIn < minMoveIn) {
+        e.preventDefault();
+        alert(@json(__('messages.move_in_date_min')));
+        return;
+    }
+});
 </script>
 @endsection

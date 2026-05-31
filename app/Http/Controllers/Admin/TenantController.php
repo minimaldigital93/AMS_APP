@@ -379,19 +379,26 @@ class TenantController extends Controller
      */
     public function store(Request $request): RedirectResponse
     {
+        $minBirthDate = now()->subYears(18)->toDateString();
+        $minMoveInDate = now()->subDays(3)->toDateString();
+
         $validated = $request->validate([
             'apartment_id' => 'required|exists:apartments,id',
             'name' => 'required|string|max:255',
-            'phone' => 'required|string|max:20|unique:tenants,phone|unique:users,phone',
+            'phone' => ['required', 'string', 'max:20', 'regex:/^[0-9+\-\s()]+$/', 'unique:tenants,phone', 'unique:users,phone'],
             'email' => 'nullable|email|max:255',
             'address' => 'nullable|string',
-            'date_of_birth' => 'nullable|date',
-            'move_in_date' => 'required|date',
+            'date_of_birth' => 'nullable|date|before_or_equal:'.$minBirthDate,
+            'move_in_date' => 'required|date|after_or_equal:'.$minMoveInDate,
             'move_out_date' => 'nullable|date|after:move_in_date',
             'status' => 'required|in:pending,active,inactive',
             'deposit' => 'nullable|numeric|min:0',
             'photo' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:5120',
             'notes' => 'nullable|string',
+        ], [
+            'phone.regex' => __('messages.phone_must_be_english'),
+            'date_of_birth.before_or_equal' => __('messages.tenant_must_be_18'),
+            'move_in_date.after_or_equal' => __('messages.move_in_date_min'),
         ]);
 
         // Handle photo upload - SEPARATE from validation

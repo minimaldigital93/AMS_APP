@@ -121,6 +121,9 @@ class ApartmentController extends Controller
     {
         $this->authorizeApartment($apartment);
 
+        $minBirthDate = now()->subYears(18)->toDateString();
+        $minMoveInDate = now()->subDays(3)->toDateString();
+
         $validated = $request->validate([
             'tenant_option' => 'required|in:existing,new',
             'tenant_id' => 'nullable|required_if:tenant_option,existing|exists:tenants,id',
@@ -130,16 +133,21 @@ class ApartmentController extends Controller
                 'required_if:tenant_option,new',
                 'string',
                 'max:20',
+                'regex:/^[0-9+\-\s()]+$/',
                 Rule::unique('users', 'phone')->where(fn ($q) => $request->input('tenant_option') === 'new'),
                 Rule::unique('tenants', 'phone')->where(fn ($q) => $request->input('tenant_option') === 'new'),
             ],
             'email' => 'nullable|email|max:255',
             'address' => 'nullable|string',
-            'date_of_birth' => 'nullable|date|before:today',
+            'date_of_birth' => 'nullable|date|before_or_equal:'.$minBirthDate,
             'attached_photo' => 'nullable|file|mimes:jpeg,jpg,png,gif,pdf|max:5120',
             'id_pdf' => 'nullable|file|mimes:pdf,jpeg,jpg,png,gif|max:5120',
-            'move_in_date' => 'required|date|before_or_equal:today',
+            'move_in_date' => 'required|date|after_or_equal:'.$minMoveInDate,
             'deposit' => 'required|numeric|min:0',
+        ], [
+            'phone.regex' => __('messages.phone_must_be_english'),
+            'date_of_birth.before_or_equal' => __('messages.tenant_must_be_18'),
+            'move_in_date.after_or_equal' => __('messages.move_in_date_min'),
         ]);
 
         return DB::transaction(function () use ($request, $apartment, $validated) {
