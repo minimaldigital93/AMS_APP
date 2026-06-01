@@ -1,4 +1,4 @@
-<nav class="space-y-1" x-data="{ expandedSections: { 'Property': false, 'Tenant': false, 'Revenue': false, 'FiscalPeriod': false, 'Settings': false } }">
+<nav class="space-y-1" x-data="{ expandedSections: { 'Property': false, 'Tenant': false, 'Revenue': false, 'FiscalPeriod': false, 'Settings': {{ request()->routeIs('admin.fiscalperiod.*', 'admin.billing.*', 'admin.settings.*') ? 'true' : 'false' }} } }">
     <style>
         /* Modern sidebar styling */
         .sidebar-transition {
@@ -393,15 +393,6 @@
         <span class="nav-text truncate sidebar-label">{{ __('messages.user_management') }}</span>
     </a>
 
-    <a href="{{ route('admin.billing.index') }}" class="nav-link flex items-center gap-3 rounded-lg px-3 py-3 text-sm font-medium transition-all duration-200 {{ request()->routeIs('admin.billing.*') ? 'text-blue-700 active' : 'text-gray-700 hover:text-blue-700' }}">
-        <span class="nav-icon sidebar-transition">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-            </svg>
-        </span>
-        <span class="nav-text truncate sidebar-label">{{ __('Billing') }}</span>
-    </a>
-
     <!-- Section Separator -->
     <div class="section-separator"></div>
 
@@ -578,77 +569,10 @@
         </div>
     </div>
 
-    {{-- Fiscal Period Management Section --}}
+    {{-- Settings Section (Fiscal Period, Billing, System Settings) --}}
     <div class="mt-4">
-        <a href="{{ route('admin.fiscalperiod.index') }}" 
-           class="section-header flex items-center justify-between w-full transition sidebar-transition {{ request()->routeIs('admin.fiscalperiod.*') ? 'text-blue-700' : '' }}">
-            <span class="flex items-center gap-2.5">
-                <span class="section-icon">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                    </svg>
-                </span>
-                <span class="section-title sidebar-label">{{ __('messages.fiscal_period') }}</span>
-            </span>
-            <svg class="chevron h-5 w-5 transition-transform flex-shrink-0" :class="expandedSections['FiscalPeriod'] ? 'rotate-90' : ''" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7" />
-            </svg>
-        </a>
-        <div x-show="expandedSections['FiscalPeriod']"
-             x-transition:enter="transition ease-out duration-300"
-             x-transition:enter-start="opacity-0 -translate-y-2"
-             x-transition:enter-end="opacity-100 translate-y-0"
-             x-transition:leave="transition ease-in duration-200"
-             x-transition:leave-start="opacity-100 translate-y-0"
-             x-transition:leave-end="opacity-0 -translate-y-2"
-             class="submenu-container mt-2 space-y-1">
-            
-            {{-- All Periods --}}
-            <a href="{{ route('admin.fiscalperiod.index') }}" class="submenu-item nav-link flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm {{ request()->routeIs('admin.fiscalperiod.index') ? 'text-blue-700 active' : 'text-gray-700 hover:text-blue-700' }} transition-all sidebar-transition">
-                <span class="nav-icon sidebar-transition">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-                    </svg>
-                </span>
-                <span class="nav-text truncate sidebar-label">{{ __('messages.all_periods') }}</span>
-            </a>
-
-            {{-- Create Period --}}
-            <a href="{{ route('admin.fiscalperiod.create') }}" class="submenu-item nav-link flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm {{ request()->routeIs('admin.fiscalperiod.create') ? 'text-blue-700 active' : 'text-gray-700 hover:text-blue-700' }} transition-all sidebar-transition">
-                <span class="nav-icon sidebar-transition">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-                    </svg>
-                </span>
-                <span class="nav-text truncate sidebar-label">{{ __('messages.create_period') }}</span>
-            </a>
-
-            {{-- Balance Sheet Items --}}
-            <a href="{{ route('admin.fiscalperiod.index') }}" class="submenu-item nav-link flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm text-gray-700 hover:text-blue-700 transition-all sidebar-transition">
-                <span class="nav-icon sidebar-transition">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M5 6h14M7 14h10m-8 4h6" />
-                    </svg>
-                </span>
-                <span class="nav-text truncate sidebar-label">{{ __('messages.balance_sheet') }}</span>
-            </a>
-
-            {{-- Reports & Export --}}
-            <a href="{{ route('admin.fiscalperiod.index') }}" class="submenu-item nav-link flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm text-gray-700 hover:text-blue-700 transition-all sidebar-transition">
-                <span class="nav-icon sidebar-transition">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                    </svg>
-                </span>
-                <span class="nav-text truncate sidebar-label">{{ __('messages.reports_export') }}</span>
-            </a>
-        </div>
-    </div>
-
-    {{-- System Settings Section (single-click to General Settings) --}}
-    <div class="mt-4">
-        <a href="{{ route('admin.settings.index') }}" 
-           class="section-header flex items-center justify-between w-full transition sidebar-transition {{ request()->routeIs('admin.settings.*') ? 'text-blue-700' : '' }}">
+        <button @click="expandedSections['Settings'] = !expandedSections['Settings']"
+                class="section-header flex items-center justify-between w-full transition sidebar-transition {{ request()->routeIs('admin.fiscalperiod.*', 'admin.billing.*', 'admin.settings.*') ? 'text-blue-700' : '' }}">
             <span class="flex items-center gap-2.5">
                 <span class="section-icon">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
@@ -656,11 +580,51 @@
                         <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
                     </svg>
                 </span>
-                <span class="section-title sidebar-label">{{ __('messages.system_settings') }}</span>
+                <span class="section-title sidebar-label">{{ __('messages.settings') }}</span>
             </span>
-            <svg class="chevron h-5 w-5 transition-transform flex-shrink-0" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+            <svg class="chevron h-5 w-5 transition-transform flex-shrink-0" :class="expandedSections['Settings'] ? 'rotate-90' : ''" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7" />
             </svg>
-        </a>
+        </button>
+        <div x-show="expandedSections['Settings']"
+             x-transition:enter="transition ease-out duration-300"
+             x-transition:enter-start="opacity-0 -translate-y-2"
+             x-transition:enter-end="opacity-100 translate-y-0"
+             x-transition:leave="transition ease-in duration-200"
+             x-transition:leave-start="opacity-100 translate-y-0"
+             x-transition:leave-end="opacity-0 -translate-y-2"
+             class="submenu-container mt-2 space-y-1">
+
+            {{-- Fiscal Period --}}
+            <a href="{{ route('admin.fiscalperiod.index') }}" class="submenu-item nav-link flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm {{ request()->routeIs('admin.fiscalperiod.*') ? 'text-blue-700 active' : 'text-gray-700 hover:text-blue-700' }} transition-all sidebar-transition">
+                <span class="nav-icon sidebar-transition">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                    </svg>
+                </span>
+                <span class="nav-text truncate sidebar-label">{{ __('messages.fiscal_period') }}</span>
+            </a>
+
+            {{-- Billing --}}
+            <a href="{{ route('admin.billing.index') }}" class="submenu-item nav-link flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm {{ request()->routeIs('admin.billing.*') ? 'text-blue-700 active' : 'text-gray-700 hover:text-blue-700' }} transition-all sidebar-transition">
+                <span class="nav-icon sidebar-transition">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                    </svg>
+                </span>
+                <span class="nav-text truncate sidebar-label">{{ __('messages.billing') }}</span>
+            </a>
+
+            {{-- System Settings --}}
+            <a href="{{ route('admin.settings.index') }}" class="submenu-item nav-link flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm {{ request()->routeIs('admin.settings.*') ? 'text-blue-700 active' : 'text-gray-700 hover:text-blue-700' }} transition-all sidebar-transition">
+                <span class="nav-icon sidebar-transition">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                    </svg>
+                </span>
+                <span class="nav-text truncate sidebar-label">{{ __('messages.system_settings') }}</span>
+            </a>
+        </div>
     </div>
 </nav>

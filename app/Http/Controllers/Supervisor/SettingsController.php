@@ -19,34 +19,17 @@ class SettingsController extends Controller
             return $parts[0] ?? 'general';
         });
 
+        // Minimal, user-facing settings only. Language is handled by its own
+        // form (the /language/switch route + SetLocale middleware).
         $defaultSettings = [
-            'app' => [
-                'app_name' => 'Apartment Management System',
-                'app_timezone' => 'UTC',
-                'app_locale' => 'en',
-            ],
             'company' => [
                 'company_name' => '',
                 'company_address' => '',
                 'company_phone' => '',
                 'company_email' => '',
             ],
-            'email' => [
-                'email_from_name' => '',
-                'email_from_address' => '',
-            ],
             'system' => [
                 'system_currency' => 'USD',
-                'system_date_format' => 'Y-m-d',
-                'system_time_format' => 'H:i:s',
-            ],
-            'fiscal' => [
-                'fiscal_year_start' => '01-01',
-                'fiscal_auto_close' => 'no',
-            ],
-            'notification' => [
-                'notification_payment_reminder' => 'yes',
-                'notification_lease_expiry' => 'yes',
             ],
         ];
 

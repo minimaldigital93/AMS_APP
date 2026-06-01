@@ -61,6 +61,8 @@ return [
     'create_period' => 'បង្កើតរយៈពេល',
     'system_settings' => 'ការកំណត់ប្រព័ន្ធ',
     'general_settings' => 'ការកំណត់ទូទៅ',
+    'settings' => 'ការកំណត់',
+    'billing' => 'វិក្កយបត្រ',
 
     // Dashboard
     'active_tenants_count' => 'អ្នកជួលសកម្ម',
@@ -242,6 +244,7 @@ return [
     'back_to_active' => 'ត្រលប់ទៅអ្នកជួលសកម្ម',
     'add_new_tenant' => 'បន្ថែមអ្នកជួលថ្មី',
     'tenant_information' => 'ព័ត៌មានអ្នកជួល',
+    'tel' => 'ទូរស័ព្ទ',
     'select_apartment' => 'ជ្រើសរើសបន្ទប់',
     'select_floor' => 'ជ្រើសរើសជាន់',
     'rent_amount' => 'ចំនួនថ្លៃជួល',

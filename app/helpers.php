@@ -45,6 +45,21 @@ if (! function_exists('setting')) {
     }
 }
 
+if (! function_exists('currency_symbol')) {
+    /**
+     * The currency symbol for the current account, from the `system_currency`
+     * setting. Only two currencies are supported: USD ($) and KHR (៛).
+     * Falls back to '$' for any unset/unknown value.
+     */
+    function currency_symbol(): string
+    {
+        return match (settings('system_currency', 'USD')) {
+            'KHR' => '៛',
+            default => '$',
+        };
+    }
+}
+
 if (! function_exists('current_account_id')) {
     /**
      * The id of the account (owning admin user) the current request acts within.

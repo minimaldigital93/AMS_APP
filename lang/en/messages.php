@@ -61,6 +61,8 @@ return [
     'create_period' => 'Create Period',
     'system_settings' => 'System Settings',
     'general_settings' => 'General Settings',
+    'settings' => 'Settings',
+    'billing' => 'Billing',
 
     // Dashboard
     'active_tenants_count' => 'Active Tenants',
@@ -242,6 +244,7 @@ return [
     'back_to_active' => 'Back to Active Tenants',
     'add_new_tenant' => 'Add New Tenant',
     'tenant_information' => 'Tenant Information',
+    'tel' => 'Tel',
     'select_apartment' => 'Select Apartment',
     'select_floor' => 'Select Floor',
     'rent_amount' => 'Rent Amount',

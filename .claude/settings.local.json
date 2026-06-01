@@ -164,7 +164,22 @@
       "Bash(sed -n '1,60p' app/Models/Settings.php)",
       "Bash(./vendor/bin/pint app/Models/Settings.php app/Models/TenantLeave.php app/Http/Controllers/Admin/SettingsController.php app/Http/Controllers/Supervisor/SettingsController.php database/migrations/2026_06_01_000005_add_account_id_to_tenant_leaves.php database/migrations/2026_06_01_000006_make_settings_per_account.php)",
       "Bash(git rm *)",
-      "Bash(grep -n \"Settings & helpers\\\\|global \\\\`settings\\(\\)\\\\`\\\\|Prefer this over reading\" CLAUDE.md)"
+      "Bash(grep -n \"Settings & helpers\\\\|global \\\\`settings\\(\\)\\\\`\\\\|Prefer this over reading\" CLAUDE.md)",
+      "Bash(php -l app/Http/Controllers/Admin/SettingsController.php)",
+      "Bash(php -l app/Http/Controllers/Supervisor/SettingsController.php)",
+      "Bash(php -r \"echo 'ok';\")",
+      "Bash(grep -hoE '.{3}\\\\$\\\\{\\\\{ ?number_format[^}]*\\\\}\\\\}' resources/views/admin/revenue_expense/tenant_bill_print.blade.php resources/views/admin/fiscalperiod/export-pdf.blade.php resources/views/admin/fiscalperiod/monthly-period-pdf.blade.php)",
+      "Bash(grep -nE 'number_format|currency|\\\\$' resources/views/admin/revenue_expense/apartment_summary_pdf.blade.php)",
+      "Bash(grep -iE 'number_format|\\\\$[a-z0-9_]*\\\\b')",
+      "Bash(php -l app/helpers.php)",
+      "Bash(grep -rcF '${{' resources/views/admin/revenue_expense/tenant_bill_print.blade.php resources/views/supervisor/revenue_expense/tenant_bill_print.blade.php resources/views/admin/fiscalperiod/export-pdf.blade.php resources/views/admin/fiscalperiod/monthly-period-pdf.blade.php)",
+      "Bash(cd /Users/moniodom/AMS_APP *)",
+      "Read(//System/Library/Fonts/**)",
+      "Bash(cp \"/Users/moniodom/Library/Fonts/Khmer OS Siemreap Regular.ttf\" public/fonts/khmer/KhmerOSSiemreap.ttf)",
+      "Bash(cp \"/Users/moniodom/Library/Fonts/Khmer OS Muol Light Regular.ttf\" public/fonts/khmer/KhmerOSMuolLight.ttf)",
+      "Bash(composer show *)",
+      "Bash(file public/fonts/khmer/*.ttf)",
+      "Bash(php -r 'echo \"ok\\\\n\";')"
     ]
   }
 }

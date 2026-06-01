@@ -289,6 +289,7 @@
             background: #d1d5db;
         }
     </style>
+    @include('partials.khmer_fonts')
 </head>
 <body>
     <!-- Print Actions (hidden in print) -->
@@ -312,6 +313,9 @@
         <!-- Header -->
         <div class="bill-header">
             <div>
+                @if(settings('company_name'))
+                <div style="font-size:13px;font-weight:600;letter-spacing:0.5px;opacity:0.9;margin-bottom:6px;text-transform:uppercase;">{{ settings('company_name') }}</div>
+                @endif
                 <h1>{{ __('messages.monthly_bill_caps') }}</h1>
                 <p class="subtitle">{{ $monthYear }}</p>
                 @if($activePeriod)
@@ -358,7 +362,7 @@
                     <tr>
                         <td><strong>Monthly Rent — {{ $monthYear }}</strong></td>
                         <td><span class="category-label">{{ __('messages.rent') }}</span></td>
-                        <td>${{ number_format($rent_amount, 2) }}</td>
+                        <td>{{ currency_symbol() }}{{ number_format($rent_amount, 2) }}</td>
                     </tr>
 
                     <!-- Utility Charges -->
@@ -371,7 +375,7 @@
                             @endif
                         </td>
                         <td><span class="category-label">{{ __('messages.utility') }}</span></td>
-                        <td>${{ number_format($utility->charge_amount, 2) }}</td>
+                        <td>{{ currency_symbol() }}{{ number_format($utility->charge_amount, 2) }}</td>
                     </tr>
                     @endforeach
 
@@ -380,7 +384,7 @@
                     <tr>
                         <td>{{ $expense->expense_name }}</td>
                         <td><span class="category-label">{{ __('messages.apartment_cost') }}</span></td>
-                        <td>${{ number_format($expense->amount, 2) }}</td>
+                        <td>{{ currency_symbol() }}{{ number_format($expense->amount, 2) }}</td>
                     </tr>
                     @endforeach
                 </tbody>
@@ -390,37 +394,37 @@
             <div class="totals-section">
                 <div class="total-row">
                     <span>{{ __('messages.subtotal_rent') }}</span>
-                    <span>${{ number_format($rent_amount, 2) }}</span>
+                    <span>{{ currency_symbol() }}{{ number_format($rent_amount, 2) }}</span>
                 </div>
                 @if($totalUtilities > 0)
                 <div class="total-row">
                     <span>{{ __('messages.subtotal_utilities') }}</span>
-                    <span>${{ number_format($totalUtilities, 2) }}</span>
+                    <span>{{ currency_symbol() }}{{ number_format($totalUtilities, 2) }}</span>
                 </div>
                 @endif
                 @if($totalFixed > 0)
                 <div class="total-row">
                     <span>{{ __('messages.subtotal_apt_costs') }}</span>
-                    <span>${{ number_format($totalFixed, 2) }}</span>
+                    <span>{{ currency_symbol() }}{{ number_format($totalFixed, 2) }}</span>
                 </div>
                 @endif
 
                 <div class="total-row grand">
                     <span class="label">{{ __('messages.total_bill_caps') }}</span>
-                    <span class="amount">${{ number_format($totalBill, 2) }}</span>
+                    <span class="amount">{{ currency_symbol() }}{{ number_format($totalBill, 2) }}</span>
                 </div>
 
                 @if($totalPaid > 0)
                 <div class="total-row paid" style="margin-top: 12px;">
                     <span>{{ __('messages.amount_paid') }}</span>
-                    <span>-${{ number_format($totalPaid, 2) }}</span>
+                    <span>-{{ currency_symbol() }}{{ number_format($totalPaid, 2) }}</span>
                 </div>
                 @endif
 
                 @if($balance > 0)
                 <div class="total-row balance">
                     <span>{{ __('messages.balance_due_caps') }}</span>
-                    <span>${{ number_format($balance, 2) }}</span>
+                    <span>{{ currency_symbol() }}{{ number_format($balance, 2) }}</span>
                 </div>
                 @elseif($paidThisMonth)
                 <div class="total-row paid-full">
@@ -441,7 +445,7 @@
                             (Ref: {{ $payment->transaction_reference }})
                         @endif
                     </span>
-                    <span>${{ number_format($payment->amount + ($payment->late_fee ?? 0), 2) }} — {{ \Carbon\Carbon::parse($payment->paid_at)->format('M d, Y') }}</span>
+                    <span>{{ currency_symbol() }}{{ number_format($payment->amount + ($payment->late_fee ?? 0), 2) }} — {{ \Carbon\Carbon::parse($payment->paid_at)->format('M d, Y') }}</span>
                 </div>
                 @endforeach
             </div>
@@ -451,6 +455,19 @@
         <!-- Footer -->
         <div class="bill-footer">
             <div>
+                @php
+                    $bizContact = array_filter([
+                        settings('company_address') ?: null,
+                        settings('company_phone') ? __('messages.tel').': '.settings('company_phone') : null,
+                        settings('company_email') ?: null,
+                    ]);
+                @endphp
+                @if(settings('company_name') || count($bizContact))
+                <p style="font-weight:600;color:#374151;">{{ settings('company_name') }}</p>
+                @if(count($bizContact))
+                <p>{{ implode('  ·  ', $bizContact) }}</p>
+                @endif
+                @endif
                 <p>Generated on {{ now()->format('M d, Y \a\t h:i A') }}</p>
                 <p>{{ __('messages.thank_you_payment') }}</p>
             </div>

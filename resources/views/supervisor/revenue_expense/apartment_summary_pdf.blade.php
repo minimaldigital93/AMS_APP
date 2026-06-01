@@ -33,6 +33,7 @@
         .note { font-size:11px; color:var(--muted); margin-top:10px }
         @media print{ .page{ padding:12mm } .kpi { page-break-inside:avoid } table { page-break-inside:auto } tr { page-break-inside:avoid; page-break-after:auto } }
     </style>
+    @include('partials.khmer_fonts')
 </head>
 <body>
     @php
@@ -52,6 +53,7 @@
     @endif
 
     <div class="page">
+        @include('partials.business_header')
         <div class="header">
             <div class="brand">
                 <div class="brand-logo" aria-hidden></div>
@@ -76,8 +78,9 @@
 
         @php
             $fmt = function($v) use ($wholeNumbers) {
-                if(!isset($v)) return '$0';
-                return $wholeNumbers ? ('$' . number_format(round($v), 0)) : ('$' . number_format($v, 2));
+                $cur = currency_symbol();
+                if(!isset($v)) return $cur.'0';
+                return $wholeNumbers ? ($cur . number_format(round($v), 0)) : ($cur . number_format($v, 2));
             };
         @endphp
 

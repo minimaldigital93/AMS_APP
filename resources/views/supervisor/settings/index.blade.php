@@ -75,12 +75,8 @@
 
             @php
                 $categoryLabels = [
-                    'app'          => ['title' => __('messages.application_settings'), 'icon' => 'M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4'],
                     'company'      => ['title' => __('messages.company_information'), 'icon' => 'M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4'],
-                    'email'        => ['title' => __('messages.email_configuration'), 'icon' => 'M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z'],
                     'system'       => ['title' => __('messages.system_preferences'), 'icon' => 'M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z M15 12a3 3 0 11-6 0 3 3 0 016 0z'],
-                    'fiscal'       => ['title' => __('messages.fiscal_period_settings'), 'icon' => 'M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z'],
-                    'notification' => ['title' => __('messages.notification_settings'), 'icon' => 'M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9'],
                 ];
             @endphp
 
@@ -112,28 +108,11 @@
                             <textarea name="settings[{{ $key }}]" id="{{ $key }}" rows="2"
                                 class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-500 focus:border-transparent"
                                 placeholder="{{ __('messages.enter') }} {{ $label }}">{{ $currentValue }}</textarea>
-                            @elseif(str_contains($key, 'auto_close') || str_contains($key, 'reminder') || str_contains($key, 'expiry'))
-                            <select name="settings[{{ $key }}]" id="{{ $key }}"
-                                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-500 focus:border-transparent">
-                                <option value="yes" {{ $currentValue == 'yes' ? 'selected' : '' }}>{{ __('messages.yes') }}</option>
-                                <option value="no" {{ $currentValue == 'no' ? 'selected' : '' }}>{{ __('messages.no') }}</option>
-                            </select>
-                            @elseif($key == 'app_timezone')
-                            <select name="settings[{{ $key }}]" id="{{ $key }}"
-                                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-500 focus:border-transparent">
-                                <option value="UTC" {{ $currentValue == 'UTC' ? 'selected' : '' }}>UTC</option>
-                                <option value="America/New_York" {{ $currentValue == 'America/New_York' ? 'selected' : '' }}>America/New York</option>
-                                <option value="America/Los_Angeles" {{ $currentValue == 'America/Los_Angeles' ? 'selected' : '' }}>America/Los Angeles</option>
-                                <option value="Europe/London" {{ $currentValue == 'Europe/London' ? 'selected' : '' }}>Europe/London</option>
-                                <option value="Asia/Tokyo" {{ $currentValue == 'Asia/Tokyo' ? 'selected' : '' }}>Asia/Tokyo</option>
-                            </select>
                             @elseif($key == 'system_currency')
                             <select name="settings[{{ $key }}]" id="{{ $key }}"
                                 class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-500 focus:border-transparent">
                                 <option value="USD" {{ $currentValue == 'USD' ? 'selected' : '' }}>USD ($)</option>
-                                <option value="EUR" {{ $currentValue == 'EUR' ? 'selected' : '' }}>EUR (€)</option>
-                                <option value="GBP" {{ $currentValue == 'GBP' ? 'selected' : '' }}>GBP (£)</option>
-                                <option value="JPY" {{ $currentValue == 'JPY' ? 'selected' : '' }}>JPY (¥)</option>
+                                <option value="KHR" {{ $currentValue == 'KHR' ? 'selected' : '' }}>KHR (៛)</option>
                             </select>
                             @else
                             <input type="text" name="settings[{{ $key }}]" id="{{ $key }}" value="{{ $currentValue }}"

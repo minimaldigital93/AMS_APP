@@ -1456,7 +1456,8 @@ class RevenueExpenseController extends Controller
         // If Dompdf (barryvdh) is installed, use it. Otherwise return HTML view for manual printing.
         try {
             if (class_exists('\\Barryvdh\\DomPDF\\Facade') || class_exists('\\PDF')) {
-                $pdf = \PDF::loadView('admin.revenue_expense.apartment_summary_pdf', compact('perApartment', 'activePeriod', 'start', 'end', 'summaryOnly', 'wholeNumbers'));
+                $forPdf = true;
+                $pdf = \PDF::loadView('admin.revenue_expense.apartment_summary_pdf', compact('perApartment', 'activePeriod', 'start', 'end', 'summaryOnly', 'wholeNumbers', 'forPdf'));
                 $filename = 'apartment-summary-'.now()->format('Y-m-d').'.pdf';
 
                 return $pdf->download($filename);
