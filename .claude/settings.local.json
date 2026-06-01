@@ -179,7 +179,21 @@
       "Bash(cp \"/Users/moniodom/Library/Fonts/Khmer OS Muol Light Regular.ttf\" public/fonts/khmer/KhmerOSMuolLight.ttf)",
       "Bash(composer show *)",
       "Bash(file public/fonts/khmer/*.ttf)",
-      "Bash(php -r 'echo \"ok\\\\n\";')"
+      "Bash(php -r 'echo \"ok\\\\n\";')",
+      "Bash(composer test *)",
+      "Bash(sed -n '60,140p' app/Http/Controllers/Admin/DashboardController.php)",
+      "Bash(sed -n '1,40p' resources/views/admin/dashboard.blade.php)",
+      "Bash(./vendor/bin/pest tests/Feature/Subscription/SubscriptionDueAlertTest.php)",
+      "Bash(./vendor/bin/pint app/Services/NotificationService.php app/Http/Controllers/Admin/DashboardController.php tests/Feature/Subscription/SubscriptionDueAlertTest.php)",
+      "Bash(grep -E '\\\\$table->')",
+      "Bash(php -l app/Http/Controllers/SuperAdmin/DashboardController.php)",
+      "Bash(php -r '$c=file_get_contents\\(\"resources/views/superadmin/dashboard.blade.php\"\\); echo \"view chars: \".strlen\\($c\\).\"\\\\n\";')",
+      "Bash(grep -E '\\\\$table->|Schema::table')",
+      "Bash(grep -nE \"function |belongsTo|hasMany|protected \\\\\\\\\\\\$\" app/Models/Subscription.php)",
+      "Bash(grep -nE ''\\\\''floors'\\\\''|'\\\\''apartments'\\\\''|\\\\$tables|=>' database/migrations/2026_06_01_000004_add_account_id_for_multitenancy.php)",
+      "Bash(grep -nE 'class |BelongsToAccount|protected \\\\$table' app/Models/Floors.php)",
+      "Bash(grep -nE 'class |BelongsToAccount|protected \\\\$table' app/Models/Apartments.php)",
+      "Bash(php -r 'json_decode\\(file_get_contents\\(\"lang/km.json\"\\)\\); echo json_last_error\\(\\) === JSON_ERROR_NONE ? \"valid JSON\\\\n\" : \"ERROR: \".json_last_error_msg\\(\\).\"\\\\n\";')"
     ]
   }
 }

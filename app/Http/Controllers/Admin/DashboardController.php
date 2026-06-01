@@ -14,6 +14,7 @@ use App\Services\Dashboard\ApartmentRevenueComparisonService;
 use App\Services\Dashboard\DashboardCalendarService;
 use App\Services\Dashboard\DashboardStatsService;
 use App\Services\Dashboard\FiscalPeriodSummaryService;
+use App\Services\NotificationService;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -81,10 +82,14 @@ class DashboardController extends Controller
 
         $monthNavigation = $this->getMonthNavigation($periodMonths, $displayMonth, $isFullPeriod);
 
+        // Renewal banner when this admin's subscription is due within 3 days.
+        $subscriptionAlert = app(NotificationService::class)->subscriptionDueAlert(Auth::user());
+
         return view('admin.dashboard', compact(
             'stats', 'fiscalData', 'calendarData',
             'activePeriod', 'apartmentsWithRentals', 'recentTransactions', 'apartmentRevenues',
-            'selectedMonth', 'periodMonths', 'monthNavigation', 'isFullPeriod', 'displayMonth'
+            'selectedMonth', 'periodMonths', 'monthNavigation', 'isFullPeriod', 'displayMonth',
+            'subscriptionAlert'
         ));
     }
 

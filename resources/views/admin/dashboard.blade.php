@@ -19,6 +19,26 @@
     </div>
     @endif
 
+    {{-- Subscription renewal alert (due within 3 days) --}}
+    @if(!empty($subscriptionAlert))
+    <div x-data="{ show: true }" x-show="show"
+         class="rounded-lg px-4 py-3 text-sm flex items-center justify-between gap-3 border {{ $subscriptionAlert['color'] === 'red' ? 'bg-red-50 border-red-100 text-red-700' : 'bg-amber-50 border-amber-100 text-amber-700' }}">
+        <div class="flex items-center gap-2.5">
+            <svg class="w-4 h-4 shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/></svg>
+            <span class="font-medium">{{ $subscriptionAlert['message'] }}</span>
+        </div>
+        <div class="flex items-center gap-2 shrink-0">
+            <a href="{{ $subscriptionAlert['url'] }}"
+               class="inline-flex items-center px-3 py-1.5 rounded-md text-xs font-medium text-white transition {{ $subscriptionAlert['color'] === 'red' ? 'bg-red-600 hover:bg-red-700' : 'bg-amber-600 hover:bg-amber-700' }}">
+                {{ __('messages.renew_now') }}
+            </a>
+            <button type="button" @click="show = false" class="opacity-60 hover:opacity-100 transition" aria-label="Dismiss">
+                <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"/></svg>
+            </button>
+        </div>
+    </div>
+    @endif
+
     {{-- Header --}}
     <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>

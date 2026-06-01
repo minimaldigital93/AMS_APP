@@ -8,6 +8,7 @@ use App\Models\TenantLeave;
 use App\Models\Tenants;
 use App\Models\User;
 use App\Models\Utilities;
+use App\Services\Subscription\SubscriptionService;
 use Carbon\Carbon;
 use Illuminate\Support\Collection;
 
@@ -17,6 +18,9 @@ class NotificationService
 
     const MAX_ITEMS = 12;
 
+    /** Warn the admin this many days before their subscription expires. */
+    const SUBSCRIPTION_ALERT_DAYS = 3;
+
     public function for(?User $user): Collection
     {
         if (! $user) {
@@ -24,7 +28,7 @@ class NotificationService
         }
 
         if ($user->hasRole('admin')) {
-            return $this->forAdmin();
+            return $this->forAdmin($user);
         }
 
         if ($user->hasRole('supervisor')) {
@@ -38,9 +42,59 @@ class NotificationService
         return collect();
     }
 
-    protected function forAdmin(): Collection
+    protected function forAdmin(User $user): Collection
     {
-        return $this->forStaff('admin');
+        $items = $this->forStaff('admin');
+
+        // Surface an upcoming subscription-renewal alert at the top of the feed.
+        if ($alert = $this->subscriptionDueAlert($user)) {
+            $items = $items->prepend($alert)->take(self::MAX_ITEMS)->values();
+        }
+
+        return $items;
+    }
+
+    /**
+     * Build a "your subscription is due soon" alert for an admin whose plan
+     * expires within SUBSCRIPTION_ALERT_DAYS. Returns null when there is no
+     * active subscription, no expiry, or it is further out / already expired
+     * (expiry is handled by the billing gate). Reused by the dashboard banner.
+     */
+    public function subscriptionDueAlert(?User $user): ?array
+    {
+        if (! $user) {
+            return null;
+        }
+
+        $accountId = $user->account_id ?? $user->id;
+        $subscription = app(SubscriptionService::class)->activeSubscription($accountId);
+
+        if (! $subscription || $subscription->expires_at === null) {
+            return null;
+        }
+
+        $hoursLeft = Carbon::now()->diffInHours($subscription->expires_at, false);
+        if ($hoursLeft <= 0) {
+            return null; // already expired — billing middleware takes over
+        }
+
+        $days = (int) ceil($hoursLeft / 24);
+        if ($days > self::SUBSCRIPTION_ALERT_DAYS) {
+            return null;
+        }
+
+        return [
+            'type' => 'subscription_due',
+            'icon' => 'card_membership',
+            'color' => $days <= 1 ? 'red' : 'amber',
+            'title' => __('messages.notif_subscription_due'),
+            'message' => __('messages.notif_subscription_due_msg', [
+                'days' => $days,
+                'date' => $subscription->expires_at->format('M d'),
+            ]),
+            'time' => $subscription->expires_at,
+            'url' => route('admin.billing.index'),
+        ];
     }
 
     protected function forSupervisor(/** @phpstan-ignore-line */ User $user): Collection
