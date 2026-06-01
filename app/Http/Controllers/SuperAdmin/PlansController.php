@@ -41,6 +41,6 @@ class PlansController extends Controller
             'is_active' => $request->boolean('is_active'),
         ]);
 
-        return back()->with('success', __(':plan updated.', ['plan' => $plan->name]));
+        return back()->with('success', __('messages.flash_plan_updated', ['plan' => $plan->name]));
     }
 }

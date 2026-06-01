@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Settings;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\View\View;
 
 class SettingsController extends Controller
@@ -69,7 +70,9 @@ class SettingsController extends Controller
 
     public function reset(): RedirectResponse
     {
-        Settings::truncate();
+        // Scoped delete (not truncate) so only this account's settings reset.
+        Settings::query()->delete();
+        Cache::flush();
 
         return redirect()->route('supervisor.settings.index')
             ->with('success', __('messages.settings_reset'));

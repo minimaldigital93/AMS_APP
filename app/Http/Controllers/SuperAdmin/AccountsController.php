@@ -51,7 +51,7 @@ class AccountsController extends Controller
             $sub->update(['status' => $suspending ? 'cancelled' : 'active']);
         }
 
-        return back()->with('success', $suspending ? __('Account suspended.') : __('Account reactivated.'));
+        return back()->with('success', $suspending ? __('messages.flash_account_suspended') : __('messages.flash_account_reactivated'));
     }
 
     /** Extend the account's subscription by one billing period. */
@@ -59,7 +59,7 @@ class AccountsController extends Controller
     {
         $sub = $account->subscription()->with('plan')->first();
         if (! $sub) {
-            return back()->with('error', __('Account has no subscription to extend.'));
+            return back()->with('error', __('messages.flash_account_no_subscription'));
         }
 
         $base = $sub->expires_at && $sub->expires_at->isFuture() ? $sub->expires_at : now();
@@ -69,7 +69,7 @@ class AccountsController extends Controller
             'expires_at' => $base->copy()->addDays($sub->plan?->billing_period_days ?? 30),
         ]);
 
-        return back()->with('success', __('Subscription extended.'));
+        return back()->with('success', __('messages.flash_subscription_extended'));
     }
 
     /** Change the account's plan (no payment — superadmin override). */
@@ -96,6 +96,6 @@ class AccountsController extends Controller
             $account->forceFill(['status' => 'active'])->save();
         }
 
-        return back()->with('success', __('Plan updated to :plan.', ['plan' => $plan->name]));
+        return back()->with('success', __('messages.flash_plan_updated_to', ['plan' => $plan->name]));
     }
 }

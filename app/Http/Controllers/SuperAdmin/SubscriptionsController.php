@@ -46,13 +46,13 @@ class SubscriptionsController extends Controller
             }
         }
 
-        return back()->with('success', __('Subscription activated.'));
+        return back()->with('success', __('messages.flash_subscription_activated'));
     }
 
     public function cancel(Subscription $subscription): RedirectResponse
     {
         $subscription->update(['status' => 'cancelled']);
 
-        return back()->with('success', __('Subscription cancelled.'));
+        return back()->with('success', __('messages.flash_subscription_cancelled'));
     }
 }

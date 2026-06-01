@@ -62,7 +62,7 @@ class FiscalPeriodController extends Controller
 
         return redirect()
             ->route('admin.fiscalperiod.show', $fiscalPeriod->id)
-            ->with('success', 'Fiscal period created with '.$fiscalPeriod->monthlyPeriods()->count().' monthly periods. The balance sheet will update automatically as you record income and expenses.');
+            ->with('success', __('messages.flash_fp_created', ['count' => $fiscalPeriod->monthlyPeriods()->count()]));
     }
 
     /**
@@ -105,7 +105,7 @@ class FiscalPeriodController extends Controller
 
         return redirect()
             ->route('admin.fiscalperiod.show', $fiscalperiod->id)
-            ->with('success', 'Fiscal period updated successfully.');
+            ->with('success', __('messages.flash_fp_updated'));
     }
 
     public function destroy(FiscalPeriods $fiscalperiod)
@@ -118,7 +118,7 @@ class FiscalPeriodController extends Controller
 
         return redirect()
             ->route('admin.fiscalperiod.index')
-            ->with('success', 'Fiscal period deleted successfully.');
+            ->with('success', __('messages.flash_fp_deleted'));
     }
 
     // ============================================================
@@ -149,7 +149,7 @@ class FiscalPeriodController extends Controller
             'user_id' => Auth::id(),
         ]);
 
-        return back()->with('success', 'Balance sheet item added successfully.');
+        return back()->with('success', __('messages.flash_bs_item_added'));
     }
 
     public function deleteBalanceItem(FiscalPeriods $fiscalperiod, BalanceSheet $balanceSheet)
@@ -162,7 +162,7 @@ class FiscalPeriodController extends Controller
 
         $balanceSheet->delete();
 
-        return back()->with('success', 'Balance sheet item deleted successfully.');
+        return back()->with('success', __('messages.flash_bs_item_deleted'));
     }
 
     public function closeperiod(CloseFiscalPeriodRequest $request, FiscalPeriods $fiscalperiod)
@@ -176,7 +176,7 @@ class FiscalPeriodController extends Controller
 
         return redirect()
             ->route('admin.fiscalperiod.show', $fiscalperiod->id)
-            ->with('success', 'Fiscal period closed successfully.');
+            ->with('success', __('messages.flash_fp_closed'));
     }
 
     // ============================================================
@@ -213,7 +213,7 @@ class FiscalPeriodController extends Controller
         $this->ensureMonthBelongsTo($fiscalperiod, $monthlyPeriod);
 
         if (! $monthlyPeriod->canClose()) {
-            return back()->with('error', 'This monthly period cannot be closed.');
+            return back()->with('error', __('messages.flash_mp_cannot_close'));
         }
 
         $withdrawal = (float) $request->validated()['owner_withdrawal'];
@@ -226,9 +226,11 @@ class FiscalPeriodController extends Controller
         if ($withdrawal > $availableCash + 0.01) {
             return back()
                 ->withInput()
-                ->with('error', 'Withdrawal of $'.number_format($withdrawal, 2)
-                    .' exceeds the available cash of $'.number_format(max(0, $availableCash), 2)
-                    .' for '.$monthlyPeriod->name.'.');
+                ->with('error', __('messages.flash_withdrawal_exceeds', [
+                    'withdrawal' => number_format($withdrawal, 2),
+                    'cash' => number_format(max(0, $availableCash), 2),
+                    'month' => $monthlyPeriod->name,
+                ]));
         }
 
         $result = $this->monthlyManager->closeMonth(
@@ -238,12 +240,23 @@ class FiscalPeriodController extends Controller
             $request->validated()['withdrawal_note'] ?? null,
         );
 
-        $msg = $monthlyPeriod->name.' closed. Net income: $'.number_format($result['net_income'], 2).'.';
+        $msg = __('messages.flash_month_closed', [
+            'month' => $monthlyPeriod->name,
+            'net' => number_format($result['net_income'], 2),
+        ]);
         if ($result['owner_withdrawal'] > 0) {
-            $msg .= ' Owner withdrawal: $'.number_format($result['owner_withdrawal'], 2).'.';
+            $msg .= __('messages.flash_month_owner_withdrawal', [
+                'amount' => number_format($result['owner_withdrawal'], 2),
+            ]);
         }
-        $msg .= ' Closing balance: $'.number_format($result['closing_balance'], 2)
-            .($result['next_month'] ? ' carried forward to '.$result['next_month']->name : '').'.';
+        $msg .= $result['next_month']
+            ? __('messages.flash_month_closing_balance_carried', [
+                'balance' => number_format($result['closing_balance'], 2),
+                'month' => $result['next_month']->name,
+            ])
+            : __('messages.flash_month_closing_balance', [
+                'balance' => number_format($result['closing_balance'], 2),
+            ]);
 
         return back()->with('success', $msg);
     }
@@ -254,17 +267,17 @@ class FiscalPeriodController extends Controller
         $this->ensureMonthBelongsTo($fiscalperiod, $monthlyPeriod);
 
         if (! $monthlyPeriod->canReopen()) {
-            return back()->with('error', 'This monthly period cannot be reopened.');
+            return back()->with('error', __('messages.flash_mp_cannot_reopen'));
         }
 
         $result = $this->monthlyManager->reopenMonth($fiscalperiod, $monthlyPeriod);
 
         // Service returns the blocking next month if reopen would break the chain.
         if ($result instanceof MonthlyPeriod) {
-            return back()->with('error', 'Cannot reopen: the next month ('.$result->name.') is already closed. Reopen it first.');
+            return back()->with('error', __('messages.flash_mp_reopen_blocked', ['month' => $result->name]));
         }
 
-        return back()->with('success', $monthlyPeriod->name.' has been reopened.');
+        return back()->with('success', __('messages.flash_mp_reopened', ['month' => $monthlyPeriod->name]));
     }
 
     public function recalculateBalances(FiscalPeriods $fiscalperiod)
@@ -275,7 +288,7 @@ class FiscalPeriodController extends Controller
 
         return back()->with(
             'success',
-            'All monthly balances recalculated. Fiscal period closing balance: $'.number_format($carryForward, 2)
+            __('messages.flash_balances_recalculated', ['balance' => number_format($carryForward, 2)])
         );
     }
 

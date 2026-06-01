@@ -113,13 +113,13 @@ class FloorController extends Controller
         if (! $this->subscriptions->canAddFloors($accountId)) {
             $plan = $this->subscriptions->activePlan($accountId);
 
-            return back()->withInput()->with('error', "Your {$plan?->name} plan allows up to {$plan?->max_floors} floor(s). Upgrade your plan to add more.");
+            return back()->withInput()->with('error', __('messages.flash_plan_limit_floors', ['plan' => $plan?->name, 'max' => $plan?->max_floors]));
         }
 
         if ($newApartments > 0 && ! $this->subscriptions->canAddApartments($accountId, $newApartments)) {
             $plan = $this->subscriptions->activePlan($accountId);
 
-            return back()->withInput()->with('error', "Your {$plan?->name} plan allows up to {$plan?->max_apartments} apartment(s). Reduce the number of apartments or upgrade your plan.");
+            return back()->withInput()->with('error', __('messages.flash_plan_limit_apartments_floor', ['plan' => $plan?->name, 'max' => $plan?->max_apartments]));
         }
 
         $floor = Floors::create([
@@ -141,10 +141,9 @@ class FloorController extends Controller
             }
         }
 
-        $message = 'Floor created successfully';
-        if ($apartmentsCreated > 0) {
-            $message .= " with {$apartmentsCreated} apartment(s)";
-        }
+        $message = $apartmentsCreated > 0
+            ? __('messages.flash_floor_created_with_units', ['count' => $apartmentsCreated])
+            : __('messages.flash_floor_created');
 
         return redirect()->route('admin.floors.index')->with('success', $message);
     }
@@ -176,7 +175,7 @@ class FloorController extends Controller
                 ]);
 
                 return redirect()->route('admin.floors.edit', $floor)
-                    ->with('success', 'Unit added successfully!');
+                    ->with('success', __('messages.flash_unit_added'));
             } catch (\Exception $e) {
                 Log::error('Error creating apartment for floor '.$floor->id.': '.$e->getMessage());
 
@@ -199,7 +198,7 @@ class FloorController extends Controller
 
             return redirect()
                 ->route('admin.floors.index')
-                ->with('success', 'Floor updated successfully');
+                ->with('success', __('messages.flash_floor_updated'));
         } catch (\Exception $e) {
             Log::error('Error updating floor '.$floor->id.': '.$e->getMessage());
 
@@ -213,6 +212,6 @@ class FloorController extends Controller
     {
         $floor->delete();
 
-        return redirect()->route('admin.floors.index')->with('success', 'Floor deleted successfully');
+        return redirect()->route('admin.floors.index')->with('success', __('messages.flash_floor_deleted'));
     }
 }

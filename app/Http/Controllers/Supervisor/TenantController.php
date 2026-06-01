@@ -242,7 +242,7 @@ class TenantController extends Controller
         ]);
 
         return redirect()->route('supervisor.tenants.index')
-            ->with('success', 'Tenant registered successfully!');
+            ->with('success', __('messages.flash_tenant_registered'));
     }
 
     /**
@@ -300,7 +300,7 @@ class TenantController extends Controller
 
             return redirect()
                 ->route('supervisor.tenants.archived')
-                ->with('success', 'Tenant leave processed successfully.');
+                ->with('success', __('messages.flash_leave_processed'));
 
         } catch (\Exception $e) {
             Log::error('Supervisor - Error processing tenant leave: '.$e->getMessage(), [
@@ -308,7 +308,7 @@ class TenantController extends Controller
                 'exception' => $e,
             ]);
 
-            return back()->with('error', 'Error processing leave: '.$e->getMessage());
+            return back()->with('error', __('messages.flash_leave_error', ['error' => $e->getMessage()]));
         }
     }
 
@@ -570,7 +570,7 @@ class TenantController extends Controller
         $tenant->update($validated);
 
         return redirect()->route('supervisor.tenants.show', $tenant->id)
-            ->with('success', 'Tenant updated successfully!');
+            ->with('success', __('messages.flash_tenant_updated'));
     }
 
     /**
@@ -601,6 +601,6 @@ class TenantController extends Controller
         $tenant->delete();
 
         return redirect()->route('supervisor.tenants.index')
-            ->with('success', 'Tenant removed successfully.');
+            ->with('success', __('messages.flash_tenant_removed'));
     }
 }

@@ -58,7 +58,7 @@ class BillingController extends Controller
             ->firstOrFail();
 
         if ($payment->isPaid()) {
-            return redirect()->route('admin.billing.index')->with('success', __('Subscription renewed.'));
+            return redirect()->route('admin.billing.index')->with('success', __('messages.flash_subscription_renewed'));
         }
 
         $payment->load('subscription.plan');

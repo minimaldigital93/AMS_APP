@@ -111,12 +111,12 @@ class ApartmentController extends Controller
         if (! $this->subscriptions->canAddApartments($accountId)) {
             $plan = $this->subscriptions->activePlan($accountId);
 
-            return back()->withInput()->with('error', "Your {$plan?->name} plan allows up to {$plan?->max_apartments} apartment(s). Upgrade your plan to add more.");
+            return back()->withInput()->with('error', __('messages.flash_plan_limit_apartments', ['plan' => $plan?->name, 'max' => $plan?->max_apartments]));
         }
 
         Apartments::create($validated);
 
-        return redirect()->route('admin.apartments.index')->with('success', 'Apartment created successfully');
+        return redirect()->route('admin.apartments.index')->with('success', __('messages.flash_apartment_created'));
     }
 
     public function update(Request $request, Apartments $apartment)
@@ -131,7 +131,7 @@ class ApartmentController extends Controller
 
         $apartment->update($validated);
 
-        return redirect()->route('admin.apartments.index')->with('success', 'Apartment updated successfully');
+        return redirect()->route('admin.apartments.index')->with('success', __('messages.flash_apartment_updated'));
     }
 
     public function assignTenant(Request $request, Apartments $apartment)
@@ -274,7 +274,7 @@ class ApartmentController extends Controller
             );
         }
 
-        return redirect()->route('admin.apartments.index')->with('success', 'Tenant assigned successfully with rental created.');
+        return redirect()->route('admin.apartments.index')->with('success', __('messages.flash_tenant_assigned'));
     }
 
     public function destroy(Apartments $apartment)
@@ -284,9 +284,9 @@ class ApartmentController extends Controller
         // Check if request came from floor edit page
         $referrer = request()->headers->get('referer');
         if ($referrer && str_contains($referrer, '/admin/floors/') && str_contains($referrer, '/edit')) {
-            return back()->with('success', 'Apartment deleted successfully');
+            return back()->with('success', __('messages.flash_apartment_deleted'));
         }
 
-        return redirect()->route('admin.apartments.index')->with('success', 'Apartment deleted successfully');
+        return redirect()->route('admin.apartments.index')->with('success', __('messages.flash_apartment_deleted'));
     }
 }

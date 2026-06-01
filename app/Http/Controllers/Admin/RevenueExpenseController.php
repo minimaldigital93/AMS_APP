@@ -113,7 +113,7 @@ class RevenueExpenseController extends Controller
 
         if (! $activePeriod) {
             return redirect()->route('admin.fiscalperiod.create')
-                ->with('warning', 'Please create a fiscal period first to track revenue and expenses.');
+                ->with('warning', __('messages.flash_fp_required_track'));
         }
 
         // Monthly filter: ?month=3&year=2026
@@ -448,7 +448,7 @@ class RevenueExpenseController extends Controller
 
         if (! $activePeriod) {
             return redirect()->route('admin.fiscalperiod.create')
-                ->with('warning', 'Please create a fiscal period first.');
+                ->with('warning', __('messages.flash_fp_required'));
         }
 
         // Selected month/year, clamped to fiscal period bounds. Default = current month.
@@ -553,7 +553,7 @@ class RevenueExpenseController extends Controller
 
         if (! $activePeriod) {
             return redirect()->route('admin.fiscalperiod.create')
-                ->with('warning', 'Please create a fiscal period first.');
+                ->with('warning', __('messages.flash_fp_required'));
         }
 
         // Accept month/year from query params, default to current
@@ -768,8 +768,11 @@ class RevenueExpenseController extends Controller
             $this->incomeService($period)->addTenantCharge($rental, $validated);
         }
 
-        $successMsg = ucfirst($validated['charge_type']).' charge of $'.number_format($validated['charge_amount'], 2)
-            .' added for '.($rental->tenant->name ?? 'tenant').'.';
+        $successMsg = __('messages.flash_charge_added', [
+            'type' => ucfirst($validated['charge_type']),
+            'amount' => number_format($validated['charge_amount'], 2),
+            'name' => $rental->tenant->name ?? __('messages.tenant'),
+        ]);
 
         if ($request->expectsJson()) {
             return response()->json(['success' => true, 'message' => $successMsg]);
@@ -793,14 +796,14 @@ class RevenueExpenseController extends Controller
                 return response()->json(['error' => 'Cannot remove a paid charge.'], 422);
             }
 
-            return redirect()->back()->with('error', 'Cannot remove a charge that has already been paid.');
+            return redirect()->back()->with('error', __('messages.flash_charge_already_paid'));
         }
 
         if (request()->expectsJson()) {
             return response()->json(['success' => true]);
         }
 
-        return redirect()->back()->with('success', 'Charge removed successfully.');
+        return redirect()->back()->with('success', __('messages.flash_charge_removed'));
     }
 
     public function clearTenantCharges($rentalId)
@@ -816,7 +819,7 @@ class RevenueExpenseController extends Controller
             return response()->json(['success' => true]);
         }
 
-        return redirect()->back()->with('success', 'All unpaid charges cleared.');
+        return redirect()->back()->with('success', __('messages.flash_charges_cleared'));
     }
 
     public function checkoutTenant(CheckoutTenantRequest $request)
@@ -824,7 +827,7 @@ class RevenueExpenseController extends Controller
         $activePeriod = $this->getActiveFiscalPeriod();
         if (! $activePeriod) {
             return redirect()->route('admin.fiscalperiod.create')
-                ->with('warning', 'Please create a fiscal period first.');
+                ->with('warning', __('messages.flash_fp_required'));
         }
 
         $validated = $request->validated();
@@ -832,15 +835,20 @@ class RevenueExpenseController extends Controller
         $result = $this->incomeService($activePeriod)->checkout($rental, $validated);
 
         if ($result['total_paid'] === 0.0) {
-            return redirect()->back()->with('error', 'No items selected for payment.');
+            return redirect()->back()->with('error', __('messages.flash_no_items_selected'));
         }
 
-        $tenantName = $rental->tenant->name ?? 'Tenant';
+        $tenantName = $rental->tenant->name ?? __('messages.tenant');
         $aptNumber = $rental->apartment->apartment_number;
 
         return redirect()->back()->with(
             'success',
-            "Payment of \${$result['total_paid']} recorded for {$tenantName} (Apt {$aptNumber}). Items: ".implode(', ', $result['items'])
+            __('messages.flash_checkout_payment', [
+                'amount' => $result['total_paid'],
+                'name' => $tenantName,
+                'apt' => $aptNumber,
+                'items' => implode(', ', $result['items']),
+            ])
         );
     }
 
@@ -915,7 +923,7 @@ class RevenueExpenseController extends Controller
         $activePeriod = $this->getActiveFiscalPeriod();
         if (! $activePeriod) {
             return redirect()->route('admin.fiscalperiod.create')
-                ->with('warning', 'Please create a fiscal period first.');
+                ->with('warning', __('messages.flash_fp_required'));
         }
 
         $validated = $request->validated();
@@ -924,8 +932,11 @@ class RevenueExpenseController extends Controller
 
         return redirect()->back()->with(
             'success',
-            ucfirst($validated['payment_type']).' income of $'.number_format($validated['amount'], 2)
-            .' recorded for apartment '.$rental->apartment->apartment_number.'.'
+            __('messages.flash_income_recorded', [
+                'type' => ucfirst($validated['payment_type']),
+                'amount' => number_format($validated['amount'], 2),
+                'apt' => $rental->apartment->apartment_number,
+            ])
         );
     }
 
@@ -934,7 +945,7 @@ class RevenueExpenseController extends Controller
         $activePeriod = $this->getActiveFiscalPeriod();
         if (! $activePeriod) {
             return redirect()->route('admin.fiscalperiod.create')
-                ->with('warning', 'Please create a fiscal period first.');
+                ->with('warning', __('messages.flash_fp_required'));
         }
 
         $validated = $request->validated();
@@ -945,12 +956,15 @@ class RevenueExpenseController extends Controller
         );
 
         if ($result['count'] === 0) {
-            return redirect()->back()->with('error', 'No apartments were selected. Please check at least one apartment.');
+            return redirect()->back()->with('error', __('messages.flash_no_apartments_selected'));
         }
 
         return redirect()->back()->with(
             'success',
-            'Monthly rent recorded for '.$result['count'].' apartment(s). Total: $'.number_format($result['total'], 2)
+            __('messages.flash_bulk_rent', [
+                'count' => $result['count'],
+                'total' => number_format($result['total'], 2),
+            ])
         );
     }
 
@@ -964,7 +978,7 @@ class RevenueExpenseController extends Controller
 
         if (! $activePeriod) {
             return redirect()->route('admin.fiscalperiod.create')
-                ->with('warning', 'Please create a fiscal period first.');
+                ->with('warning', __('messages.flash_fp_required'));
         }
 
         // Monthly filter (default to current month)
@@ -1146,7 +1160,7 @@ class RevenueExpenseController extends Controller
         $activePeriod = $this->getActiveFiscalPeriod();
         if (! $activePeriod) {
             return redirect()->route('admin.fiscalperiod.create')
-                ->with('warning', 'Please create a fiscal period first.');
+                ->with('warning', __('messages.flash_fp_required'));
         }
 
         $validated = $request->validated();
@@ -1155,8 +1169,11 @@ class RevenueExpenseController extends Controller
 
         return redirect()->back()->with(
             'success',
-            ucfirst($validated['utility_type']).' expense of $'.number_format($validated['charge_amount'], 2)
-            .' recorded for apartment '.$rental->apartment->apartment_number.'.'
+            __('messages.flash_utility_expense_recorded', [
+                'type' => ucfirst($validated['utility_type']),
+                'amount' => number_format($validated['charge_amount'], 2),
+                'apt' => $rental->apartment->apartment_number,
+            ])
         );
     }
 
@@ -1165,7 +1182,7 @@ class RevenueExpenseController extends Controller
         $activePeriod = $this->getActiveFiscalPeriod();
         if (! $activePeriod) {
             return redirect()->route('admin.fiscalperiod.create')
-                ->with('warning', 'Please create a fiscal period first.');
+                ->with('warning', __('messages.flash_fp_required'));
         }
 
         $validated = $request->validated();
@@ -1173,7 +1190,10 @@ class RevenueExpenseController extends Controller
 
         return redirect()->back()->with(
             'success',
-            'Other expense of $'.number_format($validated['amount'], 2).' recorded ('.$validated['description'].').'
+            __('messages.flash_other_expense_recorded', [
+                'amount' => number_format($validated['amount'], 2),
+                'description' => $validated['description'],
+            ])
         );
     }
 
@@ -1186,7 +1206,7 @@ class RevenueExpenseController extends Controller
 
         $desc = $this->expenseService()->deleteOtherExpense($expense);
 
-        return redirect()->back()->with('success', 'Expense "'.$desc.'" has been removed.');
+        return redirect()->back()->with('success', __('messages.flash_expense_removed', ['desc' => $desc]));
     }
 
     public function storeBusinessExpense(StoreBusinessExpenseRequest $request)
@@ -1194,7 +1214,7 @@ class RevenueExpenseController extends Controller
         $activePeriod = $this->getActiveFiscalPeriod();
         if (! $activePeriod) {
             return redirect()->route('admin.fiscalperiod.create')
-                ->with('warning', 'Please create a fiscal period first.');
+                ->with('warning', __('messages.flash_fp_required'));
         }
 
         $validated = $request->validated();
@@ -1206,7 +1226,10 @@ class RevenueExpenseController extends Controller
 
         return redirect()->back()->with(
             'success',
-            'Business expense "'.$validated['expense_name'].'" ($'.number_format($validated['amount'], 2).') recorded.'
+            __('messages.flash_business_expense_recorded', [
+                'name' => $validated['expense_name'],
+                'amount' => number_format($validated['amount'], 2),
+            ])
         );
     }
 
@@ -1214,7 +1237,7 @@ class RevenueExpenseController extends Controller
     {
         $name = $this->expenseService()->deleteBusinessExpense($businessExpense);
 
-        return redirect()->back()->with('success', 'Business expense "'.$name.'" has been removed.');
+        return redirect()->back()->with('success', __('messages.flash_business_expense_removed', ['name' => $name]));
     }
 
     // ===========================================================================
@@ -1243,7 +1266,10 @@ class RevenueExpenseController extends Controller
 
         return redirect()->back()->with(
             'success',
-            $validated['expense_name'].' ($'.number_format($validated['amount'], 2).') assigned to apartment.'
+            __('messages.flash_fixed_expense_assigned', [
+                'name' => $validated['expense_name'],
+                'amount' => number_format($validated['amount'], 2),
+            ])
         );
     }
 
@@ -1253,7 +1279,9 @@ class RevenueExpenseController extends Controller
 
         return redirect()->back()->with(
             'success',
-            $fixedExpense->expense_name.' has been '.($isActive ? 'activated' : 'deactivated').'.'
+            __($isActive ? 'messages.flash_fixed_expense_activated' : 'messages.flash_fixed_expense_deactivated', [
+                'name' => $fixedExpense->expense_name,
+            ])
         );
     }
 
@@ -1261,7 +1289,7 @@ class RevenueExpenseController extends Controller
     {
         $name = $this->expenseService()->deleteFixedExpense($fixedExpense);
 
-        return redirect()->back()->with('success', $name.' has been removed.');
+        return redirect()->back()->with('success', __('messages.flash_item_removed', ['name' => $name]));
     }
 
     // ===========================================================================
@@ -1277,7 +1305,7 @@ class RevenueExpenseController extends Controller
 
         if (! $activePeriod) {
             return redirect()->route('admin.fiscalperiod.create')
-                ->with('warning', 'Please create a fiscal period first.');
+                ->with('warning', __('messages.flash_fp_required'));
         }
 
         $currentMonth = now()->month;
@@ -1361,7 +1389,7 @@ class RevenueExpenseController extends Controller
         $activePeriod = $this->getActiveFiscalPeriod();
         if (! $activePeriod) {
             return redirect()->route('admin.fiscalperiod.create')
-                ->with('warning', 'Please create a fiscal period first.');
+                ->with('warning', __('messages.flash_fp_required'));
         }
 
         $validated = $request->validated();
@@ -1371,12 +1399,15 @@ class RevenueExpenseController extends Controller
         );
 
         if ($result['count'] === 0) {
-            return redirect()->back()->with('error', 'No new expenses were generated. Expenses may already be billed for this month.');
+            return redirect()->back()->with('error', __('messages.flash_no_new_expenses'));
         }
 
         return redirect()->back()->with(
             'success',
-            $result['count'].' expense(s) generated totaling $'.number_format($result['total'], 2).' for tenants to pay.'
+            __('messages.flash_bills_generated', [
+                'count' => $result['count'],
+                'total' => number_format($result['total'], 2),
+            ])
         );
     }
 
@@ -1385,7 +1416,7 @@ class RevenueExpenseController extends Controller
         $activePeriod = $this->getActiveFiscalPeriod();
         if (! $activePeriod) {
             return redirect()->route('admin.fiscalperiod.create')
-                ->with('warning', 'Please create a fiscal period first.');
+                ->with('warning', __('messages.flash_fp_required'));
         }
 
         $billingDate = $request->input('billing_date')
@@ -1395,12 +1426,15 @@ class RevenueExpenseController extends Controller
         $result = $this->billingService($activePeriod)->processAll($this->scopeApartments(), $billingDate);
 
         if ($result['count'] === 0) {
-            return redirect()->back()->with('error', 'No new expenses were generated. Expenses may already be billed for this month.');
+            return redirect()->back()->with('error', __('messages.flash_no_new_expenses'));
         }
 
         return redirect()->back()->with(
             'success',
-            $result['count'].' expense(s) generated totaling $'.number_format($result['total'], 2).' for tenants to pay.'
+            __('messages.flash_bills_generated', [
+                'count' => $result['count'],
+                'total' => number_format($result['total'], 2),
+            ])
         );
     }
 
@@ -1463,7 +1497,7 @@ class RevenueExpenseController extends Controller
 
         if (! $activePeriod) {
             return redirect()->route('admin.fiscalperiod.create')
-                ->with('warning', 'Please create a fiscal period first.');
+                ->with('warning', __('messages.flash_fp_required'));
         }
 
         // Determine month/year from query or default to current
@@ -1578,7 +1612,7 @@ class RevenueExpenseController extends Controller
 
         if (! $activePeriod) {
             return redirect()->route('admin.fiscalperiod.create')
-                ->with('warning', 'Please create a fiscal period first.');
+                ->with('warning', __('messages.flash_fp_required'));
         }
 
         // Monthly filter

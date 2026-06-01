@@ -155,7 +155,7 @@ class ApartmentController extends Controller
             $apartment = Apartments::whereKey($apartment->id)->lockForUpdate()->firstOrFail();
 
             if ($apartment->status !== 'available') {
-                return back()->with('error', 'This apartment is not available for assignment.');
+                return back()->with('error', __('messages.flash_apartment_not_available'));
             }
 
             $photoPath = null;
@@ -264,7 +264,7 @@ class ApartmentController extends Controller
             }
 
             return redirect()->route('supervisor.apartments.index')
-                ->with('success', 'Tenant assigned successfully with rental created.');
+                ->with('success', __('messages.flash_tenant_assigned'));
         });
     }
 

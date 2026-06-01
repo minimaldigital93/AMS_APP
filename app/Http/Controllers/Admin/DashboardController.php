@@ -105,7 +105,7 @@ class DashboardController extends Controller
 
         $activePeriod = $this->getActiveFiscalPeriod();
         if (! $activePeriod) {
-            return back()->with('error', 'No active fiscal period.');
+            return back()->with('error', __('messages.no_fiscal_period'));
         }
 
         $rental = Rentals::with('tenant', 'apartment')->findOrFail($request->rental_id);
@@ -141,7 +141,7 @@ class DashboardController extends Controller
             'transaction_date' => $request->transaction_date,
         ]);
 
-        return back()->with('success', 'Revenue of $'.number_format($request->amount, 2).' recorded.');
+        return back()->with('success', __('messages.flash_revenue_recorded', ['amount' => number_format($request->amount, 2)]));
     }
 
     /**
@@ -166,7 +166,7 @@ class DashboardController extends Controller
 
         $activePeriod = $this->getActiveFiscalPeriod();
         if (! $activePeriod) {
-            return back()->with('error', 'No active fiscal period.');
+            return back()->with('error', __('messages.no_fiscal_period'));
         }
 
         Accounts::create([
@@ -180,6 +180,6 @@ class DashboardController extends Controller
             'note' => $request->note,
         ]);
 
-        return back()->with('success', 'Expense of $'.number_format($request->amount, 2).' recorded.');
+        return back()->with('success', __('messages.flash_expense_recorded', ['amount' => number_format($request->amount, 2)]));
     }
 }

@@ -118,7 +118,7 @@ class TenantController extends Controller
         // Check if tenant exists
         if (! $tenant) {
             return redirect()->route('admin.tenants.index')
-                ->with('error', 'Tenant not found');
+                ->with('error', __('messages.flash_tenant_not_found'));
         }
 
         $tenant->load(['apartment', 'rentals']);
@@ -173,7 +173,7 @@ class TenantController extends Controller
 
             return redirect()
                 ->route('admin.tenants.archived')
-                ->with('success', 'Tenant leave processed successfully. Settlement created.');
+                ->with('success', __('messages.flash_leave_processed_settlement'));
 
         } catch (\Exception $e) {
             Log::error('Error processing tenant leave: '.$e->getMessage(), [
@@ -181,7 +181,7 @@ class TenantController extends Controller
                 'exception' => $e,
             ]);
 
-            return back()->with('error', 'Error processing leave: '.$e->getMessage());
+            return back()->with('error', __('messages.flash_leave_error', ['error' => $e->getMessage()]));
         }
     }
 
@@ -452,7 +452,7 @@ class TenantController extends Controller
         }
 
         return redirect()->route('admin.tenants.index')
-            ->with('success', 'Tenant created successfully!');
+            ->with('success', __('messages.flash_tenant_created'));
     }
 
     /**
@@ -514,6 +514,6 @@ class TenantController extends Controller
         $tenant->update($validated);
 
         return redirect()->route('admin.tenants.show', $tenant->id)
-            ->with('success', 'Tenant updated successfully!');
+            ->with('success', __('messages.flash_tenant_updated'));
     }
 }

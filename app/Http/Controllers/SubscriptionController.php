@@ -75,7 +75,7 @@ class SubscriptionController extends Controller
             ->firstOrFail();
 
         if ($payment->isPaid()) {
-            return redirect()->route('login')->with('status', __('Subscription activated — please sign in.'));
+            return redirect()->route('login')->with('status', __('messages.flash_subscription_activated_signin'));
         }
 
         $payment->load('subscription.plan');

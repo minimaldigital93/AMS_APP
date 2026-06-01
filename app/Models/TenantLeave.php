@@ -2,15 +2,17 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\BelongsToAccount;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class TenantLeave extends Model
 {
-    use SoftDeletes;
+    use BelongsToAccount, SoftDeletes;
 
     protected $fillable = [
+        'account_id',
         'tenant_id',
         'rental_id',
         'apartment_id',

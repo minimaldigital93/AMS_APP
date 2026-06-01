@@ -144,7 +144,27 @@
       "Bash(./vendor/bin/pint -q)",
       "Bash(grep -n 'roles\\\\b\\\\|$roles' resources/views/admin/users/index.blade.php)",
       "Bash(php -l app/Http/Controllers/Admin/UserController.php)",
-      "Bash(./vendor/bin/pint app/Http/Controllers/Admin/UserController.php)"
+      "Bash(./vendor/bin/pint app/Http/Controllers/Admin/UserController.php)",
+      "Bash(grep -rln 'session\\('\\\\''success'\\\\''\\)\\\\|session\\('\\\\''error'\\\\''\\)\\\\|session\\('\\\\''warning'\\\\''\\)\\\\|session\\('\\\\''status'\\\\''\\)\\\\|session\\(\"success\\\\|$errors' resources/views/)",
+      "Bash(sed -n '125,150p' app/Http/Controllers/Admin/FloorController.php)",
+      "Bash(sed -n '760,780p' app/Http/Controllers/Admin/RevenueExpenseController.php)",
+      "Bash(sed -n '225,248p' app/Http/Controllers/Admin/FiscalPeriodController.php)",
+      "Bash(sed -n '31,40p' resources/views/profile/partials/update-profile-information-form.blade.php)",
+      "Bash(sed -n '37,46p' resources/views/profile/partials/update-password-form.blade.php)",
+      "Bash(grep -n '$successMsg =\\\\|$successMsg \\\\.=\\\\|$msg =\\\\|$message =\\\\|$warningMsg\\\\|$errorMsg' app/Http/Controllers/Admin/RevenueExpenseController.php)",
+      "Bash(grep -n '$successMsg =\\\\|$successMsg \\\\.=\\\\|$msg =\\\\|$message =' app/Http/Controllers/Supervisor/RevenueExpenseController.php)",
+      "Bash(grep -rnA2 \"->with\\($\" app/Http/Controllers/)",
+      "Bash(php -r \"include 'lang/en/messages.php'; echo 'EN OK\\\\n';\")",
+      "Bash(php -r \"include 'lang/km/messages.php'; echo 'KM OK\\\\n';\")",
+      "Bash(grep -rnA1 -E \"^\\\\s+'\\(success|error|warning|info\\)',$\" app/Http/Controllers/)",
+      "Bash(php -l app/Http/Controllers/__TRACKED_VAR__.php)",
+      "Bash(./vendor/bin/pest --compact)",
+      "Bash(xargs -n1 basename)",
+      "Bash(grep -n \"^\\\\.env$\\\\|^/\\\\.env$\\\\|^\\\\.env\" .gitignore)",
+      "Bash(sed -n '1,60p' app/Models/Settings.php)",
+      "Bash(./vendor/bin/pint app/Models/Settings.php app/Models/TenantLeave.php app/Http/Controllers/Admin/SettingsController.php app/Http/Controllers/Supervisor/SettingsController.php database/migrations/2026_06_01_000005_add_account_id_to_tenant_leaves.php database/migrations/2026_06_01_000006_make_settings_per_account.php)",
+      "Bash(git rm *)",
+      "Bash(grep -n \"Settings & helpers\\\\|global \\\\`settings\\(\\)\\\\`\\\\|Prefer this over reading\" CLAUDE.md)"
     ]
   }
 }

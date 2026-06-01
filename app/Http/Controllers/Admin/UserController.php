@@ -81,7 +81,7 @@ class UserController extends Controller
 
         $user->assignRole($validated['role']);
 
-        return redirect()->route('admin.users.index')->with('success', 'User created successfully');
+        return redirect()->route('admin.users.index')->with('success', __('messages.flash_user_created'));
     }
 
     public function update(Request $request, User $user)
@@ -106,14 +106,14 @@ class UserController extends Controller
 
         $user->syncRoles([$validated['role']]);
 
-        return redirect()->route('admin.users.index')->with('success', 'User updated successfully');
+        return redirect()->route('admin.users.index')->with('success', __('messages.flash_user_updated'));
     }
 
     public function destroy(User $user)
     {
         $user->delete();
 
-        return redirect()->route('admin.users.index')->with('success', 'User deleted successfully');
+        return redirect()->route('admin.users.index')->with('success', __('messages.flash_user_deleted'));
     }
 
     public function updateRole(Request $request, User $user)
@@ -128,7 +128,7 @@ class UserController extends Controller
         $role = Role::findById($validated['role']);
         $user->syncRoles([$role]);
 
-        return redirect()->route('admin.users.index')->with('success', 'User role updated successfully');
+        return redirect()->route('admin.users.index')->with('success', __('messages.flash_user_role_updated'));
     }
 
     public function assignPermissions(Request $request, User $user)
@@ -140,6 +140,6 @@ class UserController extends Controller
 
         $user->syncPermissions($validated['permissions'] ?? []);
 
-        return redirect()->route('admin.users.index')->with('success', 'Permissions updated');
+        return redirect()->route('admin.users.index')->with('success', __('messages.flash_permissions_updated'));
     }
 }
