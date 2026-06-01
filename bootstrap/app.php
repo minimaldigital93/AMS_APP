@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Middleware\EnsureFiscalPeriodExists;
+use App\Http\Middleware\EnsureSubscriptionActive;
 use App\Http\Middleware\RoleMiddleware;
 use App\Http\Middleware\SetLocale;
 use Illuminate\Foundation\Application;
@@ -21,6 +22,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->alias([
             'role' => RoleMiddleware::class,
             'fiscal.period' => EnsureFiscalPeriodExists::class,
+            'subscription.active' => EnsureSubscriptionActive::class,
         ]);
 
         // KHQRPay webhook is authenticated by its own signature, not a CSRF token.

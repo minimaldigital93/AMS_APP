@@ -10,6 +10,10 @@ use App\Http\Controllers\Admin\TenantController;
 use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\KhqrCallbackController;
 use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\SuperAdmin\AccountsController as SuperAdminAccountsController;
+use App\Http\Controllers\SuperAdmin\DashboardController as SuperAdminDashboardController;
+use App\Http\Controllers\SuperAdmin\PlansController as SuperAdminPlansController;
+use App\Http\Controllers\SuperAdmin\SubscriptionsController as SuperAdminSubscriptionsController;
 use App\Http\Controllers\Supervisor\ApartmentController as SupervisorApartmentController;
 use App\Http\Controllers\Supervisor\DashboardController as SupervisorDashboardController;
 use App\Http\Controllers\Supervisor\RevenueExpenseController as SupervisorRevenueExpenseController;
@@ -21,6 +25,14 @@ use Illuminate\Support\Facades\Route;
 
 Route::get('/', function () {
     return view('auth.login');
+});
+
+// Public SaaS signup funnel (pricing modal → signup → KHQR checkout → activate).
+Route::middleware('guest')->group(function () {
+    Route::get('/subscribe', [\App\Http\Controllers\SubscriptionController::class, 'create'])->name('subscribe.create');
+    Route::post('/subscribe', [\App\Http\Controllers\SubscriptionController::class, 'store'])->name('subscribe.store');
+    Route::get('/subscribe/checkout/{transaction}', [\App\Http\Controllers\SubscriptionController::class, 'checkout'])->name('subscribe.checkout');
+    Route::get('/subscribe/checkout/{transaction}/status', [\App\Http\Controllers\SubscriptionController::class, 'status'])->name('subscribe.checkout.status');
 });
 
 // KHQRPay webhook (signature-authenticated, CSRF-exempt — see bootstrap/app.php)
@@ -41,7 +53,9 @@ Route::post('/language/switch', function (\Illuminate\Http\Request $request) {
 Route::get('/dashboard', function () {
     /** @var \App\Models\User $user */
     $user = Auth::user();
-    if ($user->hasRole('admin')) {
+    if ($user->hasRole('superadmin')) {
+        return redirect()->route('superadmin.dashboard');
+    } elseif ($user->hasRole('admin')) {
         return redirect()->route('admin.dashboard');
     } elseif ($user->hasRole('supervisor')) {
         return redirect()->route('supervisor.dashboard');
@@ -53,7 +67,7 @@ Route::get('/dashboard', function () {
 })->middleware(['auth'])->name('dashboard');
 
 Route::get('/admin/dashboard', [DashboardController::class, 'index'])
-    ->middleware(['auth', 'role:admin'])
+    ->middleware(['auth', 'role:admin|superadmin', 'subscription.active'])
     ->name('admin.dashboard');
 
 Route::get('/supervisor/dashboard', [SupervisorDashboardController::class, 'index'])
@@ -64,6 +78,26 @@ Route::get('/tenant/dashboard', [TenantDashboardController::class, 'index'])
     ->middleware(['auth', 'role:tenant'])
     ->name('tenant.dashboard');
 
+// SuperAdmin Platform Panel (SaaS layer) — reads across all accounts.
+Route::middleware(['auth', 'role:superadmin'])->prefix('superadmin')->name('superadmin.')->group(function () {
+    Route::get('/dashboard', [SuperAdminDashboardController::class, 'index'])->name('dashboard');
+
+    // Customer accounts
+    Route::get('/accounts', [SuperAdminAccountsController::class, 'index'])->name('accounts.index');
+    Route::post('/accounts/{account}/suspend', [SuperAdminAccountsController::class, 'toggleSuspend'])->name('accounts.suspend');
+    Route::post('/accounts/{account}/extend', [SuperAdminAccountsController::class, 'extend'])->name('accounts.extend');
+    Route::post('/accounts/{account}/plan', [SuperAdminAccountsController::class, 'changePlan'])->name('accounts.plan');
+
+    // Plans
+    Route::get('/plans', [SuperAdminPlansController::class, 'index'])->name('plans.index');
+    Route::put('/plans/{plan}', [SuperAdminPlansController::class, 'update'])->name('plans.update');
+
+    // Subscriptions
+    Route::get('/subscriptions', [SuperAdminSubscriptionsController::class, 'index'])->name('subscriptions.index');
+    Route::post('/subscriptions/{subscription}/activate', [SuperAdminSubscriptionsController::class, 'activate'])->name('subscriptions.activate');
+    Route::post('/subscriptions/{subscription}/cancel', [SuperAdminSubscriptionsController::class, 'cancel'])->name('subscriptions.cancel');
+});
+
 Route::middleware('auth')->group(function () {
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
@@ -71,7 +105,13 @@ Route::middleware('auth')->group(function () {
 });
 
 // Admin Management Routes
-Route::middleware(['auth', 'role:admin'])->group(function () {
+Route::middleware(['auth', 'role:admin|superadmin', 'subscription.active'])->group(function () {
+    // Billing & Subscription (exempt from the subscription gate inside the middleware)
+    Route::get('/admin/billing', [\App\Http\Controllers\Admin\BillingController::class, 'index'])->name('admin.billing.index');
+    Route::post('/admin/billing/renew', [\App\Http\Controllers\Admin\BillingController::class, 'renew'])->name('admin.billing.renew');
+    Route::get('/admin/billing/checkout/{transaction}', [\App\Http\Controllers\Admin\BillingController::class, 'checkout'])->name('admin.billing.checkout');
+    Route::get('/admin/billing/checkout/{transaction}/status', [\App\Http\Controllers\Admin\BillingController::class, 'status'])->name('admin.billing.status');
+
     // Floor Management Routes
     Route::get('/admin/floors', [FloorController::class, 'index'])->name('admin.floors.index');
     Route::get('/admin/floors-3d', [FloorController::class, 'plan3d'])->name('admin.floors.plan3d');

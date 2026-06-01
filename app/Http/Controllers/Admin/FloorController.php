@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Floors;
 use App\Models\Tenants;
+use App\Services\Subscription\SubscriptionService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\Rule;
@@ -12,6 +13,8 @@ use Illuminate\View\View;
 
 class FloorController extends Controller
 {
+    public function __construct(private SubscriptionService $subscriptions) {}
+
     public function index(Request $request): View
     {
         $query = Floors::query();
@@ -102,6 +105,22 @@ class FloorController extends Controller
             'apartments.*.monthly_rent' => 'nullable|numeric|min:0',
             'apartments.*.status' => 'nullable|in:available,occupied,maintenance',
         ]);
+
+        // Enforce the account's subscription plan limits.
+        $accountId = current_account_id();
+        $newApartments = count($validated['apartments'] ?? []);
+
+        if (! $this->subscriptions->canAddFloors($accountId)) {
+            $plan = $this->subscriptions->activePlan($accountId);
+
+            return back()->withInput()->with('error', "Your {$plan?->name} plan allows up to {$plan?->max_floors} floor(s). Upgrade your plan to add more.");
+        }
+
+        if ($newApartments > 0 && ! $this->subscriptions->canAddApartments($accountId, $newApartments)) {
+            $plan = $this->subscriptions->activePlan($accountId);
+
+            return back()->withInput()->with('error', "Your {$plan?->name} plan allows up to {$plan?->max_apartments} apartment(s). Reduce the number of apartments or upgrade your plan.");
+        }
 
         $floor = Floors::create([
             'floor_name' => $validated['floor_name'],

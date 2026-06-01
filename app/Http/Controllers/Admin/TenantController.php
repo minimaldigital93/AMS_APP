@@ -418,6 +418,7 @@ class TenantController extends Controller
             'name' => $validated['name'],
             'phone' => $validated['phone'],
             'password' => '12345678',
+            'account_id' => current_account_id(),
         ]);
         $tenantUser->assignRole('tenant');
 

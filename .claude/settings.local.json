@@ -132,7 +132,16 @@
       "Bash(curl -sL -A \"Mozilla/5.0\" https://khqr.cc/build/assets/app-CKl8NZMC.js)",
       "Bash(php -l app/Services/RevenueExpense/KhqrPaymentService.php)",
       "Bash(./vendor/bin/pint app/Services/RevenueExpense/KhqrPaymentService.php config/services.php tests/Feature/RevenueExpense/KhqrPaymentServiceTest.php)",
-      "Bash(./vendor/bin/pest tests/Feature/Auth tests/Feature/ProfileTest.php)"
+      "Bash(./vendor/bin/pest tests/Feature/Auth tests/Feature/ProfileTest.php)",
+      "Bash(gh auth *)",
+      "Bash(git remote *)",
+      "Bash(git push *)",
+      "Read(//Users/moniodom/**)",
+      "Bash(ssh -T git@github.com -o StrictHostKeyChecking=no -o BatchMode=yes)",
+      "Bash(echo \"--- exit: $? ---\")",
+      "Bash(./vendor/bin/pest tests/Feature/Subscription)",
+      "Bash(./vendor/bin/pint)",
+      "Bash(./vendor/bin/pint -q)"
     ]
   }
 }

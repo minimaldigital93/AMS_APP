@@ -5,6 +5,8 @@ namespace App\Services\RevenueExpense;
 use App\Models\FiscalPeriods;
 use App\Models\KhqrPayment;
 use App\Models\Rentals;
+use App\Models\Subscription;
+use App\Models\User;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
@@ -104,6 +106,60 @@ class KhqrPaymentService
     }
 
     /**
+     * Create a pending KhqrPayment for a plan SUBSCRIPTION (signup or renewal)
+     * + mint the QR. Mirrors createQr() but carries no rental/fiscal context.
+     */
+    public function createSubscriptionQr(Subscription $subscription, float $amount, string $successUrl): KhqrPayment
+    {
+        $transactionId = 'SUB-'.$subscription->id.'-'.now()->format('YmdHis').'-'.random_int(100, 999);
+
+        $row = KhqrPayment::create([
+            'transaction_id' => $transactionId,
+            'subscription_id' => $subscription->id,
+            'amount' => $amount,
+            'currency' => config('services.khqrpay.currency', 'USD'),
+            'status' => 'pending',
+            'checkout_payload' => ['type' => 'subscription', 'subscription_id' => $subscription->id],
+        ]);
+
+        if (config('services.khqrpay.demo')) {
+            $row->forceFill([
+                'qr_url' => $this->demoQrImageUrl($transactionId, $amount),
+                'provider_ref' => 'DEMO-'.$transactionId,
+            ])->save();
+
+            return $row;
+        }
+
+        $params = [
+            'transaction_id' => $transactionId,
+            'amount' => number_format($amount, 2, '.', ''),
+            'success_url' => $successUrl,
+        ];
+        $params['hash'] = $this->sign($params);
+
+        $endpoint = rtrim((string) config('services.khqrpay.base_url'), '/')
+            .'/'.config('services.khqrpay.profile_id')
+            .'/payment-gateway/v1/payments/qr-api-khqr';
+
+        $response = Http::asForm()->acceptJson()->post($endpoint, $params);
+
+        if (! $response->successful()) {
+            Log::warning('KHQRPay createSubscriptionQr failed', ['status' => $response->status(), 'tran' => $transactionId]);
+            $row->forceFill(['status' => 'expired'])->save();
+            throw new \RuntimeException('KHQRPay did not return a QR (HTTP '.$response->status().').');
+        }
+
+        $data = $response->json() ?? [];
+        $row->forceFill([
+            'qr_url' => $data['qr'] ?? $data['qr_url'] ?? $data['qrImage'] ?? $data['checkout_url'] ?? null,
+            'provider_ref' => $data['md5'] ?? $data['tran'] ?? $data['transaction_id'] ?? null,
+        ])->save();
+
+        return $row;
+    }
+
+    /**
      * Ask KHQRPay whether the payment has been confirmed by Bakong.
      * On confirmation, finalize() is the caller's responsibility.
      */
@@ -181,6 +237,13 @@ class KhqrPaymentService
             return;
         }
 
+        // Subscription payments activate the plan instead of booking a rental.
+        if ($row->subscription_id) {
+            $this->finalizeSubscription($row);
+
+            return;
+        }
+
         DB::transaction(function () use ($row) {
             // Re-load under a lock so concurrent poll + webhook can't double-book.
             $locked = KhqrPayment::whereKey($row->getKey())->lockForUpdate()->first();
@@ -202,6 +265,54 @@ class KhqrPaymentService
 
             (new IncomeRecordingService(userId: $locked->user_id, period: $period))
                 ->checkout($rental, $payload);
+
+            $locked->forceFill([
+                'status' => 'paid',
+                'paid_at' => now(),
+            ])->save();
+        });
+    }
+
+    /**
+     * Activate a subscription whose KHQR payment has been confirmed, exactly once.
+     * Marks the subscription active (+ expiry), promotes the account user to the
+     * `admin` role, and links the paying KHQR row. Idempotent under a row lock.
+     */
+    public function finalizeSubscription(KhqrPayment $row): void
+    {
+        DB::transaction(function () use ($row) {
+            $locked = KhqrPayment::whereKey($row->getKey())->lockForUpdate()->first();
+            if (! $locked || $locked->status === 'paid') {
+                return;
+            }
+
+            $subscription = Subscription::with('plan')->find($locked->subscription_id);
+            if (! $subscription) {
+                Log::warning('KHQRPay finalizeSubscription skipped: missing subscription', ['tran' => $locked->transaction_id]);
+
+                return;
+            }
+
+            $days = $subscription->plan?->billing_period_days ?? 30;
+
+            $subscription->forceFill([
+                'status' => 'active',
+                'started_at' => now(),
+                'expires_at' => now()->addDays($days),
+                'khqr_payment_id' => $locked->id,
+            ])->save();
+
+            // Promote the account owner to admin (signup) — no-op on renewals —
+            // and flip the account active so it can log in (LoginRequest gates on this).
+            $owner = User::find($subscription->account_id);
+            if ($owner) {
+                if (! $owner->hasRole('admin')) {
+                    $owner->assignRole('admin');
+                }
+                if ($owner->status !== 'active') {
+                    $owner->forceFill(['status' => 'active'])->save();
+                }
+            }
 
             $locked->forceFill([
                 'status' => 'paid',

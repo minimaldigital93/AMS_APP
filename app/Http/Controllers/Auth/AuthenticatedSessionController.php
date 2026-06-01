@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Auth\LoginRequest;
+use App\Models\Plan;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -16,7 +17,10 @@ class AuthenticatedSessionController extends Controller
      */
     public function create(): View
     {
-        return view('auth.login');
+        // Plans power the "Subscribe" pricing modal on the login screen.
+        $plans = Plan::where('is_active', true)->orderBy('price_usd')->get();
+
+        return view('auth.login', compact('plans'));
     }
 
     /**
@@ -34,7 +38,9 @@ class AuthenticatedSessionController extends Controller
         /** @var \App\Models\User $user */
         $user = Auth::user();
 
-        if ($user->hasRole('admin')) {
+        if ($user->hasRole('superadmin')) {
+            return redirect()->route('superadmin.dashboard');
+        } elseif ($user->hasRole('admin')) {
             return redirect()->route('admin.dashboard');
         } elseif ($user->hasRole('supervisor')) {
             return redirect()->route('supervisor.dashboard');

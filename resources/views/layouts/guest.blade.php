@@ -13,6 +13,7 @@
 
         <!-- Scripts -->
         @vite(['resources/css/app.css', 'resources/js/app.js'])
+        <style>[x-cloak]{display:none !important;}</style>
     </head>
     <body class="font-sans text-gray-900 antialiased">
         <!-- 3D Animated Background -->
@@ -75,5 +76,9 @@
                 {{ $slot }}
             </div>
         </div>
+
+        {{-- Overlays (subscribe button, pricing modal, etc.) — rendered outside the
+             login-card so backdrop-filter doesn't trap fixed positioning. --}}
+        @stack('overlays')
     </body>
 </html>

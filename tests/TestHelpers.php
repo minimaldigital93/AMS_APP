@@ -3,7 +3,9 @@
 use App\Models\Apartments;
 use App\Models\FiscalPeriods;
 use App\Models\Floors;
+use App\Models\Plan;
 use App\Models\Rentals;
+use App\Models\Subscription;
 use App\Models\Tenants;
 use App\Models\User;
 use Spatie\Permission\Models\Role;
@@ -17,7 +19,7 @@ use Spatie\Permission\Models\Role;
  */
 function seedRoles(): void
 {
-    foreach (['admin', 'supervisor', 'tenant'] as $name) {
+    foreach (['superadmin', 'admin', 'supervisor', 'tenant'] as $name) {
         Role::findOrCreate($name, 'web');
     }
 }
@@ -29,8 +31,29 @@ function makeAdmin(array $overrides = []): User
         'name' => 'Test Admin',
     ], $overrides));
     $user->assignRole('admin');
+    // An admin owns its own account and (by default) has an active, unlimited
+    // subscription so the subscription.active gate lets it use admin routes.
+    $user->forceFill(['account_id' => $user->id])->save();
+    giveActiveSubscription($user);
 
     return $user;
+}
+
+/**
+ * Attach an active subscription to an account. Defaults to an unlimited plan so
+ * tests aren't accidentally limited; pass a plan to test specific caps.
+ */
+function giveActiveSubscription(User $account, ?Plan $plan = null): Subscription
+{
+    $plan ??= Plan::firstOrCreate(
+        ['slug' => 'test-unlimited'],
+        ['name' => 'Test Unlimited', 'price_usd' => 0, 'max_floors' => null, 'max_apartments' => null, 'billing_period_days' => 30, 'is_active' => true]
+    );
+
+    return Subscription::updateOrCreate(
+        ['account_id' => $account->id],
+        ['plan_id' => $plan->id, 'status' => 'active', 'started_at' => now(), 'expires_at' => now()->addMonth()]
+    );
 }
 
 function makeSupervisor(array $overrides = []): User

@@ -44,3 +44,27 @@ if (! function_exists('setting')) {
         return settings($key, $default);
     }
 }
+
+if (! function_exists('current_account_id')) {
+    /**
+     * The id of the account (owning admin user) the current request acts within.
+     *
+     * - admin/superadmin → their own user id
+     * - supervisor/tenant → the admin they belong to (users.account_id)
+     * - unauthenticated (login, signup, console/seeders) → null (no scoping)
+     *
+     * The BelongsToAccount global scope keys off this to isolate each customer's
+     * data. Returning null when there is no authenticated user is deliberate so
+     * the login lookup, registration, and seeders are never accidentally scoped.
+     */
+    function current_account_id(): ?int
+    {
+        $user = \Illuminate\Support\Facades\Auth::user();
+
+        if ($user === null) {
+            return null;
+        }
+
+        return $user->account_id ?? $user->getKey();
+    }
+}

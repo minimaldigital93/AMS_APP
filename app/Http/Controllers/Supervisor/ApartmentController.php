@@ -181,6 +181,7 @@ class ApartmentController extends Controller
                         [
                             'name' => $tenant->name,
                             'password' => Str::random(16),
+                            'account_id' => current_account_id(),
                         ]
                     );
                     if (! $existingUser->hasRole('tenant')) {
@@ -193,6 +194,7 @@ class ApartmentController extends Controller
                     'name' => $validated['name'],
                     'phone' => $validated['phone'],
                     'password' => Str::random(16),
+                    'account_id' => current_account_id(),
                 ]);
                 $tenantUser->assignRole('tenant');
 

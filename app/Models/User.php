@@ -29,6 +29,7 @@ class User extends Authenticatable
         'password',
         'status',
         'last_login_at',
+        'account_id',
     ];
 
     /**
@@ -55,6 +56,31 @@ class User extends Authenticatable
     }
 
     // Relationships
+
+    /**
+     * The account (owning admin) this user belongs to. Admins/superadmins own
+     * their own account, so account_id points back at themselves.
+     */
+    public function account(): \Illuminate\Database\Eloquent\Relations\BelongsTo
+    {
+        return $this->belongsTo(User::class, 'account_id');
+    }
+
+    /**
+     * Every user (admin + their supervisors/tenants) within this account.
+     */
+    public function accountMembers(): HasMany
+    {
+        return $this->hasMany(User::class, 'account_id');
+    }
+
+    /**
+     * This account's subscription record (one per account).
+     */
+    public function subscription(): \Illuminate\Database\Eloquent\Relations\HasOne
+    {
+        return $this->hasOne(Subscription::class, 'account_id');
+    }
 
     public function supervisedApartments(): HasMany
     {

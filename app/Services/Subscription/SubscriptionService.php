@@ -1,0 +1,97 @@
+<?php
+
+namespace App\Services\Subscription;
+
+use App\Models\Apartments;
+use App\Models\Floors;
+use App\Models\Plan;
+use App\Models\Subscription;
+use Carbon\Carbon;
+
+/**
+ * Resolves an account's plan and enforces its floor/apartment caps.
+ *
+ * The "account" is the owning admin user id (see BelongsToAccount). Counts use
+ * withoutAccountScope() so this can be called for ANY account (e.g. the
+ * superadmin platform panel), not just the current request's account.
+ *
+ * Enforcement is lenient when no active plan exists (legacy installs / accounts
+ * the superadmin provisioned by hand) — access gating is the renew middleware's
+ * job; this class only enforces the numeric caps once a plan is in effect.
+ */
+class SubscriptionService
+{
+    public function activeSubscription(int $accountId): ?Subscription
+    {
+        return Subscription::query()
+            ->where('account_id', $accountId)
+            ->where('status', 'active')
+            ->where(function ($q) {
+                $q->whereNull('expires_at')->orWhere('expires_at', '>', Carbon::now());
+            })
+            ->with('plan')
+            ->latest('id')
+            ->first();
+    }
+
+    public function activePlan(int $accountId): ?Plan
+    {
+        return $this->activeSubscription($accountId)?->plan;
+    }
+
+    public function floorCount(int $accountId): int
+    {
+        return Floors::withoutAccountScope()->where('account_id', $accountId)->count();
+    }
+
+    public function apartmentCount(int $accountId): int
+    {
+        return Apartments::withoutAccountScope()->where('account_id', $accountId)->count();
+    }
+
+    /**
+     * Can this account add $count more floors under its current plan?
+     */
+    public function canAddFloors(int $accountId, int $count = 1): bool
+    {
+        $plan = $this->activePlan($accountId);
+
+        if ($plan === null || $plan->hasUnlimitedFloors()) {
+            return true;
+        }
+
+        return $this->floorCount($accountId) + $count <= $plan->max_floors;
+    }
+
+    /**
+     * Can this account add $count more apartments under its current plan?
+     */
+    public function canAddApartments(int $accountId, int $count = 1): bool
+    {
+        $plan = $this->activePlan($accountId);
+
+        if ($plan === null || $plan->hasUnlimitedApartments()) {
+            return true;
+        }
+
+        return $this->apartmentCount($accountId) + $count <= $plan->max_apartments;
+    }
+
+    /**
+     * Usage snapshot for billing/dashboard UI.
+     *
+     * @return array{plan: ?Plan, floors_used: int, floors_max: ?int, apartments_used: int, apartments_max: ?int}
+     */
+    public function usage(int $accountId): array
+    {
+        $plan = $this->activePlan($accountId);
+
+        return [
+            'plan' => $plan,
+            'floors_used' => $this->floorCount($accountId),
+            'floors_max' => $plan?->max_floors,
+            'apartments_used' => $this->apartmentCount($accountId),
+            'apartments_max' => $plan?->max_apartments,
+        ];
+    }
+}

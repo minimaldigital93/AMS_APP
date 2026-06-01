@@ -10,6 +10,7 @@ use App\Models\Floors;
 use App\Models\Rentals;
 use App\Models\Tenants;
 use App\Models\User;
+use App\Services\Subscription\SubscriptionService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -17,6 +18,8 @@ use Illuminate\View\View;
 
 class ApartmentController extends Controller
 {
+    public function __construct(private SubscriptionService $subscriptions) {}
+
     public function index(Request $request): View
     {
         $query = Apartments::with(['floor', 'tenants', 'supervisor']);
@@ -103,6 +106,14 @@ class ApartmentController extends Controller
             'description' => 'nullable|string',
         ]);
 
+        // Enforce the account's subscription plan apartment cap.
+        $accountId = current_account_id();
+        if (! $this->subscriptions->canAddApartments($accountId)) {
+            $plan = $this->subscriptions->activePlan($accountId);
+
+            return back()->withInput()->with('error', "Your {$plan?->name} plan allows up to {$plan?->max_apartments} apartment(s). Upgrade your plan to add more.");
+        }
+
         Apartments::create($validated);
 
         return redirect()->route('admin.apartments.index')->with('success', 'Apartment created successfully');
@@ -171,6 +182,7 @@ class ApartmentController extends Controller
                         'name' => $tenant->name,
                         'phone' => $tenant->phone,
                         'password' => '12345678',
+                        'account_id' => current_account_id(),
                     ]);
                     $existingUser->assignRole('tenant');
                 }
@@ -182,6 +194,7 @@ class ApartmentController extends Controller
                 'name' => $validated['name'],
                 'phone' => $validated['phone'],
                 'password' => '12345678',
+                'account_id' => current_account_id(),
             ]);
             $tenantUser->assignRole('tenant');
 

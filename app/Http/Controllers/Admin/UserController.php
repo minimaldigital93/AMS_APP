@@ -15,7 +15,9 @@ class UserController extends Controller
 {
     public function index(Request $request): View
     {
-        $query = User::with('roles', 'permissions', 'tenants.apartment');
+        // Isolate to the current account (admins only see their own team).
+        $query = User::where('account_id', current_account_id())
+            ->with('roles', 'permissions', 'tenants.apartment');
 
         // Filter by role
         if ($request->filled('role')) {
@@ -67,6 +69,8 @@ class UserController extends Controller
             'name' => $validated['name'],
             'phone' => $validated['phone'],
             'password' => Hash::make($validated['password']),
+            // New team members belong to the creating admin's account.
+            'account_id' => current_account_id(),
         ]);
 
         $user->assignRole($validated['role']);

@@ -2,11 +2,14 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\BelongsToAccount;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class BusinessExpense extends Model
 {
+    use BelongsToAccount;
+
     protected $fillable = [
         'user_id',
         'fiscal_period_id',

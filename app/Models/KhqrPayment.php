@@ -16,6 +16,7 @@ class KhqrPayment extends Model
     protected $fillable = [
         'transaction_id',
         'rental_id',
+        'subscription_id',
         'fiscal_period_id',
         'user_id',
         'amount',
@@ -39,6 +40,11 @@ class KhqrPayment extends Model
     public function rental(): BelongsTo
     {
         return $this->belongsTo(Rentals::class, 'rental_id');
+    }
+
+    public function subscription(): BelongsTo
+    {
+        return $this->belongsTo(Subscription::class, 'subscription_id');
     }
 
     public function isPaid(): bool

@@ -2,12 +2,15 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\BelongsToAccount;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class Accounts extends Model
 {
+    use BelongsToAccount;
+
     // ── Account Types ────────────────────────────────────────────
     public const TYPE_INCOME = 'income';
 

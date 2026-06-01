@@ -2,11 +2,14 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\BelongsToAccount;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class BalanceSheet extends Model
 {
+    use BelongsToAccount;
+
     protected $fillable = [
         'fiscal_period_id',
         'user_id',

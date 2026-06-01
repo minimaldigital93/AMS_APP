@@ -28,9 +28,13 @@ class RolePermissionSeeder extends Seeder
             Permission::firstOrCreate(['name' => $permission]);
         }
 
+        $superadmin = Role::firstOrCreate(['name' => 'superadmin']);
         $admin = Role::firstOrCreate(['name' => 'admin']);
         $supervisor = Role::firstOrCreate(['name' => 'supervisor']);
         $tenant = Role::firstOrCreate(['name' => 'tenant']);
+
+        // Superadmin is a superset of admin — gets every permission.
+        $superadmin->givePermissionTo(Permission::all());
 
         $admin->givePermissionTo(Permission::all());
 
