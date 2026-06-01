@@ -141,7 +141,10 @@
       "Bash(echo \"--- exit: $? ---\")",
       "Bash(./vendor/bin/pest tests/Feature/Subscription)",
       "Bash(./vendor/bin/pint)",
-      "Bash(./vendor/bin/pint -q)"
+      "Bash(./vendor/bin/pint -q)",
+      "Bash(grep -n 'roles\\\\b\\\\|$roles' resources/views/admin/users/index.blade.php)",
+      "Bash(php -l app/Http/Controllers/Admin/UserController.php)",
+      "Bash(./vendor/bin/pint app/Http/Controllers/Admin/UserController.php)"
     ]
   }
 }

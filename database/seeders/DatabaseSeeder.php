@@ -67,9 +67,10 @@ class DatabaseSeeder extends Seeder
         $tenant->syncRoles(['tenant']);
         $tenant->forceFill(['account_id' => $admin->id])->save();
 
-        // Give the demo accounts active subscriptions so plan limits are live.
-        // Superadmin runs on Max (unlimited); the demo admin runs on Pro.
-        $this->activateSubscription($superadmin->id, 'max');
+        // Give the demo ADMIN an active subscription so plan limits are live.
+        // The superadmin is the platform operator — it is never a paying
+        // customer, so it gets NO subscription (it bypasses all gating) and is
+        // therefore never counted in MRR / active-subscription totals.
         $this->activateSubscription($admin->id, 'pro');
     }
 

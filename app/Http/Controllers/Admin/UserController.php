@@ -13,6 +13,12 @@ use Spatie\Permission\Models\Role;
 
 class UserController extends Controller
 {
+    /**
+     * Roles an admin is allowed to assign when creating/editing team members.
+     * Admins cannot create superadmins or other admins.
+     */
+    private const ASSIGNABLE_ROLES = ['supervisor', 'tenant'];
+
     public function index(Request $request): View
     {
         // Isolate to the current account (admins only see their own team).
@@ -37,21 +43,21 @@ class UserController extends Controller
         }
 
         $users = $query->paginate(15);
-        $roles = Role::all();
+        $roles = Role::whereIn('name', self::ASSIGNABLE_ROLES)->get();
 
         return view('admin.users.index', compact('users', 'roles'));
     }
 
     public function create(): View
     {
-        $roles = Role::all();
+        $roles = Role::whereIn('name', self::ASSIGNABLE_ROLES)->get();
 
         return view('admin.users.create', compact('roles'));
     }
 
     public function edit(User $user): View
     {
-        $roles = Role::all();
+        $roles = Role::whereIn('name', self::ASSIGNABLE_ROLES)->get();
 
         return view('admin.users.edit', compact('user', 'roles'));
     }
@@ -62,7 +68,7 @@ class UserController extends Controller
             'name' => 'required|string|max:255',
             'phone' => 'required|string|max:255|unique:users',
             'password' => ['required', Password::defaults()],
-            'role' => 'required|exists:roles,name',
+            'role' => ['required', Rule::in(self::ASSIGNABLE_ROLES)],
         ]);
 
         $user = User::create([
@@ -83,7 +89,7 @@ class UserController extends Controller
         $validated = $request->validate([
             'name' => 'required|string|max:255',
             'phone' => ['required', 'string', 'max:255', Rule::unique('users')->ignore($user)],
-            'role' => 'required|exists:roles,name',
+            'role' => ['required', Rule::in(self::ASSIGNABLE_ROLES)],
             'status' => 'nullable|in:active,inactive,suspended',
         ]);
 
@@ -113,7 +119,10 @@ class UserController extends Controller
     public function updateRole(Request $request, User $user)
     {
         $validated = $request->validate([
-            'role' => 'required|exists:roles,id',
+            'role' => [
+                'required',
+                Rule::exists('roles', 'id')->where(fn ($q) => $q->whereIn('name', self::ASSIGNABLE_ROLES)),
+            ],
         ]);
 
         $role = Role::findById($validated['role']);
