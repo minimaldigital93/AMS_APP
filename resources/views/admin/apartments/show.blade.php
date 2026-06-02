@@ -34,10 +34,8 @@
             ])></span>
             {{ ucfirst($apartment->status) }}
             </span>
-            <a href="{{ route('admin.apartments.index') }}" class="inline-flex items-center gap-2 text-slate-500 hover:text-slate-700 text-sm font-medium py-2.5 px-5 rounded-lg border border-slate-200 hover:border-slate-300 transition">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M10 19l-7-7m0 0l7-7m-7 7h18"/></svg>
-                Back
-            </a>
+            <a href="{{ route('admin.apartments.index') }}" class="inline-flex items-center gap-2 text-slate-500 hover:text-slate-700 text-sm font-medium py-2.5 px-5 rounded-lg border border-slate-200 hover:border-slate-300 transition" title="Back">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M10 19l-7-7m0 0l7-7m-7 7h18"/></svg></a>
         </div>
     </div>
 
@@ -56,10 +54,8 @@
     <!-- Actions -->
     <div class="flex items-center gap-3">
         @if($apartment->status === 'available')
-        <a href="{{ route('admin.tenants.create') }}?apartment_id={{ $apartment->id }}" class="inline-flex items-center gap-2 bg-slate-800 hover:bg-slate-700 text-white text-sm font-medium py-2.5 px-5 rounded-lg transition">
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/></svg>
-            Assign Tenant
-        </a>
+        <a href="{{ route('admin.tenants.create') }}?apartment_id={{ $apartment->id }}" class="inline-flex items-center gap-2 bg-slate-800 hover:bg-slate-700 text-white text-sm font-medium py-2.5 px-5 rounded-lg transition" title="Assign Tenant">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/></svg></a>
         @endif
         @if($activeRental && $activeRental->tenant)
         <a href="{{ route('admin.tenants.show', $activeRental->tenant) }}" class="inline-flex items-center gap-2 text-slate-500 hover:text-slate-700 text-sm font-medium py-2.5 px-5 rounded-lg border border-slate-200 hover:border-slate-300 transition">

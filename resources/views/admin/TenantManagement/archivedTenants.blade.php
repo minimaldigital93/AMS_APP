@@ -70,10 +70,10 @@
                     </select>
                 </div>
                 <div class="flex items-end justify-center md:col-span-1">
-                    <a href="{{ route('admin.tenants.archived') }}" class="inline-flex items-center h-10 px-3 whitespace-nowrap border border-slate-200 rounded-md text-slate-700 hover:bg-slate-50 transition font-medium text-center text-sm">
+                    <a href="{{ route('admin.tenants.archived') }}" class="inline-flex items-center h-10 px-3 whitespace-nowrap border border-slate-200 rounded-md text-slate-700 hover:bg-slate-50 transition font-medium text-center text-sm" title="{{ __('messages.reset') }}">
                         <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 mr-2 text-slate-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v6h6M20 20v-6h-6M4 10a8 8 0 0116 0M20 14a8 8 0 01-16 0" />
-                        </svg>{{ __('messages.reset') }}</a>
+                        </svg></a>
                 </div>
             </form>
         </div>
@@ -301,7 +301,7 @@ function viewTenantSettlement(tenantId, tenantName) {
                     <p class="text-sm font-medium text-gray-600">{{ __('messages.additional_notes') }}</p>
                     <p class="mt-2 text-sm text-gray-700">${t.notes}</p>
                 </div>` : ''}
-                ${t.document_path ? `<div class="mt-4"><a href="${t.document_path.startsWith('/') ? t.document_path : ('/storage/' + t.document_path)}" target="_blank" class="inline-flex items-center px-3 py-2 bg-gray-50 text-gray-700 rounded-lg border border-gray-200 hover:bg-gray-100"><svg class="w-4 h-4 mr-2 text-red-600" fill="currentColor" viewBox="0 0 20 20"><path d="M4 2h7l5 5v11a2 2 0 01-2 2H4a2 2 0 01-2-2V4a2 2 0 012-2z"/></svg>{{ __('messages.view_document') }}</a></div>` : '' }
+                ${t.document_path ? `<div class="mt-4"><a href="${t.document_path.startsWith('/') ? t.document_path : ('/storage/' + t.document_path)}" target="_blank" class="inline-flex items-center px-3 py-2 bg-gray-50 text-gray-700 rounded-lg border border-gray-200 hover:bg-gray-100" title="{{ __('messages.view_document') }}"><svg class="w-4 h-4 mr-2 text-red-600" fill="currentColor" viewBox="0 0 20 20"><path d="M4 2h7l5 5v11a2 2 0 01-2 2H4a2 2 0 01-2-2V4a2 2 0 012-2z"/></svg></a></div>` : '' }
 
                 <button onclick="closeViewTenantModal()" class="w-full px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition font-medium">{{ __('messages.close') }}</button>
             </div>

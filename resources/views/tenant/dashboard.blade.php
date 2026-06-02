@@ -179,12 +179,10 @@
                     @endif
                     <a href="{{ $docUrl }}"
                        target="_blank"
-                       class="w-full inline-flex items-center justify-center gap-2 px-4 py-2 text-xs font-medium text-indigo-700 bg-indigo-50 hover:bg-indigo-100 rounded-lg transition border border-indigo-100">
+                       class="w-full inline-flex items-center justify-center gap-2 px-4 py-2 text-xs font-medium text-indigo-700 bg-indigo-50 hover:bg-indigo-100 rounded-lg transition border border-indigo-100" title="{{ __('messages.view_download') }}">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
-                        </svg>
-                        {{ __('messages.view_download') }}
-                    </a>
+                        </svg></a>
                 </div>
             @else
                 <div class="flex flex-col items-center justify-center py-10 text-center">

@@ -7,12 +7,10 @@
     <!-- Header -->
     <div class="flex items-center justify-between">
         <h1 class="text-3xl font-bold text-gray-900">{{ __('messages.user_management_title') }}</h1>
-        <a href="{{ route('admin.users.create') }}" class="inline-flex items-center gap-2 bg-slate-800 hover:bg-slate-700 text-white text-sm font-medium py-2.5 px-5 rounded-lg transition">
+        <a href="{{ route('admin.users.create') }}" class="inline-flex items-center gap-2 bg-slate-800 hover:bg-slate-700 text-white text-sm font-medium py-2.5 px-5 rounded-lg transition" title="Add User">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" />
-            </svg>
-            Add User
-        </a>
+            </svg></a>
     </div>
 
     <!-- Realtime Search and Filters -->

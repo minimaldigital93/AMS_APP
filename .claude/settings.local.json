@@ -252,7 +252,15 @@
       "Bash(/usr/bin/curl -s http://127.0.0.1:8099/login)",
       "Bash(/usr/bin/curl -s -o /dev/null -w \"login=%{http_code}\\\\n\" http://127.0.0.1:8099/login)",
       "Bash(pkill -f \"artisan serve --port=8099\")",
-      "Bash(npm uninstall *)"
+      "Bash(npm uninstall *)",
+      "Bash(cat)",
+      "Bash(python3 /tmp/analyze_btns.py)",
+      "Bash(python3 /tmp/strip_btns.py --write)",
+      "Bash(grep '}}$')",
+      "Bash(python3 -)",
+      "Bash(git checkout *)",
+      "Bash(python3 /tmp/strip2.py)",
+      "Bash(python3 /tmp/strip2.py --write)"
     ],
     "additionalDirectories": [
       "/Users/sarotmoniodom/AMS_APP"

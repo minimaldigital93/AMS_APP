@@ -74,11 +74,11 @@
                         </div>
                         <div class="flex items-end">
                             <button type="button" onclick="addUnitOne()" 
-                                    class="w-full bg-gradient-to-r from-emerald-500 to-green-600 hover:from-emerald-600 hover:to-green-700 text-white font-bold py-2.5 px-4 rounded-lg transition duration-300 flex items-center justify-center gap-2 shadow-md hover:shadow-lg transform hover:scale-105">
+                                    class="w-full bg-gradient-to-r from-emerald-500 to-green-600 hover:from-emerald-600 hover:to-green-700 text-white font-bold py-2.5 px-4 rounded-lg transition duration-300 flex items-center justify-center gap-2 shadow-md hover:shadow-lg transform hover:scale-105" title="{{ __('messages.add_unit') }}">
                                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"/>
                                 </svg>
-                                <span>{{ __('messages.add_unit') }}</span>
+                                
                             </button>
                         </div>
                     </div>

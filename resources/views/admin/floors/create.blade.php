@@ -81,12 +81,10 @@
                     </div>
                 </div>
                 <button type="button" id="addUnitBtn"
-                        class="inline-flex items-center gap-1.5 bg-slate-100 hover:bg-slate-200 text-slate-600 text-sm font-medium py-2 px-4 rounded-lg transition">
+                        class="inline-flex items-center gap-1.5 bg-slate-100 hover:bg-slate-200 text-slate-600 text-sm font-medium py-2 px-4 rounded-lg transition" title="{{ __('messages.add_unit') }}">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/>
-                    </svg>
-                    {{ __('messages.add_unit') }}
-                </button>
+                    </svg></button>
 
                 <!-- Added Units Table -->
                 <div id="unitsTable" class="hidden rounded-xl border border-slate-100 overflow-hidden">

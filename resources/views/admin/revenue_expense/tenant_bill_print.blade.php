@@ -294,18 +294,14 @@
 <body>
     <!-- Print Actions (hidden in print) -->
     <div class="print-actions no-print">
-        <button class="btn btn-print" onclick="window.print()">
+        <button class="btn btn-print" onclick="window.print()" title="Print Bill">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:8px">
                 <path d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/>
-            </svg>
-            Print Bill
-        </button>
-        <a href="{{ route('admin.revenue_expense.record_income') }}" class="btn btn-back">
+            </svg></button>
+        <a href="{{ route('admin.revenue_expense.record_income') }}" class="btn btn-back" title="Back to Billing">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:8px">
                 <path d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
-            </svg>
-            Back to Billing
-        </a>
+            </svg></a>
     </div>
 
     <!-- Bill Document -->

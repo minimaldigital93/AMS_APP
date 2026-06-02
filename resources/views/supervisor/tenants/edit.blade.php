@@ -43,10 +43,8 @@
                     @endif
                     @if($tenant->document_path)
                     <div class="flex-shrink-0">
-                        <a href="{{ asset('storage/' . $tenant->document_path) }}" target="_blank" class="inline-flex items-center px-3 py-2 bg-gray-50 text-gray-700 rounded-lg border border-gray-200 hover:bg-gray-100">
-                            <svg class="w-4 h-4 mr-2 text-red-600" fill="currentColor" viewBox="0 0 20 20"><path d="M4 2h7l5 5v11a2 2 0 01-2 2H4a2 2 0 01-2-2V4a2 2 0 012-2z" /></svg>
-                            View Document
-                        </a>
+                        <a href="{{ asset('storage/' . $tenant->document_path) }}" target="_blank" class="inline-flex items-center px-3 py-2 bg-gray-50 text-gray-700 rounded-lg border border-gray-200 hover:bg-gray-100" title="View Document">
+                            <svg class="w-4 h-4 mr-2 text-red-600" fill="currentColor" viewBox="0 0 20 20"><path d="M4 2h7l5 5v11a2 2 0 01-2 2H4a2 2 0 01-2-2V4a2 2 0 012-2z" /></svg></a>
                     </div>
                     @endif
 
