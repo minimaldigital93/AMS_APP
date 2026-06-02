@@ -28,15 +28,7 @@
     $statusDisplay = __('messages.' . strtolower($statusLabel));
 @endphp
 
-<div x-data="{
-        payOpen: false,
-        pay: { rental_id: '', amount: '', date: '', label: '' },
-        openPay(rentalId, amount, date, label) {
-            this.pay = { rental_id: rentalId, amount: amount, date: date, label: label };
-            this.payOpen = true;
-        }
-     }"
-     class="max-w-4xl mx-auto space-y-6">
+<div class="max-w-4xl mx-auto space-y-6">
 
     {{-- Header (hidden when embedded inside another page) --}}
     @if($showHeader)
@@ -173,8 +165,7 @@
                             <th class="py-2 pr-4 font-medium">{{ __('messages.month') }}</th>
                             <th class="py-2 pr-4 font-medium">{{ __('messages.apartment') }}</th>
                             <th class="py-2 pr-4 font-medium">{{ __('messages.rent') }}</th>
-                            <th class="py-2 pr-4 font-medium">{{ __('messages.status') }}</th>
-                            <th class="py-2 pr-0 font-medium text-right">{{ __('messages.action') }}</th>
+                            <th class="py-2 pr-0 font-medium">{{ __('messages.status') }}</th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-slate-50">
@@ -183,22 +174,12 @@
                                 <td class="py-2.5 pr-4 font-medium text-slate-800">{{ $row['label'] }}</td>
                                 <td class="py-2.5 pr-4 text-slate-600">{{ $row['apartment'] ?? '—' }}</td>
                                 <td class="py-2.5 pr-4 text-slate-700">${{ number_format($row['paid'] ? ($row['amount_paid'] ?? $row['rent_amount']) : $row['rent_amount'], 2) }}</td>
-                                <td class="py-2.5 pr-4">
+                                <td class="py-2.5 pr-0">
                                     @if($row['paid'])
                                         <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-emerald-50 text-emerald-600">{{ __('messages.paid') }}{{ $row['paid_at'] ? ' · '.$row['paid_at']->format('M d') : '' }}
                                         </span>
                                     @else
                                         <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-red-50 text-red-600">{{ __('messages.unpaid') }}</span>
-                                    @endif
-                                </td>
-                                <td class="py-2.5 pr-0 text-right">
-                                    @if(! $row['paid'])
-                                        <button type="button"
-                                                @click="openPay('{{ $row['rental_id'] }}', '{{ $row['rent_amount'] }}', '{{ $row['pay_date'] }}', '{{ $row['label'] }}')"
-                                                class="inline-flex items-center gap-1 {{ $btnCls }} text-white px-3 py-1 rounded-lg transition text-xs font-medium" title="{{ __('messages.pay') }}">
-                                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg></button>
-                                    @else
-                                        <span class="text-slate-300 text-xs">—</span>
                                     @endif
                                 </td>
                             </tr>
@@ -227,50 +208,5 @@
         @else
             <p class="text-slate-400 text-sm">{{ __('messages.no_document_attached') }}</p>
         @endif
-    </div>
-
-    {{-- Pay modal (records a rent payment for the selected month) --}}
-    <div x-show="payOpen" x-cloak
-         class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4"
-         @keydown.escape.window="payOpen = false">
-        <div class="bg-white rounded-xl shadow-xl w-full max-w-sm p-6" @click.outside="payOpen = false">
-            <h3 class="text-lg font-semibold text-slate-800 mb-1">{{ __('messages.record_rent_payment') }}</h3>
-            <p class="text-sm text-slate-500 mb-4">{{ __('messages.settle_rent_for') }} <span class="font-medium text-slate-700" x-text="pay.label"></span>.</p>
-
-            <form method="POST" action="{{ route($role.'.revenue_expense.store_income') }}">
-                @csrf
-                <input type="hidden" name="rental_id" :value="pay.rental_id">
-                <input type="hidden" name="payment_type" value="rent">
-                <input type="hidden" name="transaction_date" :value="pay.date">
-
-                <div class="space-y-4">
-                    <div>
-                        <label class="block text-xs font-medium text-slate-500 uppercase tracking-wide mb-1">{{ __('messages.amount') }}</label>
-                        <div class="relative">
-                            <span class="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm">$</span>
-                            <input type="number" step="0.01" min="0.01" name="amount" x-model="pay.amount" required
-                                   class="w-full pl-7 pr-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 {{ $ringCls }}">
-                        </div>
-                    </div>
-                    <div>
-                        <label class="block text-xs font-medium text-slate-500 uppercase tracking-wide mb-1">{{ __('messages.method') }}</label>
-                        <select name="payment_method" class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 {{ $ringCls }}">
-                            <option value="cash">{{ __('messages.cash') }}</option>
-                            <option value="bank">{{ __('messages.bank') }}</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label class="block text-xs font-medium text-slate-500 uppercase tracking-wide mb-1">{{ __('messages.note') }} <span class="text-slate-300 normal-case">({{ __('messages.optional') }})</span></label>
-                        <input type="text" name="note" maxlength="1000"
-                               class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 {{ $ringCls }}">
-                    </div>
-                </div>
-
-                <div class="flex items-center justify-end gap-2 mt-6">
-                    <button type="button" @click="payOpen = false" class="px-4 py-2 text-sm font-medium text-slate-500 hover:text-slate-700">{{ __('messages.cancel') }}</button>
-                    <button type="submit" class="px-4 py-2 {{ $btnCls }} text-white rounded-lg transition text-sm font-medium">{{ __('messages.record_payment') }}</button>
-                </div>
-            </form>
-        </div>
     </div>
 </div>

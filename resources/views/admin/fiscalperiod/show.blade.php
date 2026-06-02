@@ -40,6 +40,40 @@
         </div>
     @endif
 
+    {{-- Fiscal period time progress --}}
+    @php
+        $periodStart   = $fiscalperiod->opening_date;
+        $periodEnd     = $fiscalperiod->closing_date;
+        $periodToday   = now();
+        $totalDays     = max(1, $periodStart->diffInDays($periodEnd));
+        $elapsedDays   = $periodToday->lt($periodStart)
+            ? 0
+            : min($totalDays, $periodStart->diffInDays($periodToday->gt($periodEnd) ? $periodEnd : $periodToday));
+        $periodPercent = round(($elapsedDays / $totalDays) * 100);
+        $remainingDays = max(0, round($totalDays - $elapsedDays));
+    @endphp
+    <div class="bg-white rounded-lg shadow p-5 mb-4">
+        <div class="flex items-center justify-between mb-2">
+            <h3 class="font-semibold text-sm text-gray-700">{{ __('messages.period_progress') }}</h3>
+            <span class="text-sm font-bold text-gray-700">{{ $periodPercent }}%</span>
+        </div>
+        <div class="w-full bg-gray-100 rounded-full h-2.5 overflow-hidden">
+            <div class="h-2.5 rounded-full {{ $periodPercent >= 100 ? 'bg-red-500' : ($periodPercent >= 80 ? 'bg-amber-500' : 'bg-indigo-500') }}"
+                 style="width: {{ $periodPercent }}%"></div>
+        </div>
+        <div class="flex items-center justify-between mt-2 text-xs text-gray-500">
+            <span>{{ $periodStart->format('M d, Y') }}</span>
+            <span>
+                @if($periodToday->gt($periodEnd))
+                    {{ __('messages.period_ended') }}
+                @else
+                    {{ $remainingDays }} {{ __('messages.days_remaining') }}
+                @endif
+            </span>
+            <span>{{ $periodEnd->format('M d, Y') }}</span>
+        </div>
+    </div>
+
     {{-- Income & Expense Breakdown (totals shown inline in each header) --}}
     <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
         <div class="bg-white rounded-lg shadow p-5">

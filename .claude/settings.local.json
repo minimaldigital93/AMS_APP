@@ -260,7 +260,11 @@
       "Bash(python3 -)",
       "Bash(git checkout *)",
       "Bash(python3 /tmp/strip2.py)",
-      "Bash(python3 /tmp/strip2.py --write)"
+      "Bash(python3 /tmp/strip2.py --write)",
+      "Bash(php -r '$f=\"resources/views/admin/TenantManagement/activeTenants.blade.php\"; echo file_exists\\($f\\)?\"ok\\\\n\":\"missing\\\\n\";')",
+      "Bash(grep -n \"payment\\\\|Payment\\\\|history\\\\|History\\\\|\\\\\\\\$\\\\|action\\\\|Action\\\\|rental\\\\|Rental\\\\|<table\\\\|<th\\\\|<td\" /Users/moniodom/AMS_APP/resources/views/admin/TenantManagement/showTenant.blade.php)",
+      "Bash(grep -rn \"payment\\\\|Payment\\\\|history\\\\|History\\\\|action\\\\|Action\\\\|x-data\\\\|<table\\\\|<th \\\\|<td \\\\|\\\\\\\\$ \\\\|rental_id\\\\|tenant->name\\\\|apartment_number\" /Users/moniodom/AMS_APP/resources/views/partials/tenant-show.blade.php)",
+      "Bash(echo \"exit=$?\")"
     ],
     "additionalDirectories": [
       "/Users/sarotmoniodom/AMS_APP"

@@ -191,12 +191,6 @@
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-7.5-1.5L15 3m0 0l3 3m-3-3v10"></path>
                                         </svg>
                                     </a>
-                                    <a href="{{ route('admin.tenants.leave', $tenant->id) }}" title="{{ __('messages.process_leave') }}" class="inline-flex items-center justify-center h-8 w-8 rounded-md text-amber-600 bg-amber-50 hover:bg-amber-100 transition" aria-label="Leave">
-                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path>
-                                        </svg>
-                                    </a>
-                                    {{-- document icon removed as requested --}}
                                 </td>
                             </tr>
                         @empty
@@ -207,6 +201,12 @@
                     </tbody>
                 </table>
             </div>
+            <!-- Pagination -->
+            @if($tenants->hasPages())
+            <div class="bg-white px-6 py-4 border-t border-gray-200">
+                {{ $tenants->withQueryString()->links() }}
+            </div>
+            @endif
         </div>
     </div>
 </div>
