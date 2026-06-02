@@ -4,6 +4,41 @@ This app is **self-hosted on this Mac**. There is no cloud server: the Mac runs
 the Laravel app, and a Cloudflare Tunnel pipes public traffic from
 **minimaldigital.dev** down to it.
 
+## TL;DR — quick reference
+
+```bash
+# After editing code — ship it (this is the everyday command)
+composer deploy
+
+# Pull latest, then ship
+git pull && composer deploy
+
+# Take site OFFLINE   (tunnel first, then server)
+launchctl bootout gui/$(id -u)/com.minimaldigital.cloudflared
+launchctl bootout gui/$(id -u)/com.minimaldigital.laravel
+
+# Bring site ONLINE   (server first, then tunnel)
+launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.minimaldigital.laravel.plist
+launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.minimaldigital.cloudflared.plist
+
+# Restart just the app after editing .env
+launchctl bootout   gui/$(id -u)/com.minimaldigital.laravel
+launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.minimaldigital.laravel.plist
+
+# Status & logs
+launchctl list | grep minimaldigital
+tail -f storage/logs/serve.out.log storage/logs/cloudflared.out.log
+
+# Fresh clone / new machine
+composer setup
+```
+
+**Rules of thumb:**
+- Plain code change → just `composer deploy`. No service restart needed.
+- Restart services only when `.env`, a `.plist`, or the tunnel config changes.
+- Stopping order: tunnel → server. Starting order: server → tunnel.
+- Mac must stay **awake & logged in** or the site goes down (`caffeinate -s`).
+
 ## Architecture
 
 ```
