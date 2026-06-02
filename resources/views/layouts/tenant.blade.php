@@ -5,10 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>{{ __('messages.tenant_portal_title') }}</title>
     <link rel="icon" type="image/svg+xml" href="{{ asset('favicon.svg') }}">
-    <link href="{{ asset('css/app.css') }}" rel="stylesheet">
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
-    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+    @vite(['resources/css/app.css', 'resources/js/app.js'])
     <style>
         * { scroll-behavior: smooth; }
         body { margin: 0; padding: 0; background: linear-gradient(135deg, #eff6ff 0%, #eef2ff 100%); }
@@ -62,7 +59,7 @@
     </style>
     @include('partials.pwa-head')
 </head>
-<body class="bg-gray-50 flex flex-col h-screen" x-data="sidebarState()" @init="init()">
+<body class="bg-gray-50 flex flex-col h-screen" x-data="sidebarState()" x-init="init()">
     <!-- Top Bar -->
     @include('layouts.topbar')
 
