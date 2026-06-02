@@ -177,6 +177,7 @@
             }
         }
     </style>
+    @include('partials.pwa-head')
 </head>
 <body class="bg-gray-50 flex flex-col h-screen" x-data="sidebarState()" @init="init()">
     <!-- Top Bar -->

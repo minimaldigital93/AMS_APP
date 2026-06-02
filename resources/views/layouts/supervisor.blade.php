@@ -61,6 +61,7 @@
         }
         @keyframes heightGrow { to { height: 100%; } }
     </style>
+    @include('partials.pwa-head')
 </head>
 <body class="flex flex-col h-screen" style="background:#fafafa;" x-data="sidebarState()" @init="init()">
     <!-- Top Bar -->

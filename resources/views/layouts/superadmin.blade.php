@@ -8,6 +8,7 @@
     <link rel="icon" type="image/svg+xml" href="{{ asset('favicon.svg') }}">
     @vite(['resources/css/app.css', 'resources/js/app.js'])
     <style>[x-cloak]{display:none !important;}</style>
+    @include('partials.pwa-head')
 </head>
 <body class="min-h-screen bg-gray-100 text-gray-900">
     <div class="flex min-h-screen">

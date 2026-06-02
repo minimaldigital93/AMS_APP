@@ -244,7 +244,9 @@
       "Bash(mysql -u root -e \"SELECT VERSION\\(\\);\")",
       "Bash(mysql -u root -e \"CREATE DATABASE IF NOT EXISTS \\\\`AMS_APP_dev\\\\` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;\")",
       "Bash(mysql -u root -e \"SHOW DATABASES LIKE 'AMS\\\\_APP%';\")",
-      "Bash(rsync -a --delete --exclude storage/logs/*.log --exclude bootstrap/cache/*.php --exclude storage/framework/cache/data/* --exclude storage/framework/sessions/* --exclude storage/framework/views/*.php /Users/sarotmoniodom/AMS_APP/ /Users/sarotmoniodom/AMS_APP_dev/)"
+      "Bash(rsync -a --delete --exclude storage/logs/*.log --exclude bootstrap/cache/*.php --exclude storage/framework/cache/data/* --exclude storage/framework/sessions/* --exclude storage/framework/views/*.php /Users/sarotmoniodom/AMS_APP/ /Users/sarotmoniodom/AMS_APP_dev/)",
+      "Bash(sips -g pixelWidth -g pixelHeight public/myhome_logo.png)",
+      "Bash(sips -g pixelWidth -g pixelHeight public/favicon.svg)"
     ],
     "additionalDirectories": [
       "/Users/sarotmoniodom/AMS_APP"
