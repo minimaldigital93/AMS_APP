@@ -246,7 +246,12 @@
       "Bash(mysql -u root -e \"SHOW DATABASES LIKE 'AMS\\\\_APP%';\")",
       "Bash(rsync -a --delete --exclude storage/logs/*.log --exclude bootstrap/cache/*.php --exclude storage/framework/cache/data/* --exclude storage/framework/sessions/* --exclude storage/framework/views/*.php /Users/sarotmoniodom/AMS_APP/ /Users/sarotmoniodom/AMS_APP_dev/)",
       "Bash(sips -g pixelWidth -g pixelHeight public/myhome_logo.png)",
-      "Bash(sips -g pixelWidth -g pixelHeight public/favicon.svg)"
+      "Bash(sips -g pixelWidth -g pixelHeight public/favicon.svg)",
+      "Bash(php -l resources/views/partials/pwa-head.blade.php)",
+      "Bash(/usr/bin/curl -s -o /dev/null -w \"%{http_code}\" http://127.0.0.1:8099/)",
+      "Bash(/usr/bin/curl -s http://127.0.0.1:8099/login)",
+      "Bash(/usr/bin/curl -s -o /dev/null -w \"login=%{http_code}\\\\n\" http://127.0.0.1:8099/login)",
+      "Bash(pkill -f \"artisan serve --port=8099\")"
     ],
     "additionalDirectories": [
       "/Users/sarotmoniodom/AMS_APP"
