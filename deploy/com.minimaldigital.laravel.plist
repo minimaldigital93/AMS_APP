@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.minimaldigital.laravel</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>/opt/homebrew/bin/php</string>
+        <string>artisan</string>
+        <string>serve</string>
+        <string>--host=127.0.0.1</string>
+        <string>--port=8000</string>
+    </array>
+
+    <key>WorkingDirectory</key>
+    <string>/Users/sarotmoniodom/AMS_APP</string>
+
+    <!-- Restart automatically if it ever crashes -->
+    <key>KeepAlive</key>
+    <true/>
+
+    <!-- Start on login/boot -->
+    <key>RunAtLoad</key>
+    <true/>
+
+    <key>StandardOutPath</key>
+    <string>/Users/sarotmoniodom/AMS_APP/storage/logs/serve.out.log</string>
+    <key>StandardErrorPath</key>
+    <string>/Users/sarotmoniodom/AMS_APP/storage/logs/serve.err.log</string>
+</dict>
+</plist>
