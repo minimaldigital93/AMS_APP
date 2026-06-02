@@ -14,25 +14,40 @@
     </div>
 
     <!-- Realtime Search and Filters -->
-    <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-        <div class="flex gap-4 items-center">
-            <input id="userSearch" type="text" placeholder="{{ __('messages.search_name_phone') }}"
-                class="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+    <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+        <div class="flex flex-wrap gap-2.5 items-center">
+            <!-- Search -->
+            <div class="relative flex-1 min-w-[200px]">
+                <svg class="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-4.35-4.35M11 18a7 7 0 100-14 7 7 0 000 14z" />
+                </svg>
+                <input id="userSearch" type="text" placeholder="{{ __('messages.search_name_phone') }}"
+                    class="w-full h-10 pl-10 pr-4 text-sm bg-gray-50 border border-gray-200 rounded-lg focus:bg-white focus:outline-none focus:ring-2 focus:ring-slate-300 focus:border-slate-300 transition">
+            </div>
 
-            <select id="roleFilter" class="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+            <!-- Role filter -->
+            <select id="roleFilter" class="h-10 w-44 px-3 text-sm text-gray-700 bg-gray-50 border border-gray-200 rounded-lg focus:bg-white focus:outline-none focus:ring-2 focus:ring-slate-300 focus:border-slate-300 transition">
                 <option value="">{{ __('messages.all_roles') }}</option>
                 @foreach($roles as $role)
                     <option value="{{ $role->name }}">{{ ucfirst($role->name) }}</option>
                 @endforeach
             </select>
 
-            <button id="clearFilters" type="button" class="px-4 py-2 bg-gray-100 rounded-lg hover:bg-gray-200 transition">
-                Clear
+            <!-- Sort by role -->
+            <button id="sortRoleBtn" type="button" class="inline-flex items-center justify-center gap-1.5 h-10 px-3.5 text-sm font-medium text-gray-600 bg-gray-50 border border-gray-200 rounded-lg hover:bg-gray-100 hover:text-gray-800 transition" title="{{ __('messages.sort_asc') }}">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M3 7h12M3 12h8M3 17h4M17 7v10m0 0l-3-3m3 3l3-3" />
+                </svg>
+                <span id="sortRoleLabel">{{ __('messages.sort_asc') }}</span>
             </button>
 
-            <button id="sortRoleBtn" type="button" class="px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-600 hover:bg-gray-100">{{ __('messages.sort_asc') }}</button>
+            <!-- Clear -->
+            <button id="clearFilters" type="button" class="inline-flex items-center justify-center h-10 w-10 text-gray-400 bg-gray-50 border border-gray-200 rounded-lg hover:bg-gray-100 hover:text-gray-700 transition" title="{{ __('messages.clear') ?? 'Clear' }}">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+            </button>
         </div>
-       
     </div>
 
     <!-- Users Table (styled like apartment/floor layout) -->
@@ -130,6 +145,7 @@
         const roleFilter = document.getElementById('roleFilter');
         const clearBtn = document.getElementById('clearFilters');
         const sortBtn = document.getElementById('sortRoleBtn');
+        const sortLabel = document.getElementById('sortRoleLabel');
         const tbody = document.querySelector('table tbody');
         const cards = document.querySelectorAll('.user-card');
         let sortAsc = true;
@@ -184,7 +200,7 @@
                 // Re-append in sorted order
                 rows.forEach(r => tbody.appendChild(r));
                 sortAsc = !sortAsc;
-                if (sortBtn) sortBtn.textContent = sortAsc ? 'Sort ▲' : 'Sort ▼';
+                if (sortLabel) sortLabel.textContent = sortAsc ? 'Sort ▲' : 'Sort ▼';
             } else {
                 const cardList = Array.from(cards).filter(c => c.style.display !== 'none');
                 cardList.sort((a,b) => {
@@ -196,7 +212,7 @@
                 const container = document.querySelector('.grid.grid-cols-1') || document.body;
                 cardList.forEach(c => container.appendChild(c));
                 sortAsc = !sortAsc;
-                if (sortBtn) sortBtn.textContent = sortAsc ? 'Sort ▲' : 'Sort ▼';
+                if (sortLabel) sortLabel.textContent = sortAsc ? 'Sort ▲' : 'Sort ▼';
             }
         }
 
@@ -205,7 +221,7 @@
         clearBtn.addEventListener('click', function(){ searchInput.value=''; roleFilter.value=''; filterList(); });
         if (sortBtn) sortBtn.addEventListener('click', sortByRole);
 
-        if (sortBtn) sortBtn.textContent = 'Sort ▲';
+        if (sortLabel) sortLabel.textContent = 'Sort ▲';
     });
     </script>
     @endpush

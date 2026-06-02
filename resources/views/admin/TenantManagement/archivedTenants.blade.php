@@ -58,7 +58,10 @@
             <form method="GET" action="{{ route('admin.tenants.archived') }}" class="grid grid-cols-1 md:grid-cols-4 gap-4">
                 <div class="md:col-span-2">
                     <label class="block text-sm font-medium text-slate-500 mb-2">{{ __('messages.search_by_name_phone') }}</label>
-                    <input type="text" name="search" placeholder="{{ __('messages.search_archived_tenants') }}" value="{{ request('search') }}" class="w-full h-10 px-3 text-sm border border-slate-200 rounded-lg focus:ring-2 focus:ring-slate-300 focus:border-transparent">
+                    <div class="relative">
+                        <svg class="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-4.35-4.35M11 18a7 7 0 100-14 7 7 0 000 14z"/></svg>
+                        <input type="text" name="search" placeholder="{{ __('messages.search_archived_tenants') }}" value="{{ request('search') }}" class="w-full h-10 pl-10 pr-4 text-sm bg-gray-50 border border-gray-200 rounded-lg focus:bg-white focus:outline-none focus:ring-2 focus:ring-slate-300 focus:border-slate-300 transition">
+                    </div>
                 </div>
                 <div class="md:col-span-1">
                     <label class="block text-sm font-medium text-slate-500 mb-2">{{ __('messages.sort_by_floor') }}</label>
