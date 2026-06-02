@@ -83,5 +83,18 @@
         {{-- Overlays (subscribe button, pricing modal, etc.) — rendered outside the
              login-card so backdrop-filter doesn't trap fixed positioning. --}}
         @stack('overlays')
+
+        {{-- iOS home-screen PWAs relaunch from a page snapshot (bfcache) rather than
+             a fresh request. That snapshot carries a stale CSRF token while the
+             session has since rotated/expired, causing a 419 on login submit.
+             Force a fresh load whenever the page is restored from cache. --}}
+        <script>
+            window.addEventListener('pageshow', function (event) {
+                var navType = (performance.getEntriesByType('navigation')[0] || {}).type;
+                if (event.persisted || navType === 'back_forward') {
+                    window.location.reload();
+                }
+            });
+        </script>
     </body>
 </html>
