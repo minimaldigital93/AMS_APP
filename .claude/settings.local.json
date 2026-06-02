@@ -227,7 +227,24 @@
       "Bash(curl -s -o /dev/null -w \"local -> %{http_code}\\\\n\" http://127.0.0.1:8000)",
       "Bash(python3 -c \"import json,sys; print\\(json.load\\(sys.stdin\\).get\\('scripts',{}\\)\\)\")",
       "Bash(git add *)",
-      "Bash(git commit -m ' *)"
+      "Bash(git commit -m ' *)",
+      "Bash(git fetch *)",
+      "Bash(git branch *)",
+      "Bash(git ls-remote *)",
+      "Bash(python3 -c \"import json,sys; d=json.load\\(sys.stdin\\); print\\(json.dumps\\(d.get\\('scripts',{}\\), indent=2\\)\\)\")",
+      "Bash(echo \"=== /Volumes ===\"; ls -la /Volumes/ 2>/dev/null; echo; echo \"=== ~/Desktop ===\"; ls -la ~/Desktop/ 2>/dev/null | head -30; echo; echo \"=== disk space ===\"; df -h | grep -v \"^map\")",
+      "Read(//Volumes/**)",
+      "Bash(diskutil info *)",
+      "Bash(ln -s /tmp/x /Volumes/TOMATO/.symtest)",
+      "Bash(rm -f /Volumes/TOMATO/.symtest)",
+      "Bash(chmod +x /Volumes/TOMATO/.exectest)",
+      "Bash(rm -f /Volumes/TOMATO/.exectest)",
+      "Bash(mysql -u root -e \"SHOW DATABASES;\")",
+      "Bash(export MYSQL_PWD='Admin@1234')",
+      "Bash(mysql -u root -e \"SELECT VERSION\\(\\);\")",
+      "Bash(mysql -u root -e \"CREATE DATABASE IF NOT EXISTS \\\\`AMS_APP_dev\\\\` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;\")",
+      "Bash(mysql -u root -e \"SHOW DATABASES LIKE 'AMS\\\\_APP%';\")",
+      "Bash(rsync -a --delete --exclude storage/logs/*.log --exclude bootstrap/cache/*.php --exclude storage/framework/cache/data/* --exclude storage/framework/sessions/* --exclude storage/framework/views/*.php /Users/sarotmoniodom/AMS_APP/ /Users/sarotmoniodom/AMS_APP_dev/)"
     ],
     "additionalDirectories": [
       "/Users/sarotmoniodom/AMS_APP"

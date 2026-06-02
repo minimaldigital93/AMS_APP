@@ -4,6 +4,43 @@ This app is **self-hosted on this Mac**. There is no cloud server: the Mac runs
 the Laravel app, and a Cloudflare Tunnel pipes public traffic from
 **minimaldigital.dev** down to it.
 
+## Development vs. host: who does what
+
+There are two checkouts of this repo and one shared GitHub remote:
+
+```
+   Mac (host):    AMS_APP_dev  ─┐
+                                ├─ git push ─►  GitHub: minimaldigital93/AMS_APP  (origin/main)
+   Other MacBook: AMS_APP_dev  ─┘                          │
+                                                           │ git pull
+                                                           ▼
+   Mac (host):    AMS_APP  ──────────────────────►  LIVE SITE (launchd + cloudflared)
+```
+
+- **`AMS_APP_dev`** — where you write code. Both this Mac and the other MacBook
+  develop here, then `git push` to `origin` (minimaldigital93/AMS_APP).
+- **`AMS_APP`** — the server checkout on this Mac. It **only pulls** from
+  `origin` and deploys. **Never edit code in here** — it would conflict with the
+  next `git pull`.
+
+Both checkouts have exactly one remote, `origin`, pointing at
+`minimaldigital93/AMS_APP`.
+
+### Develop & push (run in `AMS_APP_dev`, on either Mac)
+
+```bash
+git pull                          # get latest before you start
+# ...edit code...
+git add -A && git commit -m "..."
+git push                          # → origin/main (minimaldigital93)
+```
+
+### Deploy (run in `AMS_APP`, on the host Mac)
+
+```bash
+git pull && composer deploy       # pull latest, then ship (see below)
+```
+
 ## TL;DR — quick reference
 
 ```bash
