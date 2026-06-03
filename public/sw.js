@@ -1,5 +1,5 @@
 // AMS service worker — bump CACHE_VERSION to invalidate old caches on deploy.
-const CACHE_VERSION = 'ams-v3';
+const CACHE_VERSION = 'ams-v4';
 const STATIC_CACHE = `${CACHE_VERSION}-static`;
 const OFFLINE_URL = '/offline.html';
 
