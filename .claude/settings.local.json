@@ -264,7 +264,12 @@
       "Bash(php -r '$f=\"resources/views/admin/TenantManagement/activeTenants.blade.php\"; echo file_exists\\($f\\)?\"ok\\\\n\":\"missing\\\\n\";')",
       "Bash(grep -n \"payment\\\\|Payment\\\\|history\\\\|History\\\\|\\\\\\\\$\\\\|action\\\\|Action\\\\|rental\\\\|Rental\\\\|<table\\\\|<th\\\\|<td\" /Users/moniodom/AMS_APP/resources/views/admin/TenantManagement/showTenant.blade.php)",
       "Bash(grep -rn \"payment\\\\|Payment\\\\|history\\\\|History\\\\|action\\\\|Action\\\\|x-data\\\\|<table\\\\|<th \\\\|<td \\\\|\\\\\\\\$ \\\\|rental_id\\\\|tenant->name\\\\|apartment_number\" /Users/moniodom/AMS_APP/resources/views/partials/tenant-show.blade.php)",
-      "Bash(echo \"exit=$?\")"
+      "Bash(echo \"exit=$?\")",
+      "Bash(sips -g hasAlpha public/icons/apple-touch-icon.png)",
+      "Bash(node -e \"fetch\\('http://127.0.0.1:8000/sw.js',{redirect:'manual'}\\).then\\(r=>console.log\\('localhost:8000 /sw.js ->',r.status,r.headers.get\\('content-type'\\)\\)\\).catch\\(e=>console.log\\('localhost:8000 not running:',e.message\\)\\)\")",
+      "Bash(node -e 'fetch\\('\\\\''http://127.0.0.1:8000/'\\\\''\\).then\\(r=>r.text\\(\\)\\).then\\(h=>{ *)",
+      "Bash(awk '{print $5, $9}')",
+      "Bash(node --check public/sw.js)"
     ],
     "additionalDirectories": [
       "/Users/sarotmoniodom/AMS_APP"
