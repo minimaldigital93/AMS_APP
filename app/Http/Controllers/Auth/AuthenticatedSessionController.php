@@ -41,7 +41,14 @@ class AuthenticatedSessionController extends Controller
         if ($user->hasRole('superadmin')) {
             return redirect()->route('superadmin.dashboard');
         } elseif ($user->hasRole('admin')) {
-            return redirect()->route('admin.dashboard');
+            // First login after registering/subscribing: a freshly promoted admin
+            // has no fiscal period yet, so send them straight to create one. Once
+            // a period exists, subsequent logins land on the dashboard.
+            $hasFiscalPeriod = \App\Models\FiscalPeriods::where('user_id', $user->id)->exists();
+
+            return $hasFiscalPeriod
+                ? redirect()->route('admin.dashboard')
+                : redirect()->route('admin.fiscalperiod.create');
         } elseif ($user->hasRole('supervisor')) {
             return redirect()->route('supervisor.dashboard');
         } elseif ($user->hasRole('tenant')) {

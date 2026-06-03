@@ -190,6 +190,8 @@ class RevenueExpenseQueryService
     {
         $rangeStart = Carbon::parse($startDate ?: now()->startOfMonth())->startOfDay();
         $rangeEnd = Carbon::parse($endDate ?: now()->endOfMonth())->endOfDay();
+        // Invariant across every rental — compute once.
+        $daysInRange = $rangeStart->diffInDays($rangeEnd) + 1;
         $period = $this->period;
 
         $apartments = $this->apartmentsScope->clone()
@@ -272,7 +274,6 @@ class RevenueExpenseQueryService
                     : $rangeEnd;
 
                 $overlapDays = $overlapStart->lte($overlapEnd) ? $overlapStart->diffInDays($overlapEnd) + 1 : 0;
-                $daysInRange = $rangeStart->diffInDays($rangeEnd) + 1;
                 $proration = $daysInRange > 0 ? ($overlapDays / $daysInRange) : 0;
                 $rentDue = round($rental->rent_amount * $proration, 2);
 

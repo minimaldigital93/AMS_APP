@@ -23,6 +23,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 
 class TenantController extends Controller
@@ -193,7 +194,11 @@ class TenantController extends Controller
         $validated = $request->validate([
             'apartment_id' => 'required|exists:apartments,id',
             'name' => 'required|string|max:255',
-            'phone' => 'required|string|max:20|unique:tenants,phone|unique:users,phone',
+            'phone' => [
+                'required', 'string', 'max:20',
+                Rule::unique('tenants', 'phone')->where('account_id', current_account_id())->whereNull('deleted_at'),
+                Rule::unique('users', 'phone')->where('account_id', current_account_id()),
+            ],
             'email' => 'nullable|email|max:255',
             'address' => 'nullable|string',
             'date_of_birth' => 'nullable|date',
@@ -202,6 +207,8 @@ class TenantController extends Controller
             'status' => 'required|in:pending,active',
             'deposit' => 'nullable|numeric|min:0',
             'photo' => 'nullable|image|mimes:jpeg,png,jpg,gif,webp|max:10240',
+        ], [
+            'phone.unique' => __('messages.validation_phone_taken'),
         ]);
 
         if ($request->hasFile('photo') && $request->file('photo')->isValid()) {
@@ -509,7 +516,10 @@ class TenantController extends Controller
         $validated = $request->validate([
             'apartment_id' => 'required|exists:apartments,id',
             'name' => 'required|string|max:255',
-            'phone' => 'required|string|max:20|unique:tenants,phone,'.$tenant->id,
+            'phone' => [
+                'required', 'string', 'max:20',
+                Rule::unique('tenants', 'phone')->ignore($tenant->id)->where('account_id', current_account_id())->whereNull('deleted_at'),
+            ],
             'email' => 'nullable|email|max:255',
             'address' => 'nullable|string',
             'date_of_birth' => 'nullable|date',
@@ -519,6 +529,8 @@ class TenantController extends Controller
             'deposit' => 'nullable|numeric|min:0',
             'photo' => 'nullable|image|mimes:jpeg,png,jpg,gif,webp|max:10240',
             'notes' => 'nullable|string',
+        ], [
+            'phone.unique' => __('messages.validation_phone_taken'),
         ]);
 
         // Handle apartment change

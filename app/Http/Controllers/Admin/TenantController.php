@@ -23,6 +23,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 
 class TenantController extends Controller
@@ -385,7 +386,12 @@ class TenantController extends Controller
         $validated = $request->validate([
             'apartment_id' => 'required|exists:apartments,id',
             'name' => 'required|string|max:255',
-            'phone' => ['required', 'string', 'max:20', 'regex:/^[0-9+\-\s()]+$/', 'unique:tenants,phone', 'unique:users,phone'],
+            'phone' => [
+                'required', 'string', 'max:20', 'regex:/^[0-9+\-\s()]+$/',
+                // Per-account uniqueness so each admin's tenants are independent.
+                Rule::unique('tenants', 'phone')->where('account_id', current_account_id())->whereNull('deleted_at'),
+                Rule::unique('users', 'phone')->where('account_id', current_account_id()),
+            ],
             'email' => 'nullable|email|max:255',
             'address' => 'nullable|string',
             'date_of_birth' => 'nullable|date|before_or_equal:'.$minBirthDate,
@@ -396,6 +402,7 @@ class TenantController extends Controller
             'photo' => 'nullable|image|mimes:jpeg,png,jpg,gif,webp|max:10240',
             'notes' => 'nullable|string',
         ], [
+            'phone.unique' => __('messages.validation_phone_taken'),
             'phone.regex' => __('messages.phone_must_be_english'),
             'date_of_birth.before_or_equal' => __('messages.tenant_must_be_18'),
             'move_in_date.after_or_equal' => __('messages.move_in_date_min'),
@@ -483,7 +490,10 @@ class TenantController extends Controller
         $validated = $request->validate([
             'apartment_id' => 'required|exists:apartments,id',
             'name' => 'required|string|max:255',
-            'phone' => 'required|string|max:20|unique:tenants,phone,'.$tenant->id,
+            'phone' => [
+                'required', 'string', 'max:20',
+                Rule::unique('tenants', 'phone')->ignore($tenant->id)->where('account_id', current_account_id())->whereNull('deleted_at'),
+            ],
             'email' => 'nullable|email|max:255',
             'address' => 'nullable|string',
             'date_of_birth' => 'nullable|date',
@@ -493,6 +503,8 @@ class TenantController extends Controller
             'deposit' => 'nullable|numeric|min:0',
             'photo' => 'nullable|image|mimes:jpeg,png,jpg,gif,webp|max:10240',
             'notes' => 'nullable|string',
+        ], [
+            'phone.unique' => __('messages.validation_phone_taken'),
         ]);
 
         // Handle photo upload - SEPARATE from validation

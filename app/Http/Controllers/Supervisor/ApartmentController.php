@@ -135,8 +135,14 @@ class ApartmentController extends Controller
                 'string',
                 'max:20',
                 'regex:/^[0-9+\-\s()]+$/',
-                Rule::unique('users', 'phone')->where(fn ($q) => $request->input('tenant_option') === 'new'),
-                Rule::unique('tenants', 'phone')->where(fn ($q) => $request->input('tenant_option') === 'new'),
+                // Per-account uniqueness, only when creating a new tenant.
+                Rule::unique('users', 'phone')
+                    ->where('account_id', current_account_id())
+                    ->where(fn () => $request->input('tenant_option') === 'new'),
+                Rule::unique('tenants', 'phone')
+                    ->where('account_id', current_account_id())
+                    ->whereNull('deleted_at')
+                    ->where(fn () => $request->input('tenant_option') === 'new'),
             ],
             'email' => 'nullable|email|max:255',
             'address' => 'nullable|string',
@@ -146,6 +152,7 @@ class ApartmentController extends Controller
             'move_in_date' => 'required|date|after_or_equal:'.$minMoveInDate,
             'deposit' => 'required|numeric|min:0',
         ], [
+            'phone.unique' => __('messages.validation_phone_taken'),
             'phone.regex' => __('messages.phone_must_be_english'),
             'date_of_birth.before_or_equal' => __('messages.tenant_must_be_18'),
             'move_in_date.after_or_equal' => __('messages.move_in_date_min'),
@@ -185,12 +192,12 @@ class ApartmentController extends Controller
                 $tenant = Tenants::findOrFail($validated['tenant_id']);
 
                 if (! $tenant->user_id && $tenant->phone) {
+                    // Scope to this account — the same phone may now exist under other accounts.
                     $existingUser = User::firstOrCreate(
-                        ['phone' => $tenant->phone],
+                        ['phone' => $tenant->phone, 'account_id' => current_account_id()],
                         [
                             'name' => $tenant->name,
                             'password' => Str::random(16),
-                            'account_id' => current_account_id(),
                         ]
                     );
                     if (! $existingUser->hasRole('tenant')) {

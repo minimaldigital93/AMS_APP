@@ -15,6 +15,7 @@ use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 
 class ApartmentController extends Controller
@@ -99,12 +100,20 @@ class ApartmentController extends Controller
     public function store(Request $request)
     {
         $validated = $request->validate([
-            'apartment_number' => 'required|string|unique:apartments',
+            'apartment_number' => [
+                'required', 'string', 'max:255',
+                // Per-account uniqueness: numbers are independent across admins.
+                Rule::unique('apartments', 'apartment_number')
+                    ->where('account_id', current_account_id())
+                    ->whereNull('deleted_at'),
+            ],
             'floor_id' => 'required|exists:floors,id',
             'monthly_rent' => 'required|numeric|min:0',
             'status' => Apartments::getStatusValidationRule(),
             'supervisor_id' => 'nullable|exists:users,id',
             'description' => 'nullable|string',
+        ], [
+            'apartment_number.unique' => __('messages.validation_apartment_number_taken', ['number' => $request->input('apartment_number')]),
         ]);
 
         // Enforce the account's subscription plan apartment cap.
@@ -123,11 +132,20 @@ class ApartmentController extends Controller
     public function update(Request $request, Apartments $apartment)
     {
         $validated = $request->validate([
-            'apartment_number' => 'required|string|unique:apartments,apartment_number,'.$apartment->id,
+            'apartment_number' => [
+                'required', 'string', 'max:255',
+                // Per-account uniqueness, ignoring this apartment's own row.
+                Rule::unique('apartments', 'apartment_number')
+                    ->ignore($apartment->id)
+                    ->where('account_id', current_account_id())
+                    ->whereNull('deleted_at'),
+            ],
             'monthly_rent' => 'required|numeric|min:0',
             'status' => Apartments::getStatusValidationRule(),
             'supervisor_id' => 'nullable|exists:users,id',
             'description' => 'nullable|string',
+        ], [
+            'apartment_number.unique' => __('messages.validation_apartment_number_taken', ['number' => $request->input('apartment_number')]),
         ]);
 
         $apartment->update($validated);
@@ -144,7 +162,17 @@ class ApartmentController extends Controller
             'tenant_option' => 'required|in:existing,new',
             'tenant_id' => 'nullable|required_if:tenant_option,existing|exists:tenants,id',
             'name' => 'nullable|required_if:tenant_option,new|string|max:255',
-            'phone' => ['nullable', 'required_if:tenant_option,new', 'string', 'max:20', 'regex:/^[0-9+\-\s()]+$/'],
+            'phone' => [
+                'nullable', 'required_if:tenant_option,new', 'string', 'max:20', 'regex:/^[0-9+\-\s()]+$/',
+                // Per-account uniqueness — only validated when creating a brand-new tenant.
+                Rule::unique('tenants', 'phone')
+                    ->where('account_id', current_account_id())
+                    ->whereNull('deleted_at')
+                    ->where(fn () => $request->input('tenant_option') === 'new'),
+                Rule::unique('users', 'phone')
+                    ->where('account_id', current_account_id())
+                    ->where(fn () => $request->input('tenant_option') === 'new'),
+            ],
             'email' => 'nullable|email|max:255',
             'address' => 'nullable|string',
             'date_of_birth' => 'nullable|date|before_or_equal:'.$minBirthDate,
@@ -153,6 +181,7 @@ class ApartmentController extends Controller
             'move_in_date' => 'required|date|after_or_equal:'.$minMoveInDate,
             'deposit' => 'required|numeric|min:0',
         ], [
+            'phone.unique' => __('messages.validation_phone_taken'),
             'phone.regex' => __('messages.phone_must_be_english'),
             'date_of_birth.before_or_equal' => __('messages.tenant_must_be_18'),
             'move_in_date.after_or_equal' => __('messages.move_in_date_min'),
@@ -186,7 +215,10 @@ class ApartmentController extends Controller
 
             // If this existing tenant has no user account yet, create one now
             if (! $tenant->user_id && $tenant->phone) {
-                $existingUser = User::where('phone', $tenant->phone)->first();
+                // Scope to this account — the same phone may now exist under other accounts.
+                $existingUser = User::where('phone', $tenant->phone)
+                    ->where('account_id', current_account_id())
+                    ->first();
                 if (! $existingUser) {
                     $existingUser = User::create([
                         'name' => $tenant->name,

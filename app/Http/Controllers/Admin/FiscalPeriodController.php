@@ -52,16 +52,16 @@ class FiscalPeriodController extends Controller
             ...$data,
             'user_id' => Auth::id(),
             'status' => 'open',
-            // The opening cash carry-forward seed is the opening assets: from here
-            // the monthly closing balance tracks total assets as profit accrues.
-            'opening_balance' => $data['opening_assets'],
+            // No opening balance sheet is collected at creation; the carry-forward
+            // seed starts at zero (opening_assets/liabilities/equity default to 0).
+            'opening_balance' => 0,
             'closing_balance' => 0,
         ]);
 
         $this->monthlyManager->generateForFiscalPeriod($fiscalPeriod);
 
         return redirect()
-            ->route('admin.fiscalperiod.show', $fiscalPeriod->id)
+            ->route('admin.dashboard')
             ->with('success', __('messages.flash_fp_created', ['count' => $fiscalPeriod->monthlyPeriods()->count()]));
     }
 

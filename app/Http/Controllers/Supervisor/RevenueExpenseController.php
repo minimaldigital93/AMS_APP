@@ -141,12 +141,40 @@ class RevenueExpenseController extends Controller
 
         $revenueExpenseData['fiscalPeriods'] = $this->getAllFiscalPeriods();
 
-        $allApartments = $this->scopeApartments()->get();
-        $revenueExpenseData['totalApartments'] = $allApartments->count();
-        $revenueExpenseData['occupiedCount'] = $allApartments->where('status', 'occupied')->count();
-        $revenueExpenseData['vacantCount'] = $allApartments->where('status', '!=', 'occupied')->count();
-        $revenueExpenseData['occupancyRate'] = $allApartments->count() > 0
-            ? round(($allApartments->where('status', 'occupied')->count() / $allApartments->count()) * 100, 1)
+        // Month/year used by billing + utilities queries (respect filter if provided).
+        $currentMonth = $filterMonth ?? now()->month;
+        $currentYear = $filterYear ?? now()->year;
+
+        // Apartments with their active rentals, paid payments and current-month
+        // utilities eager-loaded ONCE. The rental constraint here (open or
+        // not-yet-ended) is identical for the "Record Income" and "Generate
+        // Bills" sections, so a single collection feeds both — and the apartment
+        // rows are the full set, so the occupancy counts derive from it too.
+        $incomeApartments = $this->scopeApartments()
+            ->with(['floor', 'activeFixedExpenses', 'rentals' => function ($q) use ($activePeriod, $currentMonth, $currentYear) {
+                $q->where(function ($sq) {
+                    $sq->whereNull('end_date')->orWhere('end_date', '>=', now());
+                })
+                    ->orderBy('start_date', 'desc')
+                    ->with(['tenant', 'payments' => function ($pq) use ($activePeriod) {
+                        $pq->where('payment_status', 'paid')
+                            ->whereHas('accounts', function ($aq) use ($activePeriod) {
+                                $aq->where('fiscal_period_id', $activePeriod->id);
+                            });
+                    }, 'utilities' => function ($uq) use ($currentMonth, $currentYear) {
+                        $uq->where('billing_month', $currentMonth)
+                            ->where('billing_year', $currentYear);
+                    }]);
+            }])
+            ->get();
+
+        $totalApartments = $incomeApartments->count();
+        $occupiedCount = $incomeApartments->where('status', 'occupied')->count();
+        $revenueExpenseData['totalApartments'] = $totalApartments;
+        $revenueExpenseData['occupiedCount'] = $occupiedCount;
+        $revenueExpenseData['vacantCount'] = $totalApartments - $occupiedCount;
+        $revenueExpenseData['occupancyRate'] = $totalApartments > 0
+            ? round(($occupiedCount / $totalApartments) * 100, 1)
             : 0;
 
         // Expected monthly rent: sum of rents for rentals active during the selected date range
@@ -187,27 +215,16 @@ class RevenueExpenseController extends Controller
         $revenueExpenseData['expectedMonthlyRent'] = $expectedMonthlyRent;
 
         // ===== RECORD INCOME DATA =====
-        $incomeApartments = $this->scopeApartments()
-            ->with(['floor', 'rentals' => function ($q) use ($activePeriod) {
-                $q->where(function ($sq) {
-                    $sq->whereNull('end_date')->orWhere('end_date', '>=', now());
-                })
-                    ->orderBy('start_date', 'desc')
-                    ->with(['tenant', 'payments' => function ($pq) use ($activePeriod) {
-                        $pq->where('payment_status', 'paid')
-                            ->whereHas('accounts', function ($aq) use ($activePeriod) {
-                                $aq->where('fiscal_period_id', $activePeriod->id);
-                            });
-                    }]);
-            }])
-            ->get();
-
+        // $incomeApartments was eager-loaded above (it feeds both this section
+        // and the "Generate Bills" section).
         $apartmentSummary = [];
         $totalRentExpected = 0;
         $totalRentCollected = 0;
         // Use the selected date range (clamped to fiscal period) for "this month" calculations.
         $rangeStart = Carbon::parse($startDate ?: now()->startOfMonth())->startOfDay();
         $rangeEnd = Carbon::parse($endDate ?: now()->endOfMonth())->endOfDay();
+        // Invariant across all rentals — compute once, not per row.
+        $daysInRange = $rangeStart->diffInDays($rangeEnd) + 1;
 
         foreach ($incomeApartments as $apartment) {
             foreach ($apartment->rentals as $rental) {
@@ -232,7 +249,6 @@ class RevenueExpenseController extends Controller
                     $overlapDays = $overlapStart->diffInDays($overlapEnd) + 1;
                 }
 
-                $daysInRange = $rangeStart->diffInDays($rangeEnd) + 1;
                 $proration = $daysInRange > 0 ? ($overlapDays / $daysInRange) : 0;
                 $proratedRent = round($rental->rent_amount * $proration, 2);
 
@@ -298,13 +314,11 @@ class RevenueExpenseController extends Controller
         $revenueExpenseData['expectedTenantCount'] = count($apartmentSummary);
         $revenueExpenseData['paidTenantCount'] = collect($apartmentSummary)->where('paid_this_month', true)->count();
 
-        // Current month/year used by billing and utilities queries (respect filter if provided)
-        $currentMonth = $filterMonth ?? now()->month;
-        $currentYear = $filterYear ?? now()->year;
-
         // ===== RECORD EXPENSE DATA =====
+        // Also carries 'fixedExpenses' so this one collection feeds the
+        // "Fixed Expenses" section too (identical rental constraint: all rentals).
         $expenseApartments = $this->scopeApartments()
-            ->with(['floor', 'rentals' => function ($q) use ($activePeriod) {
+            ->with(['floor', 'fixedExpenses', 'rentals' => function ($q) use ($activePeriod) {
                 $q->orderBy('start_date', 'desc')
                     ->with(['tenant', 'utilities' => function ($uq) use ($activePeriod) {
                         // Filter utilities by billing period within the fiscal year
@@ -365,30 +379,16 @@ class RevenueExpenseController extends Controller
         $revenueExpenseData['totalExpensesAmount'] = $totalExpensesAmount;
 
         // ===== FIXED EXPENSES DATA =====
-        $revenueExpenseData['fixedApartments'] = $this->scopeApartments()
-            ->with(['floor', 'fixedExpenses', 'rentals' => function ($q) {
-                $q->orderBy('start_date', 'desc')->with('tenant');
-            }])
-            ->get();
+        // Same apartment + all-rentals shape as the expense collection above.
+        $revenueExpenseData['fixedApartments'] = $expenseApartments;
 
         // ===== GENERATE BILLS DATA =====
-        $billApartments = $this->scopeApartments()
-            ->with(['floor', 'activeFixedExpenses', 'rentals' => function ($q) use ($currentMonth, $currentYear) {
-                $q->where(function ($q2) {
-                    $q2->whereNull('end_date')->orWhere('end_date', '>=', now());
-                })
-                    ->orderBy('start_date', 'desc')
-                    ->with(['tenant', 'utilities' => function ($uq) use ($currentMonth, $currentYear) {
-                        $uq->where('billing_month', $currentMonth)
-                            ->where('billing_year', $currentYear);
-                    }]);
-            }])
-            ->get();
-
+        // Reuses $incomeApartments — same active-rental constraint, and it
+        // already carries activeFixedExpenses + current-month utilities.
         $billSummary = [];
         $totalMonthlyExpenses = 0;
 
-        foreach ($billApartments as $apartment) {
+        foreach ($incomeApartments as $apartment) {
             if ($apartment->rentals->isEmpty()) {
                 continue;
             }

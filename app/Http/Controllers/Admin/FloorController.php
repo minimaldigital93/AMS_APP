@@ -100,10 +100,16 @@ class FloorController extends Controller
             'apartments' => 'nullable|array',
             'apartments.*.apartment_number' => [
                 'required', 'string', 'max:255',
-                Rule::unique('apartments', 'apartment_number')->where('deleted_at', null),
+                // Scope uniqueness to the current account so each admin's units are
+                // independent — number "101" in one account must not clash with another.
+                Rule::unique('apartments', 'apartment_number')
+                    ->where('account_id', current_account_id())
+                    ->whereNull('deleted_at'),
             ],
             'apartments.*.monthly_rent' => 'nullable|numeric|min:0',
             'apartments.*.status' => 'nullable|in:available,occupied,maintenance',
+        ], [
+            'apartments.*.apartment_number.unique' => __('messages.validation_apartment_number_taken_generic'),
         ]);
 
         // Enforce the account's subscription plan limits.
@@ -160,10 +166,13 @@ class FloorController extends Controller
                     'string',
                     'max:255',
                     Rule::unique('apartments', 'apartment_number')
-                        ->where('deleted_at', null),
+                        ->where('account_id', current_account_id())
+                        ->whereNull('deleted_at'),
                 ],
                 'monthly_rent' => 'nullable|numeric|min:0',
                 'apartment_status' => 'required|in:available,occupied,maintenance',
+            ], [
+                'apartment_number.unique' => __('messages.validation_apartment_number_taken', ['number' => $request->input('apartment_number')]),
             ]);
 
             // Create the apartment

@@ -36,7 +36,7 @@ class EnsureFiscalPeriodExists
 
             if (! $hasPeriod) {
                 return redirect()->route('admin.fiscalperiod.create')
-                    ->with('warning', 'You must create a fiscal period before recording transactions. A fiscal period is required to track revenue from rent, record expenses, and manage your financial data.');
+                    ->with('warning', 'Create a fiscal period first.');
             }
 
             return $next($request);
@@ -49,7 +49,7 @@ class EnsureFiscalPeriodExists
 
             if (! $hasAdminPeriod) {
                 return redirect()->route('supervisor.dashboard')
-                    ->with('warning', 'No active fiscal period. Ask an admin to open one before recording transactions.');
+                    ->with('warning', 'No active fiscal period. Ask an admin to open one.');
             }
 
             return $next($request);
