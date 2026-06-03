@@ -269,10 +269,19 @@
       "Bash(node -e \"fetch\\('http://127.0.0.1:8000/sw.js',{redirect:'manual'}\\).then\\(r=>console.log\\('localhost:8000 /sw.js ->',r.status,r.headers.get\\('content-type'\\)\\)\\).catch\\(e=>console.log\\('localhost:8000 not running:',e.message\\)\\)\")",
       "Bash(node -e 'fetch\\('\\\\''http://127.0.0.1:8000/'\\\\''\\).then\\(r=>r.text\\(\\)\\).then\\(h=>{ *)",
       "Bash(awk '{print $5, $9}')",
-      "Bash(node --check public/sw.js)"
+      "Bash(node --check public/sw.js)",
+      "Bash(export COMPOSER_DISABLE_NETWORK=0)",
+      "Bash(./vendor/bin/pest tests/Feature/Tenants/AssignTenantUploadTest.php)",
+      "Bash(./vendor/bin/pest tests/Feature/Tenants/AssignTenantEdgeTest.php)",
+      "Bash(cd /Users/sarotmoniodom/AMS_APP_dev; rm -f tests/Feature/Tenants/AssignTenantUploadTest.php tests/Feature/Tenants/AssignTenantEdgeTest.php /tmp/assign_edge.php /tmp/head.php; echo \"cleaned\")",
+      "Bash(./vendor/bin/pest tests/Feature/Tenants/AssignUploadVerifyTest.php)",
+      "Bash(php -l resources/views/admin/apartments/_assign-tenant-modal.blade.php)",
+      "Bash(php -l app/Http/Controllers/Admin/TenantController.php)",
+      "Bash(php -l app/Http/Controllers/Supervisor/TenantController.php)"
     ],
     "additionalDirectories": [
-      "/Users/sarotmoniodom/AMS_APP"
+      "/Users/sarotmoniodom/AMS_APP",
+      "/private/tmp"
     ]
   }
 }

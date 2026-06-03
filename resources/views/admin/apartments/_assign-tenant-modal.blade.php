@@ -28,8 +28,18 @@
 
         <form id="assignTenantForm" method="POST" enctype="multipart/form-data" class="p-6 space-y-4">
             @csrf
-            <input type="hidden" id="apartmentId" name="apartment_id">
-            <input type="hidden" id="tenantOption" name="tenant_option" value="existing">
+            <input type="hidden" id="apartmentId" name="apartment_id" value="{{ old('apartment_id') }}">
+            <input type="hidden" id="tenantOption" name="tenant_option" value="{{ old('tenant_option', 'existing') }}">
+
+            @if($errors->any())
+                <div class="bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg px-4 py-3">
+                    <ul class="list-disc list-inside space-y-0.5">
+                        @foreach($errors->all() as $error)
+                            <li>{{ $error }}</li>
+                        @endforeach
+                    </ul>
+                </div>
+            @endif
 
             <!-- Existing Tenant Tab -->
             <div id="existingTenantContent" class="tab-content space-y-4 hidden">
@@ -75,7 +85,7 @@
                         </div>
                         <div class="col-span-2">
                             <label for="attached_photo" class="block text-xs font-medium text-slate-500 mb-1 uppercase tracking-wide">{{ __('messages.attached_photo') }}</label>
-                            <input type="file" id="attached_photo" name="attached_photo" accept="image/*,.pdf" class="w-full px-3.5 py-2 text-sm border border-slate-200 rounded-lg bg-slate-50/50 text-slate-600 focus:outline-none focus:ring-2 focus:ring-slate-300 transition file:mr-3 file:py-1 file:px-3 file:rounded-md file:border-0 file:text-xs file:font-medium file:bg-slate-100 file:text-slate-600">
+                            <input type="file" id="attached_photo" name="attached_photo" accept="image/*" class="w-full px-3.5 py-2 text-sm border border-slate-200 rounded-lg bg-slate-50/50 text-slate-600 focus:outline-none focus:ring-2 focus:ring-slate-300 transition file:mr-3 file:py-1 file:px-3 file:rounded-md file:border-0 file:text-xs file:font-medium file:bg-slate-100 file:text-slate-600">
                             <p class="text-[11px] text-slate-400 mt-1">{{ __('messages.file_types_1') }}</p>
                         </div>
                         <div class="col-span-2">
@@ -222,5 +232,22 @@ document.addEventListener('DOMContentLoaded', function() {
             document.body.style.overflow = '';
         }
     });
+
+    // Re-open the modal (and restore context) when the server bounced the form
+    // back with validation errors — otherwise the failure is invisible to the user.
+    @if($errors->any() && old('apartment_id'))
+    (function reopenOnError() {
+        const apartmentId = @json(old('apartment_id'));
+        form.action = `${assignBase}/${apartmentId}/assign-tenant`;
+        if (@json(old('tenant_option')) === 'existing') {
+            switchToExistingTab();
+        } else {
+            switchToNewTab();
+        }
+        tabNavigation.classList.remove('hidden');
+        modal.classList.remove('hidden');
+        document.body.style.overflow = 'hidden';
+    })();
+    @endif
 });
 </script>

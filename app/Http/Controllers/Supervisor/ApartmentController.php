@@ -14,6 +14,7 @@ use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
@@ -140,8 +141,8 @@ class ApartmentController extends Controller
             'email' => 'nullable|email|max:255',
             'address' => 'nullable|string',
             'date_of_birth' => 'nullable|date|before_or_equal:'.$minBirthDate,
-            'attached_photo' => 'nullable|file|mimes:jpeg,jpg,png,gif,pdf|max:5120',
-            'id_pdf' => 'nullable|file|mimes:pdf,jpeg,jpg,png,gif|max:5120',
+            'attached_photo' => 'nullable|file|mimes:jpeg,jpg,png,gif,webp,heic,heif,pdf|max:10240',
+            'id_pdf' => 'nullable|file|mimes:pdf,jpeg,jpg,png,gif,webp,heic,heif|max:10240',
             'move_in_date' => 'required|date|after_or_equal:'.$minMoveInDate,
             'deposit' => 'required|numeric|min:0',
         ], [
@@ -164,11 +165,19 @@ class ApartmentController extends Controller
             // Only accept uploads when creating a new tenant — prevents accidental
             // overwrite of an existing tenant's photo/document via crafted requests.
             if ($validated['tenant_option'] === 'new') {
-                if ($request->hasFile('attached_photo')) {
-                    $photoPath = $request->file('attached_photo')->store('tenants', 'public');
+                if ($request->hasFile('attached_photo') && $request->file('attached_photo')->isValid()) {
+                    try {
+                        $photoPath = $request->file('attached_photo')->store('tenants', 'public');
+                    } catch (\Throwable $e) {
+                        Log::error('Tenant photo upload failed during assignment: '.$e->getMessage());
+                    }
                 }
-                if ($request->hasFile('id_pdf')) {
-                    $documentPath = $request->file('id_pdf')->store('tenants/id_documents', 'public');
+                if ($request->hasFile('id_pdf') && $request->file('id_pdf')->isValid()) {
+                    try {
+                        $documentPath = $request->file('id_pdf')->store('tenants/id_documents', 'public');
+                    } catch (\Throwable $e) {
+                        Log::error('Tenant document upload failed during assignment: '.$e->getMessage());
+                    }
                 }
             }
 

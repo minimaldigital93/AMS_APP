@@ -201,7 +201,7 @@ class TenantController extends Controller
             'move_out_date' => 'nullable|date|after:move_in_date',
             'status' => 'required|in:pending,active',
             'deposit' => 'nullable|numeric|min:0',
-            'photo' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:5120',
+            'photo' => 'nullable|image|mimes:jpeg,png,jpg,gif,webp|max:10240',
         ]);
 
         if ($request->hasFile('photo') && $request->file('photo')->isValid()) {
@@ -517,7 +517,7 @@ class TenantController extends Controller
             'move_out_date' => 'nullable|date|after:move_in_date',
             'status' => 'required|in:pending,active',
             'deposit' => 'nullable|numeric|min:0',
-            'photo' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:5120',
+            'photo' => 'nullable|image|mimes:jpeg,png,jpg,gif,webp|max:10240',
             'notes' => 'nullable|string',
         ]);
 
