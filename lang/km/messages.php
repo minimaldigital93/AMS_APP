@@ -274,6 +274,7 @@ return [
     'days_suffix' => ':days ថ្ងៃ',
     'view_settlement' => 'មើលការទូទាត់',
     'view_document' => 'មើលឯកសារ',
+    'download' => 'ទាញយក',
     'no_archived_tenants_found' => 'រកមិនឃើញអ្នកជួលក្នុងប័ណ្ណសារទេ',
     'archived_tenant_details' => 'ព័ត៌មានលម្អិតអ្នកជួលក្នុងប័ណ្ណសារ',
     'tenancy_information' => 'ព័ត៌មានការជួល',

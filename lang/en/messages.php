@@ -274,6 +274,7 @@ return [
     'days_suffix' => ':days days',
     'view_settlement' => 'View Settlement',
     'view_document' => 'View Document',
+    'download' => 'Download',
     'no_archived_tenants_found' => 'No archived tenants found',
     'archived_tenant_details' => 'Archived Tenant Details',
     'tenancy_information' => 'Tenancy Information',

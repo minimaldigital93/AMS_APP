@@ -194,19 +194,81 @@
     <div class="bg-white rounded-xl border border-slate-100 p-6">
         <h3 class="text-sm font-medium text-slate-500 uppercase tracking-wide mb-4">{{ __('messages.attached_document') }}</h3>
         @if($tenant->document_path)
-            <a href="{{ asset('storage/' . $tenant->document_path) }}" target="_blank"
-               class="inline-flex items-center gap-3 px-4 py-3 bg-slate-50 hover:bg-slate-100 rounded-lg border border-slate-200 hover:border-slate-300 transition group">
+            @php
+                $docUrl = asset('storage/' . $tenant->document_path);
+                $docName = basename($tenant->document_path);
+                $docExt = strtolower(pathinfo($tenant->document_path, PATHINFO_EXTENSION));
+                $docIsImage = in_array($docExt, ['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp', 'svg']);
+            @endphp
+            <button type="button"
+                    onclick="openDocPreview(@js($docUrl), @js($docName), {{ $docIsImage ? 'true' : 'false' }})"
+                    class="inline-flex items-center gap-3 px-4 py-3 bg-slate-50 hover:bg-slate-100 rounded-lg border border-slate-200 hover:border-slate-300 transition group text-left">
                 <div class="h-10 w-10 rounded-lg bg-red-50 flex items-center justify-center">
                     <svg class="w-5 h-5 text-red-600" fill="currentColor" viewBox="0 0 20 20"><path d="M4 2h7l5 5v11a2 2 0 01-2 2H4a2 2 0 01-2-2V4a2 2 0 012-2z"/></svg>
                 </div>
                 <div class="flex-1">
                     <p class="text-sm font-medium text-slate-700 group-hover:text-slate-900">{{ __('messages.view_document') }}</p>
-                    <p class="text-xs text-slate-400">{{ basename($tenant->document_path) }}</p>
+                    <p class="text-xs text-slate-400">{{ $docName }}</p>
                 </div>
                 <svg class="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M13 7l5 5m0 0l-5 5m5-5H6"/></svg>
-            </a>
+            </button>
         @else
             <p class="text-slate-400 text-sm">{{ __('messages.no_document_attached') }}</p>
         @endif
     </div>
 </div>
+
+{{-- Document Preview Modal --}}
+<div id="docPreviewModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/60 p-4" onclick="if(event.target === this) closeDocPreview()">
+    <div class="bg-white rounded-xl w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden shadow-2xl">
+        <div class="flex items-center justify-between px-5 py-3 border-b border-slate-100">
+            <p id="docPreviewName" class="text-sm font-medium text-slate-700 truncate pr-4"></p>
+            <div class="flex items-center gap-2 shrink-0">
+                <a id="docPreviewDownload" href="#" download
+                   class="inline-flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-white bg-slate-800 hover:bg-slate-900 rounded-lg transition">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+                    {{ __('messages.download') }}
+                </a>
+                <button type="button" onclick="closeDocPreview()" class="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition" aria-label="Close">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+                </button>
+            </div>
+        </div>
+        <div class="flex-1 overflow-auto bg-slate-100 flex items-center justify-center">
+            <img id="docPreviewImage" src="" alt="" class="hidden max-w-full max-h-[78vh] object-contain mx-auto">
+            <iframe id="docPreviewFrame" src="" class="hidden w-full h-[78vh] border-0"></iframe>
+        </div>
+    </div>
+</div>
+
+<script>
+function openDocPreview(url, name, isImage){
+    var modal = document.getElementById('docPreviewModal');
+    var img = document.getElementById('docPreviewImage');
+    var frame = document.getElementById('docPreviewFrame');
+    document.getElementById('docPreviewName').textContent = name;
+    document.getElementById('docPreviewDownload').setAttribute('href', url);
+    document.getElementById('docPreviewDownload').setAttribute('download', name);
+    if(isImage){
+        img.src = url; img.classList.remove('hidden');
+        frame.src = ''; frame.classList.add('hidden');
+    } else {
+        frame.src = url; frame.classList.remove('hidden');
+        img.src = ''; img.classList.add('hidden');
+    }
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
+    document.body.style.overflow = 'hidden';
+}
+function closeDocPreview(){
+    var modal = document.getElementById('docPreviewModal');
+    modal.classList.add('hidden');
+    modal.classList.remove('flex');
+    document.getElementById('docPreviewImage').src = '';
+    document.getElementById('docPreviewFrame').src = '';
+    document.body.style.overflow = '';
+}
+document.addEventListener('keydown', function(e){
+    if(e.key === 'Escape') closeDocPreview();
+});
+</script>
