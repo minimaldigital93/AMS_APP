@@ -19,7 +19,7 @@
                 @php($nav = [
                     'superadmin.dashboard' => ['Dashboard', 'M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6'],
                     'superadmin.accounts.index' => ['Accounts', 'M17 20h5v-2a4 4 0 00-3-3.87M9 20H4v-2a4 4 0 013-3.87m6-1a4 4 0 100-8 4 4 0 000 8z'],
-                    'superadmin.subscriptions.index' => ['Subscriptions', 'M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z'],
+                    'superadmin.finance.index' => ['Finance', 'M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z'],
                     'superadmin.plans.index' => ['Plans', 'M3 10h18M7 15h1m4 0h1m-7 4h12a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z'],
                 ])
                 @foreach ($nav as $route => $meta)
@@ -31,7 +31,6 @@
                 @endforeach
             </nav>
             <div class="border-t border-gray-800 p-3">
-                <a href="{{ route('admin.dashboard') }}" class="block rounded-lg px-3 py-2 text-sm text-gray-300 hover:bg-gray-800 hover:text-white">{{ __('Switch to property view') }}</a>
                 <form method="POST" action="{{ route('logout') }}">
                     @csrf
                     <button class="mt-1 w-full rounded-lg px-3 py-2 text-left text-sm text-gray-300 hover:bg-gray-800 hover:text-white">{{ __('Log out') }}</button>

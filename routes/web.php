@@ -12,8 +12,8 @@ use App\Http\Controllers\KhqrCallbackController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\SuperAdmin\AccountsController as SuperAdminAccountsController;
 use App\Http\Controllers\SuperAdmin\DashboardController as SuperAdminDashboardController;
+use App\Http\Controllers\SuperAdmin\FinanceController as SuperAdminFinanceController;
 use App\Http\Controllers\SuperAdmin\PlansController as SuperAdminPlansController;
-use App\Http\Controllers\SuperAdmin\SubscriptionsController as SuperAdminSubscriptionsController;
 use App\Http\Controllers\Supervisor\ApartmentController as SupervisorApartmentController;
 use App\Http\Controllers\Supervisor\DashboardController as SupervisorDashboardController;
 use App\Http\Controllers\Supervisor\RevenueExpenseController as SupervisorRevenueExpenseController;
@@ -84,18 +84,24 @@ Route::middleware(['auth', 'role:superadmin'])->prefix('superadmin')->name('supe
 
     // Customer accounts
     Route::get('/accounts', [SuperAdminAccountsController::class, 'index'])->name('accounts.index');
+    Route::get('/accounts/create', [SuperAdminAccountsController::class, 'create'])->name('accounts.create');
+    Route::post('/accounts', [SuperAdminAccountsController::class, 'store'])->name('accounts.store');
     Route::post('/accounts/{account}/suspend', [SuperAdminAccountsController::class, 'toggleSuspend'])->name('accounts.suspend');
-    Route::post('/accounts/{account}/extend', [SuperAdminAccountsController::class, 'extend'])->name('accounts.extend');
+    Route::post('/accounts/{account}/activate', [SuperAdminAccountsController::class, 'activate'])->name('accounts.activate');
     Route::post('/accounts/{account}/plan', [SuperAdminAccountsController::class, 'changePlan'])->name('accounts.plan');
 
     // Plans
     Route::get('/plans', [SuperAdminPlansController::class, 'index'])->name('plans.index');
+    Route::post('/plans', [SuperAdminPlansController::class, 'store'])->name('plans.store');
     Route::put('/plans/{plan}', [SuperAdminPlansController::class, 'update'])->name('plans.update');
+    Route::delete('/plans/{plan}', [SuperAdminPlansController::class, 'destroy'])->name('plans.destroy');
 
-    // Subscriptions
-    Route::get('/subscriptions', [SuperAdminSubscriptionsController::class, 'index'])->name('subscriptions.index');
-    Route::post('/subscriptions/{subscription}/activate', [SuperAdminSubscriptionsController::class, 'activate'])->name('subscriptions.activate');
-    Route::post('/subscriptions/{subscription}/cancel', [SuperAdminSubscriptionsController::class, 'cancel'])->name('subscriptions.cancel');
+    // Platform finance (profit & loss: subscription revenue vs platform expenses)
+    Route::get('/finance', [SuperAdminFinanceController::class, 'index'])->name('finance.index');
+    Route::post('/finance/expenses', [SuperAdminFinanceController::class, 'store'])->name('finance.expenses.store');
+    Route::delete('/finance/expenses/{expense}', [SuperAdminFinanceController::class, 'destroy'])->name('finance.expenses.destroy');
+    Route::post('/finance/months/close', [SuperAdminFinanceController::class, 'closeMonth'])->name('finance.months.close');
+    Route::post('/finance/months/reopen', [SuperAdminFinanceController::class, 'reopenMonth'])->name('finance.months.reopen');
 });
 
 Route::middleware('auth')->group(function () {

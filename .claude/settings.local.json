@@ -309,7 +309,14 @@
       "Bash(sed -n '1050,1075p' resources/views/admin/revenue_expense/index.blade.php)",
       "Bash(sed -n '1148,1175p' resources/views/admin/revenue_expense/index.blade.php)",
       "Bash(grep -nE '\\\\$periodStart|\\\\$periodEnd' app/Http/Controllers/Admin/RevenueExpenseController.php)",
-      "Bash(php -l app/Http/Controllers/Concerns/HasFiscalPeriodScope.php)"
+      "Bash(php -l app/Http/Controllers/Concerns/HasFiscalPeriodScope.php)",
+      "Bash(./vendor/bin/pint app/Http/Controllers/SuperAdmin/FinanceController.php app/Models/PlatformExpense.php app/Services/Platform/PlatformFinanceService.php app/Http/Controllers/Auth/AuthenticatedSessionController.php database/migrations/2026_06_03_200000_create_platform_expenses_table.php)",
+      "Bash(grep -n \"fillable\\\\|protected \\\\$\\\\|creating\\\\|account_id\" /Users/moniodom/AMS_APP/app/Models/User.php)",
+      "Bash(./vendor/bin/pint app/Http/Controllers/SuperAdmin/AccountsController.php)",
+      "Bash(./vendor/bin/pint app/Http/Controllers/SuperAdmin/PlansController.php -q)",
+      "Bash(php -l app/Services/Platform/PlatformFinanceService.php)",
+      "Bash(php -l app/Http/Controllers/SuperAdmin/FinanceController.php)",
+      "Bash(./vendor/bin/pint app/Services/Platform/PlatformFinanceService.php app/Http/Controllers/SuperAdmin/FinanceController.php app/Models/PlatformMonthlyClose.php database/migrations/2026_06_03_201000_create_platform_monthly_closes_table.php)"
     ],
     "additionalDirectories": [
       "/Users/sarotmoniodom/AMS_APP",

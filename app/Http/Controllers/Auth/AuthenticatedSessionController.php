@@ -38,6 +38,10 @@ class AuthenticatedSessionController extends Controller
         /** @var \App\Models\User $user */
         $user = Auth::user();
 
+        // Stamp login activity — powers the superadmin engagement metrics
+        // (active vs dormant accounts on the platform dashboard).
+        $user->forceFill(['last_login_at' => now()])->save();
+
         if ($user->hasRole('superadmin')) {
             return redirect()->route('superadmin.dashboard');
         } elseif ($user->hasRole('admin')) {

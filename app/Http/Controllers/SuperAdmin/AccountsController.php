@@ -10,6 +10,8 @@ use App\Services\Subscription\SubscriptionService;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Validation\Rules\Password;
 
 /**
  * Superadmin management of customer (admin) accounts across the whole platform.
@@ -20,7 +22,12 @@ class AccountsController extends Controller
 
     public function index(): View
     {
-        $accounts = User::role('admin')
+        // Every customer account owner (admins + pending/unpaid signups). Owners
+        // point account_id at themselves and are the only users with a subscription,
+        // so this also surfaces signups that haven't paid yet (status inactive,
+        // no admin role) — previously only visible on the Subscriptions page.
+        $accounts = User::whereColumn('account_id', 'id')
+            ->whereHas('subscription')
             ->with(['subscription.plan'])
             ->orderBy('name')
             ->paginate(20);
@@ -41,6 +48,75 @@ class AccountsController extends Controller
         ]);
     }
 
+    /** Show the form to provision a new customer (admin) account. */
+    public function create(): View
+    {
+        return view('superadmin.accounts.create', [
+            'plans' => Plan::orderBy('price_usd')->get(),
+        ]);
+    }
+
+    /** Provision a new customer account: admin user + active subscription. */
+    public function store(Request $request): RedirectResponse
+    {
+        $validated = $request->validate([
+            'name' => ['required', 'string', 'max:255'],
+            'phone' => ['required', 'string', 'max:255', 'unique:users,phone'],
+            'password' => ['required', Password::defaults()],
+            'plan' => ['required', 'exists:plans,slug'],
+        ]);
+
+        $plan = Plan::where('slug', $validated['plan'])->firstOrFail();
+
+        $account = User::create([
+            'name' => $validated['name'],
+            'phone' => $validated['phone'],
+            'password' => Hash::make($validated['password']),
+            'status' => 'active',
+        ]);
+
+        // Admins own their own account — point account_id back at themselves.
+        $account->forceFill(['account_id' => $account->id])->save();
+        $account->assignRole('admin');
+
+        Subscription::create([
+            'account_id' => $account->id,
+            'plan_id' => $plan->id,
+            'status' => 'active',
+            'started_at' => now(),
+            'expires_at' => now()->addDays($plan->billing_period_days),
+        ]);
+
+        return redirect()->route('superadmin.accounts.index')
+            ->with('success', __('messages.flash_plan_updated_to', ['plan' => $plan->name]));
+    }
+
+    /**
+     * Activate a pending/unpaid signup without payment (superadmin override).
+     * Mirrors the payment-confirmed path: subscription active + expiry, admin
+     * role, account status active.
+     */
+    public function activate(User $account): RedirectResponse
+    {
+        if ($sub = $account->subscription) {
+            $days = $sub->plan?->billing_period_days ?? 30;
+            $sub->update([
+                'status' => 'active',
+                'started_at' => $sub->started_at ?? now(),
+                'expires_at' => now()->addDays($days),
+            ]);
+        }
+
+        if (! $account->hasRole('admin')) {
+            $account->assignRole('admin');
+        }
+        if ($account->status !== 'active') {
+            $account->forceFill(['status' => 'active'])->save();
+        }
+
+        return back()->with('success', __('messages.flash_account_reactivated'));
+    }
+
     /** Suspend or reactivate an account. */
     public function toggleSuspend(User $account): RedirectResponse
     {
@@ -52,24 +128,6 @@ class AccountsController extends Controller
         }
 
         return back()->with('success', $suspending ? __('messages.flash_account_suspended') : __('messages.flash_account_reactivated'));
-    }
-
-    /** Extend the account's subscription by one billing period. */
-    public function extend(User $account): RedirectResponse
-    {
-        $sub = $account->subscription()->with('plan')->first();
-        if (! $sub) {
-            return back()->with('error', __('messages.flash_account_no_subscription'));
-        }
-
-        $base = $sub->expires_at && $sub->expires_at->isFuture() ? $sub->expires_at : now();
-        $sub->update([
-            'status' => 'active',
-            'started_at' => $sub->started_at ?? now(),
-            'expires_at' => $base->copy()->addDays($sub->plan?->billing_period_days ?? 30),
-        ]);
-
-        return back()->with('success', __('messages.flash_subscription_extended'));
     }
 
     /** Change the account's plan (no payment — superadmin override). */
