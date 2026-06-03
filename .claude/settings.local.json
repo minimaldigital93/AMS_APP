@@ -293,7 +293,8 @@
       "Bash(grep -vE \"^$|Restricted\")",
       "Bash(php -l database/migrations/2026_06_03_000001_add_dashboard_query_indexes.php)",
       "Bash(php -l app/Http/Controllers/Admin/ApartmentController.php)",
-      "Bash(php -l database/migrations/2026_06_03_000002_scope_apartment_number_unique_per_account.php)"
+      "Bash(php -l database/migrations/2026_06_03_000002_scope_apartment_number_unique_per_account.php)",
+      "Bash(php -l resources/views/tenant/dashboard.blade.php)"
     ],
     "additionalDirectories": [
       "/Users/sarotmoniodom/AMS_APP",

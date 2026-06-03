@@ -1,7 +1,10 @@
 @extends('layouts.tenant')
 
 @section('content')
-<div class="space-y-6">
+<div class="space-y-6" x-data="{ viewerOpen: false, viewerUrl: '', viewerIsImage: false, viewerTitle: '',
+        openViewer(url, isImage, title) { this.viewerUrl = url; this.viewerIsImage = isImage; this.viewerTitle = title; this.viewerOpen = true; },
+        closeViewer() { this.viewerOpen = false; this.viewerUrl = ''; } }"
+    @keydown.escape.window="closeViewer()">
 
     {{-- Page Header --}}
     <div>
@@ -64,7 +67,8 @@
             @if($tenant->photo_path)
                 <img src="{{ asset('storage/' . $tenant->photo_path) }}"
                      alt="{{ __('messages.tenant_photo') }}"
-                     class="w-36 h-36 rounded-full object-cover border-4 border-indigo-100 shadow">
+                     @click="openViewer('{{ asset('storage/' . $tenant->photo_path) }}', true, '{{ __('messages.photo') }}')"
+                     class="w-36 h-36 rounded-full object-cover border-4 border-indigo-100 shadow cursor-pointer hover:opacity-90 transition">
             @else
                 <div class="w-36 h-36 rounded-full bg-indigo-50 border-4 border-indigo-100 flex items-center justify-center">
                     <span class="text-5xl font-bold text-indigo-300">
@@ -164,25 +168,32 @@
                     $ext = pathinfo($tenant->document_path, PATHINFO_EXTENSION);
                     $docUrl = asset('storage/' . $tenant->document_path);
                 @endphp
+                @php $isImageDoc = in_array(strtolower($ext), ['jpg', 'jpeg', 'png', 'webp']); @endphp
                 <div class="flex flex-col items-center gap-4">
-                    @if(in_array(strtolower($ext), ['jpg', 'jpeg', 'png', 'webp']))
+                    @if($isImageDoc)
                         <img src="{{ $docUrl }}"
                              alt="{{ __('messages.document') }}"
-                             class="w-full max-h-48 object-contain rounded-lg border border-slate-100">
+                             @click="openViewer('{{ $docUrl }}', true, '{{ __('messages.document') }}')"
+                             class="w-full max-h-48 object-contain rounded-lg border border-slate-100 cursor-pointer hover:opacity-90 transition">
                     @else
-                        <div class="w-full flex flex-col items-center justify-center py-8 bg-indigo-50 rounded-lg border border-indigo-100">
+                        <button type="button"
+                            @click="openViewer('{{ $docUrl }}', false, '{{ __('messages.document') }}')"
+                            class="w-full flex flex-col items-center justify-center py-8 bg-indigo-50 rounded-lg border border-indigo-100 hover:bg-indigo-100 transition">
                             <svg class="w-12 h-12 text-indigo-300 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"/>
                             </svg>
                             <p class="text-xs text-indigo-400 uppercase font-medium">{{ __('messages.file_label', ['ext' => strtoupper($ext)]) }}</p>
-                        </div>
+                        </button>
                     @endif
-                    <a href="{{ $docUrl }}"
-                       target="_blank"
+                    <button type="button"
+                       @click="openViewer('{{ $docUrl }}', {{ $isImageDoc ? 'true' : 'false' }}, '{{ __('messages.document') }}')"
                        class="w-full inline-flex items-center justify-center gap-2 px-4 py-2 text-xs font-medium text-indigo-700 bg-indigo-50 hover:bg-indigo-100 rounded-lg transition border border-indigo-100" title="{{ __('messages.view_download') }}">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
-                        </svg></a>
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+                        </svg>
+                        <span>{{ __('messages.view_download') }}</span>
+                    </button>
                 </div>
             @else
                 <div class="flex flex-col items-center justify-center py-10 text-center">
@@ -205,6 +216,41 @@
         <p class="text-sm text-gray-400 mt-1">{{ __('messages.contact_property_manager') }}</p>
     </div>
     @endif
+
+    {{-- In-app viewer (lightbox) — keeps PWA users inside the app with a working back/close button --}}
+    <div x-show="viewerOpen"
+         x-cloak
+         x-transition.opacity
+         @click.self="closeViewer()"
+         class="fixed inset-0 z-[60] bg-black/80 flex flex-col"
+         style="display: none;">
+        {{-- Header bar with Back / Close --}}
+        <div class="flex items-center justify-between gap-3 px-4 py-3 bg-black/40">
+            <button type="button" @click="closeViewer()"
+                class="inline-flex items-center gap-2 px-3 py-2 text-sm font-medium text-white bg-white/10 hover:bg-white/20 rounded-lg transition">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+                </svg>
+                <span>{{ __('messages.back') }}</span>
+            </button>
+            <span class="text-sm font-medium text-white/90 truncate" x-text="viewerTitle"></span>
+            <a :href="viewerUrl" target="_blank" rel="noopener"
+               class="inline-flex items-center gap-2 px-3 py-2 text-sm font-medium text-white bg-white/10 hover:bg-white/20 rounded-lg transition" title="{{ __('messages.view_download') }}">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
+                </svg>
+            </a>
+        </div>
+        {{-- Content --}}
+        <div class="flex-1 overflow-auto flex items-center justify-center p-4">
+            <template x-if="viewerIsImage">
+                <img :src="viewerUrl" alt="{{ __('messages.document') }}" class="max-w-full max-h-full object-contain rounded-lg shadow-2xl">
+            </template>
+            <template x-if="!viewerIsImage">
+                <iframe :src="viewerUrl" class="w-full h-full bg-white rounded-lg shadow-2xl" frameborder="0"></iframe>
+            </template>
+        </div>
+    </div>
 
 </div>
 @endsection
