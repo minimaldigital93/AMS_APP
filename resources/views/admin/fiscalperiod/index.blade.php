@@ -9,12 +9,6 @@
         </a>
     </div>
 
-    @if(session('success'))
-        <div class="bg-green-50 border border-green-200 rounded-lg p-3 mb-4">
-            <p class="text-green-800 text-sm">{{ session('success') }}</p>
-        </div>
-    @endif
-
     @if($fiscalPeriods->count())
         <div class="space-y-4">
             @foreach($fiscalPeriods as $period)

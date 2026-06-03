@@ -38,11 +38,24 @@ trait HasFiscalPeriodScope
     abstract protected function ledgerUserId(): ?int;
 
     /**
+     * Memoized active period for the current request. The active period never
+     * changes mid-request, but queryService()/breakEvenService() rebuild
+     * themselves on every call and each used to re-query it — index() alone
+     * triggered ~4-5 identical lookups. `false` means "not yet resolved";
+     * `null` is a valid resolved result (no open period).
+     */
+    private FiscalPeriods|null|false $activeFiscalPeriodCache = false;
+
+    /**
      * Active (most recent open) fiscal period in scope, or null if none.
      */
     protected function getActiveFiscalPeriod(): ?FiscalPeriods
     {
-        return $this->fiscalPeriodsQuery()
+        if ($this->activeFiscalPeriodCache !== false) {
+            return $this->activeFiscalPeriodCache;
+        }
+
+        return $this->activeFiscalPeriodCache = $this->fiscalPeriodsQuery()
             ->where('status', 'open')
             ->orderBy('opening_date', 'desc')
             ->first();

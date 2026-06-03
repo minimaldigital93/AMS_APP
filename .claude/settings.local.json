@@ -295,7 +295,21 @@
       "Bash(php -l app/Http/Controllers/Admin/ApartmentController.php)",
       "Bash(php -l database/migrations/2026_06_03_000002_scope_apartment_number_unique_per_account.php)",
       "Bash(php -l resources/views/tenant/dashboard.blade.php)",
-      "Bash(php -r \"echo ini_get\\('memory_limit'\\).PHP_EOL;\")"
+      "Bash(php -r \"echo ini_get\\('memory_limit'\\).PHP_EOL;\")",
+      "Bash(grep -rn 'session\\('\\\\''success'\\\\''\\)\\\\|session\\('\\\\''error'\\\\''\\)\\\\|session\\('\\\\''status'\\\\''\\)\\\\|session\\($flash\\)\\\\|@if \\(session\\\\|@foreach.*flash' resources/views/admin/fiscalperiod/index.blade.php)",
+      "Bash(grep -n 'session\\($flash\\)\\\\|@if \\(session\\\\|flashStyles\\\\|session\\('\\\\''success'\\\\''\\)\\\\|@yield\\('\\\\''content'\\\\''\\)' resources/views/layouts/supervisor.blade.php)",
+      "Bash(sed -n '10,40p' database/migrations/*create_accounts_table*)",
+      "Bash(sed -n '10,40p' database/migrations/*create_utilities_table*)",
+      "Bash(sed -n '10,40p' database/migrations/*create_payments_table*)",
+      "Bash(sed -n '10,40p' database/migrations/*create_rentals_table*)",
+      "Bash(grep -nE '\\\\$apartments\\\\b|\\\\$expenseApartments\\\\b|\\\\$fixedApartments\\\\b|\\\\$incomeApartments\\\\b' resources/views/admin/revenue_expense/index.blade.php)",
+      "Bash(grep -nE '\\\\$apartmentSummary\\\\b|\\\\$apartmentExpenses\\\\b|\\\\$billSummary\\\\b|\\\\$perApartment\\\\b' resources/views/admin/revenue_expense/index.blade.php)",
+      "Bash(sed -n '850,900p' resources/views/admin/revenue_expense/index.blade.php)",
+      "Bash(sed -n '985,1045p' resources/views/admin/revenue_expense/index.blade.php)",
+      "Bash(sed -n '1050,1075p' resources/views/admin/revenue_expense/index.blade.php)",
+      "Bash(sed -n '1148,1175p' resources/views/admin/revenue_expense/index.blade.php)",
+      "Bash(grep -nE '\\\\$periodStart|\\\\$periodEnd' app/Http/Controllers/Admin/RevenueExpenseController.php)",
+      "Bash(php -l app/Http/Controllers/Concerns/HasFiscalPeriodScope.php)"
     ],
     "additionalDirectories": [
       "/Users/sarotmoniodom/AMS_APP",

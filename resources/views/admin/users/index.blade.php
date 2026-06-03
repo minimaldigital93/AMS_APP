@@ -96,7 +96,7 @@
                             <form action="{{ route('admin.users.updateRole', $user) }}" method="POST">
                                 @csrf
                                 @method('PATCH')
-                                <select name="role" onchange="this.form.submit()" class="px-2 py-1 text-xs font-medium rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                <select name="role" onchange="this.form.submit()" class="w-56 px-2 py-1 text-xs font-medium rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500">
                                     <option value="">{{ __('messages.assign_role') }}</option>
                                     @foreach($roles as $role)
                                         <option value="{{ $role->id }}" {{ $user->roles->contains($role->id) ? 'selected' : '' }}>{{ ucfirst($role->name) }}</option>

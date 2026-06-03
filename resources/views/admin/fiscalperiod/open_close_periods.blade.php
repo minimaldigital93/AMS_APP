@@ -4,12 +4,6 @@
 <div class="container mx-auto py-8 max-w-lg">
     <h1 class="text-2xl font-bold mb-6">{{ __('messages.new_fiscal_period') }}</h1>
 
-    @if(session('warning'))
-        <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-3 mb-4">
-            <p class="text-yellow-800 text-sm">{{ session('warning') }}</p>
-        </div>
-    @endif
-
     @if($errors->any())
         <div class="bg-red-50 border border-red-200 rounded-lg p-3 mb-4">
             <ul class="text-red-700 text-sm space-y-1">

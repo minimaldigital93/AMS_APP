@@ -96,6 +96,7 @@
                     </thead>
                     <tbody class="bg-white divide-y divide-gray-200">
                         @forelse ($tenants as $tenant)
+                            @php $apt = $tenant->apartment ?? $tenant->leaves->last()?->apartment; @endphp
                             <tr class="hover:bg-gray-50 transition">
                                 <td class="px-4 py-4 whitespace-nowrap text-sm text-gray-600">
                                     {{ $tenants->firstItem() ? $tenants->firstItem() + $loop->index : $loop->iteration }}
@@ -115,7 +116,7 @@
                                         </div>
                                     </div>
                                 </td>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{ $tenant->apartment?->floor?->floor_name ?? 'N/A' }} / {{ $tenant->apartment?->apartment_number ?? 'N/A' }}</td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{ $apt?->floor?->floor_name ?? 'N/A' }} / {{ $apt?->apartment_number ?? 'N/A' }}</td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
                                     @if($tenant->leaves->last() && $tenant->move_in_date)
                                         {{ __('messages.days_suffix', ['days' => $tenant->leaves->last()->stay_days]) }}
@@ -131,11 +132,11 @@
                                         </svg>
                                     </button>
                                     @if($tenant->document_path)
-                                        <a href="{{ asset('storage/' . $tenant->document_path) }}" target="_blank" title="{{ __('messages.view_document') }}" class="inline-flex items-center justify-center h-8 w-8 rounded-md text-red-600 bg-red-50 hover:bg-red-100 transition" aria-label="Document">
+                                        <button type="button" onclick="viewTenantDocument('{{ $tenant->id }}', '{{ addslashes($tenant->name) }}')" title="{{ __('messages.view_document') }}" class="inline-flex items-center justify-center h-8 w-8 rounded-md text-red-600 bg-red-50 hover:bg-red-100 transition" aria-label="Document">
                                             <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
                                                 <path d="M4 2h7l5 5v11a2 2 0 01-2 2H4a2 2 0 01-2-2V4a2 2 0 012-2z" />
                                             </svg>
-                                        </a>
+                                        </button>
                                     @endif
                                 </td>
                             </tr>
@@ -175,6 +176,38 @@
     </div>
 </div>
 
+<!-- Document Viewer Modal -->
+<div id="documentViewerModal" class="hidden fixed inset-0 bg-black bg-opacity-60 z-50 flex items-center justify-center p-4">
+    <div class="bg-white rounded-lg shadow-lg max-w-4xl w-full max-h-[90vh] flex flex-col overflow-hidden">
+        <div class="bg-white border-b border-gray-200 px-6 py-4 flex justify-between items-center">
+            <div class="flex items-center gap-3 min-w-0">
+                <span class="inline-flex items-center justify-center h-9 w-9 rounded-md text-red-600 bg-red-50 flex-shrink-0">
+                    <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path d="M4 2h7l5 5v11a2 2 0 01-2 2H4a2 2 0 01-2-2V4a2 2 0 012-2z"/></svg>
+                </span>
+                <div class="min-w-0">
+                    <h2 class="text-lg font-semibold text-gray-900 truncate">{{ __('messages.document') }}</h2>
+                    <p id="documentTenantName" class="text-xs text-gray-500 truncate"></p>
+                </div>
+            </div>
+            <div class="flex items-center gap-2">
+                <a id="documentDownloadBtn" href="#" download class="inline-flex items-center px-3 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition text-sm font-medium" title="{{ __('messages.download') }}">
+                    <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+                    {{ __('messages.download') }}
+                </a>
+                <a id="documentOpenBtn" href="#" target="_blank" class="inline-flex items-center px-3 py-2 bg-gray-50 text-gray-700 rounded-lg border border-gray-200 hover:bg-gray-100 transition text-sm font-medium" title="{{ __('messages.view_document') }}">
+                    <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>
+                </a>
+                <button onclick="closeDocumentModal()" class="text-gray-400 hover:text-gray-600 ml-1">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                </button>
+            </div>
+        </div>
+        <div id="documentViewerBody" class="flex-1 overflow-auto bg-gray-100 p-4 flex items-center justify-center">
+            <!-- Document preview injected here -->
+        </div>
+    </div>
+</div>
+
 <script>
 document.addEventListener('DOMContentLoaded', function(){
     const searchInput = document.querySelector('input[name="search"]');
@@ -200,6 +233,7 @@ document.addEventListener('DOMContentLoaded', function(){
 
 let allArchivedTenants = [
     @foreach($tenants as $tenant)
+        @php $apt = $tenant->apartment ?? $tenant->leaves->last()?->apartment; @endphp
         {
             id: {{ $tenant->id }},
             name: '{{ addslashes($tenant->name) }}',
@@ -207,9 +241,9 @@ let allArchivedTenants = [
             phone: '{{ $tenant->phone ?? "" }}',
             date_of_birth: '{{ $tenant->date_of_birth }}',
             notes: '{{ addslashes($tenant->notes ?? "") }}',
-            floor: '{{ $tenant->apartment?->floor?->floor_name ?? "N/A" }}',
-            apartment: '{{ $tenant->apartment?->apartment_number ?? "N/A" }}',
-            apartment_id: {{ $tenant->apartment_id ?? "null" }},
+            floor: '{{ $apt?->floor?->floor_name ?? "N/A" }}',
+            apartment: '{{ $apt?->apartment_number ?? "N/A" }}',
+            apartment_id: {{ $apt?->id ?? "null" }},
             move_in_date: '{{ $tenant->move_in_date }}',
             move_out_date: '{{ $tenant->leaves->last()?->leave_date ?? $tenant->move_out_date ?? "" }}',
             archived_at: '{{ $tenant->archived_at }}',
@@ -304,7 +338,7 @@ function viewTenantSettlement(tenantId, tenantName) {
                     <p class="text-sm font-medium text-gray-600">{{ __('messages.additional_notes') }}</p>
                     <p class="mt-2 text-sm text-gray-700">${t.notes}</p>
                 </div>` : ''}
-                ${t.document_path ? `<div class="mt-4"><a href="${t.document_path.startsWith('/') ? t.document_path : ('/storage/' + t.document_path)}" target="_blank" class="inline-flex items-center px-3 py-2 bg-gray-50 text-gray-700 rounded-lg border border-gray-200 hover:bg-gray-100" title="{{ __('messages.view_document') }}"><svg class="w-4 h-4 mr-2 text-red-600" fill="currentColor" viewBox="0 0 20 20"><path d="M4 2h7l5 5v11a2 2 0 01-2 2H4a2 2 0 01-2-2V4a2 2 0 012-2z"/></svg></a></div>` : '' }
+                ${t.document_path ? `<div class="mt-4"><button type="button" onclick="viewTenantDocument('${t.id}', '${t.name.replace(/'/g, "\\'")}')" class="inline-flex items-center px-3 py-2 bg-gray-50 text-gray-700 rounded-lg border border-gray-200 hover:bg-gray-100" title="{{ __('messages.view_document') }}"><svg class="w-4 h-4 mr-2 text-red-600" fill="currentColor" viewBox="0 0 20 20"><path d="M4 2h7l5 5v11a2 2 0 01-2 2H4a2 2 0 01-2-2V4a2 2 0 012-2z"/></svg>{{ __('messages.view_document') }}</button></div>` : '' }
 
                 <button onclick="closeViewTenantModal()" class="w-full px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition font-medium">{{ __('messages.close') }}</button>
             </div>
@@ -321,6 +355,41 @@ function viewTenantSettlement(tenantId, tenantName) {
 function closeViewTenantModal() {
     document.getElementById('viewTenantModal').classList.add('hidden');
 }
+
+function viewTenantDocument(tenantId, tenantName) {
+    const tenant = allArchivedTenants.find(t => t.id == tenantId);
+    if (!tenant || !tenant.document_path) { alert('{{ __('messages.no_document_attached') }}'); return; }
+
+    const url = tenant.document_path.startsWith('/') ? tenant.document_path : ('/storage/' + tenant.document_path);
+    const ext = (tenant.document_path.split('.').pop() || '').toLowerCase();
+    const body = document.getElementById('documentViewerBody');
+
+    if (['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp', 'svg'].includes(ext)) {
+        body.innerHTML = `<img src="${url}" alt="${tenantName}" class="max-w-full max-h-[75vh] object-contain rounded shadow-sm bg-white">`;
+    } else if (ext === 'pdf') {
+        body.innerHTML = `<iframe src="${url}" class="w-full h-[75vh] bg-white rounded shadow-sm" frameborder="0"></iframe>`;
+    } else {
+        body.innerHTML = `<div class="text-center py-12">
+            <svg class="w-16 h-16 mx-auto text-red-300 mb-4" fill="currentColor" viewBox="0 0 20 20"><path d="M4 2h7l5 5v11a2 2 0 01-2 2H4a2 2 0 01-2-2V4a2 2 0 012-2z"/></svg>
+            <p class="text-sm text-gray-600">${ext.toUpperCase()} {{ __('messages.document') }}</p>
+            <p class="text-xs text-gray-400 mt-1">{{ __('messages.download') }}</p>
+        </div>`;
+    }
+
+    document.getElementById('documentTenantName').textContent = tenantName || '';
+    document.getElementById('documentDownloadBtn').setAttribute('href', url);
+    document.getElementById('documentOpenBtn').setAttribute('href', url);
+    document.getElementById('documentViewerModal').classList.remove('hidden');
+}
+
+function closeDocumentModal() {
+    document.getElementById('documentViewerModal').classList.add('hidden');
+    document.getElementById('documentViewerBody').innerHTML = '';
+}
+
+document.getElementById('documentViewerModal').addEventListener('click', function(e){
+    if (e.target === this) closeDocumentModal();
+});
 </script>
 
 @endsection

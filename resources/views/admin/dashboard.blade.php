@@ -5,20 +5,6 @@
 @section('content')
 <div class="max-w-6xl mx-auto space-y-8">
 
-    {{-- Flash Messages --}}
-    @if(session('success'))
-    <div class="bg-emerald-50 border border-emerald-100 rounded-lg px-4 py-3 text-emerald-700 text-sm flex items-center gap-2.5">
-        <svg class="w-4 h-4 shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/></svg>
-        {{ session('success') }}
-    </div>
-    @endif
-    @if(session('error'))
-    <div class="bg-red-50 border border-red-100 rounded-lg px-4 py-3 text-red-600 text-sm flex items-center gap-2.5">
-        <svg class="w-4 h-4 shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"/></svg>
-        {{ session('error') }}
-    </div>
-    @endif
-
     {{-- Subscription renewal alert (due within 3 days) --}}
     @if(!empty($subscriptionAlert))
     <div x-data="{ show: true }" x-show="show"
@@ -243,10 +229,10 @@
     {{-- Payment Status Quick View --}}
     @if($fiscalData['has_active_period'] && !$isFullPeriod)
     <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div class="bg-emerald-50/70 border border-emerald-100 rounded-xl p-4 flex items-center justify-between">
+        <div class="bg-white border border-slate-200 rounded-xl p-4 flex items-center justify-between">
             <div>
-                <p class="text-sm font-medium text-emerald-700">{{ __('messages.paid') }}</p>
-                <p class="text-2xl font-bold text-emerald-800">{{ $stats['payments']['paid'] }}</p>
+                <p class="text-sm font-medium text-slate-600">{{ __('messages.paid') }}</p>
+                <p class="text-2xl font-bold text-slate-800">{{ $stats['payments']['paid'] }}</p>
                 @if(!empty($stats['tenants_on_leave']) && $stats['tenants_on_leave'] > 0)
                     @php $leaveCount = (int) $stats['tenants_on_leave']; @endphp
                     <p class="flex items-center gap-2 text-sm text-slate-500 mt-2" title="{{ __('messages.tenants_on_leave', ['count' => $leaveCount]) }}">
@@ -262,10 +248,10 @@
             </div>
         </div>
 
-        <div class="bg-amber-50/70 border border-amber-100 rounded-xl p-4 flex items-center justify-between">
+        <div class="bg-white border border-slate-200 rounded-xl p-4 flex items-center justify-between">
             <div>
-                <p class="text-sm font-medium text-amber-700">{{ __('messages.pending') }}</p>
-                <p class="text-2xl font-bold text-amber-800">{{ $stats['payments']['pending'] }}</p>
+                <p class="text-sm font-medium text-slate-600">{{ __('messages.pending') }}</p>
+                <p class="text-2xl font-bold text-slate-800">{{ $stats['payments']['pending'] }}</p>
             </div>
             @php $pending = $stats['payments']['pending'] ?? 0; @endphp
             <div class="relative w-16 h-16 flex items-center justify-center">
@@ -274,10 +260,10 @@
             </div>
         </div>
 
-        <div class="bg-red-50/70 border border-red-100 rounded-xl p-4 flex items-center justify-between">
+        <div class="bg-white border border-slate-200 rounded-xl p-4 flex items-center justify-between">
             <div>
-                <p class="text-sm font-medium text-red-600">{{ __('messages.overdue') }}</p>
-                <p class="text-2xl font-bold text-red-700">{{ $stats['payments']['overdue'] }}</p>
+                <p class="text-sm font-medium text-slate-600">{{ __('messages.overdue') }}</p>
+                <p class="text-2xl font-bold text-slate-800">{{ $stats['payments']['overdue'] }}</p>
             </div>
             @php $overdue = $stats['payments']['overdue'] ?? 0; @endphp
             <div class="relative w-16 h-16 flex items-center justify-center">

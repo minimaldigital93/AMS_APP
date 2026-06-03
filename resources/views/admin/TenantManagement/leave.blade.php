@@ -12,9 +12,6 @@
         <h1 class="text-2xl font-bold text-gray-900">{{ __('messages.process_tenant_leave') }}</h1>
     </div>
 
-    @if(session('error'))
-    <div class="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">{{ session('error') }}</div>
-    @endif
     @if($errors->any())
     <div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-lg text-sm">
         <ul class="list-disc list-inside">@foreach($errors->all() as $error)<li>{{ $error }}</li>@endforeach</ul>

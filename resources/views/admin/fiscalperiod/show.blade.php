@@ -29,16 +29,6 @@
         </div>
     </div>
 
-    @if(session('success'))
-        <div class="bg-green-50 border border-green-200 rounded-lg p-3 mb-4">
-            <p class="text-green-800 text-sm">{{ session('success') }}</p>
-        </div>
-    @endif
-    @if(session('error'))
-        <div class="bg-red-50 border border-red-200 rounded-lg p-3 mb-4">
-            <p class="text-red-800 text-sm">{{ session('error') }}</p>
-        </div>
-    @endif
 
     {{-- Fiscal period time progress --}}
     @php

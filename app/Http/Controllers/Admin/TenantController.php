@@ -86,7 +86,7 @@ class TenantController extends Controller
     public function archived(Request $request): View
     {
         $query = Tenants::onlyTrashed()
-            ->with(['apartment.floor', 'leaves']);
+            ->with(['apartment.floor', 'leaves.apartment.floor']);
 
         if ($search = $request->input('search')) {
             $query->where(function ($q) use ($search) {
@@ -95,9 +95,15 @@ class TenantController extends Controller
             });
         }
 
+        // Archived tenants have apartment_id cleared, so match on the apartment
+        // recorded in their leave history as well as any current apartment.
         if ($floorId = $request->input('floor')) {
-            $query->whereHas('apartment.floor', function ($q) use ($floorId) {
-                $q->where('id', $floorId);
+            $query->where(function ($q) use ($floorId) {
+                $q->whereHas('apartment.floor', function ($sub) use ($floorId) {
+                    $sub->where('id', $floorId);
+                })->orWhereHas('leaves.apartment.floor', function ($sub) use ($floorId) {
+                    $sub->where('id', $floorId);
+                });
             });
         }
 

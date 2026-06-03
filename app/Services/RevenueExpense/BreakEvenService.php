@@ -41,9 +41,10 @@ class BreakEvenService
         $monthStart = Carbon::create($year, $month, 1)->startOfMonth();
         $monthEnd = $monthStart->copy()->endOfMonth();
 
-        $apartments = $this->apartmentsScope->clone()->get();
-        $apartmentIds = $apartments->pluck('id');
-        $totalApartments = $apartments->count();
+        // Only the ids and the count are used below — select the id column alone
+        // instead of hydrating every apartment row.
+        $apartmentIds = $this->apartmentsScope->clone()->pluck('id');
+        $totalApartments = $apartmentIds->count();
 
         $income = $this->queryService->calculateIncome($monthStart, $monthEnd);
         $expenses = $this->queryService->calculateExpenses($monthStart, $monthEnd);
@@ -51,10 +52,12 @@ class BreakEvenService
         $totalRevenue = (float) $income['total_income'];
         $totalExpenses = (float) $expenses['total_expenses'];
 
-        $avgRentPerApartment = (float) ($this->activeRentalsQuery($apartmentIds, $monthStart, $monthEnd)
-            ->avg('rent_amount') ?? 0);
-
-        $currentOccupancy = $this->activeRentalsQuery($apartmentIds, $monthStart, $monthEnd)->count();
+        // Fetch the overlapping rentals once and derive both avg rent and the
+        // occupancy count from the collection (was two identical DB queries).
+        $activeRents = $this->activeRentalsQuery($apartmentIds, $monthStart, $monthEnd)
+            ->pluck('rent_amount');
+        $currentOccupancy = $activeRents->count();
+        $avgRentPerApartment = (float) ($currentOccupancy > 0 ? $activeRents->avg() : 0);
 
         $businessExpenses = $this->calculateBusinessExpenses($month, $year);
         $variableTotal = max(0, $totalExpenses - $businessExpenses);

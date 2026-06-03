@@ -15,12 +15,6 @@
         </div>
     </div>
 
-    @if(session('success'))
-        <div class="bg-green-50 border border-green-200 rounded-lg p-3 mb-4">
-            <p class="text-green-800 text-sm">{{ session('success') }}</p>
-        </div>
-    @endif
-
     {{-- How it works --}}
     <div class="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-6 text-sm text-blue-800">
         This balance sheet is calculated automatically. You set the opening Assets, Liabilities and Equity when the

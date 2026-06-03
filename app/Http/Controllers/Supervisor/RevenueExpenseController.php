@@ -145,28 +145,57 @@ class RevenueExpenseController extends Controller
         $currentMonth = $filterMonth ?? now()->month;
         $currentYear = $filterYear ?? now()->year;
 
-        // Apartments with their active rentals, paid payments and current-month
-        // utilities eager-loaded ONCE. The rental constraint here (open or
-        // not-yet-ended) is identical for the "Record Income" and "Generate
-        // Bills" sections, so a single collection feeds both — and the apartment
-        // rows are the full set, so the occupancy counts derive from it too.
-        $incomeApartments = $this->scopeApartments()
-            ->with(['floor', 'activeFixedExpenses', 'rentals' => function ($q) use ($activePeriod, $currentMonth, $currentYear) {
-                $q->where(function ($sq) {
-                    $sq->whereNull('end_date')->orWhere('end_date', '>=', now());
-                })
-                    ->orderBy('start_date', 'desc')
+        // ONE apartment fetch shared by every dashboard section. The income and
+        // "Generate Bills" sides want only ACTIVE rentals (open or not-yet-ended)
+        // while the expense and fixed-expense sides want ALL rentals — so we load
+        // all rentals once with the superset of nested constraints, then derive
+        // the active-only view in PHP. This replaces what used to be two separate
+        // (and nearly identical) apartments+rentals+utilities queries.
+        $periodOpen = Carbon::parse($activePeriod->opening_date);
+        $periodClose = Carbon::parse($activePeriod->closing_date);
+
+        $apartments = $this->scopeApartments()
+            ->with(['floor', 'activeFixedExpenses', 'fixedExpenses', 'rentals' => function ($q) use ($activePeriod, $periodOpen, $periodClose, $currentMonth, $currentYear) {
+                $q->orderBy('start_date', 'desc')
                     ->with(['tenant', 'payments' => function ($pq) use ($activePeriod) {
                         $pq->where('payment_status', 'paid')
                             ->whereHas('accounts', function ($aq) use ($activePeriod) {
                                 $aq->where('fiscal_period_id', $activePeriod->id);
                             });
-                    }, 'utilities' => function ($uq) use ($currentMonth, $currentYear) {
-                        $uq->where('billing_month', $currentMonth)
-                            ->where('billing_year', $currentYear);
+                    }, 'utilities' => function ($uq) use ($periodOpen, $periodClose, $currentMonth, $currentYear) {
+                        // Superset of the expense side (whole fiscal period) and
+                        // the income/bills side (current billing month). Wrapped
+                        // in a closure so the OR group can't bleed past the
+                        // eager-load foreign-key constraint.
+                        $uq->where(function ($w) use ($periodOpen, $periodClose, $currentMonth, $currentYear) {
+                            $w->whereBetween('paid_at', [$periodOpen->copy()->startOfDay(), $periodClose->copy()->endOfDay()])
+                                ->orWhere(function ($q2) use ($periodOpen, $periodClose) {
+                                    $q2->where('billing_year', '>=', $periodOpen->year)
+                                        ->where('billing_year', '<=', $periodClose->year);
+                                })
+                                ->orWhere(function ($q3) use ($currentMonth, $currentYear) {
+                                    $q3->where('billing_month', $currentMonth)
+                                        ->where('billing_year', $currentYear);
+                                });
+                        });
                     }]);
             }])
             ->get();
+
+        // Income/bills view: active rentals only (open or not yet ended), matching
+        // the original per-section query constraint. Cloned so the active filter
+        // doesn't disturb the full-rental set the expense sections rely on.
+        $incomeApartments = $apartments->map(function ($apartment) {
+            $clone = clone $apartment;
+            $clone->setRelation('rentals', $apartment->rentals->filter(function ($rental) {
+                return is_null($rental->end_date) || $rental->end_date >= now();
+            })->values());
+
+            return $clone;
+        });
+
+        // Expense + fixed-expense sections use the full set (all rentals).
+        $expenseApartments = $apartments;
 
         $totalApartments = $incomeApartments->count();
         $occupiedCount = $incomeApartments->where('status', 'occupied')->count();
@@ -315,25 +344,9 @@ class RevenueExpenseController extends Controller
         $revenueExpenseData['paidTenantCount'] = collect($apartmentSummary)->where('paid_this_month', true)->count();
 
         // ===== RECORD EXPENSE DATA =====
-        // Also carries 'fixedExpenses' so this one collection feeds the
-        // "Fixed Expenses" section too (identical rental constraint: all rentals).
-        $expenseApartments = $this->scopeApartments()
-            ->with(['floor', 'fixedExpenses', 'rentals' => function ($q) use ($activePeriod) {
-                $q->orderBy('start_date', 'desc')
-                    ->with(['tenant', 'utilities' => function ($uq) use ($activePeriod) {
-                        // Filter utilities by billing period within the fiscal year
-                        $start = Carbon::parse($activePeriod->opening_date);
-                        $end = Carbon::parse($activePeriod->closing_date);
-                        $uq->where(function ($q) use ($start, $end) {
-                            $q->whereBetween('paid_at', [$start->startOfDay(), $end->copy()->endOfDay()])
-                                ->orWhere(function ($q2) use ($start, $end) {
-                                    $q2->where('billing_year', '>=', $start->year)
-                                        ->where('billing_year', '<=', $end->year);
-                                });
-                        });
-                    }]);
-            }])
-            ->get();
+        // $expenseApartments was loaded once at the top of this method (the full
+        // apartment set with all rentals + period-scoped utilities + fixed
+        // expenses) and also feeds the "Fixed Expenses" section below.
 
         $apartmentExpenses = [];
         $totalExpensesAmount = 0;
