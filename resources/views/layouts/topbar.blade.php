@@ -42,13 +42,17 @@
                 open: false,
                 seenKey: @js($notifKey),
                 count: {{ $notifCount }},
-                unread() {
+                seen: 0,
+                init() {
                     try {
-                        const seen = parseInt(localStorage.getItem(this.seenKey) || '0', 10);
-                        return Math.max(this.count - seen, 0);
-                    } catch (e) { return this.count; }
+                        this.seen = parseInt(localStorage.getItem(this.seenKey) || '0', 10) || 0;
+                    } catch (e) { this.seen = 0; }
+                },
+                unread() {
+                    return Math.max(this.count - this.seen, 0);
                 },
                 markSeen() {
+                    this.seen = this.count;
                     try { localStorage.setItem(this.seenKey, String(this.count)); } catch (e) {}
                 },
                 toggle() {
