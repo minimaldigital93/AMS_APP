@@ -23,9 +23,6 @@
     <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
             <h1 class="text-2xl font-semibold text-slate-800 tracking-tight">{{ __('messages.dashboard') }}</h1>
-            <p class="text-slate-400 text-sm mt-1">
-                {{ $isFullPeriod ? $activePeriod->name . ' — ' . __('messages.full_period_overview') : $displayMonth->format('F Y') . ' — ' . __('messages.overview_quick_recording') }}
-            </p>
         </div>
         <div class="flex items-center gap-2">
             <a href="{{ route('supervisor.floors.plan3d') }}"

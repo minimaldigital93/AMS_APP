@@ -9,7 +9,6 @@
     <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
             <h1 class="text-2xl font-semibold text-slate-800 tracking-tight">{{ __('messages.floor_layout') }}</h1>
-            <p class="text-slate-400 text-sm mt-1">A quick visual map of every floor and the status of each apartment.</p>
         </div>
         <a href="{{ route('supervisor.dashboard') }}"
            class="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium text-slate-600 bg-white border border-slate-200 hover:bg-slate-50 transition self-start" title="Back to Dashboard">

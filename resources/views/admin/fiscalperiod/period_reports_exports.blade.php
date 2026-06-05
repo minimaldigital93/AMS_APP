@@ -6,7 +6,6 @@
     <div class="flex items-start justify-between mb-6 gap-4">
         <div>
             <h1 class="text-2xl font-bold">{{ __('messages.reports_exports') }}</h1>
-            <p class="text-sm text-gray-500 mt-1">{{ $fiscalperiod->name }} &middot; {{ $fiscalperiod->opening_date->format('M d, Y') }} – {{ $fiscalperiod->closing_date->format('M d, Y') }}</p>
         </div>
         <div class="flex flex-wrap gap-2 justify-end no-print">
             <a href="{{ route('admin.fiscalperiod.exportCSV', $fiscalperiod->id) }}" class="text-sm bg-gray-100 text-gray-700 px-3 py-2 rounded-lg hover:bg-gray-200 flex items-center gap-1.5" title="{{ __('messages.export_csv') }}">

@@ -29,7 +29,6 @@
     <div class="flex flex-wrap items-end justify-between gap-3">
         <div>
             <h1 class="text-2xl font-bold text-gray-900">{{ __('Platform finance') }}</h1>
-            <p class="mt-1 text-sm text-gray-500">{{ __('Subscription revenue vs platform expenses — your SaaS profit & loss.') }}</p>
         </div>
         <div class="flex items-center gap-2 print:hidden">
             @if ($period)

@@ -9,14 +9,6 @@
     <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
             <h1 class="text-2xl font-semibold text-slate-800 tracking-tight">{{ __('messages.revenue_expense') }}</h1>
-            <p class="text-slate-500 mt-2">
-                @if(isset($filterMonth) && $filterMonth)
-                    Viewing <span class="font-semibold text-sky-600">{{ \Carbon\Carbon::create($filterYear, $filterMonth, 1)->format('F Y') }}</span>
-                @else
-                    Full period overview
-                @endif
-                — Fiscal Period: <span class="font-semibold text-sky-600">{{ $activePeriod->name }}</span>
-            </p>
         </div>
         <div class="flex items-center gap-2">
             @if($fiscalPeriods->count() > 1)

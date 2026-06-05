@@ -9,7 +9,6 @@
         <div class="flex items-center justify-between">
         <div>
             <h1 class="text-3xl font-bold text-gray-900">{{ __('messages.settings_title') }}</h1>
-            <p class="text-gray-600 mt-1">{{ __('messages.settings_subtitle') }}</p>
         </div>
         <button onclick="confirmReset()" class="bg-red-600 hover:bg-red-700 text-white font-semibold py-2 px-4 rounded-lg transition duration-200 flex items-center gap-2" title="{{ __('messages.reset_all') }}">
             <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">

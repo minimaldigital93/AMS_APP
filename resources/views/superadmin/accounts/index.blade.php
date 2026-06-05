@@ -6,7 +6,6 @@
     <div class="flex items-center justify-between">
         <div>
             <h1 class="text-3xl font-bold text-gray-900">{{ __('Customer accounts') }}</h1>
-            <p class="mt-1 text-sm text-gray-500">{{ __('Every admin account on the platform.') }}</p>
         </div>
         <a href="{{ route('superadmin.accounts.create') }}" class="inline-flex items-center gap-2 bg-slate-800 hover:bg-slate-700 text-white text-sm font-medium py-2.5 px-5 rounded-lg transition" title="{{ __('Add account') }}">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">

@@ -7,7 +7,6 @@
     <div class="flex items-center justify-between">
         <div>
             <h1 class="text-2xl font-semibold text-slate-800 tracking-tight">{{ __('messages.assign_tenant') }}</h1>
-            <p class="text-slate-400 text-sm mt-1">{{ __('messages.assign_tenant_subtitle') }}</p>
         </div>
         <a href="{{ route('supervisor.tenants.index') }}" class="text-slate-400 hover:text-slate-600 text-sm font-medium py-2 px-4 rounded-lg border border-slate-200 hover:border-slate-300 transition">{{ __('messages.back_to_tenants') }}</a>
     </div>

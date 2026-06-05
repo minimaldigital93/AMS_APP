@@ -7,9 +7,6 @@
     <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
             <h1 class="text-2xl font-bold text-gray-900">{{ __('messages.monthly_calendar') }}</h1>
-            <p class="text-sm text-gray-500 mt-1">
-                {{ $activePeriod->name }} &middot; {{ $startOfMonth->format('F Y') }}
-            </p>
         </div>
         <div class="flex items-center gap-2">
             <a href="{{ route('supervisor.revenue_expense.monthly_calendar', ['month' => $prevMonth->month, 'year' => $prevMonth->year]) }}"

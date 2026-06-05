@@ -9,7 +9,6 @@
     {{-- Page Header --}}
     <div>
         <h1 class="text-xl sm:text-2xl font-bold text-gray-900">{{ __('messages.my_dashboard') }}</h1>
-        <p class="text-sm text-gray-500 mt-1">{{ __('messages.welcome_back', ['name' => $tenant->name ?? Auth::user()->name]) }}</p>
     </div>
 
     @if($tenant)

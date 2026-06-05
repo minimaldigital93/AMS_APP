@@ -6,10 +6,6 @@
     <div class="flex items-center justify-between">
         <div>
             <h1 class="text-2xl font-semibold text-slate-800 tracking-tight">{{ __('messages.record_expense') }}</h1>
-            <p class="text-slate-500 mt-2">
-                {{ __('messages.manage_expenses_for') }} <span class="font-semibold text-sky-600">{{ \Carbon\Carbon::create($filterYear, $filterMonth, 1)->format('F Y') }}</span>
-                — Fiscal Period: <span class="font-semibold text-sky-600">{{ $activePeriod->name }}</span>
-            </p>
         </div>
         <div class="flex items-center gap-3">
             <button @click="showForm = !showForm" aria-label="Toggle Add Expense"

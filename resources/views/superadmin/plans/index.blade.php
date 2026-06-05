@@ -5,7 +5,6 @@
     <div class="flex items-start justify-between">
         <div>
             <h1 class="text-2xl font-bold text-gray-900">{{ __('Plans') }}</h1>
-            <p class="mt-1 text-sm text-gray-500">{{ __('Leave a cap blank for unlimited.') }}</p>
         </div>
         <button type="button" @click="creating = !creating"
             class="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-500">

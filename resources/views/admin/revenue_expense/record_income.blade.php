@@ -6,10 +6,6 @@
     <div class="flex items-center justify-between">
         <div>
             <h1 class="text-2xl font-semibold text-slate-800 tracking-tight">{{ __('messages.monthly_billing_payments') }}</h1>
-            <p class="text-slate-400 text-sm mt-1">
-                {{ __('messages.manage_payments_for') }} <span class="font-semibold text-sky-600">{{ $selectedDate->format('F Y') }}</span>
-                — Fiscal Period: <span class="font-semibold text-sky-600">{{ $activePeriod->name }}</span>
-            </p>
         </div>
         <a href="{{ route('admin.revenue_expense.index') }}" class="inline-flex items-center gap-2 bg-slate-800 hover:bg-slate-700 text-white text-sm font-medium py-2.5 px-5 rounded-lg transition" title="{{ __('messages.back') }}">
             <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/></svg></a>

@@ -9,12 +9,6 @@
         <div class="flex items-center gap-4">
             <div>
                 <h1 class="text-2xl font-semibold text-slate-800 tracking-tight">{{ $apartment->apartment_number }}</h1>
-                <p class="text-slate-400 text-sm mt-0.5">
-                    Floor {{ $apartment->floor?->floor_name ?? 'N/A' }}
-                    @if(isset($activePeriod) && $activePeriod)
-                        · {{ $activePeriod->name }}
-                    @endif
-                </p>
             </div>
         </div>
         <div class="flex items-center gap-3">

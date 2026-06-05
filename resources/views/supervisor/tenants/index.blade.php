@@ -8,13 +8,6 @@
         <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-8">
             <div>
                 <h1 class="text-3xl font-bold text-gray-900">{{ __('messages.active_tenants') }}</h1>
-                <p class="text-sm text-gray-500 mt-1">
-                    @if(isset($activePeriod) && $activePeriod)
-                        Fiscal Period: {{ $activePeriod->name }} ({{ \Carbon\Carbon::parse($activePeriod->opening_date)->format('M d, Y') }} — {{ \Carbon\Carbon::parse($activePeriod->closing_date)->format('M d, Y') }})
-                    @else
-                        Tenants in your assigned apartments
-                    @endif
-                </p>
             </div>
          
         </div>

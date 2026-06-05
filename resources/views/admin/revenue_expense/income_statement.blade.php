@@ -7,14 +7,6 @@
     <div class="mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
             <h1 class="text-3xl font-bold text-gray-900">📊 Income Statement</h1>
-            <p class="text-gray-600 mt-1">
-                @if($filterMonth)
-                    <span class="font-semibold text-blue-600">{{ \Carbon\Carbon::create($filterYear, $filterMonth, 1)->format('F Y') }}</span> —
-                @else
-                    Full Period —
-                @endif
-                Fiscal Period: <span class="font-semibold text-blue-600">{{ $activePeriod->name }}</span>
-            </p>
         </div>
         <div class="flex items-center gap-2">
             @if($fiscalPeriods->count() > 1)

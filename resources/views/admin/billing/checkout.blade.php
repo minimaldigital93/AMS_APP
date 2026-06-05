@@ -7,10 +7,6 @@
      x-data="khqrBillingCheckout('{{ $statusUrl }}', '{{ $redirectUrl }}')" x-init="start()">
 
     <h1 class="text-xl font-bold text-gray-900">{{ __('Scan to pay') }}</h1>
-    <p class="mt-1 text-sm text-gray-500">
-        {{ $payment->subscription->plan->name }} {{ __('plan') }} —
-        <span class="font-semibold">${{ number_format($payment->amount, 2) }}/{{ __('mo') }}</span>
-    </p>
 
     <div class="mx-auto mt-5 w-[260px] rounded-2xl border border-gray-200 bg-white p-3 shadow-sm">
         @if ($payment->qr_url)

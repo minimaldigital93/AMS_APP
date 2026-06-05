@@ -8,7 +8,6 @@
     <div class="flex items-center justify-between">
         <div>
             <h1 class="text-2xl font-semibold text-slate-800 tracking-tight">{{ __('messages.apartment_management') }}</h1>
-            <p class="text-slate-400 text-sm mt-1">{{ __('messages.manage_units_floors') }}</p>
         </div>
      
     </div>

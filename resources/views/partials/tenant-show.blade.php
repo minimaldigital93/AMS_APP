@@ -35,7 +35,6 @@
     <div class="flex items-center justify-between">
         <div>
             <h1 class="text-2xl font-semibold text-slate-800 tracking-tight">{{ __('messages.tenant_details') }}</h1>
-            <p class="text-slate-400 text-sm mt-1">{{ $tenant->name }}</p>
         </div>
         <div class="flex items-center gap-2">
             @if(! (method_exists($tenant, 'trashed') && $tenant->trashed()))

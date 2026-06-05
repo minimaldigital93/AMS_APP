@@ -3,7 +3,6 @@
 @section('content')
 <div class="mb-8">
     <h1 class="text-xl font-semibold text-gray-900">{{ __('Overview') }}</h1>
-    <p class="mt-1 text-sm text-gray-400">{{ now()->format('F Y') }}</p>
 </div>
 
 {{-- ── The few numbers a CEO checks ────────────────────────────────── --}}
