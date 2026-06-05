@@ -52,16 +52,6 @@
     @endif
 
     <!-- Actions -->
-    <div class="flex items-center gap-3">
-        @if($apartment->status === 'available')
-        <a href="{{ route('supervisor.tenants.create') }}?apartment_id={{ $apartment->id }}" class="inline-flex items-center gap-2 bg-slate-800 hover:bg-slate-700 text-white text-sm font-medium py-2.5 px-5 rounded-lg transition" title="Assign Tenant">
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/></svg></a>
-        @endif
-        @if($activeRental && $activeRental->tenant)
-        <a href="{{ route('supervisor.tenants.show', $activeRental->tenant) }}" class="inline-flex items-center gap-2 text-slate-500 hover:text-slate-700 text-sm font-medium py-2.5 px-5 rounded-lg border border-slate-200 hover:border-slate-300 transition">
-            View Tenant Profile
-        </a>
-        @endif
-    </div>
+
 </div>
 @endsection

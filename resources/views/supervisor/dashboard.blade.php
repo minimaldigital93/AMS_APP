@@ -265,9 +265,9 @@
     </div>
     @endif
 
-    {{-- Monthly Calendar --}}
+    {{-- Monthly Calendar (hidden on phones) --}}
     @if(!$isFullPeriod && $calendarData)
-    <div class="bg-white rounded-xl border border-slate-100 p-6">
+    <div class="hidden md:block bg-white rounded-xl border border-slate-100 p-6">
         <div class="flex items-center justify-between mb-4">
             <div>
                 <h2 class="text-lg font-semibold text-slate-800">{{ $calendarData['startOfMonth']->format('F Y') }}</h2>

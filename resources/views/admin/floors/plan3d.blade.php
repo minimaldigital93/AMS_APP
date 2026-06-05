@@ -34,17 +34,17 @@
             <p class="text-xs text-slate-400 font-medium">{{ __('messages.total_units') }}</p>
             <p class="text-2xl font-bold text-slate-800">{{ $summary['total'] }}</p>
         </div>
-        <div class="bg-emerald-50 rounded-xl border border-emerald-100 p-4">
-            <p class="text-xs text-emerald-600 font-medium">{{ __('messages.available') }}</p>
-            <p class="text-2xl font-bold text-emerald-700">{{ $summary['available'] }}</p>
+        <div class="bg-white rounded-xl border border-slate-100 p-4">
+            <p class="text-xs text-slate-400 font-medium">{{ __('messages.available') }}</p>
+            <p class="text-2xl font-bold text-slate-800">{{ $summary['available'] }}</p>
         </div>
-        <div class="bg-rose-50 rounded-xl border border-rose-100 p-4">
-            <p class="text-xs text-rose-600 font-medium">{{ __('messages.occupied') }}</p>
-            <p class="text-2xl font-bold text-rose-700">{{ $summary['occupied'] }}</p>
+        <div class="bg-white rounded-xl border border-slate-100 p-4">
+            <p class="text-xs text-slate-400 font-medium">{{ __('messages.occupied') }}</p>
+            <p class="text-2xl font-bold text-slate-800">{{ $summary['occupied'] }}</p>
         </div>
-        <div class="bg-slate-50 rounded-xl border border-slate-100 p-4">
-            <p class="text-xs text-slate-500 font-medium">{{ __('messages.maintenance') }}</p>
-            <p class="text-2xl font-bold text-slate-700">{{ $summary['maintenance'] }}</p>
+        <div class="bg-white rounded-xl border border-slate-100 p-4">
+            <p class="text-xs text-slate-400 font-medium">{{ __('messages.maintenance') }}</p>
+            <p class="text-2xl font-bold text-slate-800">{{ $summary['maintenance'] }}</p>
         </div>
     </div>
 
@@ -57,26 +57,31 @@
         {{-- Overall occupancy progress --}}
         @php
             $occupancyRate = $summary['total'] > 0 ? round(($summary['occupied'] / $summary['total']) * 100) : 0;
+            $availablePct = $summary['total'] > 0 ? ($summary['available'] / $summary['total']) * 100 : 0;
+            $occupiedPct = $summary['total'] > 0 ? ($summary['occupied'] / $summary['total']) * 100 : 0;
+            $maintenancePct = $summary['total'] > 0 ? ($summary['maintenance'] / $summary['total']) * 100 : 0;
         @endphp
         <div class="bg-white rounded-xl border border-slate-100 p-5">
             <div class="flex items-center justify-between mb-2">
                 <p class="text-sm font-semibold text-slate-700">{{ __('messages.building_occupancy') }}</p>
                 <p class="text-sm font-bold {{ $occupancyRate >= 90 ? 'text-rose-600' : 'text-slate-800' }}">{{ $occupancyRate }}%</p>
             </div>
-            <div class="w-full bg-slate-100 rounded-full h-2.5">
-                <div class="h-2.5 rounded-full transition-all {{ $occupancyRate >= 90 ? 'bg-rose-500' : 'bg-indigo-500' }}" style="width: {{ $occupancyRate }}%"></div>
+            <div class="w-full flex bg-slate-100 rounded-full h-2.5 overflow-hidden">
+                <div class="h-2.5 transition-all bg-emerald-500" style="width: {{ $availablePct }}%"></div>
+                <div class="h-2.5 transition-all bg-blue-500" style="width: {{ $occupiedPct }}%"></div>
+                <div class="h-2.5 transition-all bg-slate-400" style="width: {{ $maintenancePct }}%"></div>
             </div>
             <p class="text-xs text-slate-400 mt-2">{{ $summary['occupied'] }} occupied · {{ $summary['available'] }} available of {{ $summary['total'] }} units</p>
         </div>
 
-        {{-- Legend --}}
+        {{-- Legend (dot style) --}}
         <div class="flex flex-wrap items-center gap-4 text-xs text-slate-500">
-            <span class="flex items-center gap-1.5"><span class="w-3 h-3 rounded-sm bg-emerald-500"></span> {{ __('messages.available') }}</span>
-            <span class="flex items-center gap-1.5"><span class="w-3 h-3 rounded-sm bg-rose-500"></span> {{ __('messages.occupied') }}</span>
-            <span class="flex items-center gap-1.5"><span class="w-3 h-3 rounded-sm bg-slate-400"></span> {{ __('messages.maintenance') }}</span>
+            <span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-emerald-500"></span> {{ __('messages.available') }}</span>
+            <span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-blue-500"></span> {{ __('messages.occupied') }}</span>
+            <span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-slate-400"></span> {{ __('messages.maintenance') }}</span>
         </div>
 
-        {{-- Floors --}}
+        {{-- Floors (collapsible dropdowns, list view) --}}
         <div class="space-y-4">
             @foreach($floorsData as $floor)
                 @php
@@ -84,58 +89,78 @@
                     $floorOccupied = collect($floor['apartments'])->where('status', 'occupied')->count();
                     $floorRate = $floorTotal > 0 ? round(($floorOccupied / $floorTotal) * 100) : 0;
                 @endphp
-                <div class="bg-white rounded-2xl border border-slate-100 overflow-hidden">
-                    <div class="px-5 py-3 border-b border-slate-100 bg-slate-50/60">
-                        <div class="flex items-center justify-between">
-                            <h2 class="text-sm font-semibold text-slate-700">{{ $floor['name'] ?: 'Floor' }}</h2>
-                            <span class="text-xs text-slate-400">{{ $floorOccupied }}/{{ $floorTotal }} occupied · {{ $floorRate }}%</span>
+                <div x-data="{ open: {{ $loop->first ? 'true' : 'false' }} }" class="bg-white rounded-2xl border border-slate-100 overflow-hidden">
+                    {{-- Dropdown header --}}
+                    <button type="button" @click="open = !open"
+                            class="w-full px-5 py-3 border-b border-slate-100 bg-slate-50/60 text-left hover:bg-slate-100/60 transition">
+                        <div class="flex items-center justify-between gap-3">
+                            <div class="flex items-center gap-2 min-w-0">
+                                <svg class="w-4 h-4 text-slate-400 transition-transform shrink-0" :class="open ? 'rotate-90' : ''" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+                                <h2 class="text-sm font-semibold text-slate-700 truncate">{{ $floor['name'] ?: 'Floor' }}</h2>
+                            </div>
+                            <span class="text-xs text-slate-400 shrink-0">{{ $floorOccupied }}/{{ $floorTotal }} {{ __('messages.occupied') }} · {{ $floorRate }}%</span>
                         </div>
                         @if($floorTotal > 0)
                             <div class="w-full bg-slate-200 rounded-full h-1.5 mt-2">
-                                <div class="h-1.5 rounded-full {{ $floorRate >= 90 ? 'bg-rose-500' : 'bg-indigo-500' }}" style="width: {{ $floorRate }}%"></div>
+                                <div class="h-1.5 rounded-full bg-blue-500" style="width: {{ $floorRate }}%"></div>
                             </div>
                         @endif
-                    </div>
+                    </button>
 
-                    @if(count($floor['apartments']) === 0)
-                        <p class="px-5 py-6 text-sm text-slate-400 text-center">{{ __('messages.no_apts_this_floor') }}</p>
-                    @else
-                        <div class="p-4 grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-3">
-                            @foreach($floor['apartments'] as $apt)
-                                @php
-                                    $status = $apt['status'] ?? 'maintenance';
-                                    $styles = [
-                                        'available'   => 'bg-emerald-500 hover:bg-emerald-600 text-white',
-                                        'occupied'    => 'bg-rose-500 hover:bg-rose-600 text-white',
-                                        'maintenance' => 'bg-slate-400 hover:bg-slate-500 text-white',
-                                    ];
-                                    $cls = $styles[$status] ?? $styles['maintenance'];
-                                    $isAvailable = $status === 'available';
-                                @endphp
-                                @if($isAvailable)
-                                <button type="button"
-                                   data-apartment-id="{{ $apt['id'] }}"
-                                   data-apartment-number="{{ $apt['number'] }}"
-                                   title="{{ __('messages.assign_tenant_unit', ['number' => $apt['number']]) }}"
-                                   class="assign-tenant-btn group relative aspect-square rounded-xl {{ $cls }} flex flex-col items-center justify-center transition shadow-sm cursor-pointer select-none ring-1 ring-inset ring-white/20 hover:ring-2 hover:ring-white/60">
-                                    <span class="text-base font-bold leading-none">{{ $apt['number'] }}</span>
-                                    <span class="mt-1 text-[10px] uppercase tracking-wide opacity-80 group-hover:opacity-0 transition">{{ $status }}</span>
-                                    <span class="absolute inset-x-0 bottom-1 text-center text-[10px] font-semibold opacity-0 group-hover:opacity-100 transition">+ Assign</span>
-                                </button>
-                                @else
-                                <div class="group relative aspect-square rounded-xl {{ $cls }} flex flex-col items-center justify-center transition shadow-sm cursor-default select-none">
-                                    <span class="text-base font-bold leading-none">{{ $apt['number'] }}</span>
-                                    <span class="mt-1 text-[10px] uppercase tracking-wide opacity-80">{{ $status }}</span>
-                                    @if(!empty($apt['rent']))
-                                        <span class="absolute bottom-1 inset-x-0 text-center text-[10px] opacity-0 group-hover:opacity-90 transition">
-                                            ${{ number_format($apt['rent']) }}
-                                        </span>
-                                    @endif
-                                </div>
-                                @endif
-                            @endforeach
-                        </div>
-                    @endif
+                    {{-- Dropdown body --}}
+                    <div x-show="open" x-cloak
+                         x-transition:enter="transition ease-out duration-200"
+                         x-transition:enter-start="opacity-0 -translate-y-1"
+                         x-transition:enter-end="opacity-100 translate-y-0">
+                        @if(count($floor['apartments']) === 0)
+                            <p class="px-5 py-6 text-sm text-slate-400 text-center">{{ __('messages.no_apts_this_floor') }}</p>
+                        @else
+                            <ul class="divide-y divide-slate-100">
+                                @foreach($floor['apartments'] as $apt)
+                                    @php
+                                        $status = $apt['status'] ?? 'maintenance';
+                                        $dots = [
+                                            'available'   => 'bg-emerald-500',
+                                            'occupied'    => 'bg-blue-500',
+                                            'maintenance' => 'bg-slate-400',
+                                        ];
+                                        $dot = $dots[$status] ?? $dots['maintenance'];
+                                        $isAvailable = $status === 'available';
+                                    @endphp
+                                    <li class="flex items-center gap-3 px-5 py-3 hover:bg-slate-50/70 transition">
+                                        {{-- Status dot --}}
+                                        <span class="w-2.5 h-2.5 rounded-full {{ $dot }} shrink-0" title="{{ $status }}"></span>
+
+                                        {{-- Unit + tenant --}}
+                                        <div class="flex-1 min-w-0">
+                                            <div class="flex items-center gap-2">
+                                                <span class="text-sm font-semibold text-slate-700">{{ $apt['number'] }}</span>
+                                                <span class="text-[10px] uppercase tracking-wide text-slate-400">{{ $status }}</span>
+                                            </div>
+                                            <p class="text-xs text-slate-400 truncate">{{ $apt['tenant'] ?: __('messages.no_tenant') }}</p>
+                                        </div>
+
+                                        {{-- Rent --}}
+                                        @if(!empty($apt['rent']))
+                                            <span class="text-xs font-medium text-slate-600 whitespace-nowrap w-20 text-right">${{ number_format($apt['rent']) }}</span>
+                                        @endif
+
+                                        {{-- Action --}}
+                                        @if($isAvailable)
+                                            <button type="button"
+                                                    data-apartment-id="{{ $apt['id'] }}"
+                                                    data-apartment-number="{{ $apt['number'] }}"
+                                                    title="{{ __('messages.assign_tenant_unit', ['number' => $apt['number']]) }}"
+                                                    class="assign-tenant-btn shrink-0 inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium text-emerald-700 bg-emerald-50 hover:bg-emerald-100 transition">
+                                                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+                                                {{ __('messages.assign_tenant') }}
+                                            </button>
+                                        @endif
+                                    </li>
+                                @endforeach
+                            </ul>
+                        @endif
+                    </div>
                 </div>
             @endforeach
         </div>

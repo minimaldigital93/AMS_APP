@@ -64,9 +64,9 @@
                         <tr class="bg-slate-50/80">
                             <th class="px-4 py-3 text-left text-[11px] font-medium text-slate-400 uppercase tracking-wider">No</th>
                             <th class="px-4 py-3 text-left text-[11px] font-medium text-slate-400 uppercase tracking-wider">{{ __('messages.apartment') }}</th>
+                            <th class="px-4 py-3 text-left text-[11px] font-medium text-slate-400 uppercase tracking-wider">{{ __('messages.tenant') }}</th>
                             <th class="px-4 py-3 text-left text-[11px] font-medium text-slate-400 uppercase tracking-wider">{{ __('messages.monthly_rent') }}</th>
                             <th class="px-4 py-3 text-left text-[11px] font-medium text-slate-400 uppercase tracking-wider">{{ __('messages.status') }}</th>
-                            <th class="px-4 py-3 text-left text-[11px] font-medium text-slate-400 uppercase tracking-wider">{{ __('messages.tenant') }}</th>
                             <th class="px-4 py-3 text-left text-[11px] font-medium text-slate-400 uppercase tracking-wider">{{ __('messages.stay_duration') }}</th>
                             <th class="px-4 py-3 text-left text-[11px] font-medium text-slate-400 uppercase tracking-wider">{{ __('messages.supervisor') }}</th>
                             <th class="px-4 py-3 text-right text-[11px] font-medium text-slate-400 uppercase tracking-wider">{{ __('messages.actions') }}</th>
@@ -89,30 +89,8 @@
                                     <span class="text-sm font-medium text-slate-700">{{ $apartment->apartment_number }}</span>
                                 </div>
                             </td>
-                            <td class="px-4 py-3">
-                                <span class="text-sm text-slate-600">${{ number_format($apartment->monthly_rent, 2) }}</span>
-                            </td>
-                            <td class="px-4 py-3">
-                                @php
-                                    $statusTextClass = match($apartment->status) {
-                                        'available' => 'text-emerald-600',
-                                        'occupied' => 'text-sky-600',
-                                        'maintenance' => 'text-amber-600',
-                                        default => 'text-slate-500',
-                                    };
-                                    $statusBgClass = match($apartment->status) {
-                                        'available' => 'bg-emerald-400',
-                                        'occupied' => 'bg-sky-400',
-                                        'maintenance' => 'bg-amber-400',
-                                        default => 'bg-slate-300',
-                                    };
-                                @endphp
-                                <span class="inline-flex items-center gap-1.5 text-xs font-medium {{ $statusTextClass }}">
-                                    <span class="w-1.5 h-1.5 rounded-full {{ $statusBgClass }}"></span>
-                                    {{ ucfirst($apartment->status) }}
-                                </span>
-                            </td>
-                            <td class="px-4 py-3">
+                           
+                              <td class="px-4 py-3">
                                 @php
                                     $tenant = $apartment->tenants()->whereNull('deleted_at')->latest()->first();
                                 @endphp
@@ -134,6 +112,35 @@
                                     <span class="text-slate-300 text-sm">—</span>
                                 @endif
                             </td>
+                             <td class="px-4 py-3">
+                                @php
+                                    $rentTenant = $apartment->tenants()->whereNull('deleted_at')->latest()->first();
+                                    $rentRental = $rentTenant ? $apartment->rentals()->where('tenant_id', $rentTenant->id)->latest()->first() : null;
+                                    $rentExpected = (float) ($rentRental->rent_amount ?? $apartment->monthly_rent ?? 0);
+                                @endphp
+                                <span class="text-sm font-medium text-slate-600">${{ number_format($rentExpected, 2) }}</span>
+                            </td>
+                            <td class="px-4 py-3">
+                                @php
+                                    $statusTextClass = match($apartment->status) {
+                                        'available' => 'text-emerald-600',
+                                        'occupied' => 'text-sky-600',
+                                        'maintenance' => 'text-amber-600',
+                                        default => 'text-slate-500',
+                                    };
+                                    $statusBgClass = match($apartment->status) {
+                                        'available' => 'bg-emerald-400',
+                                        'occupied' => 'bg-sky-400',
+                                        'maintenance' => 'bg-amber-400',
+                                        default => 'bg-slate-300',
+                                    };
+                                @endphp
+                                <span class="inline-flex items-center gap-1.5 text-xs font-medium {{ $statusTextClass }}">
+                                    <span class="w-1.5 h-1.5 rounded-full {{ $statusBgClass }}"></span>
+                                    {{ ucfirst($apartment->status) }}
+                                </span>
+                            </td>
+                          
                             <td class="px-4 py-3">
                                 @php
                                     $tenant = $apartment->tenants()->whereNull('deleted_at')->latest()->first();
@@ -205,25 +212,28 @@
                                 @endphp
                                 
                                 @if($tenant && $tenant->move_in_date)
-                                    <div class="min-w-[100px]">
-                                        @if($hasMonthlyPeriod)
-                                        <div class="w-full bg-slate-100 rounded-full h-1 overflow-hidden" title="{{ $periodStart->format('M d') }}–{{ $periodEnd->format('M d') }} ({{ $periodPercent }}%)">
-                                            <div class="{{ $monthBarColor }} h-full rounded-full" style="width: {{ $periodPercent }}%"></div>
+                                    @if($hasMonthlyPeriod)
+                                    <div class="w-32" title="{{ $periodStart->format('M d') }}–{{ $periodEnd->format('M d') }} ({{ $periodPercent }}%, {{ $periodDaysLeft }}d left)">
+                                        <div class="flex items-center justify-between mb-1">
+                                            <span class="text-[11px] font-medium {{ $monthTextColor }}">
+                                                @if($paymentPercent >= 100)
+                                                    <span class="inline-flex items-center gap-1 text-emerald-500">
+                                                        <svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="3" viewBox="0 0 24 24">
+                                                            <path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+                                                        </svg>
+                                                        {{ __('messages.paid') }}
+                                                    </span>
+                                                @else
+                                                    {{ $periodDaysLeft }}d left
+                                                @endif
+                                            </span>
+                                            <span class="text-[11px] font-medium {{ $monthTextColor }}">{{ $periodPercent }}%</span>
                                         </div>
-                                        <div class="flex items-center justify-between mt-1 text-[11px]">
-                                            <span class="{{ $monthTextColor }} font-medium">{{ $periodPercent }}%</span>
-                                            @if($paymentPercent >= 100)
-                                                <span class="inline-flex items-center text-emerald-500" title="{{ __('messages.paid') }}">
-                                                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="3" viewBox="0 0 24 24">
-                                                        <path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5" />
-                                                    </svg>
-                                                </span>
-                                            @else
-                                                <span class="text-slate-400">{{ $periodDaysLeft }}d left</span>
-                                            @endif
+                                        <div class="h-1.5 w-full rounded-full bg-slate-100 overflow-hidden">
+                                            <div class="h-full rounded-full {{ $monthBarColor }}" style="width: {{ $periodPercent }}%"></div>
                                         </div>
-                                        @endif
                                     </div>
+                                    @endif
                                 @else
                                     <span class="text-slate-300 text-xs">—</span>
                                 @endif

@@ -35,7 +35,21 @@
     </div>
     @endif
 
-    <!-- (Search removed) -->
+    <!-- Color Legend -->
+    <div class="flex flex-wrap items-center gap-x-16 gap-y-2 bg-white rounded-xl border border-slate-100 px-5 py-3">
+        <div class="flex items-center gap-2">
+            <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
+            <span class="text-xs text-slate-600">{{ __('messages.available') }}</span>
+        </div>
+        <div class="flex items-center gap-2">
+            <span class="w-2 h-2 rounded-full bg-sky-400"></span>
+            <span class="text-xs text-slate-600">{{ __('messages.occupied') }}</span>
+        </div>
+        <div class="flex items-center gap-2">
+            <span class="w-2 h-2 rounded-full bg-amber-400"></span>
+            <span class="text-xs text-slate-600">{{ __('messages.maintenance') }}</span>
+        </div>
+    </div>
 
     <!-- Floors -->
     <div class="space-y-5">
@@ -61,24 +75,20 @@
                         $maintenance = $floor->apartments->where('status', 'maintenance')->count();
                     @endphp
                     <div class="flex items-center gap-4">
-                        <div class="flex items-center gap-1.5">
-                            <span class="w-1.5 h-1.5 rounded-full bg-slate-300"></span>
-                            <span class="text-xs text-slate-400">{{ __('messages.total') }}</span>
+                        <div class="flex items-center gap-1.5" title="{{ __('messages.total') }}">
+                            <span class="w-2 h-2 rounded-full bg-slate-300"></span>
                             <span class="text-xs font-semibold text-slate-700">{{ $total }}</span>
                         </div>
-                        <div class="flex items-center gap-1.5">
-                            <span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
-                            <span class="text-xs text-slate-400">{{ __('messages.available') }}</span>
+                        <div class="flex items-center gap-1.5" title="{{ __('messages.available') }}">
+                            <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
                             <span class="text-xs font-semibold text-emerald-600">{{ $available }}</span>
                         </div>
-                        <div class="flex items-center gap-1.5">
-                            <span class="w-1.5 h-1.5 rounded-full bg-sky-400"></span>
-                            <span class="text-xs text-slate-400">{{ __('messages.occupied') }}</span>
+                        <div class="flex items-center gap-1.5" title="{{ __('messages.occupied') }}">
+                            <span class="w-2 h-2 rounded-full bg-sky-400"></span>
                             <span class="text-xs font-semibold text-sky-600">{{ $occupied }}</span>
                         </div>
-                        <div class="flex items-center gap-1.5">
-                            <span class="w-1.5 h-1.5 rounded-full bg-amber-400"></span>
-                            <span class="text-xs text-slate-400">{{ __('messages.maintenance') }}</span>
+                        <div class="flex items-center gap-1.5" title="{{ __('messages.maintenance') }}">
+                            <span class="w-2 h-2 rounded-full bg-amber-400"></span>
                             <span class="text-xs font-semibold text-amber-600">{{ $maintenance }}</span>
                         </div>
                     </div>

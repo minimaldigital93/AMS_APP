@@ -45,20 +45,24 @@ class FloorController extends Controller
     public function plan3d(): View
     {
         $floors = Floors::with(['apartments' => function ($query) {
-            $query->orderBy('apartment_number');
+            $query->orderBy('apartment_number')
+                ->with(['tenants' => fn ($q) => $q->whereNull('archived_at')]);
         }])->orderBy('id')->get();
 
-        // Shape data for the 3D renderer.
+        // Shape data for the renderer.
         $floorsData = $floors->map(function ($floor) {
             return [
                 'id' => $floor->id,
                 'name' => $floor->floor_name,
                 'apartments' => $floor->apartments->map(function ($apt) {
+                    $tenant = $apt->tenants->first();
+
                     return [
                         'id' => $apt->id,
                         'number' => $apt->apartment_number,
                         'status' => $apt->status,
                         'rent' => (float) $apt->monthly_rent,
+                        'tenant' => $tenant?->name,
                     ];
                 })->values(),
             ];
