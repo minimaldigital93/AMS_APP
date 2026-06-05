@@ -98,10 +98,18 @@ Route::middleware(['auth', 'role:superadmin'])->prefix('superadmin')->name('supe
 
     // Platform finance (profit & loss: subscription revenue vs platform expenses)
     Route::get('/finance', [SuperAdminFinanceController::class, 'index'])->name('finance.index');
+    Route::get('/finance/period/{period}/statement', [SuperAdminFinanceController::class, 'statement'])->name('finance.statement');
     Route::post('/finance/expenses', [SuperAdminFinanceController::class, 'store'])->name('finance.expenses.store');
     Route::delete('/finance/expenses/{expense}', [SuperAdminFinanceController::class, 'destroy'])->name('finance.expenses.destroy');
-    Route::post('/finance/months/close', [SuperAdminFinanceController::class, 'closeMonth'])->name('finance.months.close');
-    Route::post('/finance/months/reopen', [SuperAdminFinanceController::class, 'reopenMonth'])->name('finance.months.reopen');
+    Route::post('/finance/period', [SuperAdminFinanceController::class, 'storePeriod'])->name('finance.period.store');
+    Route::put('/finance/period/{period}', [SuperAdminFinanceController::class, 'updatePeriod'])->name('finance.period.update');
+    Route::delete('/finance/period/{period}', [SuperAdminFinanceController::class, 'destroyPeriod'])->name('finance.period.destroy');
+    Route::post('/finance/period/{period}/close', [SuperAdminFinanceController::class, 'closePeriod'])->name('finance.period.close');
+    Route::post('/finance/period/{period}/reopen', [SuperAdminFinanceController::class, 'reopenPeriod'])->name('finance.period.reopen');
+    Route::post('/finance/period/{period}/withdraw', [SuperAdminFinanceController::class, 'storeWithdrawal'])->name('finance.withdrawals.store');
+    Route::delete('/finance/withdrawals/{withdrawal}', [SuperAdminFinanceController::class, 'destroyWithdrawal'])->name('finance.withdrawals.destroy');
+    Route::post('/finance/period/{period}/months/close', [SuperAdminFinanceController::class, 'closeMonth'])->name('finance.months.close');
+    Route::post('/finance/period/{period}/months/reopen', [SuperAdminFinanceController::class, 'reopenMonth'])->name('finance.months.reopen');
 });
 
 Route::middleware('auth')->group(function () {

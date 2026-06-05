@@ -316,7 +316,13 @@
       "Bash(./vendor/bin/pint app/Http/Controllers/SuperAdmin/PlansController.php -q)",
       "Bash(php -l app/Services/Platform/PlatformFinanceService.php)",
       "Bash(php -l app/Http/Controllers/SuperAdmin/FinanceController.php)",
-      "Bash(./vendor/bin/pint app/Services/Platform/PlatformFinanceService.php app/Http/Controllers/SuperAdmin/FinanceController.php app/Models/PlatformMonthlyClose.php database/migrations/2026_06_03_201000_create_platform_monthly_closes_table.php)"
+      "Bash(./vendor/bin/pint app/Services/Platform/PlatformFinanceService.php app/Http/Controllers/SuperAdmin/FinanceController.php app/Models/PlatformMonthlyClose.php database/migrations/2026_06_03_201000_create_platform_monthly_closes_table.php)",
+      "Bash(php -l app/Models/PlatformPeriodClose.php)",
+      "Bash(php -l app/Models/PlatformFiscalPeriod.php)",
+      "Bash(php -l app/Models/PlatformWithdrawal.php)",
+      "Bash(php -r 'require '\\\\''vendor/autoload.php'\\\\''; $s=\\\\Carbon\\\\Carbon::parse\\('\\\\''2026-06-01'\\\\''\\); $e=\\\\Carbon\\\\Carbon::parse\\('\\\\''2027-05-31'\\\\''\\); var_dump\\($s->diffInMonths\\($e\\)\\); echo \\\\Composer\\\\InstalledVersions::getPrettyVersion\\('\\\\''nesbot/carbon'\\\\''\\).PHP_EOL;')",
+      "Bash(php -r '$f=\"resources/views/superadmin/finance/income-statement-pdf.blade.php\"; echo file_exists\\($f\\)?\"exists\\\\n\":\"missing\\\\n\";')",
+      "Bash(php -r 'require \"vendor/autoload.php\"; echo class_exists\\(\"\\\\\\\\Barryvdh\\\\\\\\DomPDF\\\\\\\\Facade\\\\\\\\Pdf\"\\)||class_exists\\(\"\\\\\\\\PDF\"\\)?\"pdf ok\\\\n\":\"no pdf\\\\n\";')"
     ],
     "additionalDirectories": [
       "/Users/sarotmoniodom/AMS_APP",

@@ -4,7 +4,10 @@ namespace App\Http\Controllers\SuperAdmin;
 
 use App\Http\Controllers\Controller;
 use App\Models\PlatformExpense;
+use App\Models\PlatformFiscalPeriod;
+use App\Models\PlatformWithdrawal;
 use App\Services\Platform\PlatformFinanceService;
+use Carbon\Carbon;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -12,7 +15,8 @@ use Illuminate\Support\Facades\Auth;
 
 /**
  * Platform profit & loss for the superadmin: subscription revenue vs recorded
- * platform expenses, monthly and yearly. Reads across the whole platform.
+ * platform expenses, broken down month-by-month across a fiscal period. Reads
+ * across the whole platform.
  */
 class FinanceController extends Controller
 {
@@ -20,33 +24,82 @@ class FinanceController extends Controller
 
     public function index(Request $request): View
     {
-        $years = $this->finance->activeYears();
-        $year = (int) $request->query('year', (int) now()->year);
-        if (! in_array($year, $years, true)) {
-            $year = (int) now()->year;
+        $periods = $this->finance->periods();
+
+        // No period defined yet — show the empty state with a "create" prompt.
+        if ($periods->isEmpty()) {
+            return view('superadmin.finance.index', [
+                'period' => null,
+                'periods' => $periods,
+                'pnl' => null,
+                'expenses' => null,
+                'categories' => PlatformExpense::CATEGORIES,
+            ]);
         }
 
-        $pnl = $this->finance->forYear($year);
+        $period = $periods->firstWhere('id', (int) $request->query('period'))
+            ?? $this->defaultPeriod($periods);
+
+        $pnl = $this->finance->forPeriod($period);
 
         $expenses = PlatformExpense::query()
-            ->whereYear('spent_at', $year)
+            ->whereBetween('spent_at', [
+                $period->start_date->toDateString(),
+                $period->end_date->toDateString(),
+            ])
             ->orderByDesc('spent_at')
             ->orderByDesc('id')
             ->paginate(15)
             ->withQueryString();
 
         return view('superadmin.finance.index', [
+            'period' => $period,
+            'periods' => $periods,
             'pnl' => $pnl,
-            'year' => $year,
-            'years' => $years,
             'expenses' => $expenses,
             'categories' => PlatformExpense::CATEGORIES,
         ]);
     }
 
+    /** Render the period's income statement (P&L) as a downloadable PDF. */
+    public function statement(PlatformFiscalPeriod $period)
+    {
+        $pnl = $this->finance->forPeriod($period);
+
+        // Expenses grouped by category — the cost breakdown on the statement.
+        $byCategory = PlatformExpense::query()
+            ->whereBetween('spent_at', [
+                $period->start_date->toDateString(),
+                $period->end_date->toDateString(),
+            ])
+            ->selectRaw('category, SUM(amount) as total')
+            ->groupBy('category')
+            ->orderByDesc('total')
+            ->get()
+            ->map(fn ($row) => [
+                'label' => PlatformExpense::CATEGORIES[$row->category] ?? ucfirst($row->category),
+                'total' => (float) $row->total,
+            ]);
+
+        $data = compact('period', 'pnl', 'byCategory');
+        $fileName = 'income-statement-'.\Illuminate\Support\Str::slug($period->name).'-'.now()->format('Y-m-d').'.pdf';
+
+        // Use Dompdf when available; otherwise fall back to a printable HTML view.
+        try {
+            if (class_exists('\\Barryvdh\\DomPDF\\Facade\\Pdf') || class_exists('\\PDF')) {
+                return \PDF::loadView('superadmin.finance.income-statement-pdf', $data)->download($fileName);
+            }
+        } catch (\Throwable $e) {
+            // Fall through to HTML view.
+        }
+
+        return response()->view('superadmin.finance.income-statement-pdf', $data);
+    }
+
     public function store(Request $request): RedirectResponse
     {
         $validated = $request->validate([
+            'period' => ['nullable', 'integer'],
             'category' => ['required', 'string', 'in:'.implode(',', array_keys(PlatformExpense::CATEGORIES))],
             'description' => ['required', 'string', 'max:255'],
             'amount' => ['required', 'numeric', 'min:0.01'],
@@ -68,22 +121,21 @@ class FinanceController extends Controller
         ]);
 
         return redirect()
-            ->route('superadmin.finance.index', ['year' => date('Y', strtotime($validated['spent_at']))])
+            ->route('superadmin.finance.index', ['period' => $validated['period'] ?? null])
             ->with('success', __('Platform expense recorded.'));
     }
 
-    public function destroy(PlatformExpense $expense): RedirectResponse
+    public function destroy(Request $request, PlatformExpense $expense): RedirectResponse
     {
-        $year = $expense->spent_at?->year ?? now()->year;
         $expense->delete();
 
         return redirect()
-            ->route('superadmin.finance.index', ['year' => $year])
+            ->route('superadmin.finance.index', ['period' => $request->input('period')])
             ->with('success', __('Platform expense deleted.'));
     }
 
     /** Close a month — owner withdraws the profit or carries it forward. */
-    public function closeMonth(Request $request): RedirectResponse
+    public function closeMonth(Request $request, PlatformFiscalPeriod $period): RedirectResponse
     {
         $validated = $request->validate([
             'year' => ['required', 'integer', 'min:2000', 'max:2100'],
@@ -98,6 +150,7 @@ class FinanceController extends Controller
             : 0.0;
 
         $this->finance->closeMonth(
+            $period,
             (int) $validated['year'],
             (int) $validated['month'],
             $withdrawal,
@@ -105,22 +158,135 @@ class FinanceController extends Controller
         );
 
         return redirect()
-            ->route('superadmin.finance.index', ['year' => $validated['year']])
+            ->route('superadmin.finance.index', ['period' => $period->id])
             ->with('success', __('Month closed.'));
     }
 
     /** Reopen the most recently closed month. */
-    public function reopenMonth(Request $request): RedirectResponse
+    public function reopenMonth(Request $request, PlatformFiscalPeriod $period): RedirectResponse
     {
         $validated = $request->validate([
             'year' => ['required', 'integer', 'min:2000', 'max:2100'],
             'month' => ['required', 'integer', 'min:1', 'max:12'],
         ]);
 
-        $this->finance->reopenMonth((int) $validated['year'], (int) $validated['month']);
+        $this->finance->reopenMonth($period, (int) $validated['year'], (int) $validated['month']);
 
         return redirect()
-            ->route('superadmin.finance.index', ['year' => $validated['year']])
+            ->route('superadmin.finance.index', ['period' => $period->id])
             ->with('success', __('Month reopened.'));
+    }
+
+    /** Create a fiscal period spanning an exact start date to an end date. */
+    public function storePeriod(Request $request): RedirectResponse
+    {
+        $validated = $request->validate([
+            'name' => ['required', 'string', 'max:255'],
+            'start_date' => ['required', 'date'],
+            'end_date' => ['required', 'date', 'after_or_equal:start_date'],
+            'opening_balance' => ['nullable', 'numeric', 'min:0'],
+        ]);
+
+        $period = $this->finance->createPeriod(
+            $validated['name'],
+            Carbon::parse($validated['start_date']),
+            Carbon::parse($validated['end_date']),
+            (float) ($validated['opening_balance'] ?? 0),
+        );
+
+        return redirect()
+            ->route('superadmin.finance.index', ['period' => $period->id])
+            ->with('success', __('Fiscal period created.'));
+    }
+
+    /** Rename a fiscal period, adjust its date range, or change its opening balance. */
+    public function updatePeriod(Request $request, PlatformFiscalPeriod $period): RedirectResponse
+    {
+        $validated = $request->validate([
+            'name' => ['required', 'string', 'max:255'],
+            'start_date' => ['required', 'date'],
+            'end_date' => ['required', 'date', 'after_or_equal:start_date'],
+            'opening_balance' => ['nullable', 'numeric', 'min:0'],
+        ]);
+
+        $this->finance->updatePeriod(
+            $period,
+            $validated['name'],
+            Carbon::parse($validated['start_date']),
+            Carbon::parse($validated['end_date']),
+            (float) ($validated['opening_balance'] ?? 0),
+        );
+
+        return redirect()
+            ->route('superadmin.finance.index', ['period' => $period->id])
+            ->with('success', __('Fiscal period updated.'));
+    }
+
+    /** Delete a fiscal period. */
+    public function destroyPeriod(PlatformFiscalPeriod $period): RedirectResponse
+    {
+        $this->finance->deletePeriod($period);
+
+        return redirect()
+            ->route('superadmin.finance.index')
+            ->with('success', __('Fiscal period deleted.'));
+    }
+
+    /** Close the whole fiscal period — locks its months and carries the balance into the next period. */
+    public function closePeriod(PlatformFiscalPeriod $period): RedirectResponse
+    {
+        $next = $this->finance->closePeriod($period);
+
+        return redirect()
+            ->route('superadmin.finance.index', ['period' => $next->id])
+            ->with('success', __('Period closed — :amount carried forward into :name.', [
+                'amount' => '$'.number_format((float) $next->opening_balance, 2),
+                'name' => $next->name,
+            ]));
+    }
+
+    /** Record an ad-hoc owner withdrawal against the period's carried cash. */
+    public function storeWithdrawal(Request $request, PlatformFiscalPeriod $period): RedirectResponse
+    {
+        $validated = $request->validate([
+            'amount' => ['required', 'numeric', 'min:0.01'],
+            'note' => ['nullable', 'string', 'max:255'],
+        ]);
+
+        $this->finance->withdraw($period, (float) $validated['amount'], $validated['note'] ?? null);
+
+        return redirect()
+            ->route('superadmin.finance.index', ['period' => $period->id])
+            ->with('success', __('Withdrawal recorded.'));
+    }
+
+    /** Undo an ad-hoc withdrawal, returning the cash to the carried balance. */
+    public function destroyWithdrawal(PlatformWithdrawal $withdrawal): RedirectResponse
+    {
+        $periodId = $withdrawal->platform_fiscal_period_id;
+        $this->finance->deleteWithdrawal($withdrawal);
+
+        return redirect()
+            ->route('superadmin.finance.index', ['period' => $periodId])
+            ->with('success', __('Withdrawal removed.'));
+    }
+
+    /** Reopen a closed fiscal period — unlocks its months. */
+    public function reopenPeriod(PlatformFiscalPeriod $period): RedirectResponse
+    {
+        $this->finance->reopenPeriod($period);
+
+        return redirect()
+            ->route('superadmin.finance.index', ['period' => $period->id])
+            ->with('success', __('Fiscal period reopened.'));
+    }
+
+    /** Default to the period covering today, else the most recent one. */
+    private function defaultPeriod($periods): PlatformFiscalPeriod
+    {
+        $today = now()->toDateString();
+
+        return $periods->first(fn ($p) => $p->start_date->toDateString() <= $today && $today <= $p->end_date->toDateString())
+            ?? $periods->first();
     }
 }
