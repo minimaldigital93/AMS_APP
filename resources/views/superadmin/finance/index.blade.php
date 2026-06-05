@@ -149,7 +149,7 @@
                     </form>
                 @else
                     {{-- Withdraw cash --}}
-                    <button type="button" @click="withdrawOpen = true; cashOut = periodAvailable" title="{{ __('Withdraw') }}"
+                    <button type="button" @click="withdrawOpen = true; cashOut = ''" title="{{ __('Withdraw') }}"
                             class="inline-flex items-center justify-center rounded-lg border border-purple-200 bg-purple-50 p-2 text-purple-700 shadow-sm hover:bg-purple-100">
                         <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
                     </button>
@@ -343,7 +343,7 @@
         <div class="flex items-center justify-between">
             <h2 class="text-lg font-semibold text-gray-900">{{ __('Owner withdrawals') }} · {{ $period->name }}</h2>
             @unless ($pnl['period_closed'])
-                <button type="button" @click="withdrawOpen = true; cashOut = periodAvailable" title="{{ __('Withdraw') }}"
+                <button type="button" @click="withdrawOpen = true; cashOut = ''" title="{{ __('Withdraw') }}"
                         class="inline-flex items-center justify-center rounded-lg border border-purple-200 bg-purple-50 p-2 text-purple-700 hover:bg-purple-100 print:hidden">
                     <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/></svg>
                 </button>

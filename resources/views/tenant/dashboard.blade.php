@@ -8,19 +8,19 @@
 
     {{-- Page Header --}}
     <div>
-        <h1 class="text-2xl font-bold text-gray-900">{{ __('messages.my_dashboard') }}</h1>
+        <h1 class="text-xl sm:text-2xl font-bold text-gray-900">{{ __('messages.my_dashboard') }}</h1>
         <p class="text-sm text-gray-500 mt-1">{{ __('messages.welcome_back', ['name' => $tenant->name ?? Auth::user()->name]) }}</p>
     </div>
 
     @if($tenant)
 
     {{-- Top Row: Personal Info + Photo --}}
-    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
 
         {{-- Personal Information --}}
-        <div class="lg:col-span-2 bg-white rounded-xl border border-slate-100 shadow-sm p-6">
+        <div class="lg:col-span-2 bg-white rounded-xl border border-slate-100 shadow-sm p-4 sm:p-6">
             <h2 class="text-sm font-semibold text-gray-900 uppercase tracking-wide mb-4">{{ __('messages.personal_information') }}</h2>
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-3 sm:gap-4">
                 <div>
                     <p class="text-xs text-gray-400 uppercase">{{ __('messages.full_name') }}</p>
                     <p class="text-sm font-medium text-gray-800 mt-0.5">{{ $tenant->name }}</p>
@@ -61,43 +61,49 @@
             </div>
         </div>
 
-        {{-- Photo --}}
-        <div class="bg-white rounded-xl border border-slate-100 shadow-sm p-6 flex flex-col items-center justify-center gap-3">
-            <p class="text-xs font-semibold text-gray-400 uppercase tracking-wide self-start">{{ __('messages.photo') }}</p>
+        {{-- Photo / Profile hero (shows first on phones for an at-a-glance profile) --}}
+        <div class="order-first lg:order-none bg-white rounded-xl border border-slate-100 shadow-sm p-4 sm:p-6 flex flex-row lg:flex-col items-center gap-4 lg:gap-3">
+            <p class="hidden lg:block text-xs font-semibold text-gray-400 uppercase tracking-wide self-start">{{ __('messages.photo') }}</p>
             @if($tenant->photo_path)
                 <img src="{{ asset('storage/' . $tenant->photo_path) }}"
                      alt="{{ __('messages.tenant_photo') }}"
                      @click="openViewer('{{ asset('storage/' . $tenant->photo_path) }}', true, '{{ __('messages.photo') }}')"
-                     class="w-36 h-36 rounded-full object-cover border-4 border-indigo-100 shadow cursor-pointer hover:opacity-90 transition">
+                     class="w-20 h-20 sm:w-24 sm:h-24 lg:w-36 lg:h-36 flex-shrink-0 rounded-full object-cover border-4 border-indigo-100 shadow cursor-pointer hover:opacity-90 active:opacity-80 transition">
             @else
-                <div class="w-36 h-36 rounded-full bg-indigo-50 border-4 border-indigo-100 flex items-center justify-center">
-                    <span class="text-5xl font-bold text-indigo-300">
+                <div class="w-20 h-20 sm:w-24 sm:h-24 lg:w-36 lg:h-36 flex-shrink-0 rounded-full bg-indigo-50 border-4 border-indigo-100 flex items-center justify-center">
+                    <span class="text-3xl sm:text-4xl lg:text-5xl font-bold text-indigo-300">
                         {{ strtoupper(substr($tenant->name, 0, 1)) }}
                     </span>
                 </div>
             @endif
-            <p class="text-xs text-gray-400">{{ $tenant->name }}</p>
+            <div class="min-w-0 lg:text-center">
+                <p class="text-base lg:text-sm font-semibold lg:font-medium text-gray-900 lg:text-gray-400 truncate">{{ $tenant->name }}</p>
+                <span class="lg:hidden mt-1 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium
+                    {{ $tenant->status === 'active' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700' }}">
+                    {{ ucfirst($tenant->status) }}
+                </span>
+            </div>
         </div>
     </div>
 
     {{-- Apartment & Payment Stats --}}
     @if($rental)
-    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div class="bg-white rounded-xl border border-slate-100 shadow-sm p-5">
+    <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+        <div class="bg-white rounded-xl border border-slate-100 shadow-sm p-4 sm:p-5">
             <p class="text-xs text-gray-400 uppercase">{{ __('messages.apartment') }}</p>
-            <p class="text-lg font-bold text-indigo-700 mt-1">{{ $rental->apartment->apartment_number ?? '—' }}</p>
-            <p class="text-xs text-gray-400 mt-0.5">{{ $rental->apartment->floor?->floor_name ?? '' }}</p>
+            <p class="text-lg font-bold text-indigo-700 mt-1 truncate">{{ $rental->apartment->apartment_number ?? '—' }}</p>
+            <p class="text-xs text-gray-400 mt-0.5 truncate">{{ $rental->apartment->floor?->floor_name ?? '' }}</p>
         </div>
-        <div class="bg-white rounded-xl border border-slate-100 shadow-sm p-5">
+        <div class="bg-white rounded-xl border border-slate-100 shadow-sm p-4 sm:p-5">
             <p class="text-xs text-gray-400 uppercase">{{ __('messages.monthly_rent') }}</p>
-            <p class="text-lg font-bold text-gray-900 mt-1">${{ number_format($paymentStats['this_month_total'], 2) }}</p>
+            <p class="text-lg font-bold text-gray-900 mt-1">{{ currency_symbol() }}{{ number_format($paymentStats['this_month_total'], 2) }}</p>
             <p class="text-xs text-gray-400 mt-0.5">{{ __('messages.current_period') }}</p>
         </div>
-        <div class="bg-white rounded-xl border border-slate-100 shadow-sm p-5">
+        <div class="bg-white rounded-xl border border-slate-100 shadow-sm p-4 sm:p-5">
             <p class="text-xs text-gray-400 uppercase">{{ __('messages.paid_this_month') }}</p>
             <p class="text-lg font-bold mt-1
                 {{ $paymentStats['this_month_status'] === 'paid' ? 'text-green-600' : ($paymentStats['this_month_status'] === 'partial' ? 'text-yellow-600' : 'text-red-500') }}">
-                ${{ number_format($paymentStats['this_month_paid'], 2) }}
+                {{ currency_symbol() }}{{ number_format($paymentStats['this_month_paid'], 2) }}
             </p>
             <div class="mt-2 h-1.5 bg-gray-100 rounded-full overflow-hidden">
                 <div class="h-full rounded-full
@@ -107,35 +113,35 @@
             </div>
             <p class="text-xs text-gray-400 mt-1">{{ __('messages.percent_of_rent', ['percent' => $paymentStats['this_month_percent']]) }}</p>
         </div>
-        <div class="bg-white rounded-xl border border-slate-100 shadow-sm p-5">
+        <div class="bg-white rounded-xl border border-slate-100 shadow-sm p-4 sm:p-5">
             <p class="text-xs text-gray-400 uppercase">{{ __('messages.all_time_paid') }}</p>
-            <p class="text-lg font-bold text-gray-900 mt-1">${{ number_format($paymentStats['all_time_paid'], 2) }}</p>
+            <p class="text-lg font-bold text-gray-900 mt-1">{{ currency_symbol() }}{{ number_format($paymentStats['all_time_paid'], 2) }}</p>
             <p class="text-xs text-gray-400 mt-0.5">{{ __('messages.total_payments') }}</p>
         </div>
     </div>
     @endif
 
     {{-- Recent Payments + Document --}}
-    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
 
         {{-- Recent Payments --}}
-        <div class="lg:col-span-2 bg-white rounded-xl border border-slate-100 shadow-sm p-6">
+        <div class="lg:col-span-2 bg-white rounded-xl border border-slate-100 shadow-sm p-4 sm:p-6">
             <div class="flex items-center justify-between mb-4">
                 <h2 class="text-sm font-semibold text-gray-900 uppercase tracking-wide">{{ __('messages.recent_payments') }}</h2>
             </div>
             @if($recentPayments->isNotEmpty())
             <div class="divide-y divide-gray-50">
                 @foreach($recentPayments as $payment)
-                <div class="flex items-center justify-between py-3">
-                    <div class="flex items-center gap-3">
+                <div class="flex items-center justify-between gap-3 py-3">
+                    <div class="flex items-center gap-3 min-w-0">
                         <div class="w-8 h-8 rounded-lg bg-indigo-50 flex items-center justify-center flex-shrink-0">
                             <svg class="w-4 h-4 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"/>
                             </svg>
                         </div>
-                        <div>
-                            <p class="text-sm font-medium text-gray-800">{{ ucfirst($payment->payment_type ?? __('messages.rent')) }}</p>
-                            <p class="text-xs text-gray-400">
+                        <div class="min-w-0">
+                            <p class="text-sm font-medium text-gray-800 truncate">{{ ucfirst($payment->payment_type ?? __('messages.rent')) }}</p>
+                            <p class="text-xs text-gray-400 truncate">
                                 {{ $payment->paid_at ? $payment->paid_at->format('M d, Y') : '—' }}
                                 @if($payment->payment_method)
                                     · {{ ucfirst($payment->payment_method) }}
@@ -143,8 +149,8 @@
                             </p>
                         </div>
                     </div>
-                    <div class="text-right">
-                        <p class="text-sm font-semibold text-gray-900">${{ number_format($payment->amount, 2) }}</p>
+                    <div class="text-right flex-shrink-0">
+                        <p class="text-sm font-semibold text-gray-900">{{ currency_symbol() }}{{ number_format($payment->amount, 2) }}</p>
                         <span class="text-xs px-1.5 py-0.5 rounded-full bg-green-100 text-green-700">{{ __('messages.paid') }}</span>
                     </div>
                 </div>
@@ -161,7 +167,7 @@
         </div>
 
         {{-- Document --}}
-        <div class="bg-white rounded-xl border border-slate-100 shadow-sm p-6">
+        <div class="bg-white rounded-xl border border-slate-100 shadow-sm p-4 sm:p-6">
             <h2 class="text-sm font-semibold text-gray-900 uppercase tracking-wide mb-4">{{ __('messages.document') }}</h2>
             @if($tenant->document_path)
                 @php
@@ -187,7 +193,7 @@
                     @endif
                     <button type="button"
                        @click="openViewer('{{ $docUrl }}', {{ $isImageDoc ? 'true' : 'false' }}, '{{ __('messages.document') }}')"
-                       class="w-full inline-flex items-center justify-center gap-2 px-4 py-2 text-xs font-medium text-indigo-700 bg-indigo-50 hover:bg-indigo-100 rounded-lg transition border border-indigo-100" title="{{ __('messages.view_download') }}">
+                       class="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-medium text-indigo-700 bg-indigo-50 hover:bg-indigo-100 active:bg-indigo-200 rounded-lg transition border border-indigo-100" title="{{ __('messages.view_download') }}">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
