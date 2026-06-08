@@ -6,7 +6,7 @@
     @push('overlays')
         <div x-data="{ open: false }">
             <button type="button" @click="open = true"
-                    class="fixed top-4 right-4 z-40 inline-flex items-center gap-2 rounded-full bg-indigo-600 px-5 py-2.5 text-sm font-semibold text-white shadow-lg hover:bg-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-400">
+                    class="fixed top-4 right-4 z-40 inline-flex items-center gap-1.5 rounded-full bg-indigo-600 px-3 py-1.5 text-xs font-semibold text-white shadow-lg hover:bg-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-400 sm:gap-2 sm:px-5 sm:py-2.5 sm:text-sm">
                 <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg>
                 {{ __('Subscribe') }}
             </button>
@@ -88,9 +88,8 @@
 
     
 
-        <div class="flex items-end justify-end mt-6">
-       
-            <x-primary-button class="login-btn ms-3 rounded-xl">
+        <div class="flex justify-end mt-6">
+            <x-primary-button class="login-btn w-full justify-center sm:w-auto rounded-xl">
                 {{ __('Sign In') }}
             </x-primary-button>
         </div>

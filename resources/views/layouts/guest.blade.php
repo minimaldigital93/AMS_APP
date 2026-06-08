@@ -68,14 +68,14 @@
             <div class="glow-ring"></div>
         </div>
 
-        <div class="login-wrapper min-h-screen flex flex-col sm:justify-center items-center pt-6 sm:pt-0">
+        <div class="login-wrapper min-h-screen flex flex-col sm:justify-center items-center px-4 sm:px-0 pt-6 sm:pt-0">
             <div>
                 <a href="/">
                     <x-application-logo class="w-20 h-20 fill-current text-white drop-shadow-lg" />
                 </a>
             </div>
 
-            <div class="login-card w-full sm:max-w-md mt-6 px-6 py-4 bg-white/10 shadow-2xl overflow-hidden sm:rounded-2xl">
+            <div class="login-card w-full sm:max-w-md mt-6 px-6 py-6 bg-white/10 shadow-2xl overflow-hidden rounded-2xl">
                 {{ $slot }}
             </div>
         </div>
