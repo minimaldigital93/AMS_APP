@@ -10,45 +10,17 @@
     <style>[x-cloak]{display:none !important;}</style>
     @include('partials.pwa-head')
 </head>
-<body class="min-h-screen bg-gray-100 text-gray-900" x-data="{ sidebarOpen: false }" @keydown.escape.window="sidebarOpen = false">
-    <!-- Mobile top bar -->
+<body class="min-h-screen bg-gray-100 text-gray-900">
+    <!-- Mobile top bar (brand only — navigation lives in the bottom bar) -->
     <div class="sticky top-0 z-40 flex items-center gap-3 bg-gray-900 px-4 py-3 text-gray-100 md:hidden">
-        <button
-            type="button"
-            @click="sidebarOpen = true"
-            class="inline-flex items-center justify-center rounded-lg p-2 text-gray-200 hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-white/30"
-            aria-label="Open navigation">
-            <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/>
-            </svg>
-        </button>
         <span class="text-base font-bold tracking-tight">AMS <span class="text-indigo-400">Platform</span></span>
     </div>
 
-    <!-- Mobile backdrop -->
-    <div
-        x-show="sidebarOpen"
-        x-cloak
-        x-transition.opacity
-        @click="sidebarOpen = false"
-        class="fixed inset-0 z-40 bg-black/50 md:hidden"></div>
-
     <div class="flex min-h-screen">
-        <!-- Sidebar (static on desktop, off-canvas drawer on mobile) -->
-        <aside
-            class="fixed inset-y-0 left-0 z-50 flex w-64 shrink-0 -translate-x-full flex-col bg-gray-900 text-gray-100 transition-transform duration-300 md:static md:z-auto md:translate-x-0"
-            :class="sidebarOpen ? 'translate-x-0' : '-translate-x-full'">
+        <!-- Sidebar (desktop only — phones use the bottom bar) -->
+        <aside class="hidden w-64 shrink-0 flex-col bg-gray-900 text-gray-100 md:flex">
             <div class="flex items-center justify-between px-6 py-5 text-lg font-bold tracking-tight">
                 <span>AMS <span class="text-indigo-400">Platform</span></span>
-                <button
-                    type="button"
-                    @click="sidebarOpen = false"
-                    class="rounded-lg p-1.5 text-gray-300 hover:bg-gray-800 md:hidden"
-                    aria-label="Close navigation">
-                    <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
-                    </svg>
-                </button>
             </div>
             <nav class="flex-1 space-y-1 px-3">
                 @php($nav = [
@@ -86,8 +58,14 @@
                 @endif
             @endforeach
             @yield('content')
+            {{-- Spacer so content clears the mobile bottom navigation --}}
+            <div class="h-20 md:hidden" aria-hidden="true"></div>
         </main>
     </div>
+
+    <!-- Mobile bottom navigation -->
+    @include('layouts.superadmin-bottom-nav')
+
     @include('partials.responsive-tables')
 </body>
 </html>

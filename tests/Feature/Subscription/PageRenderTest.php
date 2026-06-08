@@ -36,7 +36,7 @@ it('renders every superadmin platform page', function () {
     $su->assignRole('superadmin');
     $su->forceFill(['account_id' => $su->id])->save();
 
-    foreach (['superadmin.dashboard', 'superadmin.accounts.index', 'superadmin.plans.index', 'superadmin.subscriptions.index'] as $route) {
+    foreach (['superadmin.dashboard', 'superadmin.accounts.index', 'superadmin.plans.index', 'superadmin.finance.index'] as $route) {
         $this->actingAs($su)->get(route($route))->assertOk();
     }
 });

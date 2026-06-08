@@ -3,10 +3,11 @@
 namespace App\Http\Controllers\SuperAdmin;
 
 use App\Http\Controllers\Controller;
+use App\Models\Apartments;
+use App\Models\Floors;
 use App\Models\Plan;
 use App\Models\Subscription;
 use App\Models\User;
-use App\Services\Subscription\SubscriptionService;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -18,8 +19,6 @@ use Illuminate\Validation\Rules\Password;
  */
 class AccountsController extends Controller
 {
-    public function __construct(private SubscriptionService $subscriptions) {}
-
     public function index(): View
     {
         // Every customer account owner (admins + pending/unpaid signups). Owners
@@ -32,12 +31,28 @@ class AccountsController extends Controller
             ->orderBy('name')
             ->paginate(20);
 
-        // Per-account usage snapshot for the table.
+        // Per-account usage snapshot for the table. Counts are fetched in two
+        // grouped queries (across the whole platform) rather than per row, so the
+        // page stays at a fixed query count regardless of how many accounts show.
+        $accountIds = $accounts->getCollection()->modelKeys();
+
+        $floorCounts = Floors::withoutAccountScope()
+            ->whereIn('account_id', $accountIds)
+            ->selectRaw('account_id, COUNT(*) as aggregate')
+            ->groupBy('account_id')
+            ->pluck('aggregate', 'account_id');
+
+        $apartmentCounts = Apartments::withoutAccountScope()
+            ->whereIn('account_id', $accountIds)
+            ->selectRaw('account_id, COUNT(*) as aggregate')
+            ->groupBy('account_id')
+            ->pluck('aggregate', 'account_id');
+
         $usage = [];
-        foreach ($accounts as $account) {
-            $usage[$account->id] = [
-                'floors' => $this->subscriptions->floorCount($account->id),
-                'apartments' => $this->subscriptions->apartmentCount($account->id),
+        foreach ($accountIds as $id) {
+            $usage[$id] = [
+                'floors' => (int) ($floorCounts[$id] ?? 0),
+                'apartments' => (int) ($apartmentCounts[$id] ?? 0),
             ];
         }
 

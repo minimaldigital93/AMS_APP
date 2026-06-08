@@ -2,7 +2,6 @@
 
 @section('content')
 <style>[x-cloak] { display: none !important; }</style>
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
 <div class="max-w-6xl mx-auto space-y-8" x-data="revenueExpense()">
 
     {{-- Header --}}

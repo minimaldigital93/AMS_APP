@@ -376,7 +376,7 @@
     </div>
 
     {{-- ===== Withdraw cash modal ===== --}}
-    <div x-show="withdrawOpen" x-cloak class="fixed inset-0 z-40 flex items-start justify-center overflow-y-auto bg-gray-900/50 p-4 sm:items-center"
+    <div x-show="withdrawOpen" x-cloak class="fixed inset-0 z-[70] flex items-start justify-center overflow-y-auto bg-gray-900/50 p-4 sm:items-center"
          x-transition.opacity @click.self="withdrawOpen = false" @keydown.escape.window="withdrawOpen = false">
         <div class="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl">
             <div class="flex items-start justify-between">
@@ -418,7 +418,7 @@
     </div>
 
     {{-- ===== Add expense modal ===== --}}
-    <div x-show="expenseOpen" x-cloak class="fixed inset-0 z-40 flex items-start justify-center overflow-y-auto bg-gray-900/50 p-4 sm:items-center"
+    <div x-show="expenseOpen" x-cloak class="fixed inset-0 z-[70] flex items-start justify-center overflow-y-auto bg-gray-900/50 p-4 sm:items-center"
          x-transition.opacity @click.self="expenseOpen = false" @keydown.escape.window="expenseOpen = false">
         <div class="w-full max-w-lg rounded-2xl bg-white p-6 shadow-xl">
             <div class="flex items-start justify-between">
@@ -478,7 +478,7 @@
     </div>
 
     {{-- ===== Close month modal ===== --}}
-    <div x-show="close" x-cloak class="fixed inset-0 z-40 flex items-start justify-center overflow-y-auto bg-gray-900/50 p-4 sm:items-center"
+    <div x-show="close" x-cloak class="fixed inset-0 z-[70] flex items-start justify-center overflow-y-auto bg-gray-900/50 p-4 sm:items-center"
          x-transition.opacity @click.self="close = null" @keydown.escape.window="close = null">
         <div class="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl">
             <div class="flex items-start justify-between">
@@ -551,7 +551,7 @@
     @endif
 
     {{-- ===== Create fiscal period modal ===== --}}
-    <div x-show="periodCreateOpen" x-cloak class="fixed inset-0 z-40 flex items-start justify-center overflow-y-auto bg-gray-900/50 p-4 sm:items-center"
+    <div x-show="periodCreateOpen" x-cloak class="fixed inset-0 z-[70] flex items-start justify-center overflow-y-auto bg-gray-900/50 p-4 sm:items-center"
          x-transition.opacity @click.self="periodCreateOpen = false" @keydown.escape.window="periodCreateOpen = false">
         <div class="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl">
             <div class="flex items-start justify-between">
@@ -601,7 +601,7 @@
     </div>
 
     {{-- ===== Edit fiscal period modal ===== --}}
-    <div x-show="periodEdit" x-cloak class="fixed inset-0 z-40 flex items-start justify-center overflow-y-auto bg-gray-900/50 p-4 sm:items-center"
+    <div x-show="periodEdit" x-cloak class="fixed inset-0 z-[70] flex items-start justify-center overflow-y-auto bg-gray-900/50 p-4 sm:items-center"
          x-transition.opacity @click.self="periodEdit = null" @keydown.escape.window="periodEdit = null">
         <div class="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl">
             <div class="flex items-start justify-between">

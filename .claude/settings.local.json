@@ -389,7 +389,14 @@
       "Bash(sips -z 180 180 at.png --out /Users/sarotmoniodom/AMS_APP_dev/public/icons/apple-touch-icon.png)",
       "Bash(cp ams-icon.svg.png i192.png)",
       "Bash(sips -z 192 192 i192.png --out /Users/sarotmoniodom/AMS_APP_dev/public/icons/icon-192.png)",
-      "Bash(cp ams-icon.svg.png i512.png)"
+      "Bash(cp ams-icon.svg.png i512.png)",
+      "Bash(grep -oE '\\\\$[a-zA-Z_][a-zA-Z0-9_]*' resources/views/superadmin/dashboard.blade.php)",
+      "Bash(grep -oE '\\\\$\\(period|periods|pnl|expenses|categories\\)\\\\b' resources/views/superadmin/finance/index.blade.php)",
+      "Bash(php -l app/Http/Controllers/SuperAdmin/AccountsController.php)",
+      "Bash(./vendor/bin/pest tests/Feature/Subscription/PageRenderTest.php tests/Feature/Subscription/AccountIsolationTest.php)",
+      "Bash(./vendor/bin/pint app/Http/Controllers/SuperAdmin/DashboardController.php app/Http/Controllers/SuperAdmin/AccountsController.php tests/Feature/Subscription/PageRenderTest.php)",
+      "Bash(./vendor/bin/pest tests/Feature/Subscription/)",
+      "Bash(curl -s -o /dev/null -w \"http_code=%{http_code} time=%{time_total}s\\\\n\" --max-time 6 https://cdn.jsdelivr.net/npm/chart.js)"
     ],
     "additionalDirectories": [
       "/Users/sarotmoniodom/AMS_APP",
