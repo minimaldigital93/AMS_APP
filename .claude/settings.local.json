@@ -351,7 +351,9 @@
       "Bash(\"/Applications/Google Chrome.app/Contents/MacOS/Google Chrome\" --headless=new --disable-gpu --hide-scrollbars --window-size=390,300 --screenshot=/tmp/measure.png file:///tmp/measure.html)",
       "Bash(echo \"shot exit $?\")",
       "Bash(\"/Applications/Google Chrome.app/Contents/MacOS/Google Chrome\" --headless=new --disable-gpu --hide-scrollbars --window-size=500,760 --screenshot=/tmp/rtable_final.png file:///tmp/rtable_test2.html)",
-      "Bash(echo \"exit $?\")"
+      "Bash(echo \"exit $?\")",
+      "Bash(grep -nE '\\\\$dep\\(Income|Expense|Net\\)\\\\b' resources/views/admin/revenue_expense/index.blade.php)",
+      "Bash(echo \"---exit:$?---\")"
     ],
     "additionalDirectories": [
       "/Users/sarotmoniodom/AMS_APP",
