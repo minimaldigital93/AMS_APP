@@ -385,7 +385,8 @@
             </div>
 
             {{-- Default: Apartment list (existing table) --}}
-            <div class="overflow-x-auto" x-show="groupBy === 'apartment'" x-cloak>
+            <div x-show="groupBy === 'apartment'" x-cloak>
+                <div class="hidden md:block overflow-x-auto">
                 <table class="w-full text-sm">
                     <thead>
                         <tr class="border-b bg-slate-50/80 text-[11px] text-slate-400 uppercase tracking-wider">
@@ -609,6 +610,81 @@
                         </tr>
                     </tfoot>
                 </table>
+                </div>
+
+                {{-- Per-apartment cards (mobile) --}}
+                <div class="md:hidden divide-y divide-slate-50">
+                    @foreach($perApartment as $aptIdx => $apt)
+                    @php
+                        $utilitiesIncome = $apt['utilities_income'] ?? ($apt['expenses'] - ($apt['other_income'] ?? 0));
+                        $otherCharge     = $apt['other_income'] ?? 0;
+                        $netProfit       = $apt['monthly_rent'] + $utilitiesIncome + $otherCharge;
+                    @endphp
+                    <div class="p-4" x-show="showAll || {{ $apt['has_active_rental'] ? 'true' : 'false' }}">
+                        <div class="flex items-start justify-between gap-3">
+                            <div class="min-w-0">
+                                <div class="font-semibold {{ $apt['has_active_rental'] ? 'text-slate-800' : 'text-slate-400' }}">{{ $apt['apartment_number'] }}</div>
+                                @if($apt['has_active_rental'])
+                                    <div class="text-xs text-slate-400 mt-0.5">{{ $apt['tenant'] }}</div>
+                                @else
+                                    <div class="text-xs text-slate-300 mt-0.5">{{ __('messages.vacant') }}</div>
+                                @endif
+                            </div>
+                            <div class="flex-shrink-0">
+                                @if(!$apt['has_active_rental'])
+                                    <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-500">{{ __('messages.vacant') }}</span>
+                                @else
+                                    @php $isPaid = $apt['paid_this_month'] ?? ($apt['rent_status'] === 'paid'); @endphp
+                                    @if($isPaid)
+                                        <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-emerald-100 text-emerald-700">{{ __('messages.paid') }}</span>
+                                    @elseif(($apt['rent_status'] ?? '') === 'partial')
+                                        <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-700">{{ __('messages.partial') }}</span>
+                                    @elseif(($apt['rent_status'] ?? '') === 'overdue')
+                                        <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-700">{{ __('messages.overdue') }}</span>
+                                    @else
+                                        <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-700">{{ __('messages.pending') }}</span>
+                                    @endif
+                                @endif
+                            </div>
+                        </div>
+
+                        <div class="mt-3 grid grid-cols-3 gap-2 text-center">
+                            <div class="rounded-lg bg-slate-50 py-2">
+                                <p class="text-[10px] uppercase tracking-wide text-slate-400">{{ __('messages.rent_price') }}</p>
+                                <p class="text-sm font-semibold text-slate-700">${{ number_format($apt['monthly_rent'], 2) }}</p>
+                            </div>
+                            <div class="rounded-lg bg-slate-50 py-2">
+                                <p class="text-[10px] uppercase tracking-wide text-slate-400">{{ __('messages.utilities') }}</p>
+                                <p class="text-sm font-semibold {{ $utilitiesIncome > 0 ? 'text-sky-600' : 'text-slate-700' }}">${{ number_format($utilitiesIncome, 2) }}</p>
+                            </div>
+                            <div class="rounded-lg bg-slate-50 py-2">
+                                <p class="text-[10px] uppercase tracking-wide text-slate-400">{{ __('messages.other_charge') }}</p>
+                                <p class="text-sm font-semibold {{ $otherCharge > 0 ? 'text-purple-600' : 'text-slate-700' }}">${{ number_format($otherCharge, 2) }}</p>
+                            </div>
+                        </div>
+
+                        <div class="mt-2 flex items-center justify-between border-t border-slate-50 pt-2">
+                            <span class="text-xs font-medium text-slate-500">{{ __('messages.net_profit') }}</span>
+                            <span class="text-sm font-bold {{ $netProfit >= 0 ? 'text-emerald-700' : 'text-red-600' }}">${{ number_format($netProfit, 2) }}</span>
+                        </div>
+
+                        @if($apt['has_active_rental'] && $apt['rental_id'])
+                        <div class="mt-3 flex items-center gap-2">
+                            @if($apt['tenant_id'])
+                            <a href="{{ route('admin.tenants.show', $apt['tenant_id']) }}" class="flex-1 inline-flex items-center justify-center gap-1.5 h-9 rounded-lg bg-sky-50 text-sky-700 active:bg-sky-100 text-sm font-medium transition">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
+                                {{ __('messages.view_tenant') }}
+                            </a>
+                            @endif
+                            <a href="{{ route('admin.apartments.show', $apt['apartment_id']) }}" class="flex-1 inline-flex items-center justify-center gap-1.5 h-9 rounded-lg bg-emerald-50 text-emerald-700 active:bg-emerald-100 text-sm font-medium transition">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-4 0h4"/></svg>
+                                {{ __('messages.view_apartment') }}
+                            </a>
+                        </div>
+                        @endif
+                    </div>
+                    @endforeach
+                </div>
             </div>
 
             {{-- Grouped by Floor view --}}

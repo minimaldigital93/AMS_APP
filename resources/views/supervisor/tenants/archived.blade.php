@@ -83,7 +83,7 @@
 
         <!-- Tenants Table -->
         <div class="bg-white rounded-xl border border-slate-100 overflow-hidden">
-            <div class="p-6 overflow-x-auto">
+            <div class="hidden md:block p-6 overflow-x-auto">
                 <table class="min-w-full divide-y divide-gray-200">
                     <thead class="bg-gray-50">
                         <tr>
@@ -147,6 +147,55 @@
                     </tbody>
                 </table>
             </div>
+
+            <!-- Mobile card list -->
+            <div class="md:hidden divide-y divide-slate-100">
+                @forelse ($tenants as $tenant)
+                    <div class="p-4 active:bg-slate-50 transition">
+                        <div class="flex items-start gap-3">
+                            @if($tenant->photo_path && !str_ends_with($tenant->photo_path, '.pdf'))
+                                <img src="{{ asset('storage/' . $tenant->photo_path) }}" alt="{{ $tenant->name }}" class="h-12 w-12 rounded-full object-cover border border-gray-200 flex-shrink-0" onerror="this.style.display='none'">
+                            @else
+                                <div class="h-12 w-12 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0">
+                                    <span class="text-blue-600 font-semibold">{{ strtoupper(substr($tenant->name, 0, 1)) }}</span>
+                                </div>
+                            @endif
+                            <div class="min-w-0 flex-1">
+                                <p class="font-semibold text-gray-900 truncate">{{ $tenant->name }}</p>
+                                <p class="text-xs text-gray-500">{{ $tenant->apartment?->floor?->floor_name ?? 'N/A' }} / {{ $tenant->apartment?->apartment_number ?? 'N/A' }}</p>
+                            </div>
+                            <span class="px-2 py-1 text-xs font-semibold rounded-md bg-gray-100 text-gray-600 flex-shrink-0">{{ $tenant->deleted_at?->format('M d, Y') ?? 'N/A' }}</span>
+                        </div>
+
+                        <div class="mt-3 flex items-center justify-between">
+                            <span class="text-[10px] uppercase tracking-wide text-slate-400">{{ __('messages.tenancy_duration') }}</span>
+                            <span class="text-sm font-medium text-gray-700">
+                                @if($tenant->leaves->last() && $tenant->move_in_date)
+                                    {{ __('messages.days_suffix', ['days' => $tenant->leaves->last()->stay_days]) }}
+                                @else
+                                    N/A
+                                @endif
+                            </span>
+                        </div>
+
+                        <div class="mt-3 flex items-center gap-2">
+                            <button onclick="viewTenantSettlement('{{ $tenant->id }}', '{{ addslashes($tenant->name) }}')" class="flex-1 inline-flex items-center justify-center gap-1.5 h-9 rounded-lg text-sky-700 bg-sky-50 active:bg-sky-100 text-sm font-medium transition">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path></svg>
+                                {{ __('messages.view_settlement') }}
+                            </button>
+                            @if($tenant->document_path)
+                                <a href="{{ asset('storage/' . $tenant->document_path) }}" target="_blank" class="inline-flex items-center justify-center gap-1.5 h-9 px-4 rounded-lg text-red-700 bg-red-50 active:bg-red-100 text-sm font-medium transition">
+                                    <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path d="M4 2h7l5 5v11a2 2 0 01-2 2H4a2 2 0 01-2-2V4a2 2 0 012-2z" /></svg>
+                                    {{ __('messages.document') }}
+                                </a>
+                            @endif
+                        </div>
+                    </div>
+                @empty
+                    <div class="p-8 text-center text-gray-500">{{ __('messages.no_archived_tenants_found') }}</div>
+                @endforelse
+            </div>
+
             <!-- Pagination -->
             @if($tenants->hasPages())
             <div class="bg-white px-6 py-4 border-t border-gray-200">

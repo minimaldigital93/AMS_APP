@@ -357,5 +357,6 @@
         });
     </script>
     @stack('scripts')
+    @include('partials.responsive-tables')
 </body>
 </html>

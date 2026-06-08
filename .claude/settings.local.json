@@ -345,7 +345,13 @@
       "Bash(sips --cropToHeightWidth 90 700 --cropOffset 300 160 apts_shot.png --out apts_crop.png)",
       "Bash(ls -la apts_crop.png)",
       "Bash(grep -nE '^\\\\s*'\\\\''__TRACKED_VAR__'\\\\''\\\\s*=>' lang/en/messages.php lang/km/messages.php)",
-      "Bash(echo \"EXIT: $?\")"
+      "Bash(echo \"EXIT: $?\")",
+      "Bash(\"/Applications/Google Chrome.app/Contents/MacOS/Google Chrome\" --headless=new --disable-gpu --hide-scrollbars --force-device-scale-factor=2 --window-size=390,900 --screenshot=/tmp/rtable_mobile.png file:///tmp/rtable_test.html)",
+      "Bash(ls -la /tmp/rtable_mobile.png)",
+      "Bash(\"/Applications/Google Chrome.app/Contents/MacOS/Google Chrome\" --headless=new --disable-gpu --hide-scrollbars --window-size=390,300 --screenshot=/tmp/measure.png file:///tmp/measure.html)",
+      "Bash(echo \"shot exit $?\")",
+      "Bash(\"/Applications/Google Chrome.app/Contents/MacOS/Google Chrome\" --headless=new --disable-gpu --hide-scrollbars --window-size=500,760 --screenshot=/tmp/rtable_final.png file:///tmp/rtable_test2.html)",
+      "Bash(echo \"exit $?\")"
     ],
     "additionalDirectories": [
       "/Users/sarotmoniodom/AMS_APP",

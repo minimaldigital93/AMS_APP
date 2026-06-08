@@ -193,8 +193,8 @@
                     </div>
                 </div>
 
-                <!-- Apartments Table -->
-                <div class="overflow-x-auto rounded-xl border border-slate-100">
+                <!-- Apartments Table (desktop) -->
+                <div class="hidden md:block overflow-x-auto rounded-xl border border-slate-100">
                     <table class="w-full">
                         <thead>
                             <tr class="bg-slate-50/80">
@@ -238,6 +238,39 @@
                             @endforeach
                         </tbody>
                     </table>
+                </div>
+
+                <!-- Apartments cards (mobile) -->
+                <div class="md:hidden space-y-2.5">
+                    @foreach($floor->apartments as $apartment)
+                    <div class="rounded-xl border border-slate-100 p-3.5">
+                        <div class="flex items-center justify-between">
+                            <span class="text-sm font-semibold text-slate-700">{{ $apartment->apartment_number }}</span>
+                            <span class="inline-flex items-center gap-1.5 text-xs font-medium
+                                @if($apartment->status === 'available') text-emerald-600
+                                @elseif($apartment->status === 'occupied') text-sky-600
+                                @elseif($apartment->status === 'maintenance') text-amber-600
+                                @else text-slate-500
+                                @endif">
+                                <span class="w-1.5 h-1.5 rounded-full
+                                    @if($apartment->status === 'available') bg-emerald-400
+                                    @elseif($apartment->status === 'occupied') bg-sky-400
+                                    @elseif($apartment->status === 'maintenance') bg-amber-400
+                                    @else bg-slate-300
+                                    @endif"></span>
+                                {{ ucfirst($apartment->status) }}
+                            </span>
+                        </div>
+                        <div class="mt-2 flex items-center justify-between text-sm">
+                            <span class="text-slate-400 text-xs">{{ __('messages.monthly_rent') }}</span>
+                            <span class="text-slate-600 font-medium">${{ number_format($apartment->monthly_rent, 2) }}</span>
+                        </div>
+                        <div class="mt-1 flex items-center justify-between text-sm">
+                            <span class="text-slate-400 text-xs">{{ __('messages.supervisor') }}</span>
+                            <span class="text-slate-500">{{ $apartment->supervisor ? $apartment->supervisor->name : '—' }}</span>
+                        </div>
+                    </div>
+                    @endforeach
                 </div>
             @else
             <div class="text-center py-14">

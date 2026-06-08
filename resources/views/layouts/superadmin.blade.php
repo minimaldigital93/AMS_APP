@@ -88,5 +88,6 @@
             @yield('content')
         </main>
     </div>
+    @include('partials.responsive-tables')
 </body>
 </html>

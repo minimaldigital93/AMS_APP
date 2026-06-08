@@ -56,8 +56,8 @@
                     </svg>
                 </summary>
 
-                <!-- Apartments Table -->
-                <div class="overflow-x-auto border-t border-slate-50">
+                <!-- Apartments Table (desktop) -->
+                <div class="hidden md:block overflow-x-auto border-t border-slate-50">
                 <table class="w-full">
                     <thead>
                         <tr class="bg-slate-50/80">
@@ -270,6 +270,79 @@
                         @endforeach
                     </tbody>
                 </table>
+                </div>
+
+                <!-- Apartments cards (mobile) -->
+                <div class="md:hidden border-t border-slate-50 divide-y divide-slate-50">
+                    @foreach($apartmentsInFloor as $apartment)
+                        @php
+                            $mTenant = $apartment->tenants()->whereNull('deleted_at')->latest()->first();
+                            $mRental = $mTenant ? $apartment->rentals()->where('tenant_id', $mTenant->id)->latest()->first() : null;
+                            $mRent = (float) ($mRental->rent_amount ?? $apartment->monthly_rent ?? 0);
+                            $mSupervisor = ($mTenant?->manager ?? null) ?? $apartment->supervisor;
+                            $mStatusText = match($apartment->status) {
+                                'available' => 'text-emerald-600',
+                                'occupied' => 'text-sky-600',
+                                'maintenance' => 'text-amber-600',
+                                default => 'text-slate-500',
+                            };
+                            $mStatusBg = match($apartment->status) {
+                                'available' => 'bg-emerald-400',
+                                'occupied' => 'bg-sky-400',
+                                'maintenance' => 'bg-amber-400',
+                                default => 'bg-slate-300',
+                            };
+                        @endphp
+                        <div class="p-4">
+                            <div class="flex items-start justify-between gap-3">
+                                <div class="flex items-center gap-2 min-w-0">
+                                    <span class="w-1.5 h-1.5 rounded-full {{ $mStatusBg }} flex-shrink-0"></span>
+                                    <span class="text-base font-semibold text-slate-800">{{ $apartment->apartment_number }}</span>
+                                    <span class="inline-flex items-center gap-1.5 text-[11px] font-medium {{ $mStatusText }}">{{ ucfirst($apartment->status) }}</span>
+                                </div>
+                                <span class="text-sm font-semibold text-slate-700 flex-shrink-0">${{ number_format($mRent, 2) }}</span>
+                            </div>
+
+                            <div class="mt-3">
+                                @if($mTenant)
+                                    <div class="flex items-center gap-2.5">
+                                        @if($mTenant->photo_path && !str_ends_with($mTenant->photo_path, '.pdf'))
+                                            <img src="{{ asset('storage/' . $mTenant->photo_path) }}" alt="{{ $mTenant->name }}" class="h-9 w-9 rounded-full object-cover border border-slate-200">
+                                        @else
+                                            <div class="h-9 w-9 rounded-full bg-slate-100 flex items-center justify-center text-xs font-medium text-slate-500">{{ strtoupper(substr($mTenant->name, 0, 1)) }}</div>
+                                        @endif
+                                        <div class="min-w-0">
+                                            <div class="text-sm font-medium text-slate-700 truncate">{{ $mTenant->name }}</div>
+                                            <div class="text-[11px] text-slate-400">{{ $mTenant->phone }}</div>
+                                        </div>
+                                    </div>
+                                @else
+                                    <span class="text-slate-300 text-sm">{{ __('messages.vacant') ?? '—' }}</span>
+                                @endif
+                            </div>
+
+                            <div class="mt-3 flex items-center justify-between gap-3">
+                                <div class="text-xs text-slate-400 truncate">
+                                    @if($mSupervisor)
+                                        <span class="text-slate-300">{{ __('messages.supervisor') }}:</span> {{ $mSupervisor->name }}
+                                    @endif
+                                </div>
+                                <div class="flex items-center gap-1 flex-shrink-0">
+                                    @if(!$mTenant || $mTenant->status !== 'active')
+                                    <button type="button"
+                                            data-apartment-id="{{ $apartment->id }}"
+                                            data-apartment-number="{{ $apartment->apartment_number }}"
+                                            class="assign-tenant-btn inline-flex items-center justify-center h-9 w-9 rounded-lg text-emerald-600 bg-emerald-50 active:bg-emerald-100 transition" title="{{ __('messages.assign_tenant') }}">
+                                        <svg class="w-[18px] h-[18px]" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" /></svg>
+                                    </button>
+                                    @endif
+                                    <a href="{{ route('supervisor.apartments.show', $apartment->id) }}" class="inline-flex items-center justify-center h-9 w-9 rounded-lg text-slate-600 bg-slate-50 active:bg-slate-100 transition" title="{{ __('messages.view_apartment') }}">
+                                        <svg class="w-[18px] h-[18px]" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z" /><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                    @endforeach
                 </div>
             </details>
         </div>
