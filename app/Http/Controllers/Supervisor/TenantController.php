@@ -307,7 +307,7 @@ class TenantController extends Controller
 
             return redirect()
                 ->route('supervisor.tenants.archived')
-                ->with('success', __('messages.flash_leave_processed'));
+                ->with('success', __('messages.flash_leave_processed_settlement'));
 
         } catch (\Exception $e) {
             Log::error('Supervisor - Error processing tenant leave: '.$e->getMessage(), [
@@ -320,16 +320,15 @@ class TenantController extends Controller
     }
 
     /**
-     * Supervisor-side ledger writes for tenant leave.
+     * Ledger writes for tenant leave. Mirrors the admin flow
+     * (Admin\TenantController::recordAdminLeaveAccounting): per-payment and
+     * per-utility income rows, pro-rata rent, damage/extra charges, and deposit
+     * disposition — so an admin and a supervisor processing the same move-out
+     * produce identical ledger entries.
      *
-     * Differs from admin (which writes per-payment/per-utility rows):
-     *   - One aggregate rent_income entry for the pro-rata rent
-     *   - One aggregate utility_income entry summing all utility charges
-     *   - One income row per damage/extra charge (CAT_OTHER_INCOME)
-     *   - Deposit refund expense when leftover deposit > 0
-     *
-     * Writes are owned by the admin's user_id (resolved from the period), since
-     * supervisors don't own ledger rows. Skipped silently when no admin period
+     * Role substitutions vs admin: the active period is resolved from the
+     * admin's open period (supervisors don't own periods) and ledger rows are
+     * stamped with that admin's user_id. Logged + skipped when no admin period
      * is open.
      */
     private function recordSupervisorLeaveAccounting(Tenants $tenant, array $context): void
@@ -350,12 +349,19 @@ class TenantController extends Controller
             ->first();
 
         if (! $activePeriod) {
+            Log::warning('No active fiscal period found - leave settlement not recorded', [
+                'tenant_id' => $tenant->id,
+                'total_amount_due' => $settlement['total_amount_due'],
+            ]);
+
             return;
         }
 
+        $ledgerUserId = $activePeriod->user_id;
         $apartmentNumber = $tenant->apartment->apartment_number ?? 'N/A';
 
-        if ($settlement['pro_rata_rent'] > 0) {
+        // 1) Pro-rata rent payment + income entry
+        if ($settlement['total_amount_due'] > 0 && $settlement['pro_rata_rent'] > 0) {
             $rentPayment = Payments::create([
                 'rental_id' => $rental->id,
                 'amount' => $settlement['pro_rata_rent'],
@@ -364,6 +370,7 @@ class TenantController extends Controller
                 'payment_method' => 'cash',
                 'payment_status' => 'paid',
                 'payment_type' => 'rent',
+                'transaction_reference' => null,
                 'late_fee' => 0,
                 'note' => 'Tenant leave settlement - pro-rata rent ('.$settlement['stay_days'].' days)',
             ]);
@@ -371,77 +378,85 @@ class TenantController extends Controller
             Accounts::create([
                 'fiscal_period_id' => $activePeriod->id,
                 'payment_id' => $rentPayment->id,
-                'user_id' => $activePeriod->user_id,
+                'user_id' => $ledgerUserId,
                 'account_type' => Accounts::TYPE_INCOME,
                 'category' => Accounts::CAT_RENT_INCOME,
-                'description' => '[Apt '.$apartmentNumber.'] Leave settlement - pro-rata rent (by supervisor)',
+                'description' => '[Apt '.$apartmentNumber.'] Leave settlement - pro-rata rent',
                 'amount' => $settlement['pro_rata_rent'],
                 'transaction_date' => $leaveDate,
+                'note' => 'Tenant: '.$tenant->name.' - '.$settlement['stay_days'].' days stay',
             ]);
         }
 
+        // 2a) Mark selected Payments paid + record per-row income
         foreach ($selectedPayments as $charge) {
             $charge->update([
                 'payment_status' => 'paid',
                 'paid_at' => $leaveDate,
                 'note' => ($charge->note ? $charge->note.' | ' : '').'Settled on tenant leave',
             ]);
+
+            $category = $charge->payment_type === 'utilities'
+                ? Accounts::CAT_UTILITY_INCOME
+                : Accounts::CAT_OTHER_INCOME;
+
+            Accounts::create([
+                'fiscal_period_id' => $activePeriod->id,
+                'payment_id' => $charge->id,
+                'user_id' => $ledgerUserId,
+                'account_type' => Accounts::TYPE_INCOME,
+                'category' => $category,
+                'description' => '[Apt '.$apartmentNumber.'] Leave settlement - '.ucfirst($charge->payment_type).': '.($charge->note ?: '-'),
+                'amount' => $charge->amount,
+                'transaction_date' => $leaveDate,
+                'note' => 'Tenant: '.$tenant->name,
+            ]);
         }
 
+        // 2b) Mark selected Utilities paid + record per-utility income (split by type)
+        $utilityIncomeTypes = ['electricity', 'water'];
         foreach ($selectedUtilities as $util) {
             $util->update([
                 'paid_status' => true,
                 'paid_at' => $leaveDate,
             ]);
-        }
 
-        $utilityTotal = ($settlement['electricity_charge'] ?? 0)
-            + ($settlement['water_charge'] ?? 0)
-            + ($settlement['internet_charge'] ?? 0)
-            + ($settlement['parking_charge'] ?? 0);
-
-        if ($utilityTotal > 0) {
-            $utilityPayment = Payments::create([
-                'rental_id' => $rental->id,
-                'amount' => $utilityTotal,
-                'due_date' => $leaveDate,
-                'paid_at' => $leaveDate,
-                'payment_method' => 'cash',
-                'payment_status' => 'paid',
-                'payment_type' => 'utilities',
-                'late_fee' => 0,
-                'note' => 'Tenant leave settlement - utility charges (by supervisor)',
-            ]);
+            $category = in_array($util->utility_type, $utilityIncomeTypes, true)
+                ? Accounts::CAT_UTILITY_INCOME
+                : Accounts::CAT_OTHER_INCOME;
 
             Accounts::create([
                 'fiscal_period_id' => $activePeriod->id,
-                'payment_id' => $utilityPayment->id,
-                'user_id' => $activePeriod->user_id,
+                'payment_id' => null,
+                'user_id' => $ledgerUserId,
                 'account_type' => Accounts::TYPE_INCOME,
-                'category' => Accounts::CAT_UTILITY_INCOME,
-                'description' => '[Apt '.$apartmentNumber.'] Leave settlement - utilities (by supervisor)',
-                'amount' => $utilityTotal,
+                'category' => $category,
+                'description' => '[Apt '.$apartmentNumber.'] Leave settlement - '.ucfirst($util->utility_type).' '.Carbon::create($util->billing_year, $util->billing_month)->format('M Y'),
+                'amount' => $util->charge_amount,
                 'transaction_date' => $leaveDate,
+                'note' => 'Tenant: '.$tenant->name,
             ]);
         }
 
-        // Damage / extra charges entered on the leave form — booked as other income
+        // 2c) Extra/damage charges entered on the leave form — booked as other income
         foreach ($extraCharges as $extra) {
             Accounts::create([
                 'fiscal_period_id' => $activePeriod->id,
                 'payment_id' => null,
-                'user_id' => $activePeriod->user_id,
+                'user_id' => $ledgerUserId,
                 'account_type' => Accounts::TYPE_INCOME,
                 'category' => Accounts::CAT_OTHER_INCOME,
-                'description' => '[Apt '.$apartmentNumber.'] Leave settlement - Damage/Extra: '.$extra['description'].' (by supervisor)',
+                'description' => '[Apt '.$apartmentNumber.'] Leave settlement - Damage/Extra: '.$extra['description'],
                 'amount' => $extra['amount'],
                 'transaction_date' => $leaveDate,
+                'note' => 'Tenant: '.$tenant->name.' - deducted from deposit on leave',
             ]);
         }
 
-        // Deposit disposition — return or apply as last rent payment
+        // 3) Deposit disposition — return or apply as last rent payment
         $depositAmount = (float) ($tenant->deposit ?? 0);
         if ($depositAction === 'last_payment' && $depositAmount > 0) {
+            // Deposit is kept as the last month's rent payment — record as rent income
             $depositPayment = Payments::create([
                 'rental_id' => $rental->id,
                 'amount' => $depositAmount,
@@ -450,33 +465,36 @@ class TenantController extends Controller
                 'payment_method' => 'cash',
                 'payment_status' => 'paid',
                 'payment_type' => 'rent',
+                'transaction_reference' => null,
                 'late_fee' => 0,
-                'note' => 'Deposit applied as last month rent payment on leave (by supervisor)',
+                'note' => 'Deposit applied as last month rent payment on leave',
             ]);
 
             Accounts::create([
                 'fiscal_period_id' => $activePeriod->id,
                 'payment_id' => $depositPayment->id,
-                'user_id' => $activePeriod->user_id,
+                'user_id' => $ledgerUserId,
                 'account_type' => Accounts::TYPE_INCOME,
                 'category' => Accounts::CAT_RENT_INCOME,
-                'description' => '[Apt '.$apartmentNumber.'] Deposit as last rent — '.$tenant->name.' (by supervisor)',
+                'description' => '[Apt '.$apartmentNumber.'] Deposit as last rent — '.$tenant->name,
                 'amount' => $depositAmount,
                 'transaction_date' => $leaveDate,
                 'note' => 'Deposit kept as last month rent payment (no refund issued)',
             ]);
         } else {
+            // return_deposit: refund surplus deposit to tenant, recorded as expense
             $refundAmount = $settlement['refund_amount'] ?? 0;
             if ($refundAmount > 0) {
                 Accounts::create([
                     'fiscal_period_id' => $activePeriod->id,
                     'payment_id' => null,
-                    'user_id' => $activePeriod->user_id,
+                    'user_id' => $ledgerUserId,
                     'account_type' => Accounts::TYPE_EXPENSE,
                     'category' => Accounts::CAT_DEPOSIT_EXPENSE,
-                    'description' => '[Apt '.$apartmentNumber.'] Deposit refunded — '.$tenant->name.' (by supervisor)',
+                    'description' => '[Apt '.$apartmentNumber.'] Deposit refunded — '.$tenant->name,
                     'amount' => $refundAmount,
                     'transaction_date' => $leaveDate,
+                    'note' => 'Deposit refund on leave. Applied to charges: $'.($settlement['deposit_applied'] ?? 0),
                 ]);
             }
         }

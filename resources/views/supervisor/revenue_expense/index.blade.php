@@ -174,101 +174,6 @@
         </div>
     </div>
 
-    {{-- Fiscal Period Progress + Monthly Rent Collection (Side by Side) --}}
-    @php
-        $periodStart = \Carbon\Carbon::parse($activePeriod->opening_date);
-        $periodEnd = \Carbon\Carbon::parse($activePeriod->closing_date);
-        $today = now();
-        $totalDays = max(1, $periodStart->startOfDay()->diffInDays($periodEnd->endOfDay()) + 1);
-        $clampedToday = $today->lt($periodStart) ? $periodStart->copy() : ($today->gt($periodEnd) ? $periodEnd->copy() : $today->copy());
-        $daysPassed = max(0, (int) $periodStart->startOfDay()->diffInDays($clampedToday->endOfDay()) + 1);
-        $periodPercent = min(100, max(0, round(($daysPassed / $totalDays) * 100, 1)));
-        $percentLabel = $periodPercent . '%';
-        $r = 40;
-        $circ = 2 * pi() * $r;
-        $offset = $circ * (1 - ($periodPercent / 100));
-
-        $collected = (float) ($totalRentCollected ?? ($income['rent_income'] ?? 0));
-        $expected = (float) ($expectedMonthlyRent ?? 0);
-        $collectionPercent = $expected > 0 ? min(100, round(($collected / $expected) * 100, 1)) : 0;
-        $rc = 36;
-        $rcCirc = 2 * pi() * $rc;
-        $rcOffset = $rcCirc * (1 - ($collectionPercent / 100));
-    @endphp
-    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {{-- Fiscal Period Progress (condensed) --}}
-        <div class="bg-white rounded-xl border border-slate-100 p-4 flex items-center justify-between">
-            <div>
-                <p class="text-sm font-medium text-slate-700">{{ __('messages.fiscal_period') }}</p>
-                <p class="text-xs text-slate-400">{{ $activePeriod->name }}</p>
-            </div>
-            <div class="flex items-center gap-4">
-                <div class="text-right">
-                    <div class="text-lg font-bold text-slate-800">{{ $periodPercent }}%</div>
-                </div>
-                <div class="w-20 h-20">
-                    <svg viewBox="0 0 100 100" class="w-20 h-20">
-                        <defs>
-                            <linearGradient id="periodGrad" x1="0%" x2="100%">
-                                <stop offset="0%" stop-color="#F59E0B" />
-                                <stop offset="100%" stop-color="#D97706" />
-                            </linearGradient>
-                        </defs>
-                        <circle cx="50" cy="50" r="40" stroke="#F3F4F6" stroke-width="12" fill="none" />
-                        <circle cx="50" cy="50" r="40" stroke="url(#periodGrad)" stroke-width="12" fill="none"
-                            stroke-dasharray="{{ $circ }}" stroke-dashoffset="{{ $offset }}" transform="rotate(-90 50 50)" stroke-linecap="round" />
-                    </svg>
-                </div>
-            </div>
-        </div>
-
-        {{-- Monthly Rent Collection (condensed) --}}
-        <div class="bg-white rounded-xl border border-slate-100 p-4 flex items-center justify-between">
-            <div>
-                <p class="text-sm font-medium text-slate-700">{{ __('messages.collected') }}</p>
-                <p class="text-lg font-bold text-slate-800">${{ number_format($collected, 2) }}</p>
-                <p class="text-xs text-slate-400">Expected: ${{ number_format($expected, 2) }}</p>
-            </div>
-            <div class="flex items-center gap-4">
-                <div class="w-20 h-20">
-                    <svg viewBox="0 0 100 100" class="w-20 h-20">
-                        <defs>
-                            <linearGradient id="collectGrad" x1="0%" x2="100%">
-                                <stop offset="0%" stop-color="#34D399" />
-                                <stop offset="100%" stop-color="#059669" />
-                            </linearGradient>
-                        </defs>
-                        <circle cx="50" cy="50" r="36" stroke="#E5E7EB" stroke-width="12" fill="none" />
-                        <circle cx="50" cy="50" r="36" stroke="url(#collectGrad)" stroke-width="12" fill="none"
-                            stroke-dasharray="{{ $rcCirc }}" stroke-dashoffset="{{ $rcOffset }}" transform="rotate(-90 50 50)" stroke-linecap="round" />
-                        <text x="50" y="56" text-anchor="middle" font-size="12" fill="#064E3B" class="font-semibold">{{ $collectionPercent }}%</text>
-                    </svg>
-                </div>
-                <div class="text-sm text-slate-600">
-                    <div class="font-semibold {{ $paidTenantCount === $expectedTenantCount ? 'text-emerald-600' : 'text-amber-600' }}">{{ $paidTenantCount }}/{{ $expectedTenantCount }}</div>
-                    <div class="text-xs text-slate-400">tenants paid</div>
-                </div>
-            </div>
-        </div>
-
-        
-    </div>
-
-   
-
-    {{-- Flash Messages --}}
-    @if(session('success'))
-    <div class="bg-emerald-50 border border-emerald-200 text-emerald-700 px-4 py-3 rounded-xl flex items-center gap-2">
-        <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
-        {{ session('success') }}
-    </div>
-    @endif
-    @if(session('error'))
-    <div class="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl flex items-center gap-2">
-        <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
-        {{ session('error') }}
-    </div>
-    @endif
     @if($errors->any())
     <div class="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl">
         <ul class="list-disc list-inside space-y-1">
@@ -432,464 +337,8 @@
             </div>
         </div>
 
-        {{-- Deposit Income vs Refund Tracking --}}
-        @php
-            $depIncome  = $income['deposit_income'] ?? 0;
-            $depExpense = $expenses['deposit_expenses'] ?? 0;
-            $depNet     = $depIncome - $depExpense;
-        @endphp
-
-
-        {{-- Per-Apartment Table with Grouping Toggle (now with sub-tabs) --}}
-        @if(isset($perApartment) && count($perApartment) > 0)
-        @php
-            // Attempt to group by floor number from available keys
-            $groupedByFloor = collect($perApartment)->groupBy(function($a) {
-                return $a['floor_number'] ?? $a['floor'] ?? $a['apartment_floor'] ?? __('messages.unspecified');
-            });
-        @endphp
-        <div class="mt-4 space-y-3">
-            <div class="bg-white rounded-xl border border-slate-100 p-2">
-                <nav class="flex gap-1" aria-label="Sub tabs">
-                    <button @click="subtab = 'apartments'" :class="subtab === 'apartments' ? 'bg-slate-800 text-white' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-50'" class="whitespace-nowrap px-4 py-2.5 text-sm font-medium transition rounded-lg">{{ __('messages.apartment_summary') }}</button>
-                    <button @click="subtab = 'transactions'" :class="subtab === 'transactions' ? 'bg-slate-800 text-white' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-50'" class="whitespace-nowrap px-4 py-2.5 text-sm font-medium transition rounded-lg">{{ __('messages.recent_transactions') }}</button>
-                </nav>
-            </div>
-
-            <div x-show="subtab === 'apartments'" x-cloak>
-                <div class="bg-white rounded-xl border border-slate-100 overflow-hidden" x-data="{ showAll: false, expenseForm: null, groupBy: 'apartment' }">
-            <div class="px-5 py-3 border-b border-slate-100 flex items-center justify-between">
-                <div class="flex items-center gap-3">
-                    <h2 class="text-sm font-semibold text-slate-800">{{ __('messages.per_apartment_summary') }}</h2>
-                    <div class="text-xs text-slate-400">·</div>
-                    <div class="text-xs text-slate-400">{{ __('messages.group_by') }}</div>
-                    <div class="inline-flex bg-slate-50 rounded-lg p-1">
-                        <button @click="groupBy = 'apartment'" :class="groupBy === 'apartment' ? 'bg-slate-800 text-white' : 'text-slate-600'" class="px-2 py-1 text-xs rounded">{{ __('messages.apartment') }}</button>
-                        <button @click="groupBy = 'floor'" :class="groupBy === 'floor' ? 'bg-slate-800 text-white' : 'text-slate-600'" class="px-2 py-1 text-xs rounded">{{ __('messages.floor') }}</button>
-                    </div>
-                </div>
-                <div>
-                    <button @click="showAll = !showAll" class="text-xs text-sky-600 hover:text-sky-800 font-medium mr-3">
-                        <span x-text="showAll ? '{{ __('messages.occupied_only') }}' : '{{ __('messages.show_all') }}'"></span>
-                    </button>
-                    <button type="button" onclick="openSummaryPreview()" class="p-1 text-slate-400 hover:text-slate-600 rounded-lg" title="{{ __('messages.preview_summary_title') }}">
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>
-                    </button>
-                </div>
-            </div>
-
-            {{-- Default: Apartment list (existing table) --}}
-            <div x-show="groupBy === 'apartment'" x-cloak>
-                <div class="hidden md:block overflow-x-auto">
-                <table class="w-full text-sm">
-                    <thead>
-                        <tr class="border-b bg-slate-50/80 text-[11px] text-slate-400 uppercase tracking-wider">
-                            <th class="text-center px-4 py-2 font-medium w-10">No</th>
-                            <th class="text-left px-4 py-2 font-medium">{{ __('messages.unit') }}</th>
-                            <th class="text-right px-4 py-2 font-medium">{{ __('messages.rent_price') }}</th>
-                            <th class="text-right px-4 py-2 font-medium" title="{{ __('messages.elec_water_title') }}">{{ __('messages.utilities') }}</th>
-                            <th class="text-right px-4 py-2 font-medium" title="{{ __('messages.other_charges_title') }}">{{ __('messages.other_charge') }}</th>
-                            <th class="text-right px-4 py-2 font-medium" title="{{ __('messages.rent_util_other_title') }}">{{ __('messages.net_profit') }}</th>
-                            <th class="text-center px-4 py-2 font-medium">{{ __('messages.status') }}</th>
-                            <th class="text-center px-4 py-2 font-medium">{{ __('messages.action') }}</th>
-                        </tr>
-                    </thead>
-                    <tbody class="divide-y divide-slate-50">
-                        @foreach($perApartment as $aptIdx => $apt)
-                        @php
-                            $utilitiesIncome = $apt['utilities_income'] ?? ($apt['expenses'] - ($apt['other_income'] ?? 0));
-                            $otherCharge     = $apt['other_income'] ?? 0;
-                            $netProfit       = $apt['monthly_rent'] + $utilitiesIncome + $otherCharge;
-                        @endphp
-                        <tr class="{{ !$apt['has_active_rental'] ? 'text-slate-300' : 'text-slate-700' }}" x-show="showAll || {{ $apt['has_active_rental'] ? 'true' : 'false' }}">
-                            <td class="px-4 py-2 text-center text-slate-400 text-xs">{{ $loop->iteration }}</td>
-                            <td class="px-4 py-2">
-                                <div class="font-medium {{ $apt['has_active_rental'] ? 'text-slate-800' : '' }}">{{ $apt['apartment_number'] }}</div>
-                                @if($apt['has_active_rental'])
-                                <div class="text-[10px] text-slate-400 mt-0.5">{{ $apt['tenant'] }}</div>
-                                @else
-                                <div class="text-[10px] text-slate-300 mt-0.5">{{ __('messages.vacant') }}</div>
-                                @endif
-                            </td>
-                            <td class="px-4 py-2 text-right">${{ number_format($apt['monthly_rent'], 2) }}</td>
-                            {{-- Utilities = electricity + water only --}}
-                            <td class="px-4 py-2 text-right {{ $utilitiesIncome > 0 ? 'text-sky-600 font-medium' : '' }}">
-                                @if($utilitiesIncome > 0 && isset($apt['expense_breakdown']))
-                                <div x-data="{ showBreakdown: false }" class="relative inline-block">
-                                    <button type="button" @click="showBreakdown = !showBreakdown" class="underline decoration-dotted cursor-pointer hover:text-sky-800">
-                                        ${{ number_format($utilitiesIncome, 2) }}
-                                    </button>
-                                    <div x-show="showBreakdown" x-cloak @click.away="showBreakdown = false"
-                                        class="absolute right-0 top-full mt-1 z-20 bg-white border border-slate-100 rounded-lg shadow-lg p-3 w-44 text-left">
-                                        <p class="text-[10px] font-semibold text-slate-400 uppercase mb-1.5">{{ __('messages.utilities_detail') }}</p>
-                                        @if(($apt['expense_breakdown']['electricity'] ?? 0) > 0)
-                                        <div class="flex justify-between text-xs py-0.5">
-                                            <span class="text-slate-500">⚡ Electricity</span>
-                                            <span class="font-medium text-sky-600">${{ number_format($apt['expense_breakdown']['electricity'], 2) }}</span>
-                                        </div>
-                                        @endif
-                                        @if(($apt['expense_breakdown']['water'] ?? 0) > 0)
-                                        <div class="flex justify-between text-xs py-0.5">
-                                            <span class="text-slate-500">💧 Water</span>
-                                            <span class="font-medium text-sky-600">${{ number_format($apt['expense_breakdown']['water'], 2) }}</span>
-                                        </div>
-                                        @endif
-                                    </div>
-                                </div>
-                                @else
-                                ${{ number_format($utilitiesIncome, 2) }}
-                                @endif
-                            </td>
-                            {{-- Other Charge = internet + parking + trash + other --}}
-                            <td class="px-4 py-2 text-right {{ $otherCharge > 0 ? 'text-purple-600 font-medium' : '' }}">
-                                @if($otherCharge > 0 && isset($apt['expense_breakdown']))
-                                <div x-data="{ showOther: false }" class="relative inline-block">
-                                    <button type="button" @click="showOther = !showOther" class="underline decoration-dotted cursor-pointer hover:text-purple-800">
-                                        ${{ number_format($otherCharge, 2) }}
-                                    </button>
-                                    <div x-show="showOther" x-cloak @click.away="showOther = false"
-                                        class="absolute right-0 top-full mt-1 z-20 bg-white border border-slate-100 rounded-lg shadow-lg p-3 w-44 text-left">
-                                        <p class="text-[10px] font-semibold text-slate-400 uppercase mb-1.5">{{ __('messages.other_charges_label') }}</p>
-                                        @if(($apt['expense_breakdown']['internet'] ?? 0) > 0)
-                                        <div class="flex justify-between text-xs py-0.5">
-                                            <span class="text-slate-500">📡 Internet</span>
-                                            <span class="font-medium text-purple-600">${{ number_format($apt['expense_breakdown']['internet'], 2) }}</span>
-                                        </div>
-                                        @endif
-                                        @if(($apt['expense_breakdown']['parking'] ?? 0) > 0)
-                                        <div class="flex justify-between text-xs py-0.5">
-                                            <span class="text-slate-500">🚗 Parking</span>
-                                            <span class="font-medium text-purple-600">${{ number_format($apt['expense_breakdown']['parking'], 2) }}</span>
-                                        </div>
-                                        @endif
-                                        @if(($apt['expense_breakdown']['trash'] ?? 0) > 0)
-                                        <div class="flex justify-between text-xs py-0.5">
-                                            <span class="text-slate-500">🗑️ Trash</span>
-                                            <span class="font-medium text-purple-600">${{ number_format($apt['expense_breakdown']['trash'], 2) }}</span>
-                                        </div>
-                                        @endif
-                                        @if(($apt['expense_breakdown']['other'] ?? 0) > 0)
-                                        <div class="flex justify-between text-xs py-0.5">
-                                            <span class="text-slate-500">📋 Other</span>
-                                            <span class="font-medium text-purple-600">${{ number_format($apt['expense_breakdown']['other'], 2) }}</span>
-                                        </div>
-                                        @endif
-                                    </div>
-                                </div>
-                                @else
-                                ${{ number_format($otherCharge, 2) }}
-                                @endif
-                            </td>
-                            {{-- Net Profit = Rent Price + Utilities + Other Charge --}}
-                            <td class="px-4 py-2 text-right font-semibold {{ $netProfit >= 0 ? 'text-emerald-700' : 'text-red-600' }}">
-                                ${{ number_format($netProfit, 2) }}
-                            </td>
-                            <td class="px-4 py-2 text-center">
-                                @if(!$apt['has_active_rental'])
-                                    <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-500">{{ __('messages.vacant') }}</span>
-                                @else
-                                    @php
-                                        $isPaid = $apt['paid_this_month'] ?? ($apt['rent_status'] === 'paid');
-                                        $collected = $apt['collected'] ?? ($apt['income'] ?? 0);
-                                        $due = $apt['prorated_rent'] ?? $apt['monthly_rent'] ?? 0;
-                                        $progress = $due > 0 ? min(round(($collected / $due) * 100, 1), 100) : 0;
-                                        $occWidth = $apt['occupancy_percent'] ?? $progress;
-                                    @endphp
-
-                                    @if($isPaid)
-                                        <span class="inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-medium bg-emerald-100 text-emerald-700">{{ __('messages.paid') }}</span>
-                                    @else
-                                        @if(($apt['rent_status'] ?? '') === 'partial')
-                                            <span class="inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-700">{{ __('messages.partial') }}</span>
-                                        @elseif(($apt['rent_status'] ?? '') === 'overdue')
-                                            <span class="inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-700">{{ __('messages.overdue') }}</span>
-                                        @else
-                                            <span class="inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-700">{{ __('messages.pending') }}</span>
-                                        @endif
-                                    @endif
-                                @endif
-                            </td>
-                            <td class="px-4 py-2 text-center">
-                                @if($apt['has_active_rental'] && $apt['rental_id'])
-                                <div class="flex items-center justify-center gap-1">
-                                    @if($apt['tenant_id'])
-                                    <a href="{{ route('supervisor.tenants.show', $apt['tenant_id']) }}" title="{{ __('messages.view_tenant') }}"
-                                        class="p-1 rounded bg-sky-100 text-sky-600 hover:bg-sky-200 transition">
-                                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
-                                    </a>
-                                    @endif
-                                    <a href="{{ route('supervisor.apartments.show', $apt['apartment_id']) }}" title="{{ __('messages.view_apartment') }}"
-                                        class="p-1 rounded bg-emerald-100 text-emerald-600 hover:bg-green-200 transition">
-                                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-4 0h4"/></svg>
-                                    </a>
-                                </div>
-                                @else
-                                <span class="text-slate-300 text-xs">—</span>
-                                @endif
-                            </td>
-                        </tr>
-                        {{-- Inline Expense Form Row --}}
-                        @if($apt['has_active_rental'] && $apt['rental_id'])
-                        <tr x-show="expenseForm === {{ $aptIdx }}" x-cloak x-transition.opacity>
-                            <td colspan="8" class="px-4 py-3 bg-orange-50/50">
-                                <form action="{{ route('supervisor.revenue_expense.store_expense') }}" method="POST" class="flex flex-wrap items-end gap-3">
-                                    @csrf
-                                    <input type="hidden" name="rental_id" value="{{ $apt['rental_id'] }}">
-                                    <div class="text-xs">
-                                        <p class="font-semibold text-slate-700 mb-1">Assign Expense — {{ $apt['apartment_number'] }} <span class="text-slate-400 font-normal">({{ $apt['tenant'] }})</span></p>
-                                    </div>
-                                    <div>
-                                        <label class="block text-[10px] font-medium text-slate-400 mb-0.5">{{ __('messages.type') }}</label>
-                                        <select name="utility_type" required class="px-2 py-1.5 text-xs border border-slate-200 rounded-md focus:ring-orange-500 focus:border-orange-500 w-28">
-                                            <option value="electricity">⚡ Electricity</option>
-                                            <option value="water">💧 Water</option>
-                                            <option value="internet">📡 Internet</option>
-                                            <option value="parking">🚗 Parking</option>
-                                        </select>
-                                    </div>
-                                    <div>
-                                        <label class="block text-[10px] font-medium text-slate-400 mb-0.5">{{ __('messages.amount_dollar') }}</label>
-                                        <input type="number" name="charge_amount" step="0.01" min="0.01" required
-                                            class="px-2 py-1.5 text-xs border border-slate-200 rounded-md focus:ring-orange-500 focus:border-orange-500 w-24">
-                                    </div>
-                                    <div>
-                                        <label class="block text-[10px] font-medium text-slate-400 mb-0.5">{{ __('messages.date') }}</label>
-                                        <input type="date" name="transaction_date" value="{{ date('Y-m-d') }}" required
-                                            class="px-2 py-1.5 text-xs border border-slate-200 rounded-md focus:ring-orange-500 focus:border-orange-500 w-32 bg-white appearance-none h-10">
-                                    </div>
-                                    <div>
-                                        <label class="block text-[10px] font-medium text-slate-400 mb-0.5">{{ __('messages.meter_in') }}</label>
-                                        <input type="number" name="meter_reading_in" step="0.01" min="0" placeholder="0"
-                                            class="px-2 py-1.5 text-xs border border-slate-200 rounded-md focus:ring-orange-500 focus:border-orange-500 w-20">
-                                    </div>
-                                    <div>
-                                        <label class="block text-[10px] font-medium text-slate-400 mb-0.5">{{ __('messages.meter_out') }}</label>
-                                        <input type="number" name="meter_reading_out" step="0.01" min="0" placeholder="0"
-                                            class="px-2 py-1.5 text-xs border border-slate-200 rounded-md focus:ring-orange-500 focus:border-orange-500 w-20">
-                                    </div>
-                                    <div>
-                                        <label class="block text-[10px] font-medium text-slate-400 mb-0.5">{{ __('messages.note') }}</label>
-                                        <input type="text" name="note" placeholder="{{ __('messages.optional') }}" maxlength="1000"
-                                            class="px-2 py-1.5 text-xs border border-slate-200 rounded-md focus:ring-orange-500 focus:border-orange-500 w-32">
-                                    </div>
-                                    <button type="submit" class="px-3 py-1.5 bg-orange-600 text-white text-xs font-medium rounded-md hover:bg-orange-700 transition">
-                                        Save Expense
-                                    </button>
-                                </form>
-                            </td>
-                        </tr>
-                        @endif
-                        @endforeach
-                    </tbody>
-                    <tfoot>
-                        <tr class="border-t-2 bg-slate-50/80 font-semibold text-slate-800">
-                            <td class="px-4 py-2" colspan="2">{{ __('messages.total') }}</td>
-                            <td class="px-4 py-2 text-right">${{ number_format(collect($perApartment)->sum('monthly_rent'), 2) }}</td>
-                            <td class="px-4 py-2 text-right text-sky-600">
-                                ${{ number_format(collect($perApartment)->sum('utilities_income'), 2) }}
-                            </td>
-                            <td class="px-4 py-2 text-right text-purple-600">
-                                ${{ number_format(collect($perApartment)->sum('other_income'), 2) }}
-                            </td>
-                            @php
-                                $totalNetProfit = collect($perApartment)->sum(fn($a) =>
-                                    $a['monthly_rent'] + ($a['utilities_income'] ?? ($a['expenses'] - ($a['other_income'] ?? 0))) + ($a['other_income'] ?? 0)
-                                );
-                            @endphp
-                            <td class="px-4 py-2 text-right text-emerald-700">
-                                ${{ number_format($totalNetProfit, 2) }}
-                            </td>
-                            <td class="px-4 py-2"></td>
-                            <td class="px-4 py-2"></td>
-                        </tr>
-                    </tfoot>
-                </table>
-                </div>
-
-                {{-- Per-apartment cards (mobile) --}}
-                <div class="md:hidden divide-y divide-slate-50">
-                    @foreach($perApartment as $aptIdx => $apt)
-                    @php
-                        $utilitiesIncome = $apt['utilities_income'] ?? ($apt['expenses'] - ($apt['other_income'] ?? 0));
-                        $otherCharge     = $apt['other_income'] ?? 0;
-                        $netProfit       = $apt['monthly_rent'] + $utilitiesIncome + $otherCharge;
-                    @endphp
-                    <div class="p-4" x-show="showAll || {{ $apt['has_active_rental'] ? 'true' : 'false' }}">
-                        <div class="flex items-start justify-between gap-3">
-                            <div class="min-w-0">
-                                <div class="font-semibold {{ $apt['has_active_rental'] ? 'text-slate-800' : 'text-slate-400' }}">{{ $apt['apartment_number'] }}</div>
-                                @if($apt['has_active_rental'])
-                                    <div class="text-xs text-slate-400 mt-0.5">{{ $apt['tenant'] }}</div>
-                                @else
-                                    <div class="text-xs text-slate-300 mt-0.5">{{ __('messages.vacant') }}</div>
-                                @endif
-                            </div>
-                            <div class="flex-shrink-0">
-                                @if(!$apt['has_active_rental'])
-                                    <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-500">{{ __('messages.vacant') }}</span>
-                                @else
-                                    @php $isPaid = $apt['paid_this_month'] ?? ($apt['rent_status'] === 'paid'); @endphp
-                                    @if($isPaid)
-                                        <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-emerald-100 text-emerald-700">{{ __('messages.paid') }}</span>
-                                    @elseif(($apt['rent_status'] ?? '') === 'partial')
-                                        <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-700">{{ __('messages.partial') }}</span>
-                                    @elseif(($apt['rent_status'] ?? '') === 'overdue')
-                                        <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-700">{{ __('messages.overdue') }}</span>
-                                    @else
-                                        <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-700">{{ __('messages.pending') }}</span>
-                                    @endif
-                                @endif
-                            </div>
-                        </div>
-
-                        <div class="mt-3 grid grid-cols-3 gap-2 text-center">
-                            <div class="rounded-lg bg-slate-50 py-2">
-                                <p class="text-[10px] uppercase tracking-wide text-slate-400">{{ __('messages.rent_price') }}</p>
-                                <p class="text-sm font-semibold text-slate-700">${{ number_format($apt['monthly_rent'], 2) }}</p>
-                            </div>
-                            <div class="rounded-lg bg-slate-50 py-2">
-                                <p class="text-[10px] uppercase tracking-wide text-slate-400">{{ __('messages.utilities') }}</p>
-                                <p class="text-sm font-semibold {{ $utilitiesIncome > 0 ? 'text-sky-600' : 'text-slate-700' }}">${{ number_format($utilitiesIncome, 2) }}</p>
-                            </div>
-                            <div class="rounded-lg bg-slate-50 py-2">
-                                <p class="text-[10px] uppercase tracking-wide text-slate-400">{{ __('messages.other_charge') }}</p>
-                                <p class="text-sm font-semibold {{ $otherCharge > 0 ? 'text-purple-600' : 'text-slate-700' }}">${{ number_format($otherCharge, 2) }}</p>
-                            </div>
-                        </div>
-
-                        <div class="mt-2 flex items-center justify-between border-t border-slate-50 pt-2">
-                            <span class="text-xs font-medium text-slate-500">{{ __('messages.net_profit') }}</span>
-                            <span class="text-sm font-bold {{ $netProfit >= 0 ? 'text-emerald-700' : 'text-red-600' }}">${{ number_format($netProfit, 2) }}</span>
-                        </div>
-
-                        @if($apt['has_active_rental'] && $apt['rental_id'])
-                        <div class="mt-3 flex items-center gap-2">
-                            @if($apt['tenant_id'])
-                            <a href="{{ route('supervisor.tenants.show', $apt['tenant_id']) }}" class="flex-1 inline-flex items-center justify-center gap-1.5 h-9 rounded-lg bg-sky-50 text-sky-700 active:bg-sky-100 text-sm font-medium transition">
-                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
-                                {{ __('messages.view_tenant') }}
-                            </a>
-                            @endif
-                            <a href="{{ route('supervisor.apartments.show', $apt['apartment_id']) }}" class="flex-1 inline-flex items-center justify-center gap-1.5 h-9 rounded-lg bg-emerald-50 text-emerald-700 active:bg-emerald-100 text-sm font-medium transition">
-                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-4 0h4"/></svg>
-                                {{ __('messages.view_apartment') }}
-                            </a>
-                        </div>
-                        @endif
-                    </div>
-                    @endforeach
-                </div>
-            </div>
-
-            {{-- Grouped by Floor view --}}
-            <div class="overflow-x-auto" x-show="groupBy === 'floor'" x-cloak>
-                @foreach($groupedByFloor as $floor => $items)
-                <div class="p-4 border-b border-slate-100">
-                    <div class="flex items-center justify-between mb-2">
-                        <div>
-                            <h3 class="text-sm font-semibold text-slate-800">Floor: {{ $floor }}</h3>
-                            <p class="text-xs text-slate-400 mt-0.5">{{ count($items) }} unit{{ count($items) !== 1 ? 's' : '' }}</p>
-                        </div>
-                        <div class="text-xs text-slate-400">Floor summary — Rent: ${{ number_format(collect($items)->sum('monthly_rent'), 2) }} · Income: ${{ number_format(collect($items)->sum('income'), 2) }} · Utilities: ${{ number_format(collect($items)->sum('expenses'), 2) }}</div>
-                    </div>
-
-                    <div class="overflow-x-auto">
-                        <table class="w-full text-sm">
-                            <thead>
-                                <tr class="border-b bg-slate-50/80 text-[11px] text-slate-400 uppercase tracking-wider">
-                                    <th class="text-left px-4 py-2 font-medium">{{ __('messages.unit') }}</th>
-                                    <th class="text-left px-4 py-2 font-medium">{{ __('messages.tenant') }}</th>
-                                    <th class="text-right px-4 py-2 font-medium">{{ __('messages.rent') }}</th>
-                                    <th class="text-right px-4 py-2 font-medium">{{ __('messages.income') }}</th>
-                                    <th class="text-right px-4 py-2 font-medium">{{ __('messages.utilities') }}</th>
-                                    <th class="text-right px-4 py-2 font-medium">{{ __('messages.net') }}</th>
-                                </tr>
-                            </thead>
-                            <tbody class="divide-y divide-slate-50">
-                                @foreach($items as $aptIdx => $apt)
-                                <tr class="{{ !$apt['has_active_rental'] ? 'text-slate-300' : 'text-slate-700' }}">
-                                    <td class="px-4 py-2 font-medium">{{ $apt['apartment_number'] }}</td>
-                                    <td class="px-4 py-2">{{ $apt['has_active_rental'] ? $apt['tenant'] : __('messages.vacant') }}</td>
-                                    <td class="px-4 py-2 text-right">${{ number_format($apt['monthly_rent'], 2) }}</td>
-                                    <td class="px-4 py-2 text-right">${{ number_format($apt['income'], 2) }}</td>
-                                    <td class="px-4 py-2 text-right">${{ number_format($apt['expenses'], 2) }}</td>
-                                    <td class="px-4 py-2 text-right font-semibold">${{ number_format($apt['tenant_net'] ?? ($apt['income'] + $apt['expenses']), 2) }}</td>
-                                </tr>
-                                @endforeach
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-                @endforeach
-            </div>
-        </div>
-        @endif
     </div>
 
-<script>
-    function openSummaryPreview() {
-        const start = '{{ now()->startOfMonth()->toDateString() }}';
-        const end = '{{ now()->endOfMonth()->toDateString() }}';
-        const url = '{{ route('supervisor.revenue_expense.apartment_summary_preview') }}' + '?start=' + encodeURIComponent(start) + '&end=' + encodeURIComponent(end);
-        window.open(url, '_blank');
-    }
-</script>
-
-    {{-- ================================================== --}}
-    {{-- TAB 2: RECORD INCOME --}}
-    {{-- ================================================== --}}
-    {{-- Recent Transactions (bottom, per-apartment style) --}}
-    <div class="mt-6" x-show="subtab === 'transactions'" x-cloak>
-        <div class="bg-white rounded-xl border border-slate-100 overflow-hidden">
-            <div class="px-5 py-3 border-b border-slate-100 flex items-center justify-between">
-                <div class="flex items-center gap-3">
-                    <h2 class="text-sm font-semibold text-slate-800">{{ __('messages.recent_transactions') }}</h2>
-                    <p class="text-xs text-slate-400">· Income & Expenses</p>
-                </div>
-                <div class="text-xs text-slate-400">{{ __('messages.showing_recent_activity') }}</div>
-            </div>
-
-            <div class="p-4 grid grid-cols-1 lg:grid-cols-2 gap-4">
-                <div>
-                    <h3 class="text-xs font-medium text-slate-500 mb-2">{{ __('messages.income') }}</h3>
-                            @if($recentIncome->isEmpty())
-                                <p class="text-sm text-slate-400">{{ __('messages.no_income_recorded') }}</p>
-                            @else
-                                <div class="space-y-2">
-                                    @foreach($recentIncome as $record)
-                                    <div class="p-2 rounded-lg border border-emerald-100 bg-emerald-50 flex items-start justify-between">
-                                        <div class="text-xs text-slate-700">
-                                            <div class="font-medium">{{ ucfirst(str_replace('_', ' ', $record->category)) }} — {{ $record->description }}</div>
-                                            <div class="text-[11px] text-slate-400">{{ \Carbon\Carbon::parse($record->transaction_date)->format('M d, Y') }}</div>
-                                        </div>
-                                        <div class="font-semibold text-emerald-600">${{ number_format($record->amount, 2) }}</div>
-                                    </div>
-                                    @endforeach
-                                </div>
-                            @endif
-                </div>
-
-                <div>
-                    <h3 class="text-xs font-medium text-slate-500 mb-2">{{ __('messages.expenses_word') }}</h3>
-                    @if($recentExpenses->isEmpty())
-                        <p class="text-sm text-slate-400">{{ __('messages.no_expenses_recorded') }}</p>
-                    @else
-                        <div class="space-y-2">
-                            @foreach($recentExpenses as $record)
-                            <div class="p-2 rounded-lg border border-red-100 bg-red-50 flex items-start justify-between">
-                                <div class="text-xs text-slate-700">
-                                    <div class="font-medium">{{ ucfirst(str_replace('_', ' ', $record->category)) }} — {{ $record->description }}</div>
-                                    <div class="text-[11px] text-slate-400">{{ \Carbon\Carbon::parse($record->transaction_date)->format('M d, Y') }}</div>
-                                </div>
-                                <div class="font-semibold text-red-600">${{ number_format($record->amount, 2) }}</div>
-                            </div>
-                            @endforeach
-                        </div>
-                    @endif
-                </div>
-            </div>
-        </div>
-    </div>
     <div x-show="tab === 'income'" x-cloak>
 
         {{-- Income Summary Row --}}
@@ -943,8 +392,8 @@
                                         <th class="px-3 py-2 text-left text-xs font-medium text-slate-400 uppercase">{{ __('messages.apartment') }}</th>
                                         <th class="px-3 py-2 text-left text-xs font-medium text-slate-400 uppercase">{{ __('messages.tenant') }}</th>
                                         <th class="px-3 py-2 text-right text-xs font-medium text-slate-400 uppercase">{{ __('messages.rent_dollar') }}</th>
-                                        <th class="px-3 py-2 text-right text-xs font-medium text-slate-400 uppercase">{{ __('messages.late_fee') }}</th>
-                                        <th class="px-3 py-2 text-center text-xs font-medium text-slate-400 uppercase">{{ __('messages.status') }}</th>
+                                        <th class="hidden sm:table-cell px-3 py-2 text-right text-xs font-medium text-slate-400 uppercase">{{ __('messages.late_fee') }}</th>
+                                        <th class="hidden sm:table-cell px-3 py-2 text-center text-xs font-medium text-slate-400 uppercase">{{ __('messages.status') }}</th>
                                     </tr>
                                 </thead>
                                 <tbody class="divide-y">
@@ -965,11 +414,11 @@
                                             <input type="number" name="apartments[{{ $index }}][amount]" step="0.01" min="0.01"
                                                 value="{{ $s['monthly_rent'] }}" class="w-24 px-2 py-1 text-right text-sm border rounded focus:ring-sky-500 focus:border-sky-500 font-semibold text-sky-600">
                                         </td>
-                                        <td class="px-3 py-2 text-right">
+                                        <td class="hidden sm:table-cell px-3 py-2 text-right">
                                             <input type="number" name="apartments[{{ $index }}][late_fee]" step="0.01" min="0" value="0"
                                                 class="w-20 px-2 py-1 text-right text-sm border rounded focus:ring-sky-500 focus:border-sky-500">
                                         </td>
-                                        <td class="px-3 py-2 text-center">
+                                        <td class="hidden sm:table-cell px-3 py-2 text-center">
                                             @if($s['paid_this_month'])
                                                 <span class="inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-medium bg-emerald-100 text-emerald-700">{{ __('messages.paid') }}</span>
                                             @else
@@ -984,8 +433,8 @@
                                         <td class="px-2 py-2"></td>
                                         <td class="px-3 py-2 font-semibold text-slate-800" colspan="2">{{ __('messages.total_selected') }}</td>
                                         <td class="px-3 py-2 text-right font-bold text-sky-600" id="totalSelectedAmount">${{ number_format($totalRentExpected, 2) }}</td>
-                                        <td class="px-3 py-2 text-right font-bold text-amber-600" id="totalSelectedLateFee">$0.00</td>
-                                        <td class="px-3 py-2"></td>
+                                        <td class="hidden sm:table-cell px-3 py-2 text-right font-bold text-amber-600" id="totalSelectedLateFee">$0.00</td>
+                                        <td class="hidden sm:table-cell px-3 py-2"></td>
                                     </tr>
                                 </tfoot>
                             </table>
@@ -1398,7 +847,7 @@
                     </div>
 
                     @if(count($bill['fixed_expenses']) > 0)
-                    <div class="p-3">
+                    <div class="p-3 hidden md:block">
                         <div class="grid grid-cols-2 md:grid-cols-3 gap-2">
                             @foreach($bill['fixed_expenses'] as $ei => $exp)
                             <div class="border rounded p-2 {{ $exp['is_billed'] ? 'bg-emerald-50 border-emerald-200' : 'bg-amber-50 border-amber-200' }}">
@@ -1424,7 +873,7 @@
                         </div>
                     </div>
                     @else
-                    <p class="p-3 text-xs text-slate-400 text-center">{{ __('messages.no_apt_costs_assigned_short') }}</p>
+                    <p class="p-3 text-xs text-slate-400 text-center hidden md:block">{{ __('messages.no_apt_costs_assigned_short') }}</p>
                     @endif
                 </div>
                 @endforeach
@@ -1570,7 +1019,6 @@ function revenueExpense() {
     const validTabs = ['overview', 'income', 'expense', 'fixed', 'bills', 'breakeven'];
     return {
         tab: validTabs.includes(hash) ? hash : 'overview',
-        subtab: 'apartments',
         tabs: [
             { key: 'overview', label: '{{ __('messages.overview') }}' },
             { key: 'income', label: '{{ __('messages.income') }}' },

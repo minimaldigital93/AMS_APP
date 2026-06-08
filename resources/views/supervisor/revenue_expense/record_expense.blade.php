@@ -79,19 +79,6 @@
     </div>
     @endif
 
-    <!-- Flash Messages -->
-    @if(session('success'))
-    <div class="bg-emerald-50 border border-emerald-100 text-emerald-700 px-4 py-3 rounded-xl flex items-center">
-        <svg class="w-5 h-5 mr-2 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
-        {{ session('success') }}
-    </div>
-    @endif
-    @if(session('error'))
-    <div class="bg-red-50 border border-red-100 text-red-700 px-4 py-3 rounded-xl flex items-center">
-        <svg class="w-5 h-5 mr-2 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
-        {{ session('error') }}
-    </div>
-    @endif
     @if($errors->any())
     <div class="bg-red-50 border border-red-100 text-red-700 px-4 py-3 rounded-xl">
         <ul class="list-disc list-inside">
@@ -295,100 +282,142 @@
         </button>
     </div>
 
-    <!-- Apartment Expenses Table -->
-    <div x-show="activeTab === 'apartment'" x-cloak class="bg-white rounded-xl border border-slate-100 overflow-hidden">
-        <div class="px-6 py-4 border-b border-slate-100">
-            <h2 class="text-lg font-semibold text-slate-800 flex items-center">
-                <svg class="w-5 h-5 mr-2 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/></svg>
-                Apartment Expenses — {{ \Carbon\Carbon::create($filterYear, $filterMonth, 1)->format('F Y') }}
-            </h2>
+    <!-- Apartment Expenses — grouped by floor -->
+    <div x-show="activeTab === 'apartment'" x-cloak class="space-y-5">
+        <div class="flex items-center gap-2 px-1">
+            <svg class="w-5 h-5 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/></svg>
+            <h2 class="text-lg font-semibold text-slate-800">Apartment Expenses — {{ \Carbon\Carbon::create($filterYear, $filterMonth, 1)->format('F Y') }}</h2>
         </div>
-        @if(count($apartmentExpensesAll) > 0)
-        <div class="overflow-x-auto">
-            <table class="min-w-full">
-                <thead class="bg-slate-50/80">
-                    <tr>
-                        <th class="px-3 py-3 text-center text-[11px] font-medium text-slate-400 uppercase tracking-wider w-10">#</th>
-                        <th class="px-4 py-3 text-left text-[11px] font-medium text-slate-400 uppercase tracking-wider">{{ __('messages.apartment') }}</th>
-                        <th class="px-4 py-3 text-center text-[11px] font-medium text-slate-400 uppercase tracking-wider">{{ __('messages.status') }}</th>
-                        <th class="px-4 py-3 text-right text-[11px] font-medium text-slate-400 uppercase tracking-wider">{{ __('messages.electric') }}</th>
-                        <th class="px-4 py-3 text-right text-[11px] font-medium text-slate-400 uppercase tracking-wider">{{ __('messages.water') }}</th>
-                        <th class="px-4 py-3 text-right text-[11px] font-medium text-slate-400 uppercase tracking-wider">{{ __('messages.type_internet') }}</th>
-                        <th class="px-4 py-3 text-right text-[11px] font-medium text-slate-400 uppercase tracking-wider">{{ __('messages.type_parking') }}</th>
-                        <th class="px-4 py-3 text-right text-[11px] font-medium text-slate-400 uppercase tracking-wider">{{ __('messages.type_trash') }}</th>
-                        <th class="px-4 py-3 text-right text-[11px] font-medium text-slate-400 uppercase tracking-wider">{{ __('messages.type_other') }}</th>
-                        <th class="px-4 py-3 text-right text-[11px] font-medium text-slate-400 uppercase tracking-wider">{{ __('messages.costs') }}</th>
-                        <th class="px-4 py-3 text-right text-[11px] font-medium text-slate-400 uppercase tracking-wider">{{ __('messages.total') }}</th>
-                    </tr>
-                </thead>
-                <tbody class="divide-y divide-slate-50">
-                    @php $rowNo = ($apartmentExpenses->currentPage() - 1) * $apartmentExpenses->perPage(); @endphp
-                    @foreach($apartmentExpenses as $aptExp)
-                    @php $rowNo++ @endphp
-                    <tr class="hover:bg-slate-50/50" x-data="{ showFixed: false }">
-                        <td class="px-3 py-3 text-center text-xs text-slate-400 font-medium">{{ $rowNo }}</td>
-                        <td class="px-4 py-3">
-                            <span class="font-semibold text-slate-800">{{ $aptExp['apartment']->apartment_number }}</span>
-                            <span class="text-xs text-slate-400 block">Floor {{ $aptExp['apartment']->floor->floor_number ?? 'N/A' }}</span>
-                        </td>
-                        <td class="px-4 py-3 text-center">
-                            <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium {{ $aptExp['has_active_rental'] ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-50 text-slate-500' }}">
-                                {{ $aptExp['has_active_rental'] ? __('messages.occupied') : __('messages.vacant') }}
-                            </span>
-                        </td>
-                        <td class="px-4 py-3 text-right text-sm {{ $aptExp['electricity'] > 0 ? 'font-semibold text-amber-600' : 'text-slate-400' }}">${{ number_format($aptExp['electricity'], 2) }}</td>
-                        <td class="px-4 py-3 text-right text-sm {{ $aptExp['water'] > 0 ? 'font-semibold text-sky-600' : 'text-slate-400' }}">${{ number_format($aptExp['water'], 2) }}</td>
-                        <td class="px-4 py-3 text-right text-sm {{ $aptExp['internet'] > 0 ? 'font-semibold text-purple-600' : 'text-slate-400' }}">${{ number_format($aptExp['internet'], 2) }}</td>
-                        <td class="px-4 py-3 text-right text-sm {{ $aptExp['parking'] > 0 ? 'font-semibold text-orange-600' : 'text-slate-400' }}">${{ number_format($aptExp['parking'], 2) }}</td>
-                        <td class="px-4 py-3 text-right text-sm {{ $aptExp['trash'] > 0 ? 'font-semibold text-green-600' : 'text-slate-400' }}">${{ number_format($aptExp['trash'], 2) }}</td>
-                        <td class="px-4 py-3 text-right text-sm {{ $aptExp['other'] > 0 ? 'font-semibold text-slate-600' : 'text-slate-400' }}">${{ number_format($aptExp['other'], 2) }}</td>
-                        <td class="px-4 py-3 text-right text-sm">
-                            @if($aptExp['fixed_total'] > 0)
-                            <button @click="showFixed = !showFixed" class="font-semibold text-indigo-600 hover:text-indigo-800">
-                                ${{ number_format($aptExp['fixed_total'], 2) }}
-                                <svg class="w-3 h-3 inline transition-transform" :class="showFixed ? 'rotate-180' : ''" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
-                            </button>
-                            @else
-                            <span class="text-slate-400">$0.00</span>
-                            @endif
-                        </td>
-                        <td class="px-4 py-3 text-right font-bold text-red-600">${{ number_format($aptExp['grand_total'], 2) }}</td>
-                    </tr>
-                    @if($aptExp['fixed_items']->count() > 0)
-                    <tr x-show="showFixed" x-cloak class="bg-indigo-50">
-                        <td colspan="11" class="px-6 py-2">
-                            <div class="flex flex-wrap gap-2">
-                                @foreach($aptExp['fixed_items'] as $fi)
-                                <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-indigo-100 text-indigo-700">
-                                    {{ $fi->expense_name }}: ${{ number_format($fi->amount, 2) }}
-                                </span>
-                                @endforeach
+
+        @php
+            $expensesByFloor = collect($apartmentExpensesAll)
+                ->groupBy(fn($e) => optional($e['apartment']->floor)->id ?? 0)
+                ->sortBy(fn($items) => optional($items->first()['apartment']->floor)->floor_number ?? 0);
+        @endphp
+
+        @forelse($expensesByFloor as $floorId => $expensesInFloor)
+            @php
+                $floor = $expensesInFloor->first()['apartment']->floor;
+                $floorElec   = $expensesInFloor->sum('electricity');
+                $floorWater  = $expensesInFloor->sum('water');
+                $floorNet    = $expensesInFloor->sum('internet');
+                $floorPark   = $expensesInFloor->sum('parking');
+                $floorTrash  = $expensesInFloor->sum('trash');
+                $floorOther  = $expensesInFloor->sum('other');
+                $floorFixed  = $expensesInFloor->sum('fixed_total');
+                $floorTotal  = $expensesInFloor->sum('grand_total');
+            @endphp
+
+            <div class="bg-white rounded-xl border border-slate-100 overflow-hidden hover:border-slate-200 transition">
+                <details class="group">
+                    <summary class="flex items-center justify-between cursor-pointer px-6 py-4 hover:bg-slate-50/50 transition">
+                        <div class="flex items-center gap-3">
+                            <div class="w-9 h-9 rounded-lg bg-slate-100 flex items-center justify-center">
+                                <svg class="w-5 h-5 text-slate-500" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M2.25 21h19.5m-18-18v18m10.5-18v18m6-13.5V21M6.75 6.75h.75m-.75 3h.75m-.75 3h.75m3-6h.75m-.75 3h.75m-.75 3h.75M6.75 21v-3.375c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21M3 3h12m-.75 4.5H21m-3.75 3H21m-3.75 3H21" />
+                                </svg>
                             </div>
-                        </td>
-                    </tr>
-                    @endif
-                    @endforeach
-                </tbody>
-                <tfoot class="bg-slate-50/80">
-                    <tr>
-                        <td class="px-3 py-3"></td>
-                        <td class="px-4 py-3 font-bold text-slate-800" colspan="2">{{ __('messages.floor_total') }}</td>
-                        <td class="px-4 py-3 text-right font-bold text-amber-600">${{ number_format($sumElec, 2) }}</td>
-                        <td class="px-4 py-3 text-right font-bold text-sky-600">${{ number_format($sumWater, 2) }}</td>
-                        <td class="px-4 py-3 text-right font-bold text-purple-600">${{ number_format($sumNet, 2) }}</td>
-                        <td class="px-4 py-3 text-right font-bold text-orange-600">${{ number_format($sumParking, 2) }}</td>
-                        <td class="px-4 py-3 text-right font-bold text-green-600">${{ number_format($sumTrash, 2) }}</td>
-                        <td class="px-4 py-3 text-right font-bold text-slate-600">${{ number_format($sumOther, 2) }}</td>
-                        <td class="px-4 py-3 text-right font-bold text-indigo-600">${{ number_format($sumFixed, 2) }}</td>
-                        <td class="px-4 py-3 text-right font-bold text-red-600">${{ number_format($totalExpenses, 2) }}</td>
-                    </tr>
-                </tfoot>
-            </table>
-        </div>
-        <div class="px-6 py-4 border-t border-slate-100">{{ $apartmentExpenses->appends(request()->query())->links() }}</div>
-        @else
-        <div class="text-center py-8 text-slate-400">
-            <p>{{ __('messages.no_apt_expenses') }}</p>
+                            <h2 class="text-base font-semibold text-slate-800">{{ $floor->floor_name ?? 'Floor '.($floor->floor_number ?? $floorId) }}</h2>
+                        </div>
+                        <div class="flex items-center gap-3">
+                            <span class="text-xs text-slate-400 font-medium">{{ count($expensesInFloor) }} {{ __('messages.apartments') }}</span>
+                            <span class="text-sm font-bold text-red-600">${{ number_format($floorTotal, 2) }}</span>
+                            <svg class="w-4 h-4 text-slate-400 group-open:rotate-90 transition-transform" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7" />
+                            </svg>
+                        </div>
+                    </summary>
+
+                    <div class="overflow-x-auto border-t border-slate-50">
+                        <table class="min-w-full">
+                            <thead class="bg-slate-50/80">
+                                <tr>
+                                    <th class="px-3 py-3 text-center text-[11px] font-medium text-slate-400 uppercase tracking-wider w-10">#</th>
+                                    <th class="px-4 py-3 text-left text-[11px] font-medium text-slate-400 uppercase tracking-wider">{{ __('messages.apartment') }}</th>
+                                    <th class="px-4 py-3 text-center text-[11px] font-medium text-slate-400 uppercase tracking-wider">{{ __('messages.status') }}</th>
+                                    <th class="px-4 py-3 text-right text-[11px] font-medium text-slate-400 uppercase tracking-wider">{{ __('messages.electric') }}</th>
+                                    <th class="px-4 py-3 text-right text-[11px] font-medium text-slate-400 uppercase tracking-wider">{{ __('messages.water') }}</th>
+                                    <th class="px-4 py-3 text-right text-[11px] font-medium text-slate-400 uppercase tracking-wider">{{ __('messages.type_internet') }}</th>
+                                    <th class="px-4 py-3 text-right text-[11px] font-medium text-slate-400 uppercase tracking-wider">{{ __('messages.type_parking') }}</th>
+                                    <th class="px-4 py-3 text-right text-[11px] font-medium text-slate-400 uppercase tracking-wider">{{ __('messages.type_trash') }}</th>
+                                    <th class="px-4 py-3 text-right text-[11px] font-medium text-slate-400 uppercase tracking-wider">{{ __('messages.type_other') }}</th>
+                                    <th class="px-4 py-3 text-right text-[11px] font-medium text-slate-400 uppercase tracking-wider">{{ __('messages.costs') }}</th>
+                                    <th class="px-4 py-3 text-right text-[11px] font-medium text-slate-400 uppercase tracking-wider">{{ __('messages.total') }}</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-slate-50">
+                                @foreach($expensesInFloor as $aptExp)
+                                <tr class="hover:bg-slate-50/50" x-data="{ showFixed: false }">
+                                    <td class="px-3 py-3 text-center text-xs text-slate-400 font-medium">{{ $loop->iteration }}</td>
+                                    <td class="px-4 py-3">
+                                        <span class="font-semibold text-slate-800">{{ $aptExp['apartment']->apartment_number }}</span>
+                                    </td>
+                                    <td class="px-4 py-3 text-center">
+                                        <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium {{ $aptExp['has_active_rental'] ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-50 text-slate-500' }}">
+                                            {{ $aptExp['has_active_rental'] ? __('messages.occupied') : __('messages.vacant') }}
+                                        </span>
+                                    </td>
+                                    <td class="px-4 py-3 text-right text-sm {{ $aptExp['electricity'] > 0 ? 'font-semibold text-amber-600' : 'text-slate-400' }}">${{ number_format($aptExp['electricity'], 2) }}</td>
+                                    <td class="px-4 py-3 text-right text-sm {{ $aptExp['water'] > 0 ? 'font-semibold text-sky-600' : 'text-slate-400' }}">${{ number_format($aptExp['water'], 2) }}</td>
+                                    <td class="px-4 py-3 text-right text-sm {{ $aptExp['internet'] > 0 ? 'font-semibold text-purple-600' : 'text-slate-400' }}">${{ number_format($aptExp['internet'], 2) }}</td>
+                                    <td class="px-4 py-3 text-right text-sm {{ $aptExp['parking'] > 0 ? 'font-semibold text-orange-600' : 'text-slate-400' }}">${{ number_format($aptExp['parking'], 2) }}</td>
+                                    <td class="px-4 py-3 text-right text-sm {{ $aptExp['trash'] > 0 ? 'font-semibold text-green-600' : 'text-slate-400' }}">${{ number_format($aptExp['trash'], 2) }}</td>
+                                    <td class="px-4 py-3 text-right text-sm {{ $aptExp['other'] > 0 ? 'font-semibold text-slate-600' : 'text-slate-400' }}">${{ number_format($aptExp['other'], 2) }}</td>
+                                    <td class="px-4 py-3 text-right text-sm">
+                                        @if($aptExp['fixed_total'] > 0)
+                                        <button @click="showFixed = !showFixed" class="font-semibold text-indigo-600 hover:text-indigo-800">
+                                            ${{ number_format($aptExp['fixed_total'], 2) }}
+                                            <svg class="w-3 h-3 inline transition-transform" :class="showFixed ? 'rotate-180' : ''" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+                                        </button>
+                                        @else
+                                        <span class="text-slate-400">$0.00</span>
+                                        @endif
+                                    </td>
+                                    <td class="px-4 py-3 text-right font-bold text-red-600">${{ number_format($aptExp['grand_total'], 2) }}</td>
+                                </tr>
+                                @if($aptExp['fixed_items']->count() > 0)
+                                <tr x-show="showFixed" x-cloak class="bg-indigo-50">
+                                    <td colspan="11" class="px-6 py-2">
+                                        <div class="flex flex-wrap gap-2">
+                                            @foreach($aptExp['fixed_items'] as $fi)
+                                            <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-indigo-100 text-indigo-700">
+                                                {{ $fi->expense_name }}: ${{ number_format($fi->amount, 2) }}
+                                            </span>
+                                            @endforeach
+                                        </div>
+                                    </td>
+                                </tr>
+                                @endif
+                                @endforeach
+                            </tbody>
+                            <tfoot class="bg-slate-50/80">
+                                <tr>
+                                    <td class="px-3 py-3"></td>
+                                    <td class="px-4 py-3 font-bold text-slate-800" colspan="2">{{ __('messages.floor_total') }}</td>
+                                    <td class="px-4 py-3 text-right font-bold text-amber-600">${{ number_format($floorElec, 2) }}</td>
+                                    <td class="px-4 py-3 text-right font-bold text-sky-600">${{ number_format($floorWater, 2) }}</td>
+                                    <td class="px-4 py-3 text-right font-bold text-purple-600">${{ number_format($floorNet, 2) }}</td>
+                                    <td class="px-4 py-3 text-right font-bold text-orange-600">${{ number_format($floorPark, 2) }}</td>
+                                    <td class="px-4 py-3 text-right font-bold text-green-600">${{ number_format($floorTrash, 2) }}</td>
+                                    <td class="px-4 py-3 text-right font-bold text-slate-600">${{ number_format($floorOther, 2) }}</td>
+                                    <td class="px-4 py-3 text-right font-bold text-indigo-600">${{ number_format($floorFixed, 2) }}</td>
+                                    <td class="px-4 py-3 text-right font-bold text-red-600">${{ number_format($floorTotal, 2) }}</td>
+                                </tr>
+                            </tfoot>
+                        </table>
+                    </div>
+                </details>
+            </div>
+        @empty
+            <div class="bg-white rounded-xl border border-slate-100 p-8 text-center text-slate-400">
+                <p>{{ __('messages.no_apt_expenses') }}</p>
+            </div>
+        @endforelse
+
+        @if(count($apartmentExpensesAll) > 0)
+        <div class="bg-white rounded-xl border border-slate-100 px-6 py-4 flex items-center justify-between">
+            <span class="text-sm font-semibold text-slate-700">{{ __('messages.grand_total_all_floors') }}</span>
+            <span class="text-base font-bold text-red-600">${{ number_format($totalExpenses, 2) }}</span>
         </div>
         @endif
     </div>

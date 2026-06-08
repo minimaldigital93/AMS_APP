@@ -43,19 +43,6 @@
         </div>
     </div>
 
-    <!-- Flash Messages -->
-    @if(session('success'))
-    <div class="bg-emerald-50 border border-emerald-100 rounded-lg px-4 py-3 text-emerald-700 text-sm flex items-center gap-2.5">
-        <svg class="w-4 h-4 shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/></svg>
-        {{ session('success') }}
-    </div>
-    @endif
-    @if(session('error'))
-    <div class="bg-red-50 border border-red-100 rounded-lg px-4 py-3 text-red-600 text-sm flex items-center gap-2.5">
-        <svg class="w-4 h-4 shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"/></svg>
-        {{ session('error') }}
-    </div>
-    @endif
     @if($errors->any())
     <div class="bg-red-50 border border-red-100 rounded-lg px-4 py-3 text-red-600 text-sm">
         <ul class="list-disc list-inside">
@@ -419,59 +406,52 @@
     </div>
 
     <!-- ============================================ -->
-    <!-- ADD CHARGE MODAL                             -->
+    <!-- ADD CHARGE MODAL (single form, all types)    -->
     <!-- ============================================ -->
     <div x-show="showAddCharge" x-cloak class="fixed inset-0 z-50 overflow-y-auto" aria-modal="true">
         <div class="flex items-center justify-center min-h-screen px-4">
-            <div class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm transition-opacity" @click="showAddCharge = false"></div>
-            <div class="bg-white rounded-xl shadow-2xl w-full max-w-lg relative z-10 transform transition-all">
-                <div class="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
-                    <h3 class="text-lg font-semibold text-slate-800">
-                        Add Charge — <span x-text="chargeApt" class="text-sky-600"></span>
+            <div class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm" @click="showAddCharge = false"></div>
+            <div class="bg-white rounded-xl shadow-2xl w-full max-w-md relative z-10">
+                <div class="px-5 py-3 border-b border-slate-100 flex items-center justify-between">
+                    <h3 class="text-sm font-semibold text-slate-800">
+                        Add Charges — <span x-text="chargeApt" class="text-sky-600"></span>
                     </h3>
-                    <button @click="showAddCharge = false" class="text-slate-400 hover:text-slate-600 transition">
+                    <button @click="showAddCharge = false" class="text-slate-400 hover:text-slate-600">
                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
                     </button>
                 </div>
                 <form @submit.prevent="saveDone" class="p-4 space-y-3">
-                    @csrf
-                    <input type="hidden" name="rental_id" x-model="chargeRentalId">
-                    <input type="hidden" name="billing_month" value="{{ $currentMonth }}">
-                    <input type="hidden" name="billing_year" value="{{ $currentYear }}">
+                    <p class="text-xs text-slate-400">{{ __('messages.enter_amounts_hint') }}</p>
 
-                    <div class="flex items-center justify-between">
-                        <div class="flex items-center gap-3">
-                            <div class="w-7 h-7 rounded-full bg-sky-50 flex items-center justify-center text-sky-600 font-semibold"> <span x-text="stepIndex + 1"></span> </div>
-                            <div class="text-sm font-medium" x-text="currentStepLabel()"></div>
+                    <template x-for="(row, i) in chargeRows" :key="row.type">
+                        <div class="grid grid-cols-12 gap-2 items-center">
+                            <div class="col-span-3 text-sm text-slate-600 capitalize" x-text="typeLabels[row.type] || row.type"></div>
+                            <template x-if="row.type === 'electricity' || row.type === 'water'">
+                                <div class="col-span-6 grid grid-cols-2 gap-2">
+                                    <input type="number" x-model="row.meter_in" step="0.01" min="0" placeholder="{{ __('messages.meter_in_ph') }}"
+                                        class="w-full px-2 py-1.5 border border-slate-200 rounded-md text-sm">
+                                    <input type="number" x-model="row.meter_out" step="0.01" min="0" placeholder="{{ __('messages.meter_out_ph') }}"
+                                        class="w-full px-2 py-1.5 border border-slate-200 rounded-md text-sm">
+                                </div>
+                            </template>
+                            <template x-if="row.type !== 'electricity' && row.type !== 'water'">
+                                <div class="col-span-6"></div>
+                            </template>
+                            <input type="number" x-model="row.amount" step="0.01" min="0" placeholder="0.00"
+                                class="col-span-3 w-full px-2 py-1.5 border border-slate-200 rounded-md text-sm font-semibold text-right">
                         </div>
-                        <div class="text-xs text-slate-400">{{ __('messages.queued') }} <span x-text="collectedCharges.length"></span></div>
-                    </div>
+                    </template>
 
-                    <div class="grid grid-cols-3 gap-2 items-end">
-                        <div class="col-span-1" x-show="['electricity','water'].includes(currentCharge.type)" x-cloak>
-                            <label class="sr-only">{{ __('messages.meter_in') }}</label>
-                            <input type="number" x-model="currentCharge.meter_in" step="0.01" min="0" placeholder="{{ __('messages.meter_in_ph') }}" class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm">
+                    <div class="flex items-center justify-between pt-3 border-t border-slate-100">
+                        <span class="text-xs text-slate-500">{{ __('messages.total') }}: <span class="font-semibold text-slate-800" x-text="'$' + chargesTotal()"></span></span>
+                        <div class="flex items-center gap-2">
+                            <button type="button" @click="showAddCharge = false" class="px-3 py-1.5 text-sm text-slate-500 hover:text-slate-700">{{ __('messages.cancel') }}</button>
+                            <button type="submit" :disabled="isSubmitting"
+                                class="px-4 py-1.5 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-60 text-white rounded-md text-sm font-medium flex items-center gap-1.5">
+                                <svg x-show="isSubmitting" class="w-3.5 h-3.5 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/></svg>
+                                <span x-text="isSubmitting ? 'Saving…' : 'Save'"></span>
+                            </button>
                         </div>
-                        <div class="col-span-1" x-show="['electricity','water'].includes(currentCharge.type)" x-cloak>
-                            <label class="sr-only">{{ __('messages.meter_out') }}</label>
-                            <input type="number" x-model="currentCharge.meter_out" step="0.01" min="0" placeholder="{{ __('messages.meter_out_ph') }}" class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm">
-                        </div>
-                        <div class="col-span-1" :class="{'col-span-3 text-right': !['electricity','water'].includes(currentCharge.type)}">
-                            <label class="sr-only">{{ __('messages.amount') }}</label>
-                            <input type="number" x-model="currentCharge.amount" step="0.01" min="0.01" placeholder="{{ __('messages.amount') }}" class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm font-semibold text-right">
-                        </div>
-                    </div>
-
-                    <div class="flex items-center gap-2">
-                        <button type="button" @click="addCurrentCharge(); if(!isLastStep()) nextStep();" class="px-3 py-2 bg-amber-600 text-white rounded-lg text-sm">{{ __('messages.next') }}</button>
-                        <button type="button" x-show="stepIndex > 0" @click="prevStep()" class="px-3 py-2 bg-slate-100 text-slate-600 rounded-lg text-sm">{{ __('messages.back') }}</button>
-                        <div class="flex-1"></div>
-                        <button type="button" @click="saveDone()" :disabled="isSubmitting"
-                            class="px-3 py-2 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-60 text-white rounded-lg text-sm font-medium flex items-center gap-1.5">
-                            <svg x-show="isSubmitting" class="w-3.5 h-3.5 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/></svg>
-                            <span x-text="isSubmitting ? 'Saving…' : 'Save'"></span>
-                        </button>
-                        <button type="button" @click="showAddCharge = false" class="px-3 py-2 bg-transparent text-slate-500 rounded-lg text-sm">{{ __('messages.cancel') }}</button>
                     </div>
                 </form>
             </div>
@@ -652,16 +632,14 @@ function billingManager() {
         viewRent: 0,
         viewFixed: 0,
 
-        // Add Charge Modal (stepper)
+        // Add Charge Modal (single form)
         showAddCharge: false,
         chargeRentalId: null,
         chargeTenant: '',
         chargeApt: '',
         isSubmitting: false,
-        steps: ['electricity','water','internet','parking','trash','other'],
-        stepIndex: 0,
-        currentCharge: { type: 'electricity', meter_in: '', meter_out: '', amount: '', note: '' },
-        collectedCharges: [],
+        chargeTypes: ['electricity','water','internet','parking','trash','other'],
+        chargeRows: [],
 
         // Checkout Modal
         showCheckout: false,
@@ -714,7 +692,7 @@ function billingManager() {
             if (!confirm('{{ __('messages.remove_charge_confirm') }}')) return;
             const csrf = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
             try {
-                const res = await fetch('/admin/revenue-expense/remove-charge/' + chargeId, {
+                const res = await fetch('/supervisor/revenue-expense/remove-charge/' + chargeId, {
                     method: 'DELETE',
                     headers: { 'X-CSRF-TOKEN': csrf, 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' }
                 });
@@ -729,7 +707,7 @@ function billingManager() {
             if (!confirm('{{ __('messages.delete_all_confirm') }}')) return;
             const csrf = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
             try {
-                await fetch('/admin/revenue-expense/clear-charges/' + this.viewRentalId, {
+                await fetch('/supervisor/revenue-expense/clear-charges/' + this.viewRentalId, {
                     method: 'DELETE',
                     headers: { 'X-CSRF-TOKEN': csrf, 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' }
                 });
@@ -741,72 +719,14 @@ function billingManager() {
             this.chargeRentalId = rentalId;
             this.chargeTenant = tenant;
             this.chargeApt = apt;
-            this.stepIndex = 0;
-            this.currentCharge = { type: this.steps[0], meter_in: '', meter_out: '', amount: '', note: '' };
-            this.collectedCharges = [];
+            this.chargeRows = this.chargeTypes.map(t => ({ type: t, meter_in: '', meter_out: '', amount: '' }));
             this.isSubmitting = false;
             this.showAddCharge = true;
         },
 
-        // Stepper helpers
-        currentStepLabel() {
-            return this.formatLabel(this.steps[this.stepIndex]);
-        },
-        formatLabel(t) {
-            return (t || '').replace(/_/g, ' ').replace(/(^|\s)\S/g, s => s.toUpperCase());
-        },
-        isLastStep() {
-            return this.stepIndex >= this.steps.length - 1;
-        },
-        isFirstStep() {
-            return this.stepIndex <= 0;
-        },
-        nextStep() {
-            if (!this.isLastStep()) {
-                this.stepIndex++;
-                this.currentCharge.type = this.steps[this.stepIndex];
-                this.currentCharge.meter_in = '';
-                this.currentCharge.meter_out = '';
-                this.currentCharge.amount = '';
-                this.currentCharge.note = '';
-            }
-        },
-        prevStep() {
-            if (!this.isFirstStep()) {
-                this.stepIndex--;
-                this.currentCharge.type = this.steps[this.stepIndex];
-            }
-        },
-        skipStep() {
-            // simply move forward without adding
-            if (!this.isLastStep()) this.nextStep();
-            else this.showAddCharge = false;
-        },
-        addCurrentCharge() {
-            // ensure we have an amount
-            const amt = parseFloat(this.currentCharge.amount);
-            if (isNaN(amt) || amt <= 0) return;
-            const c = {
-                type: this.steps[this.stepIndex],
-                meter_in: this.currentCharge.meter_in || '',
-                meter_out: this.currentCharge.meter_out || '',
-                amount: amt.toFixed(2),
-                note: this.currentCharge.note || ''
-            };
-            // Prevent adding the exact same charge twice (type + amount + meters + note)
-            const exists = this.collectedCharges.some(existing =>
-                existing.type === c.type &&
-                existing.amount === c.amount &&
-                (existing.meter_in || '') === (c.meter_in || '') &&
-                (existing.meter_out || '') === (c.meter_out || '') &&
-                (existing.note || '') === (c.note || '')
-            );
-            if (!exists) {
-                this.collectedCharges.push(c);
-            }
-        },
-        removeCharge(i) {
-            this.collectedCharges.splice(i, 1);
+        chargesTotal() {
+            const sum = this.chargeRows.reduce((s, r) => s + (parseFloat(r.amount) || 0), 0);
+            return sum.toFixed(2);
         },
 
         openCheckout(rentalId, tenant, apt, rent, utilities, otherCharges, fixed, total) {
@@ -906,32 +826,31 @@ function billingManager() {
         },
 
         saveDone() {
-            // Add current charge if an amount was entered
-            this.addCurrentCharge();
-            if (this.collectedCharges.length === 0) {
+            const filled = this.chargeRows.filter(r => parseFloat(r.amount) > 0);
+            if (filled.length === 0) {
                 alert('{{ __('messages.enter_charge_alert') }}');
                 return;
             }
-            this.submitAllCharges();
+            this.submitAllCharges(filled);
         },
 
-        async submitAllCharges() {
+        async submitAllCharges(rows) {
             this.isSubmitting = true;
             const addChargeUrl = '{{ route('supervisor.revenue_expense.add_charge') }}';
             const csrf = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
             const failures = [];
 
-            for (const charge of this.collectedCharges) {
+            for (const charge of rows) {
                 const form = new FormData();
                 form.append('_token', csrf);
                 form.append('rental_id', this.chargeRentalId);
                 form.append('billing_month', '{{ $currentMonth }}');
                 form.append('billing_year', '{{ $currentYear }}');
                 form.append('charge_type', charge.type);
-                form.append('meter_reading_in', charge.meter_in);
-                form.append('meter_reading_out', charge.meter_out);
-                form.append('charge_amount', charge.amount);
-                form.append('note', charge.note);
+                form.append('meter_reading_in', charge.meter_in || '');
+                form.append('meter_reading_out', charge.meter_out || '');
+                form.append('charge_amount', parseFloat(charge.amount).toFixed(2));
+                form.append('note', '');
 
                 try {
                     const res = await fetch(addChargeUrl, {

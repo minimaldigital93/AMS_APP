@@ -17,7 +17,7 @@
         </button>
         @endunless
         <x-application-logo class="w-8 h-8 sm:w-10 sm:h-10 lg:w-12 lg:h-12 fill-current text-white drop-shadow-lg flex-shrink-0" />
-        <span class="font-bold text-base sm:text-lg lg:text-xl text-white truncate">{{ __('messages.ams') }}</span>
+        <span class="font-bold text-base sm:text-lg lg:text-xl text-white truncate">{{ $topbarBrand ?? __('messages.ams') }}</span>
     </div>
 
     <!-- Right Actions -->

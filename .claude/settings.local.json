@@ -396,7 +396,21 @@
       "Bash(./vendor/bin/pest tests/Feature/Subscription/PageRenderTest.php tests/Feature/Subscription/AccountIsolationTest.php)",
       "Bash(./vendor/bin/pint app/Http/Controllers/SuperAdmin/DashboardController.php app/Http/Controllers/SuperAdmin/AccountsController.php tests/Feature/Subscription/PageRenderTest.php)",
       "Bash(./vendor/bin/pest tests/Feature/Subscription/)",
-      "Bash(curl -s -o /dev/null -w \"http_code=%{http_code} time=%{time_total}s\\\\n\" --max-time 6 https://cdn.jsdelivr.net/npm/chart.js)"
+      "Bash(curl -s -o /dev/null -w \"http_code=%{http_code} time=%{time_total}s\\\\n\" --max-time 6 https://cdn.jsdelivr.net/npm/chart.js)",
+      "Bash(php -r '$f=file_get_contents\\(\"resources/views/layouts/supervisor-bottom-nav.blade.php\"\\); echo substr_count\\($f,\"{{\"\\)===substr_count\\($f,\"}}\"\\) ? \"braces balanced\\\\n\" : \"BRACE MISMATCH\\\\n\"; echo \"x-show sheets: \".substr_count\\($f,\"x-show=\\\\\"sheet ===\"\\).\"\\\\n\";')",
+      "Bash(sed -E 's/admin\\\\./ROLE./g; s/supervisor\\\\./ROLE./g' /Users/moniodom/AMS_APP/resources/views/admin/revenue_expense/index.blade.php)",
+      "Bash(sed -E 's/admin\\\\./ROLE./g; s/supervisor\\\\./ROLE./g' /Users/moniodom/AMS_APP/resources/views/supervisor/revenue_expense/index.blade.php)",
+      "Bash(sed -E 's/Admin\\\\\\\\/ROLE\\\\\\\\/g; s/admin\\\\./ROLE./g; s/supervisor\\\\./ROLE./g; s/Supervisor\\\\\\\\/ROLE\\\\\\\\/g')",
+      "Bash(sed -n '114,457p' app/Http/Controllers/Supervisor/RevenueExpenseController.php)",
+      "Bash(sed -E 's/admin\\\\./ROLE./g; s/supervisor\\\\./ROLE./g; s#/admin/#/ROLE/#g; s#/supervisor/#/ROLE/#g; s/layouts\\\\.\\(admin|supervisor\\)/layouts.ROLE/g' resources/views/admin/revenue_expense/record_income.blade.php)",
+      "Bash(sed -E 's/admin\\\\./ROLE./g; s/supervisor\\\\./ROLE./g; s#/admin/#/ROLE/#g; s#/supervisor/#/ROLE/#g; s/layouts\\\\.\\(admin|supervisor\\)/layouts.ROLE/g' resources/views/supervisor/revenue_expense/record_income.blade.php)",
+      "Bash(sed -E 's/admin\\\\./ROLE./g; s/supervisor\\\\./ROLE./g; s#/admin/#/ROLE/#g; s#/supervisor/#/ROLE/#g; s/layouts\\\\.\\(admin|supervisor\\)/layouts.ROLE/g' resources/views/admin/revenue_expense/record_expense.blade.php)",
+      "Bash(sed -E 's/admin\\\\./ROLE./g; s/supervisor\\\\./ROLE./g; s#/admin/#/ROLE/#g; s#/supervisor/#/ROLE/#g; s/layouts\\\\.\\(admin|supervisor\\)/layouts.ROLE/g' resources/views/supervisor/revenue_expense/record_expense.blade.php)",
+      "Bash(grep -iA1 \"LeaveAccounting\")",
+      "Bash(./vendor/bin/pest --filter=\"leave\")",
+      "Bash(grep -vE \"^\\\\s*$\")",
+      "Bash(./vendor/bin/pest tests/Feature/SupervisorAccessTest.php)",
+      "Bash(./vendor/bin/pest tests/Feature/SupervisorPanelAccessTest.php)"
     ],
     "additionalDirectories": [
       "/Users/sarotmoniodom/AMS_APP",

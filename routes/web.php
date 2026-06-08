@@ -71,7 +71,7 @@ Route::get('/admin/dashboard', [DashboardController::class, 'index'])
     ->name('admin.dashboard');
 
 Route::get('/supervisor/dashboard', [SupervisorDashboardController::class, 'index'])
-    ->middleware(['auth', 'role:supervisor'])
+    ->middleware(['auth', 'role:supervisor|admin|superadmin'])
     ->name('supervisor.dashboard');
 
 Route::get('/tenant/dashboard', [TenantDashboardController::class, 'index'])
@@ -258,7 +258,9 @@ Route::middleware(['auth', 'role:admin|superadmin', 'subscription.active'])->gro
 });
 
 // Supervisor Management Routes
-Route::middleware(['auth', 'role:supervisor'])->prefix('supervisor')->group(function () {
+// Gated to supervisor, but admin/superadmin (the supervisor's account owner and the
+// platform owner) may also enter the supervisor panel to view/preview it.
+Route::middleware(['auth', 'role:supervisor|admin|superadmin'])->prefix('supervisor')->group(function () {
     // Tenant Management
     Route::get('/tenants', [SupervisorTenantController::class, 'index'])->name('supervisor.tenants.index');
     Route::get('/tenants/create', [SupervisorTenantController::class, 'create'])->name('supervisor.tenants.create');
