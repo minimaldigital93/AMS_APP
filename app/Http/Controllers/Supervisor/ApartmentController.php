@@ -60,7 +60,10 @@ class ApartmentController extends Controller
     {
         $floors = Floors::with(['apartments' => function ($query) {
             $query->orderBy('apartment_number')
-                ->with(['tenants' => fn ($q) => $q->whereNull('archived_at')]);
+                ->with([
+                    'tenants' => fn ($q) => $q->whereNull('archived_at'),
+                    'rentals' => fn ($q) => $q->active()->latest('start_date'),
+                ]);
         }])->orderBy('id')->get();
 
         $floorsData = $floors->map(function ($floor) {
@@ -69,6 +72,7 @@ class ApartmentController extends Controller
                 'name' => $floor->floor_name,
                 'apartments' => $floor->apartments->map(function ($apt) {
                     $tenant = $apt->tenants->first();
+                    $stay = $apt->rentals->first()?->stayProgress() ?? [];
 
                     return [
                         'id' => $apt->id,
@@ -76,6 +80,10 @@ class ApartmentController extends Controller
                         'status' => $apt->status,
                         'rent' => (float) $apt->monthly_rent,
                         'tenant' => $tenant?->name,
+                        'stay_label' => $stay['stay_label'] ?? null,
+                        'cycle_percent' => $stay['cycle_percent'] ?? null,
+                        'days_left' => $stay['days_left'] ?? null,
+                        'next_renewal_label' => $stay['next_renewal_label'] ?? null,
                     ];
                 })->values(),
             ];
@@ -86,7 +94,6 @@ class ApartmentController extends Controller
             'total' => $floors->sum(fn ($f) => $f->apartments->count()),
             'available' => $floors->sum(fn ($f) => $f->apartments->where('status', 'available')->count()),
             'occupied' => $floors->sum(fn ($f) => $f->apartments->where('status', 'occupied')->count()),
-            'maintenance' => $floors->sum(fn ($f) => $f->apartments->where('status', 'maintenance')->count()),
         ];
 
         return view('supervisor.apartments.plan3d', compact('floorsData', 'summary'));

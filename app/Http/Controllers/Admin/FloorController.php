@@ -46,7 +46,10 @@ class FloorController extends Controller
     {
         $floors = Floors::with(['apartments' => function ($query) {
             $query->orderBy('apartment_number')
-                ->with(['tenants' => fn ($q) => $q->whereNull('archived_at')]);
+                ->with([
+                    'tenants' => fn ($q) => $q->whereNull('archived_at'),
+                    'rentals' => fn ($q) => $q->active()->latest('start_date'),
+                ]);
         }])->orderBy('id')->get();
 
         // Shape data for the renderer.
@@ -56,6 +59,7 @@ class FloorController extends Controller
                 'name' => $floor->floor_name,
                 'apartments' => $floor->apartments->map(function ($apt) {
                     $tenant = $apt->tenants->first();
+                    $stay = $apt->rentals->first()?->stayProgress() ?? [];
 
                     return [
                         'id' => $apt->id,
@@ -63,6 +67,10 @@ class FloorController extends Controller
                         'status' => $apt->status,
                         'rent' => (float) $apt->monthly_rent,
                         'tenant' => $tenant?->name,
+                        'stay_label' => $stay['stay_label'] ?? null,
+                        'cycle_percent' => $stay['cycle_percent'] ?? null,
+                        'days_left' => $stay['days_left'] ?? null,
+                        'next_renewal_label' => $stay['next_renewal_label'] ?? null,
                     ];
                 })->values(),
             ];
@@ -73,7 +81,6 @@ class FloorController extends Controller
             'total' => $floors->sum(fn ($f) => $f->apartments->count()),
             'available' => $floors->sum(fn ($f) => $f->apartments->where('status', 'available')->count()),
             'occupied' => $floors->sum(fn ($f) => $f->apartments->where('status', 'occupied')->count()),
-            'maintenance' => $floors->sum(fn ($f) => $f->apartments->where('status', 'maintenance')->count()),
         ];
 
         // Unassigned active tenants for the "Existing Tenant" tab of the assign-tenant modal
@@ -111,7 +118,7 @@ class FloorController extends Controller
                     ->whereNull('deleted_at'),
             ],
             'apartments.*.monthly_rent' => 'nullable|numeric|min:0',
-            'apartments.*.status' => 'nullable|in:available,occupied,maintenance',
+            'apartments.*.status' => 'nullable|in:available,occupied',
         ], [
             'apartments.*.apartment_number.unique' => __('messages.validation_apartment_number_taken_generic'),
         ]);
@@ -174,7 +181,6 @@ class FloorController extends Controller
                         ->whereNull('deleted_at'),
                 ],
                 'monthly_rent' => 'nullable|numeric|min:0',
-                'apartment_status' => 'required|in:available,occupied,maintenance',
             ], [
                 'apartment_number.unique' => __('messages.validation_apartment_number_taken', ['number' => $request->input('apartment_number')]),
             ]);
@@ -184,7 +190,7 @@ class FloorController extends Controller
                 $floor->apartments()->create([
                     'apartment_number' => $validated['apartment_number'],
                     'monthly_rent' => $validated['monthly_rent'] ?? 0,
-                    'status' => $validated['apartment_status'] ?? 'available',
+                    'status' => 'available',
                 ]);
 
                 return redirect()->route('admin.floors.edit', $floor)

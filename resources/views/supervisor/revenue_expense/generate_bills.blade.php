@@ -5,7 +5,7 @@
     <!-- Header -->
     <div class="mb-8 flex items-center justify-between">
         <div>
-            <h1 class="text-3xl font-bold text-gray-900">{{ __('messages.generate_monthly_bills') }}</h1>
+            <h1 class="text-2xl font-semibold text-slate-800 tracking-tight">{{ __('messages.generate_monthly_bills') }}</h1>
         </div>
         <div class="flex gap-3">
             <a href="{{ route('supervisor.revenue_expense.fixed_expenses') }}" class="inline-flex items-center px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition text-sm" title="{{ __('messages.manage_apartment_costs') }}">

@@ -561,12 +561,12 @@
                         class="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:ring-1 focus:ring-emerald-500 focus:border-emerald-500">
                     <!-- Buttons -->
                     <div class="flex gap-2 pt-1">
+                        <button type="button" @click="closeCheckout()"
+                            class="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-600 text-sm font-medium rounded-lg transition">{{ __('messages.cancel') }}</button>
                         <button type="submit"
                             class="flex-1 py-2.5 text-white text-sm font-semibold rounded-lg transition"
                             :class="checkoutMethod === 'khqr' ? 'bg-rose-600 hover:bg-rose-700' : 'bg-emerald-600 hover:bg-emerald-700'"
                             x-text="checkoutMethod === 'khqr' ? '{{ __('messages.generate_khqr') }}' : '{{ __('messages.confirm_payment') }}'"></button>
-                        <button type="button" @click="closeCheckout()"
-                            class="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-600 text-sm font-medium rounded-lg transition">{{ __('messages.cancel') }}</button>
                     </div>
                 </form>
 
@@ -689,7 +689,7 @@ function billingManager() {
             return (parseFloat(this.viewRent) + parseFloat(this.viewFixed) + chargesSum).toFixed(2);
         },
         async removeViewCharge(chargeId, index) {
-            if (!confirm('{{ __('messages.remove_charge_confirm') }}')) return;
+            if (!(await window.confirmAction({ message: '{{ __('messages.remove_charge_confirm') }}' }))) return;
             const csrf = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
             try {
                 const res = await fetch('/admin/revenue-expense/remove-charge/' + chargeId, {
@@ -704,7 +704,7 @@ function billingManager() {
             } catch(e) { window.location.reload(); }
         },
         async clearAllCharges() {
-            if (!confirm('{{ __('messages.delete_all_confirm') }}')) return;
+            if (!(await window.confirmAction({ message: '{{ __('messages.delete_all_confirm') }}' }))) return;
             const csrf = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
             try {
                 await fetch('/admin/revenue-expense/clear-charges/' + this.viewRentalId, {

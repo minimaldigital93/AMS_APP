@@ -6,7 +6,7 @@
     {{-- Header --}}
     <div class="mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-            <h1 class="text-3xl font-bold text-gray-900">📊 Income Statement</h1>
+            <h1 class="text-2xl font-semibold text-slate-800 tracking-tight">📊 Income Statement</h1>
         </div>
         <div class="flex items-center gap-2">
             @if($fiscalPeriods->count() > 1)

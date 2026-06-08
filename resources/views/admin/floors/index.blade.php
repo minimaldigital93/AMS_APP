@@ -15,41 +15,6 @@
             </svg></a>
     </div>
 
-    <!-- Flash Messages -->
-    @if ($message = Session::get('success'))
-    <div class="bg-emerald-50 border border-emerald-100 rounded-lg px-4 py-3 text-emerald-700 text-sm flex items-center gap-2.5">
-        <svg class="w-4 h-4 shrink-0" fill="currentColor" viewBox="0 0 20 20">
-            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
-        </svg>
-        {{ $message }}
-    </div>
-    @endif
-
-    @if ($message = Session::get('error'))
-    <div class="bg-red-50 border border-red-100 rounded-lg px-4 py-3 text-red-600 text-sm flex items-center gap-2.5">
-        <svg class="w-4 h-4 shrink-0" fill="currentColor" viewBox="0 0 20 20">
-            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd" />
-        </svg>
-        {{ $message }}
-    </div>
-    @endif
-
-    <!-- Color Legend -->
-    <div class="flex flex-wrap items-center gap-x-16 gap-y-2 bg-white rounded-xl border border-slate-100 px-5 py-3">
-        <div class="flex items-center gap-2">
-            <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
-            <span class="text-xs text-slate-600">{{ __('messages.available') }}</span>
-        </div>
-        <div class="flex items-center gap-2">
-            <span class="w-2 h-2 rounded-full bg-sky-400"></span>
-            <span class="text-xs text-slate-600">{{ __('messages.occupied') }}</span>
-        </div>
-        <div class="flex items-center gap-2">
-            <span class="w-2 h-2 rounded-full bg-amber-400"></span>
-            <span class="text-xs text-slate-600">{{ __('messages.maintenance') }}</span>
-        </div>
-    </div>
-
     <!-- Floors -->
     <div class="space-y-5">
         @forelse($floors as $floor)
@@ -71,7 +36,6 @@
                         $total = $floor->apartments->count();
                         $available = $floor->apartments->where('status', 'available')->count();
                         $occupied = $floor->apartments->where('status', 'occupied')->count();
-                        $maintenance = $floor->apartments->where('status', 'maintenance')->count();
                     @endphp
                     <div class="flex items-center gap-4">
                         <div class="flex items-center gap-1.5" title="{{ __('messages.total') }}">
@@ -86,21 +50,24 @@
                             <span class="w-2 h-2 rounded-full bg-sky-400"></span>
                             <span class="text-xs font-semibold text-sky-600">{{ $occupied }}</span>
                         </div>
-                        <div class="flex items-center gap-1.5" title="{{ __('messages.maintenance') }}">
-                            <span class="w-2 h-2 rounded-full bg-amber-400"></span>
-                            <span class="text-xs font-semibold text-amber-600">{{ $maintenance }}</span>
-                        </div>
                     </div>
 
                     <!-- Actions -->
                     <div class="flex items-center gap-1">
+                        <button type="button" onclick="openApartmentsModal('modal-floor-{{ $floor->id }}')"
+                           class="text-slate-500 hover:text-slate-700 p-2 rounded-lg bg-slate-50/40 hover:bg-slate-100/60 transition" title="{{ __('messages.apartments') }}">
+                            <svg class="w-[18px] h-[18px]" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z" />
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                            </svg>
+                        </button>
                         <a href="{{ route('admin.floors.edit', $floor) }}"
                            class="text-sky-600 hover:text-sky-700 p-2 rounded-lg bg-sky-50/20 hover:bg-sky-50/40 transition" title="{{ __('messages.edit_floor') }}">
                             <svg class="w-[18px] h-[18px]" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125" />
                             </svg>
                         </a>
-                        <form method="POST" action="{{ route('admin.floors.destroy', $floor) }}" class="inline" onsubmit="return confirm('Are you sure you want to delete {{ addslashes($floor->floor_name) }}? This action cannot be undone. All apartments will also be deleted.');">
+                        <form method="POST" action="{{ route('admin.floors.destroy', $floor) }}" class="inline" data-confirm="Are you sure you want to delete {{ $floor->floor_name }}? This action cannot be undone. All apartments will also be deleted.">
                             @csrf
                             @method('DELETE')
                             <button type="submit" class="text-red-500 hover:text-red-600 p-2 rounded-lg bg-red-50/20 hover:bg-red-50/40 transition" title="{{ __('messages.delete_floor') }}">
@@ -113,17 +80,6 @@
                 </div>
             </div>
 
-            <!-- Floor Footer -->
-            <div class="px-6 py-3.5 border-t border-slate-50">
-                <button onclick="openApartmentsModal('modal-floor-{{ $floor->id }}')"
-                        class="inline-flex items-center gap-2 text-slate-500 hover:text-slate-700 text-sm font-medium transition" title="{{ __('messages.apartments') }}">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z" />
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                    </svg>
-                    View Apartments ({{ $floor->apartments->count() }})
-                </button>
-            </div>
         </div>
         @empty
         <div class="bg-white rounded-xl border border-slate-100 p-16 text-center">
@@ -172,9 +128,8 @@
                     $total = $floor->apartments->count();
                     $available = $floor->apartments->where('status', 'available')->count();
                     $occupied = $floor->apartments->where('status', 'occupied')->count();
-                    $maintenance = $floor->apartments->where('status', 'maintenance')->count();
                 @endphp
-                <div class="grid grid-cols-4 gap-3 mb-6">
+                <div class="grid grid-cols-3 gap-3 mb-6">
                     <div class="rounded-xl bg-slate-50 p-4">
                         <p class="text-[11px] text-slate-400 uppercase tracking-wider font-medium">{{ __('messages.total') }}</p>
                         <p class="text-2xl font-semibold text-slate-700 mt-1">{{ $total }}</p>
@@ -186,10 +141,6 @@
                     <div class="rounded-xl bg-sky-50/70 p-4">
                         <p class="text-[11px] text-sky-500 uppercase tracking-wider font-medium">{{ __('messages.occupied') }}</p>
                         <p class="text-2xl font-semibold text-sky-700 mt-1">{{ $occupied }}</p>
-                    </div>
-                    <div class="rounded-xl bg-amber-50/70 p-4">
-                        <p class="text-[11px] text-amber-500 uppercase tracking-wider font-medium">{{ __('messages.maintenance') }}</p>
-                        <p class="text-2xl font-semibold text-amber-700 mt-1">{{ $maintenance }}</p>
                     </div>
                 </div>
 
@@ -217,13 +168,11 @@
                                     <span class="inline-flex items-center gap-1.5 text-xs font-medium
                                         @if($apartment->status === 'available') text-emerald-600
                                         @elseif($apartment->status === 'occupied') text-sky-600
-                                        @elseif($apartment->status === 'maintenance') text-amber-600
                                         @else text-slate-500
                                         @endif">
                                         <span class="w-1.5 h-1.5 rounded-full
                                             @if($apartment->status === 'available') bg-emerald-400
                                             @elseif($apartment->status === 'occupied') bg-sky-400
-                                            @elseif($apartment->status === 'maintenance') bg-amber-400
                                             @else bg-slate-300
                                             @endif"></span>
                                         {{ ucfirst($apartment->status) }}
@@ -249,13 +198,11 @@
                             <span class="inline-flex items-center gap-1.5 text-xs font-medium
                                 @if($apartment->status === 'available') text-emerald-600
                                 @elseif($apartment->status === 'occupied') text-sky-600
-                                @elseif($apartment->status === 'maintenance') text-amber-600
                                 @else text-slate-500
                                 @endif">
                                 <span class="w-1.5 h-1.5 rounded-full
                                     @if($apartment->status === 'available') bg-emerald-400
                                     @elseif($apartment->status === 'occupied') bg-sky-400
-                                    @elseif($apartment->status === 'maintenance') bg-amber-400
                                     @else bg-slate-300
                                     @endif"></span>
                                 {{ ucfirst($apartment->status) }}

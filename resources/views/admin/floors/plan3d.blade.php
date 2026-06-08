@@ -6,12 +6,9 @@
 <div class="max-w-6xl mx-auto space-y-6">
 
     {{-- Header --}}
-    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-        <div>
-            <h1 class="text-2xl font-semibold text-slate-800 tracking-tight">{{ __('messages.floor_layout') }}</h1>
-            
-        </div>
-        <div class="flex flex-wrap items-center gap-2 self-start">
+    <div class="flex flex-col gap-2">
+        <h1 class="text-2xl font-semibold text-slate-800 tracking-tight">{{ __('messages.floor_layout') }}</h1>
+        <div class="flex items-center gap-2 justify-end">
             <a href="{{ route('admin.revenue_expense.record_income') }}"
                class="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium text-white bg-emerald-600 hover:bg-emerald-700 transition shadow-sm" title="{{ __('messages.record_income') }}">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg></a>
@@ -25,7 +22,7 @@
     </div>
 
     {{-- Summary chips --}}
-    <div class="grid grid-cols-2 sm:grid-cols-5 gap-3">
+    <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
         <div class="bg-white rounded-xl border border-slate-100 p-4">
             <p class="text-xs text-slate-400 font-medium">{{ __('messages.floors') }}</p>
             <p class="text-2xl font-bold text-slate-800">{{ $summary['floors'] }}</p>
@@ -42,10 +39,7 @@
             <p class="text-xs text-slate-400 font-medium">{{ __('messages.occupied') }}</p>
             <p class="text-2xl font-bold text-slate-800">{{ $summary['occupied'] }}</p>
         </div>
-        <div class="bg-white rounded-xl border border-slate-100 p-4">
-            <p class="text-xs text-slate-400 font-medium">{{ __('messages.maintenance') }}</p>
-            <p class="text-2xl font-bold text-slate-800">{{ $summary['maintenance'] }}</p>
-        </div>
+     
     </div>
 
     @if($summary['floors'] === 0)
@@ -59,7 +53,6 @@
             $occupancyRate = $summary['total'] > 0 ? round(($summary['occupied'] / $summary['total']) * 100) : 0;
             $availablePct = $summary['total'] > 0 ? ($summary['available'] / $summary['total']) * 100 : 0;
             $occupiedPct = $summary['total'] > 0 ? ($summary['occupied'] / $summary['total']) * 100 : 0;
-            $maintenancePct = $summary['total'] > 0 ? ($summary['maintenance'] / $summary['total']) * 100 : 0;
         @endphp
         <div class="bg-white rounded-xl border border-slate-100 p-5">
             <div class="flex items-center justify-between mb-2">
@@ -69,17 +62,11 @@
             <div class="w-full flex bg-slate-100 rounded-full h-2.5 overflow-hidden">
                 <div class="h-2.5 transition-all bg-emerald-500" style="width: {{ $availablePct }}%"></div>
                 <div class="h-2.5 transition-all bg-blue-500" style="width: {{ $occupiedPct }}%"></div>
-                <div class="h-2.5 transition-all bg-slate-400" style="width: {{ $maintenancePct }}%"></div>
             </div>
             <p class="text-xs text-slate-400 mt-2">{{ $summary['occupied'] }} occupied · {{ $summary['available'] }} available of {{ $summary['total'] }} units</p>
         </div>
 
-        {{-- Legend (dot style) --}}
-        <div class="flex flex-wrap items-center gap-4 text-xs text-slate-500">
-            <span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-emerald-500"></span> {{ __('messages.available') }}</span>
-            <span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-blue-500"></span> {{ __('messages.occupied') }}</span>
-            <span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-slate-400"></span> {{ __('messages.maintenance') }}</span>
-        </div>
+    
 
         {{-- Floors (collapsible dropdowns, list view) --}}
         <div class="space-y-4">
@@ -115,50 +102,56 @@
                         @if(count($floor['apartments']) === 0)
                             <p class="px-5 py-6 text-sm text-slate-400 text-center">{{ __('messages.no_apts_this_floor') }}</p>
                         @else
-                            <ul class="divide-y divide-slate-100">
+                            <div class="grid grid-cols-4 gap-3 p-4">
                                 @foreach($floor['apartments'] as $apt)
                                     @php
-                                        $status = $apt['status'] ?? 'maintenance';
+                                        $status = $apt['status'] ?? 'available';
                                         $dots = [
                                             'available'   => 'bg-emerald-500',
                                             'occupied'    => 'bg-blue-500',
-                                            'maintenance' => 'bg-slate-400',
                                         ];
-                                        $dot = $dots[$status] ?? $dots['maintenance'];
+                                        $dot = $dots[$status] ?? 'bg-slate-400';
+                                        $borderColors = [
+                                            'available'   => 'border-emerald-200',
+                                            'occupied'    => 'border-blue-200',
+                                        ];
+                                        $border = $borderColors[$status] ?? 'border-slate-200';
                                         $isAvailable = $status === 'available';
                                     @endphp
-                                    <li class="flex items-center gap-3 px-5 py-3 hover:bg-slate-50/70 transition">
+                                    <div class="relative rounded-xl border {{ $border }} bg-white p-3 flex flex-col gap-3 hover:shadow-sm transition">
                                         {{-- Status dot --}}
-                                        <span class="w-2.5 h-2.5 rounded-full {{ $dot }} shrink-0" title="{{ $status }}"></span>
+                                        <span class="absolute top-2 right-2 w-2 h-1 rounded-full {{ $dot }}" title="{{ $status }}"></span>
 
-                                        {{-- Unit + tenant --}}
-                                        <div class="flex-1 min-w-0">
-                                            <div class="flex items-center gap-2">
-                                                <span class="text-sm font-semibold text-slate-700">{{ $apt['number'] }}</span>
-                                                <span class="text-[10px] uppercase tracking-wide text-slate-400">{{ $status }}</span>
+                                        {{-- Unit number --}}
+                                        <span class="text-sm font-bold text-slate-700 leading-tight pr-6">{{ $apt['number'] }}</span>
+
+                                        {{-- Stay duration (half-donut: monthly cycle progress, total stay in centre) --}}
+                                        @if(!empty($apt['stay_label']))
+                                            <div class="mt-1 flex flex-col items-center">
+                                                <x-stay-gauge
+                                                    :percent="$apt['cycle_percent']"
+                                                    :label="$apt['stay_label']"
+                                                    :size="64"
+                                                    :tip="__('messages.stay_duration').': '.$apt['stay_label'].' · '.__('messages.renews_on', ['date' => $apt['next_renewal_label']])" />
+                                                
                                             </div>
-                                            <p class="text-xs text-slate-400 truncate">{{ $apt['tenant'] ?: __('messages.no_tenant') }}</p>
-                                        </div>
-
-                                        {{-- Rent --}}
-                                        @if(!empty($apt['rent']))
-                                            <span class="text-xs font-medium text-slate-600 whitespace-nowrap w-20 text-right">${{ number_format($apt['rent']) }}</span>
                                         @endif
 
-                                        {{-- Action --}}
+                                        {{-- Assign button (centered) --}}
                                         @if($isAvailable)
-                                            <button type="button"
-                                                    data-apartment-id="{{ $apt['id'] }}"
-                                                    data-apartment-number="{{ $apt['number'] }}"
-                                                    title="{{ __('messages.assign_tenant_unit', ['number' => $apt['number']]) }}"
-                                                    class="assign-tenant-btn shrink-0 inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium text-emerald-700 bg-emerald-50 hover:bg-emerald-100 transition">
-                                                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
-                                                {{ __('messages.assign_tenant') }}
-                                            </button>
+                                            <div class="flex-1 flex items-center justify-center">
+                                                <button type="button"
+                                                        data-apartment-id="{{ $apt['id'] }}"
+                                                        data-apartment-number="{{ $apt['number'] }}"
+                                                        title="{{ __('messages.assign_tenant_unit', ['number' => $apt['number']]) }}"
+                                                        class="assign-tenant-btn inline-flex items-center justify-center w-11 h-11 rounded-full text-emerald-700 bg-emerald-50 hover:bg-emerald-100 transition">
+                                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+                                                </button>
+                                            </div>
                                         @endif
-                                    </li>
+                                    </div>
                                 @endforeach
-                            </ul>
+                            </div>
                         @endif
                     </div>
                 </div>

@@ -81,7 +81,7 @@
                         <button type="button" @click="editing = true"
                             class="flex-1 rounded-lg bg-indigo-600 px-3 py-2 text-sm font-semibold text-white hover:bg-indigo-500">{{ __('Edit') }}</button>
                         <form method="POST" action="{{ route('superadmin.plans.destroy', $plan) }}"
-                            onsubmit="return confirm('{{ __('Delete this plan?') }}')" class="flex-1">
+                            data-confirm="{{ __('Delete this plan?') }}" class="flex-1">
                             @csrf
                             @method('DELETE')
                             <button class="w-full rounded-lg border border-red-200 px-3 py-2 text-sm font-semibold text-red-600 hover:bg-red-50">{{ __('Delete') }}</button>

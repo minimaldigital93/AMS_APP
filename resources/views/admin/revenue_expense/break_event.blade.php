@@ -16,7 +16,7 @@
 
     {{-- Header --}}
     <div class="flex items-center justify-between">
-        <h1 class="text-xl font-bold text-slate-800 tracking-tight">{{ __('messages.covering_costs_q') }}</h1>
+        <h1 class="text-2xl font-semibold text-slate-800 tracking-tight">{{ __('messages.covering_costs_q') }}</h1>
         <a href="{{ route('admin.revenue_expense.index') }}"
            class="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm bg-slate-100 text-slate-600 rounded-lg hover:bg-slate-200 transition" title="{{ __('messages.back') }}">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">

@@ -101,13 +101,13 @@
         </div>
 
         <div class="flex gap-3">
+            <a href="{{ route('admin.fiscalperiod.show', $fiscalperiod->id) }}" class="flex-1 bg-gray-100 text-gray-700 py-2.5 rounded-lg font-semibold hover:bg-gray-200 text-sm text-center">
+                {{ __('messages.cancel') }}
+            </a>
             <button type="submit" :disabled="!balanced"
                 class="flex-1 bg-blue-600 text-white py-2.5 rounded-lg font-semibold hover:bg-blue-700 text-sm disabled:opacity-50 disabled:cursor-not-allowed">
                 Save Changes
             </button>
-            <a href="{{ route('admin.fiscalperiod.show', $fiscalperiod->id) }}" class="flex-1 bg-gray-100 text-gray-700 py-2.5 rounded-lg font-semibold hover:bg-gray-200 text-sm text-center">
-                {{ __('messages.cancel') }}
-            </a>
         </div>
     </form>
 </div>

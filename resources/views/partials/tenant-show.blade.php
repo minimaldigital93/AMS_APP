@@ -49,14 +49,6 @@
     </div>
     @endif
 
-    {{-- Flash messages --}}
-    @if(session('success'))
-        <div class="bg-emerald-50 border border-emerald-200 text-emerald-700 text-sm rounded-lg px-4 py-3">{{ session('success') }}</div>
-    @endif
-    @if(session('error') || session('warning'))
-        <div class="bg-amber-50 border border-amber-200 text-amber-700 text-sm rounded-lg px-4 py-3">{{ session('error') ?? session('warning') }}</div>
-    @endif
-
     {{-- 1 + 2: Photo & Personal Information --}}
     <div class="bg-white rounded-xl border border-slate-100 p-6">
         <div class="flex flex-col sm:flex-row items-start gap-6">

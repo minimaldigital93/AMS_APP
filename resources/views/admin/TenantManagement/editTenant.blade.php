@@ -175,8 +175,8 @@
 
                 <!-- Buttons -->
                 <div class="flex gap-3 pt-6">
-                    <button type="submit" class="flex-1 px-6 py-2 border border-transparent text-base font-medium rounded-md text-white bg-slate-800 hover:bg-slate-700 transition">{{ __('messages.update_tenant') }}</button>
                     <a href="{{ route('admin.tenants.show', $tenant->id) }}" class="flex-1 px-6 py-2 border border-slate-200 text-base font-medium rounded-md text-slate-700 hover:bg-slate-50 transition text-center">{{ __('messages.cancel') }}</a>
+                    <button type="submit" class="flex-1 px-6 py-2 border border-transparent text-base font-medium rounded-md text-white bg-slate-800 hover:bg-slate-700 transition">{{ __('messages.update_tenant') }}</button>
                 </div>
             </form>
         </div>

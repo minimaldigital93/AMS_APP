@@ -6,7 +6,7 @@
 <div class="space-y-6">
     <!-- Header -->
     <div class="flex items-center justify-between">
-        <h1 class="text-3xl font-bold text-gray-900">{{ __('messages.user_management_title') }}</h1>
+        <h1 class="text-2xl font-semibold text-slate-800 tracking-tight">{{ __('messages.user_management_title') }}</h1>
         <a href="{{ route('admin.users.create') }}" class="inline-flex items-center gap-2 bg-slate-800 hover:bg-slate-700 text-white text-sm font-medium py-2.5 px-5 rounded-lg transition" title="Add User">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" />
@@ -111,7 +111,7 @@
                                     <path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125" />
                                 </svg>
                             </a>
-                            <form action="{{ route('admin.users.destroy', $user) }}" method="POST" class="inline" onsubmit="return confirm('Delete this user?');">
+                            <form action="{{ route('admin.users.destroy', $user) }}" method="POST" class="inline" data-confirm="Delete this user?">
                                 @csrf
                                 @method('DELETE')
                                 <button type="submit" class="text-red-500 hover:text-red-600 p-2 rounded-lg bg-red-50/20 hover:bg-red-50/40 transition" title="{{ __('messages.delete') }}">
@@ -172,7 +172,7 @@
                         <a href="{{ route('admin.users.edit', $user) }}" class="inline-flex items-center justify-center h-9 w-9 rounded-lg text-sky-600 bg-sky-50 active:bg-sky-100 transition" title="{{ __('messages.edit_user') }}">
                             <svg class="w-[18px] h-[18px]" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125" /></svg>
                         </a>
-                        <form action="{{ route('admin.users.destroy', $user) }}" method="POST" class="inline" onsubmit="return confirm('Delete this user?');">
+                        <form action="{{ route('admin.users.destroy', $user) }}" method="POST" class="inline" data-confirm="Delete this user?">
                             @csrf
                             @method('DELETE')
                             <button type="submit" class="inline-flex items-center justify-center h-9 w-9 rounded-lg text-red-500 bg-red-50 active:bg-red-100 transition" title="{{ __('messages.delete') }}">

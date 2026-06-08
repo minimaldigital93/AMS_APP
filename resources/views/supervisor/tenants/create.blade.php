@@ -11,10 +11,6 @@
         <a href="{{ route('supervisor.tenants.index') }}" class="text-slate-400 hover:text-slate-600 text-sm font-medium py-2 px-4 rounded-lg border border-slate-200 hover:border-slate-300 transition">{{ __('messages.back_to_tenants') }}</a>
     </div>
 
-    @if(session('error'))
-    <div class="bg-red-50 border border-red-100 rounded-lg px-4 py-3 text-red-600 text-sm">{{ session('error') }}</div>
-    @endif
-
     @if($errors->any())
     <div class="bg-red-50 border border-red-100 rounded-lg px-4 py-3 text-red-600 text-sm">
         <ul class="list-disc list-inside space-y-0.5">
@@ -149,8 +145,8 @@
 
             <!-- Buttons -->
             <div class="flex gap-2 pt-2">
-                <button type="submit" class="flex-1 py-2.5 bg-slate-800 hover:bg-slate-700 text-white text-sm font-semibold rounded-lg transition">{{ __('messages.assign_tenant') }}</button>
                 <a href="{{ route('supervisor.tenants.index') }}" class="px-5 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-600 text-sm font-medium rounded-lg transition text-center">{{ __('messages.cancel') }}</a>
+                <button type="submit" class="flex-1 py-2.5 bg-slate-800 hover:bg-slate-700 text-white text-sm font-semibold rounded-lg transition">{{ __('messages.assign_tenant') }}</button>
             </div>
         </form>
     </div>

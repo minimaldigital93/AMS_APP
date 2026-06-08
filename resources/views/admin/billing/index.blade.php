@@ -4,7 +4,7 @@
 
 @section('content')
 <div class="mx-auto max-w-4xl">
-    <h1 class="text-2xl font-bold text-gray-900">{{ __('Billing & Subscription') }}</h1>
+    <h1 class="text-2xl font-semibold text-slate-800 tracking-tight">{{ __('Billing & Subscription') }}</h1>
 
     @php($plan = $usage['plan'])
     @php($sub = $subscription)

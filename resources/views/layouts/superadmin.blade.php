@@ -47,16 +47,7 @@
 
         <!-- Main -->
         <main class="flex-1 overflow-auto p-4 sm:p-6 lg:p-8">
-            @php($flashStyles = [
-                'success' => 'border-green-300 bg-green-50 text-green-800',
-                'error' => 'border-red-300 bg-red-50 text-red-800',
-                'warning' => 'border-yellow-300 bg-yellow-50 text-yellow-800',
-            ])
-            @foreach ($flashStyles as $flash => $classes)
-                @if (session($flash))
-                    <div class="mb-4 rounded-lg border px-4 py-3 text-sm {{ $classes }}">{{ session($flash) }}</div>
-                @endif
-            @endforeach
+            @include('partials.flash')
             @yield('content')
             {{-- Spacer so content clears the mobile bottom navigation --}}
             <div class="h-20 md:hidden" aria-hidden="true"></div>
@@ -67,5 +58,6 @@
     @include('layouts.superadmin-bottom-nav')
 
     @include('partials.responsive-tables')
+    @include('partials.confirm-modal')
 </body>
 </html>

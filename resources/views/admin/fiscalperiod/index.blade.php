@@ -3,7 +3,7 @@
 @section('content')
 <div class="container mx-auto py-8 max-w-4xl">
     <div class="flex items-center justify-between mb-6">
-        <h1 class="text-2xl font-bold">{{ __('messages.fiscal_periods') }}</h1>
+        <h1 class="text-2xl font-semibold text-slate-800 tracking-tight">{{ __('messages.fiscal_periods') }}</h1>
         <a href="{{ route('admin.fiscalperiod.create') }}" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 text-sm font-semibold">
             + New Period
         </a>

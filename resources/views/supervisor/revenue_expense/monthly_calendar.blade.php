@@ -6,7 +6,7 @@
     {{-- Header --}}
     <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
-            <h1 class="text-2xl font-bold text-gray-900">{{ __('messages.monthly_calendar') }}</h1>
+            <h1 class="text-2xl font-semibold text-slate-800 tracking-tight">{{ __('messages.monthly_calendar') }}</h1>
         </div>
         <div class="flex items-center gap-2">
             <a href="{{ route('supervisor.revenue_expense.monthly_calendar', ['month' => $prevMonth->month, 'year' => $prevMonth->year]) }}"

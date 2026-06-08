@@ -7,7 +7,7 @@
     <div class="flex items-start justify-between mb-6 gap-4">
         <div>
             <div class="flex items-center gap-3">
-                <h1 class="text-2xl font-bold">{{ $fiscalperiod->name }}</h1>
+                <h1 class="text-2xl font-semibold text-slate-800 tracking-tight">{{ $fiscalperiod->name }}</h1>
                 <span class="px-2.5 py-1 rounded-full text-xs font-semibold {{ $fiscalperiod->status === 'open' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600' }}">
                     {{ ucfirst($fiscalperiod->status) }}
                 </span>
@@ -117,7 +117,7 @@
                 <p class="text-xs text-gray-400">{{ __('messages.close_each_month_help') }}</p>
             </div>
             @if($fiscalperiod->status === 'open')
-                <form method="POST" action="{{ route('admin.fiscalperiod.recalculate-balances', $fiscalperiod->id) }}" onsubmit="return confirm('Recalculate all monthly balances using carry-forward logic?')">
+                <form method="POST" action="{{ route('admin.fiscalperiod.recalculate-balances', $fiscalperiod->id) }}" data-confirm="Recalculate all monthly balances using carry-forward logic?">
                     @csrf
                     <button type="submit" class="text-xs bg-amber-100 text-amber-700 px-3 py-1.5 rounded hover:bg-amber-200 font-semibold">↻ Recalculate</button>
                 </form>
@@ -185,7 +185,7 @@
                                         @if($month->canReopen())
                                             {{-- Reopen Month --}}
                                             <form method="POST" action="{{ route('admin.fiscalperiod.monthly-period.reopen', [$fiscalperiod->id, $month->id]) }}"
-                                                  onsubmit="return confirm('Reopen {{ $month->name }}? This clears the recorded owner withdrawal.')">
+                                                  data-confirm="Reopen {{ $month->name }}? This clears the recorded owner withdrawal.">
                                                 @csrf
                                                 <button type="submit" class="p-1.5 rounded text-green-600 hover:bg-green-50 transition" title="{{ __('messages.reopen_month') }}">
                                                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 11V7a4 4 0 118 0m-4 8v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2z"/></svg>
@@ -214,7 +214,7 @@
     @if($fiscalperiod->status === 'open')
         <div class="bg-white rounded-lg shadow p-5 mb-6">
             <h3 class="font-semibold mb-3">{{ __('messages.close_this_period') }}</h3>
-            <form method="POST" action="{{ route('admin.fiscalperiod.closeperiod', $fiscalperiod->id) }}" onsubmit="return confirm('Close this fiscal period? This cannot be undone.')">
+            <form method="POST" action="{{ route('admin.fiscalperiod.closeperiod', $fiscalperiod->id) }}" data-confirm="Close this fiscal period? This cannot be undone.">
                 @csrf
                 <div class="flex items-end gap-3">
                     <div class="flex-1">
@@ -238,7 +238,7 @@
     {{-- Delete (only if not closed) --}}
     @if($fiscalperiod->status !== 'closed')
         <div class="text-center">
-            <form method="POST" action="{{ route('admin.fiscalperiod.destroy', $fiscalperiod->id) }}" onsubmit="return confirm('Delete this fiscal period? This cannot be undone.')">
+            <form method="POST" action="{{ route('admin.fiscalperiod.destroy', $fiscalperiod->id) }}" data-confirm="Delete this fiscal period? This cannot be undone.">
                 @csrf
                 @method('DELETE')
                 <button type="submit" class="text-sm text-red-500 hover:text-red-700 hover:underline">{{ __('messages.delete_this_period') }}</button>

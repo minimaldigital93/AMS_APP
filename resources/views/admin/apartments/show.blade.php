@@ -16,15 +16,13 @@
                 'inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg',
                 'text-emerald-600 bg-emerald-50' => $apartment->status === 'available',
                 'text-sky-600 bg-sky-50' => $apartment->status === 'occupied',
-                'text-amber-600 bg-amber-50' => $apartment->status === 'maintenance',
-                'text-slate-500 bg-slate-50' => !in_array($apartment->status, ['available', 'occupied', 'maintenance']),
+                'text-slate-500 bg-slate-50' => !in_array($apartment->status, ['available', 'occupied']),
             ])>
             <span @class([
                 'w-1.5 h-1.5 rounded-full',
                 'bg-emerald-400' => $apartment->status === 'available',
                 'bg-sky-400' => $apartment->status === 'occupied',
-                'bg-amber-400' => $apartment->status === 'maintenance',
-                'bg-slate-300' => !in_array($apartment->status, ['available', 'occupied', 'maintenance']),
+                'bg-slate-300' => !in_array($apartment->status, ['available', 'occupied']),
             ])></span>
             {{ ucfirst($apartment->status) }}
             </span>

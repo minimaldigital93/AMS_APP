@@ -12,25 +12,6 @@
 
     </div>
 
-    <!-- Flash Messages -->
-    @if ($message = Session::get('success'))
-    <div class="bg-emerald-50 border border-emerald-100 rounded-lg px-4 py-3 text-emerald-700 text-sm flex items-center gap-2.5">
-        <svg class="w-4 h-4 shrink-0" fill="currentColor" viewBox="0 0 20 20">
-            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
-        </svg>
-        {{ $message }}
-    </div>
-    @endif
-
-    @if ($message = Session::get('error'))
-    <div class="bg-red-50 border border-red-100 rounded-lg px-4 py-3 text-red-600 text-sm flex items-center gap-2.5">
-        <svg class="w-4 h-4 shrink-0" fill="currentColor" viewBox="0 0 20 20">
-            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd" />
-        </svg>
-        {{ $message }}
-    </div>
-    @endif
-
     <!-- Apartments Grouped by Floor -->
     <div class="space-y-5">
     @forelse($apartmentsByFloor as $floorId => $apartmentsInFloor)
@@ -49,10 +30,27 @@
                         </div>
                         <h2 class="text-base font-semibold text-slate-800">{{ $floor->floor_name }}</h2>
                     </div>
-                    <div class="flex items-center gap-3">
-                        <span class="text-xs text-slate-400 font-medium">{{ $apartmentsInFloor->where('status', 'occupied')->count() }}/{{ $apartmentsInFloor->count() }} apartments</span>
-                        <svg class="w-4 h-4 text-slate-400 group-open:rotate-90 transition-transform" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7" />
+                    @php
+                        $total = $apartmentsInFloor->count();
+                        $available = $apartmentsInFloor->where('status', 'available')->count();
+                        $occupied = $apartmentsInFloor->where('status', 'occupied')->count();
+                    @endphp
+                    <div class="flex items-center gap-4">
+                        <div class="flex items-center gap-1.5" title="{{ __('messages.total') }}">
+                            <span class="w-2 h-2 rounded-full bg-slate-300"></span>
+                            <span class="text-xs font-semibold text-slate-700">{{ $total }}</span>
+                        </div>
+                        <div class="flex items-center gap-1.5" title="{{ __('messages.available') }}">
+                            <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
+                            <span class="text-xs font-semibold text-emerald-600">{{ $available }}</span>
+                        </div>
+                        <div class="flex items-center gap-1.5" title="{{ __('messages.occupied') }}">
+                            <span class="w-2 h-2 rounded-full bg-sky-400"></span>
+                            <span class="text-xs font-semibold text-sky-600">{{ $occupied }}</span>
+                        </div>
+                    </div>
+                    <svg class="w-4 h-4 text-slate-400 group-open:rotate-90 transition-transform" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7" />
                     </svg>
                 </summary>
 
@@ -82,9 +80,9 @@
                             <td class="px-4 py-3">
                                 <div class="flex items-center gap-2">
                                     <span class="w-1.5 h-1.5 rounded-full {{
-                                        $tenantStatus === 'active' ? 'bg-sky-400' :
-                                        ($tenantStatus === 'pending' ? 'bg-amber-400' : 'bg-emerald-400')
-                                    }}"></span>
+                                        $apartment->status === 'available' ? 'bg-emerald-400' :
+                                        ($apartment->status === 'occupied' ? 'bg-sky-400' : 'bg-amber-400')
+                                    }}" title="{{ __('messages.' . $apartment->status) }}"></span>
                                     <span class="text-sm font-medium text-slate-700">{{ $apartment->apartment_number }}</span>
                                 </div>
                             </td>
@@ -120,13 +118,11 @@
                                     $statusTextClass = match($apartment->status) {
                                         'available' => 'text-emerald-600',
                                         'occupied' => 'text-sky-600',
-                                        'maintenance' => 'text-amber-600',
                                         default => 'text-slate-500',
                                     };
                                     $statusBgClass = match($apartment->status) {
                                         'available' => 'bg-emerald-400',
                                         'occupied' => 'bg-sky-400',
-                                        'maintenance' => 'bg-amber-400',
                                         default => 'bg-slate-300',
                                     };
                                 @endphp
@@ -283,13 +279,11 @@
                             $mStatusText = match($apartment->status) {
                                 'available' => 'text-emerald-600',
                                 'occupied' => 'text-sky-600',
-                                'maintenance' => 'text-amber-600',
                                 default => 'text-slate-500',
                             };
                             $mStatusBg = match($apartment->status) {
                                 'available' => 'bg-emerald-400',
                                 'occupied' => 'bg-sky-400',
-                                'maintenance' => 'bg-amber-400',
                                 default => 'bg-slate-300',
                             };
                         @endphp
@@ -584,9 +578,12 @@ document.addEventListener('DOMContentLoaded', function() {
 
     window.processLeaveClick = function(event, tenantId, tenantName) {
         event.preventDefault();
-        if (confirm(`Are you sure you want to process leave for tenant "${tenantName}"?\n\nThis will:\n- Archive the tenant\n- Calculate final settlement\n- Mark apartment as available`)) {
-            window.location.href = `/supervisor/tenants/${tenantId}/leave`;
-        }
+        window.confirmAction({
+            title: `Process leave for ${tenantName}?`,
+            message: 'This will archive the tenant, calculate the final settlement, and mark the apartment as available.'
+        }).then(function (ok) {
+            if (ok) window.location.href = `/supervisor/tenants/${tenantId}/leave`;
+        });
     };
 
     (function() {

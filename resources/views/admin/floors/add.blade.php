@@ -69,7 +69,6 @@
                             <select id="unitStatus" class="w-full px-4 py-2.5 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-purple-500 focus:ring-4 focus:ring-purple-50 transition text-sm font-medium bg-white">
                                 <option value="available">🟢 Available</option>
                                 <option value="occupied">🔴 Occupied</option>
-                                <option value="maintenance">🟡 Maintenance</option>
                             </select>
                         </div>
                         <div class="flex items-end">
@@ -102,11 +101,11 @@
 
             <!-- Action Buttons -->
             <div class="flex gap-3 pt-4 border-t border-gray-200">
-                <button type="submit" onclick="return prepareFormSubmit()" class="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-4 rounded-lg transition">
-                    Create Floor
-                </button>
                 <button type="button" onclick="closeAddFloorModal()" class="flex-1 bg-gray-300 hover:bg-gray-400 text-gray-800 font-semibold py-3 px-4 rounded-lg transition">
                     {{ __('messages.cancel') }}
+                </button>
+                <button type="submit" onclick="return prepareFormSubmit()" class="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-4 rounded-lg transition">
+                    Create Floor
                 </button>
             </div>
         </form>

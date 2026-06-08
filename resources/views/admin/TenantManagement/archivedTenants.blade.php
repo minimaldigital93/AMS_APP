@@ -6,7 +6,7 @@
         <!-- Header Section -->
         <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-8">
             <div>
-                <h1 class="text-3xl font-bold text-gray-900">{{ __('messages.archived_tenants_management') }}</h1>
+                <h1 class="text-2xl font-semibold text-slate-800 tracking-tight">{{ __('messages.archived_tenants_management') }}</h1>
             </div>
         </div>
 

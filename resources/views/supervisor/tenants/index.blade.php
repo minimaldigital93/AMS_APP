@@ -7,18 +7,10 @@
         {{-- Header --}}
         <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-8">
             <div>
-                <h1 class="text-3xl font-bold text-gray-900">{{ __('messages.active_tenants') }}</h1>
+                <h1 class="text-2xl font-semibold text-slate-800 tracking-tight">{{ __('messages.active_tenants') }}</h1>
             </div>
          
         </div>
-
-        {{-- Flash Messages --}}
-        @if(session('success'))
-        <div class="bg-green-50 border border-green-200 text-green-800 px-4 py-3 rounded-lg mb-6 flex items-center gap-2">
-            <svg class="w-5 h-5 text-green-500 shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/></svg>
-            <span class="text-sm font-medium">{{ session('success') }}</span>
-        </div>
-        @endif
 
         {{-- Statistics --}}
         <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">

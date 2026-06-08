@@ -6,7 +6,7 @@
 <div class="mx-auto max-w-md text-center"
      x-data="khqrBillingCheckout('{{ $statusUrl }}', '{{ $redirectUrl }}')" x-init="start()">
 
-    <h1 class="text-xl font-bold text-gray-900">{{ __('Scan to pay') }}</h1>
+    <h1 class="text-2xl font-semibold text-slate-800 tracking-tight">{{ __('Scan to pay') }}</h1>
 
     <div class="mx-auto mt-5 w-[260px] rounded-2xl border border-gray-200 bg-white p-3 shadow-sm">
         @if ($payment->qr_url)

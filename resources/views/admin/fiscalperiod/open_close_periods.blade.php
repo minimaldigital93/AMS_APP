@@ -2,7 +2,7 @@
 
 @section('content')
 <div class="container mx-auto py-8 max-w-lg">
-    <h1 class="text-2xl font-bold mb-6">{{ __('messages.new_fiscal_period') }}</h1>
+    <h1 class="text-2xl font-semibold text-slate-800 tracking-tight mb-6">{{ __('messages.new_fiscal_period') }}</h1>
 
     @if($errors->any())
         <div class="bg-red-50 border border-red-200 rounded-lg p-3 mb-4">
@@ -38,13 +38,13 @@
         </div>
 
         <div class="flex gap-3">
+            <a href="{{ route('admin.fiscalperiod.index') }}" class="flex-1 bg-gray-100 text-gray-700 py-2.5 rounded-lg font-semibold hover:bg-gray-200 text-sm text-center">
+                {{ __('messages.cancel') }}
+            </a>
             <button type="submit"
                 class="flex-1 bg-blue-600 text-white py-2.5 rounded-lg font-semibold hover:bg-blue-700 text-sm">
                 Create Period
             </button>
-            <a href="{{ route('admin.fiscalperiod.index') }}" class="flex-1 bg-gray-100 text-gray-700 py-2.5 rounded-lg font-semibold hover:bg-gray-200 text-sm text-center">
-                {{ __('messages.cancel') }}
-            </a>
         </div>
     </form>
 </div>

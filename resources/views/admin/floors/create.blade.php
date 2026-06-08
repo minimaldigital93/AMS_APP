@@ -9,8 +9,10 @@
         <div>
             <h1 class="text-2xl font-semibold text-slate-800 tracking-tight">{{ __('messages.add_new_floor') }}</h1>
         </div>
-        <a href="{{ route('admin.floors.index') }}" class="text-slate-400 hover:text-slate-600 text-sm font-medium py-2 px-4 rounded-lg border border-slate-200 hover:border-slate-300 transition">
-            Back to Floors
+        <a href="{{ route('admin.floors.index') }}" title="{{ __('messages.back_to_floors') }}" class="inline-flex items-center justify-center text-slate-400 hover:text-slate-600 p-2 rounded-lg border border-slate-200 hover:border-slate-300 transition">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/>
+            </svg>
         </a>
     </div>
 
@@ -32,24 +34,15 @@
             <!-- Floor Information -->
             <div class="p-6 space-y-5">
                 <h3 class="text-sm font-medium text-slate-500 uppercase tracking-wide">{{ __('messages.floor_information') }}</h3>
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                        <label class="block text-xs font-medium text-slate-500 mb-1.5 uppercase tracking-wide">{{ __('messages.floor_name') }} <span class="text-red-400">*</span></label>
-                        <input type="text" name="floor_name" id="floor_name" required
-                               value="{{ old('floor_name') }}"
-                               placeholder="{{ __('messages.eg_floor_1') }}"
-                               class="w-full px-3.5 py-2 text-sm border border-slate-200 rounded-lg bg-slate-50/50 placeholder-slate-300 focus:outline-none focus:ring-2 focus:ring-slate-300 focus:border-slate-300 transition @error('floor_name') border-red-300 ring-1 ring-red-200 @enderror">
-                        @error('floor_name')
-                            <p class="text-red-500 text-xs mt-1">{{ $message }}</p>
-                        @enderror
-                    </div>
-                    <div>
-                        <label class="block text-xs font-medium text-slate-500 mb-1.5 uppercase tracking-wide">{{ __('messages.description') }}</label>
-                        <input type="text" name="description"
-                               value="{{ old('description') }}"
-                               placeholder="{{ __('messages.optional_description') }}"
-                               class="w-full px-3.5 py-2 text-sm border border-slate-200 rounded-lg bg-slate-50/50 placeholder-slate-300 focus:outline-none focus:ring-2 focus:ring-slate-300 focus:border-slate-300 transition">
-                    </div>
+                <div>
+                    <label class="block text-xs font-medium text-slate-500 mb-1.5 uppercase tracking-wide">{{ __('messages.floor_name') }} <span class="text-red-400">*</span></label>
+                    <input type="text" name="floor_name" id="floor_name" required
+                           value="{{ old('floor_name') }}"
+                           placeholder="{{ __('messages.eg_floor_1') }}"
+                           class="w-full px-3.5 py-2 text-sm border border-slate-200 rounded-lg bg-slate-50/50 placeholder-slate-300 focus:outline-none focus:ring-2 focus:ring-slate-300 focus:border-slate-300 transition @error('floor_name') border-red-300 ring-1 ring-red-200 @enderror">
+                    @error('floor_name')
+                        <p class="text-red-500 text-xs mt-1">{{ $message }}</p>
+                    @enderror
                 </div>
             </div>
 
@@ -64,26 +57,29 @@
                 </div>
 
                 <!-- Add Unit Inputs -->
-                <div class="grid grid-cols-2 gap-3">
-                    <div>
-                        <label class="block text-xs font-medium text-slate-500 mb-1.5 uppercase tracking-wide">{{ __('messages.unit_number') }}</label>
-                        <input type="text" id="input_unit_number"
-                               placeholder="{{ __('messages.eg_unit') }}"
-                               class="w-full px-3.5 py-2 text-sm border border-slate-200 rounded-lg bg-slate-50/50 placeholder-slate-300 focus:outline-none focus:ring-2 focus:ring-slate-300 focus:border-slate-300 transition">
-                        <p id="unitError" class="text-red-500 text-xs mt-1 hidden"></p>
+                <div>
+                    <div class="flex items-end gap-3">
+                        <div class="flex-1">
+                            <label class="block text-xs font-medium text-slate-500 mb-1.5 uppercase tracking-wide">{{ __('messages.unit_number') }}</label>
+                            <input type="text" id="input_unit_number"
+                                   placeholder="{{ __('messages.eg_unit') }}"
+                                   class="w-full px-3.5 py-2 text-sm border border-slate-200 rounded-lg bg-slate-50/50 placeholder-slate-300 focus:outline-none focus:ring-2 focus:ring-slate-300 focus:border-slate-300 transition">
+                        </div>
+                        <div class="flex-1">
+                            <label class="block text-xs font-medium text-slate-500 mb-1.5 uppercase tracking-wide">{{ __('messages.monthly_rent') }}</label>
+                            <input type="number" id="input_monthly_rent" step="0.01" min="0"
+                                   placeholder="0.00"
+                                   class="w-full px-3.5 py-2 text-sm border border-slate-200 rounded-lg bg-slate-50/50 placeholder-slate-300 focus:outline-none focus:ring-2 focus:ring-slate-300 focus:border-slate-300 transition">
+                        </div>
+                        <button type="button" id="addUnitBtn"
+                                class="inline-flex items-center justify-center shrink-0 bg-slate-100 hover:bg-slate-200 text-slate-600 py-2 px-4 rounded-lg transition" title="{{ __('messages.add_unit') }}">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/>
+                            </svg>
+                        </button>
                     </div>
-                    <div>
-                        <label class="block text-xs font-medium text-slate-500 mb-1.5 uppercase tracking-wide">{{ __('messages.monthly_rent') }}</label>
-                        <input type="number" id="input_monthly_rent" step="0.01" min="0"
-                               placeholder="0.00"
-                               class="w-full px-3.5 py-2 text-sm border border-slate-200 rounded-lg bg-slate-50/50 placeholder-slate-300 focus:outline-none focus:ring-2 focus:ring-slate-300 focus:border-slate-300 transition">
-                    </div>
+                    <p id="unitError" class="text-red-500 text-xs mt-1 hidden"></p>
                 </div>
-                <button type="button" id="addUnitBtn"
-                        class="inline-flex items-center gap-1.5 bg-slate-100 hover:bg-slate-200 text-slate-600 text-sm font-medium py-2 px-4 rounded-lg transition" title="{{ __('messages.add_unit') }}">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/>
-                    </svg></button>
 
                 <!-- Added Units Table -->
                 <div id="unitsTable" class="hidden rounded-xl border border-slate-100 overflow-hidden">
@@ -109,12 +105,12 @@
 
             <!-- Footer Actions -->
             <div class="px-6 py-4 border-t border-slate-100 flex gap-3">
-                <button type="submit" class="flex-1 bg-slate-800 hover:bg-slate-700 text-white text-sm font-medium py-2.5 px-5 rounded-lg transition">
-                    Create Floor
-                </button>
                 <a href="{{ route('admin.floors.index') }}" class="flex-1 text-center text-slate-500 hover:text-slate-700 bg-slate-50 hover:bg-slate-100 text-sm font-medium py-2.5 px-5 rounded-lg transition">
                     {{ __('messages.cancel') }}
                 </a>
+                <button type="submit" class="flex-1 bg-slate-800 hover:bg-slate-700 text-white text-sm font-medium py-2.5 px-5 rounded-lg transition">
+                    Create Floor
+                </button>
             </div>
         </form>
     </div>

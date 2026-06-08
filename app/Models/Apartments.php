@@ -17,8 +17,6 @@ class Apartments extends Model
 
     public const STATUS_OCCUPIED = 'occupied';
 
-    public const STATUS_MAINTENANCE = 'maintenance';
-
     protected $fillable = [
         'floor_id',
         'supervisor_id',
@@ -43,7 +41,6 @@ class Apartments extends Model
         return [
             self::STATUS_AVAILABLE,
             self::STATUS_OCCUPIED,
-            self::STATUS_MAINTENANCE,
         ];
     }
 

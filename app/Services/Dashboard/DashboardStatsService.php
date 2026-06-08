@@ -66,7 +66,7 @@ class DashboardStatsService
 
         $apartmentCounts = $this->countByStatus(
             $this->scopedApartmentQuery(),
-            ['available', 'occupied', 'maintenance']
+            ['available', 'occupied']
         );
         $apartmentCounts['total'] = $this->apartmentIds !== null
             ? count($this->apartmentIds)

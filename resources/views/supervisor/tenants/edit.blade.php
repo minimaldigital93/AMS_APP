@@ -180,8 +180,8 @@
 
             {{-- Buttons --}}
             <div class="flex gap-3">
-                <button type="submit" class="flex-1 px-6 py-2.5 bg-slate-800 text-white font-medium rounded-lg hover:bg-slate-700 transition text-center">{{ __('messages.update_tenant') }}</button>
                 <a href="{{ route('supervisor.tenants.show', $tenant->id) }}" class="flex-1 px-6 py-2.5 border border-gray-300 text-gray-700 font-medium rounded-lg hover:bg-gray-50 transition text-center">{{ __('messages.cancel') }}</a>
+                <button type="submit" class="flex-1 px-6 py-2.5 bg-slate-800 text-white font-medium rounded-lg hover:bg-slate-700 transition text-center">{{ __('messages.update_tenant') }}</button>
             </div>
         </form>
     </div>

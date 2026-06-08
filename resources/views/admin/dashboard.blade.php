@@ -199,9 +199,6 @@
             <p class="text-[11px] text-slate-400 mt-2 space-y-0.5">
                 <span class="flex justify-between"><span>{{ __('messages.occupancy_rate') }}</span><span class="font-medium {{ $occRate >= 80 ? 'text-emerald-500' : ($occRate >= 50 ? 'text-amber-500' : 'text-red-500') }}">{{ $occRate }}%</span></span>
                 <span class="flex justify-between"><span>{{ __('messages.available') }}</span><span class="font-medium text-slate-500">{{ $stats['apartments']['available'] }}</span></span>
-                @if(($stats['apartments']['maintenance'] ?? 0) > 0)
-                    <span class="flex justify-between"><span>{{ __('messages.maintenance') }}</span><span class="font-medium text-slate-500">{{ $stats['apartments']['maintenance'] }}</span></span>
-                @endif
             </p>
             </div>
         </div>

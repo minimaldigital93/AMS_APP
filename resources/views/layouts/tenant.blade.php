@@ -150,5 +150,6 @@
     </script>
     @stack('scripts')
     @include('partials.responsive-tables')
+    @include('partials.confirm-modal')
 </body>
 </html>

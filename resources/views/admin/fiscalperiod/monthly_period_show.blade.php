@@ -7,7 +7,7 @@
     <div class="flex items-center justify-between mb-6">
         <div>
             <div class="flex items-center gap-3">
-                <h1 class="text-2xl font-bold">{{ $monthlyPeriod->name }}</h1>
+                <h1 class="text-2xl font-semibold text-slate-800 tracking-tight">{{ $monthlyPeriod->name }}</h1>
                 <span class="px-2.5 py-1 rounded-full text-xs font-semibold {{ $monthlyPeriod->status === 'open' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600' }}">
                     {{ ucfirst($monthlyPeriod->status) }}
                 </span>
@@ -141,7 +141,7 @@
                     class="bg-amber-600 text-white px-4 py-2 rounded-lg hover:bg-amber-700 text-sm font-semibold">{{ __('messages.close_month') }}</button>
         @endif
         @if($monthlyPeriod->canReopen())
-            <form method="POST" action="{{ route('admin.fiscalperiod.monthly-period.reopen', [$fiscalperiod->id, $monthlyPeriod->id]) }}" onsubmit="return confirm('Reopen {{ $monthlyPeriod->name }}?')">
+            <form method="POST" action="{{ route('admin.fiscalperiod.monthly-period.reopen', [$fiscalperiod->id, $monthlyPeriod->id]) }}" data-confirm="Reopen {{ $monthlyPeriod->name }}?">
                 @csrf
                 <button class="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 text-sm font-semibold">{{ __('messages.reopen') }}</button>
             </form>

@@ -140,7 +140,7 @@
             <div class="flex items-center gap-2">
                 @if ($pnl['period_closed'])
                     <form method="POST" action="{{ route('superadmin.finance.period.reopen', $period) }}"
-                          onsubmit="return confirm('{{ __('Reopen this period? Its months will be editable again.') }}')">
+                          data-confirm="{{ __('Reopen this period? Its months will be editable again.') }}">
                         @csrf
                         <button type="submit" title="{{ __('Reopen period') }}" class="inline-flex items-center justify-center rounded-lg border border-gray-300 bg-white p-2 text-gray-700 shadow-sm hover:bg-gray-50">
                             <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 11V7a4 4 0 118 0m-4 8v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2z"/></svg>
@@ -160,7 +160,7 @@
                     </button>
                     {{-- Close period --}}
                     <form method="POST" action="{{ route('superadmin.finance.period.close', $period) }}"
-                          onsubmit="return confirm('{{ __('Close this period? Its months lock and the carried balance moves into the next period. You can reopen later.') }}')">
+                          data-confirm="{{ __('Close this period? Its months lock and the carried balance moves into the next period. You can reopen later.') }}">
                         @csrf
                         <button type="submit" @disabled(! $pnl['period_closeable']) title="{{ __('Close period') }}"
                                 class="inline-flex items-center justify-center rounded-lg p-2 text-white shadow-sm
@@ -171,7 +171,7 @@
                 @endif
                 {{-- Delete --}}
                 <form method="POST" action="{{ route('superadmin.finance.period.destroy', $period) }}"
-                      onsubmit="return confirm('{{ __('Delete the fiscal period :name? Monthly figures stay; only the period wrapper is removed.', ['name' => $period->name]) }}')">
+                      data-confirm="{{ __('Delete the fiscal period :name? Monthly figures stay; only the period wrapper is removed.', ['name' => $period->name]) }}">
                     @csrf @method('DELETE')
                     <button type="submit" title="{{ __('Delete period') }}"
                             class="inline-flex items-center justify-center rounded-lg border border-gray-300 bg-white p-2 text-gray-400 shadow-sm hover:bg-gray-50 hover:text-red-600">
@@ -255,7 +255,7 @@
                                     @elseif ($m['closeable'])
                                         {{-- Auto close: empty month, nothing to withdraw — one-click carry forward. --}}
                                         <form method="POST" action="{{ route('superadmin.finance.months.close', $period) }}"
-                                              onsubmit="return confirm('{{ __('Auto-close :month? It has no activity, so the balance simply carries forward.', ['month' => $m['label']]) }}')">
+                                              data-confirm="{{ __('Auto-close :month? It has no activity, so the balance simply carries forward.', ['month' => $m['label']]) }}">
                                             @csrf
                                             <input type="hidden" name="year" value="{{ $m['year'] }}">
                                             <input type="hidden" name="month" value="{{ $m['month'] }}">
@@ -266,7 +266,7 @@
                                         </form>
                                     @elseif ($m['reopenable'])
                                         <form method="POST" action="{{ route('superadmin.finance.months.reopen', $period) }}"
-                                              onsubmit="return confirm('{{ __('Reopen this month? The carried balance and any withdrawal will be undone.') }}')">
+                                              data-confirm="{{ __('Reopen this month? The carried balance and any withdrawal will be undone.') }}">
                                             @csrf
                                             <input type="hidden" name="year" value="{{ $m['year'] }}">
                                             <input type="hidden" name="month" value="{{ $m['month'] }}">
@@ -321,7 +321,7 @@
                     <div class="flex items-center gap-3">
                         <span class="font-semibold text-red-600">${{ number_format((float) $expense->amount, 2) }}</span>
                         <form method="POST" action="{{ route('superadmin.finance.expenses.destroy', $expense) }}"
-                              onsubmit="return confirm('{{ __('Delete this expense?') }}')">
+                              data-confirm="{{ __('Delete this expense?') }}">
                             @csrf @method('DELETE')
                             <input type="hidden" name="period" value="{{ $period->id }}">
                             <button class="text-gray-400 hover:text-red-600" title="{{ __('Delete') }}">
@@ -360,7 +360,7 @@
                         <span class="font-semibold text-purple-600">− ${{ number_format((float) $withdrawal->amount, 2) }}</span>
                         @unless ($pnl['period_closed'])
                             <form method="POST" action="{{ route('superadmin.finance.withdrawals.destroy', $withdrawal) }}"
-                                  onsubmit="return confirm('{{ __('Remove this withdrawal? The cash returns to the carried balance.') }}')">
+                                  data-confirm="{{ __('Remove this withdrawal? The cash returns to the carried balance.') }}">
                                 @csrf @method('DELETE')
                                 <button class="text-gray-400 hover:text-red-600" title="{{ __('Remove') }}">
                                     <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>

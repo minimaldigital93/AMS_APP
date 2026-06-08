@@ -5,7 +5,7 @@
     <!-- Header -->
     <div class="mb-8 flex items-center justify-between">
         <div>
-            <h1 class="text-3xl font-bold text-gray-900">{{ __('messages.apartment_cost_management') }}</h1>
+            <h1 class="text-2xl font-semibold text-slate-800 tracking-tight">{{ __('messages.apartment_cost_management') }}</h1>
         </div>
         <a href="{{ route('supervisor.revenue_expense.index') }}" class="inline-flex items-center px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition" title="{{ __('messages.back') }}">
             <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/></svg></a>
@@ -103,7 +103,7 @@
                                                 @endif
                                             </button>
                                         </form>
-                                        <form action="{{ route('supervisor.revenue_expense.delete_fixed_expense', $expense) }}" method="POST" class="inline" onsubmit="return confirm('{{ __('messages.remove_apt_cost_confirm') }}')">
+                                        <form action="{{ route('supervisor.revenue_expense.delete_fixed_expense', $expense) }}" method="POST" class="inline" data-confirm="{{ __('messages.remove_apt_cost_confirm') }}">
                                             @csrf
                                             @method('DELETE')
                                             <button type="submit" class="p-1 rounded hover:bg-red-50 transition" title="{{ __('messages.delete') }}">

@@ -410,7 +410,18 @@
       "Bash(./vendor/bin/pest --filter=\"leave\")",
       "Bash(grep -vE \"^\\\\s*$\")",
       "Bash(./vendor/bin/pest tests/Feature/SupervisorAccessTest.php)",
-      "Bash(./vendor/bin/pest tests/Feature/SupervisorPanelAccessTest.php)"
+      "Bash(./vendor/bin/pest tests/Feature/SupervisorPanelAccessTest.php)",
+      "Bash(grep -n 'apartments as $apt\\\\|apt\\\\['\\\\''number'\\\\''\\\\]\\\\|apt\\\\['\\\\''tenant'\\\\''\\\\]\\\\|grid grid-cols-4\\\\|relative rounded-xl border' resources/views/supervisor/apartments/plan3d.blade.php)",
+      "Bash(php -l app/Models/Rentals.php)",
+      "Bash(./vendor/bin/pint app/Models/Rentals.php app/Services/Tenants/TenantRentProgressCalculator.php app/Http/Controllers/Admin/FloorController.php app/Http/Controllers/Supervisor/ApartmentController.php)",
+      "Bash(./vendor/bin/pest --filter=\"Tenant\")",
+      "Bash(./vendor/bin/pint app/Models/Rentals.php app/Http/Controllers/Admin/FloorController.php app/Http/Controllers/Supervisor/ApartmentController.php app/Services/Tenants/TenantRentProgressCalculator.php)",
+      "Bash(grep -viE \"CAT_MAINTENANCE|maintenance.{0,5}repairs|Maintenance & Repairs|'maintenance', 'repairs'|maintenance, repairs\")",
+      "Bash(sed -n '680,715p' resources/views/admin/revenue_expense/record_income.blade.php)",
+      "Bash(sed -n '355,385p' resources/views/admin/apartments/index.blade.php)",
+      "Bash(sed -n '120,140p' resources/views/admin/settings/index.blade.php)",
+      "Bash(perl -i -pe \"s/if \\\\\\(!confirm\\\\\\('\\\\{\\\\{ __\\\\\\('messages.remove_charge_confirm'\\\\\\) \\\\}\\\\}'\\\\\\)\\\\\\) return;/if \\(!\\(await window.confirmAction\\({ message: '{{ __\\('messages.remove_charge_confirm'\\) }}' }\\)\\)\\) return;/\" resources/views/supervisor/revenue_expense/record_income.blade.php)",
+      "Bash(perl -i -pe \"s/if \\\\\\(!confirm\\\\\\('\\\\{\\\\{ __\\\\\\('messages.delete_all_confirm'\\\\\\) \\\\}\\\\}'\\\\\\)\\\\\\) return;/if \\(!\\(await window.confirmAction\\({ message: '{{ __\\('messages.delete_all_confirm'\\) }}' }\\)\\)\\) return;/\" resources/views/supervisor/revenue_expense/record_income.blade.php)"
     ],
     "additionalDirectories": [
       "/Users/sarotmoniodom/AMS_APP",

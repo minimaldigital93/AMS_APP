@@ -9,7 +9,7 @@
     <div>
         <a href="{{ route('admin.tenants.index') }}" class="inline-flex items-center text-blue-600 hover:text-blue-800 text-sm mb-3" title="{{ __('messages.back_to_tenants') }}">
             <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path></svg></a>
-        <h1 class="text-2xl font-bold text-gray-900">{{ __('messages.process_tenant_leave') }}</h1>
+        <h1 class="text-2xl font-semibold text-slate-800 tracking-tight">{{ __('messages.process_tenant_leave') }}</h1>
     </div>
 
     @if($errors->any())
@@ -195,9 +195,9 @@
 
         <!-- Actions -->
         <div class="flex gap-3 mt-4">
+            <a href="{{ route('admin.tenants.index') }}" class="flex-1 px-5 py-2.5 border border-gray-300 text-gray-700 font-semibold rounded-lg hover:bg-gray-50 transition text-center text-sm">{{ __('messages.cancel') }}</a>
             <button type="button" @click="showModal = true"
                 class="flex-1 px-5 py-2.5 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 transition text-sm">{{ __('messages.process_leave_archive') }}</button>
-            <a href="{{ route('admin.tenants.index') }}" class="flex-1 px-5 py-2.5 border border-gray-300 text-gray-700 font-semibold rounded-lg hover:bg-gray-50 transition text-center text-sm">{{ __('messages.cancel') }}</a>
         </div>
     </form>
 

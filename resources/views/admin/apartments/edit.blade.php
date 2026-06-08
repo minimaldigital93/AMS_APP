@@ -80,7 +80,6 @@
                             <option value="" disabled>{{ __('messages.select_status') }}</option>
                             <option value="available" {{ old('status', $apartment->status) == 'available' ? 'selected' : '' }}>{{ __('messages.available') }}</option>
                             <option value="occupied" {{ old('status', $apartment->status) == 'occupied' ? 'selected' : '' }}>{{ __('messages.occupied') }}</option>
-                            <option value="maintenance" {{ old('status', $apartment->status) == 'maintenance' ? 'selected' : '' }}>{{ __('messages.maintenance') }}</option>
                         </select>
                         @error('status')
                         <p class="text-red-500 text-xs mt-1">{{ $message }}</p>
@@ -134,7 +133,7 @@
                     <h3 class="text-sm font-medium text-red-600">{{ __('messages.delete_apartment') }}</h3>
                     <p class="text-slate-400 text-xs mt-0.5">{{ __('messages.cannot_be_undone') }}</p>
                 </div>
-                <form method="POST" action="{{ route('admin.apartments.destroy', $apartment->id) }}" class="inline" onsubmit="return confirm('{{ __('messages.delete_apt_confirm') }}');">
+                <form method="POST" action="{{ route('admin.apartments.destroy', $apartment->id) }}" class="inline" data-confirm="{{ __('messages.delete_apt_confirm') }}">
                     @csrf
                     @method('DELETE')
                     <button type="submit" class="text-red-500 hover:text-white hover:bg-red-500 text-sm font-medium py-2 px-4 rounded-lg border border-red-200 hover:border-red-500 transition">

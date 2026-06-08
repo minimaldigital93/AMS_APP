@@ -4,7 +4,7 @@
 <div class="container mx-auto py-8 max-w-3xl">
     <div class="flex items-center justify-between mb-6">
         <div>
-            <h1 class="text-2xl font-bold">{{ __('messages.balance_sheet') }}</h1>
+            <h1 class="text-2xl font-semibold text-slate-800 tracking-tight">{{ __('messages.balance_sheet') }}</h1>
         </div>
         <div class="flex items-center gap-2">
             @if($fiscalperiod->status === 'open')

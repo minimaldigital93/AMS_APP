@@ -90,18 +90,18 @@
 
             <!-- Buttons -->
             <div class="flex gap-4 pt-6 border-t border-gray-200">
-                <button 
-                    type="submit" 
-                    class="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition font-medium"
-                >
-                    Update User
-                </button>
-                <a 
-                    href="{{ route('admin.users.index') }}" 
+                <a
+                    href="{{ route('admin.users.index') }}"
                     class="px-6 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 transition font-medium"
                 >
                     {{ __('messages.cancel') }}
                 </a>
+                <button
+                    type="submit"
+                    class="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition font-medium"
+                >
+                    Update User
+                </button>
             </div>
         </form>
     </div>
