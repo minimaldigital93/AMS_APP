@@ -3,6 +3,12 @@
 return [
     // General
     'dashboard' => 'ផ្ទាំងគ្រប់គ្រង',
+    'home' => 'ទំព័រដើម',
+    'more' => 'ច្រើនទៀត',
+    'menu' => 'ម៉ឺនុយ',
+    'nav_property' => 'អចលនទ្រព្យ',
+    'nav_tenants' => 'អ្នកជួល',
+    'nav_finance' => 'ហិរញ្ញវត្ថុ',
     'logout' => 'ចាកចេញ',
     'save' => 'រក្សាទុក',
     'cancel' => 'បោះបង់',

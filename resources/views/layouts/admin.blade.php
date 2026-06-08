@@ -178,6 +178,7 @@
 </head>
 <body class="bg-gray-50 flex flex-col h-screen" x-data="sidebarState()" x-init="init()">
     <!-- Top Bar -->
+    @php($useBottomNav = true)
     @include('layouts.topbar')
     
     <div class="flex flex-1 overflow-hidden relative">
@@ -263,8 +264,13 @@
                 @endif
             @endforeach
             @yield('content')
+            {{-- Spacer so content clears the mobile bottom navigation --}}
+            <div class="h-20 md:hidden" aria-hidden="true"></div>
         </main>
     </div>
+
+    <!-- Mobile bottom navigation -->
+    @include('layouts.bottom-nav')
 
     <script>
         function sidebarState() {

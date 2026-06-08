@@ -3,6 +3,12 @@
 return [
     // General
     'dashboard' => 'Dashboard',
+    'home' => 'Home',
+    'more' => 'More',
+    'menu' => 'Menu',
+    'nav_property' => 'Property',
+    'nav_tenants' => 'Tenants',
+    'nav_finance' => 'Finance',
     'logout' => 'Logout',
     'save' => 'Save',
     'cancel' => 'Cancel',

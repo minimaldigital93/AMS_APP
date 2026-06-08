@@ -343,7 +343,9 @@
       "Bash(node /tmp/cdp_shot.mjs)",
       "Bash(pkill -f \"chrome-prof2\")",
       "Bash(sips --cropToHeightWidth 90 700 --cropOffset 300 160 apts_shot.png --out apts_crop.png)",
-      "Bash(ls -la apts_crop.png)"
+      "Bash(ls -la apts_crop.png)",
+      "Bash(grep -nE '^\\\\s*'\\\\''__TRACKED_VAR__'\\\\''\\\\s*=>' lang/en/messages.php lang/km/messages.php)",
+      "Bash(echo \"EXIT: $?\")"
     ],
     "additionalDirectories": [
       "/Users/sarotmoniodom/AMS_APP",
