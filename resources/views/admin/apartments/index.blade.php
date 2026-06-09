@@ -59,13 +59,24 @@
                 <table class="w-full">
                     <thead>
                         <tr class="bg-slate-50/80">
+                            <th class="px-4 py-3 text-left text-[11px] font-medium text-slate-400 uppercase tracking-wider">No</th>
                             <th class="px-4 py-3 text-left text-[11px] font-medium text-slate-400 uppercase tracking-wider">{{ __('messages.apartment') }}</th>
+                            <th class="px-4 py-3 text-left text-[11px] font-medium text-slate-400 uppercase tracking-wider">{{ __('messages.tenant') }}</th>
+                            <th class="px-4 py-3 text-left text-[11px] font-medium text-slate-400 uppercase tracking-wider">{{ __('messages.monthly_rent') }}</th>
+                            <th class="px-4 py-3 text-left text-[11px] font-medium text-slate-400 uppercase tracking-wider">{{ __('messages.status') }}</th>
+                            <th class="px-4 py-3 text-left text-[11px] font-medium text-slate-400 uppercase tracking-wider">{{ __('messages.stay_duration') }}</th>
+                            <th class="px-4 py-3 text-left text-[11px] font-medium text-slate-400 uppercase tracking-wider">{{ __('messages.supervisor') }}</th>
                             <th class="px-4 py-3 text-right text-[11px] font-medium text-slate-400 uppercase tracking-wider">{{ __('messages.actions') }}</th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-slate-50">
                         @foreach($apartmentsInFloor as $apartment)
+                        @php
+                            $tenant = $apartment->tenants->whereNull('deleted_at')->sortByDesc('id')->first();
+                            $tenantStatus = $tenant?->status;
+                        @endphp
                         <tr class="hover:bg-slate-50/50 transition">
+                            <td class="px-4 py-3 text-sm text-slate-500">{{ $loop->iteration }}</td>
                             <td class="px-4 py-3">
                                 <div class="flex items-center gap-2">
                                     <span class="w-1.5 h-1.5 rounded-full {{
@@ -75,8 +86,172 @@
                                     <span class="text-sm font-medium text-slate-700">{{ $apartment->apartment_number }}</span>
                                 </div>
                             </td>
+                            <td class="px-4 py-3">
+                                @if($tenant)
+                                    <div class="flex items-center gap-2.5">
+                                        @if($tenant->photo_path && !str_ends_with($tenant->photo_path, '.pdf'))
+                                            <img src="{{ asset('storage/' . $tenant->photo_path) }}" alt="{{ $tenant->name }}" class="h-7 w-7 rounded-full object-cover border border-slate-200">
+                                        @else
+                                            <div class="h-7 w-7 rounded-full bg-slate-100 flex items-center justify-center text-xs font-medium text-slate-500">
+                                                {{ strtoupper(substr($tenant->name, 0, 1)) }}
+                                            </div>
+                                        @endif
+                                        <div>
+                                            <div class="text-sm font-medium text-slate-700">{{ $tenant->name }}</div>
+                                            <div class="text-[11px] text-slate-400">{{ $tenant->phone }}</div>
+                                        </div>
+                                    </div>
+                                @else
+                                    <span class="text-slate-300 text-sm">—</span>
+                                @endif
+                            </td>
+                            <td class="px-4 py-3">
+                                @php
+                                    $rentTenant = $apartment->tenants()->whereNull('deleted_at')->latest()->first();
+                                    $rentRental = $rentTenant ? $apartment->rentals()->where('tenant_id', $rentTenant->id)->latest()->first() : null;
+                                    $rentExpected = (float) ($rentRental->rent_amount ?? $apartment->monthly_rent ?? 0);
+                                @endphp
+                                <span class="text-sm font-medium text-slate-600">${{ number_format($rentExpected, 2) }}</span>
+                            </td>
+                            <td class="px-4 py-3">
+                                @php
+                                    $statusTextClass = match($apartment->status) {
+                                        'available' => 'text-emerald-600',
+                                        'occupied' => 'text-sky-600',
+                                        default => 'text-slate-500',
+                                    };
+                                    $statusBgClass = match($apartment->status) {
+                                        'available' => 'bg-emerald-400',
+                                        'occupied' => 'bg-sky-400',
+                                        default => 'bg-slate-300',
+                                    };
+                                @endphp
+                                <span class="inline-flex items-center gap-1.5 text-xs font-medium {{ $statusTextClass }}">
+                                    <span class="w-1.5 h-1.5 rounded-full {{ $statusBgClass }}"></span>
+                                    {{ ucfirst($apartment->status) }}
+                                </span>
+                            </td>
+                            <td class="px-4 py-3">
+                                @php
+                                    $hasLease = false;
+                                    $hasMonthlyPeriod = false;
+
+                                    if($tenant && $tenant->move_in_date) {
+                                        $moveInDate = \Carbon\Carbon::parse($tenant->move_in_date);
+                                        $today = now();
+                                        $stayDays = $moveInDate->diffInDays($today);
+                                        $stayMonths = $moveInDate->diffInMonths($today);
+
+                                        if ($tenant->move_out_date) {
+                                            $moveOutDate = \Carbon\Carbon::parse($tenant->move_out_date);
+                                            $totalDays = $moveInDate->diffInDays($moveOutDate);
+                                            $daysPassed = $moveInDate->diffInDays($today);
+                                            $percentagePassed = ($totalDays > 0) ? min(100, max(0, ($daysPassed / $totalDays) * 100)) : 0;
+                                            $daysRemaining = max(0, $today->diffInDays($moveOutDate, false));
+                                            $hasLease = true;
+                                        }
+
+                                        $billingDay = $moveInDate->day;
+                                        if ($today->day >= $billingDay) {
+                                            $periodStart = $today->copy()->day($billingDay)->startOfDay();
+                                        } else {
+                                            $prevMonth = $today->copy()->subMonth();
+                                            $periodStart = $prevMonth->day(min($billingDay, $prevMonth->daysInMonth))->startOfDay();
+                                        }
+                                        $periodEnd = $periodStart->copy()->addMonth()->subDay()->endOfDay();
+                                        if ($periodStart->lt($moveInDate)) $periodStart = $moveInDate->copy();
+                                        if ($tenant->move_out_date && $periodEnd->gt($moveOutDate)) $periodEnd = $moveOutDate->copy()->endOfDay();
+
+                                        $periodTotalDays = max(1, $periodStart->diffInDays($periodEnd));
+                                        $periodDaysPassed = max(0, min($periodTotalDays, $periodStart->diffInDays($today)));
+                                        $periodPercent = min(100, max(0, round(($periodDaysPassed / $periodTotalDays) * 100, 1)));
+                                        $periodDaysLeft = max(0, (int)$today->diffInDays($periodEnd, false));
+
+                                        if ($periodPercent >= 80) {
+                                            $monthBarColor = 'bg-red-400';
+                                            $monthTextColor = 'text-red-500';
+                                        } elseif ($periodPercent >= 50) {
+                                            $monthBarColor = 'bg-amber-400';
+                                            $monthTextColor = 'text-amber-500';
+                                        } else {
+                                            $monthBarColor = 'bg-sky-400';
+                                            $monthTextColor = 'text-sky-500';
+                                        }
+
+                                        $rental = $apartment->rentals()->where('tenant_id', $tenant->id)->latest()->first();
+                                        $expectedAmount = $rental->rent_amount ?? $apartment->monthly_rent ?? 0;
+                                        $paidAmount = 0.0;
+                                        $paymentPercent = 0;
+
+                                        if ($expectedAmount > 0 && $rental) {
+                                            try {
+                                                $paidAmount = (float) $rental->payments()
+                                                    ->whereNotNull('paid_at')
+                                                    ->whereBetween('due_date', [$periodStart->toDateString(), $periodEnd->toDateString()])
+                                                    ->sum('amount');
+                                                $paymentPercent = min(100, max(0, round(($paidAmount / $expectedAmount) * 100, 1)));
+                                            } catch (\Exception $e) {
+                                                $paidAmount = 0.0;
+                                                $paymentPercent = 0;
+                                            }
+                                        }
+
+                                        $hasMonthlyPeriod = true;
+                                    }
+                                @endphp
+
+                                @if($tenant && $tenant->move_in_date)
+                                    @if($hasMonthlyPeriod)
+                                    <div class="w-32" title="{{ $periodStart->format('M d') }}–{{ $periodEnd->format('M d') }} ({{ $periodPercent }}%, {{ $periodDaysLeft }}d left)">
+                                        <div class="flex items-center justify-between mb-1">
+                                            <span class="text-[11px] font-medium {{ $monthTextColor }}">
+                                                @if($paymentPercent >= 100)
+                                                    <span class="inline-flex items-center gap-1 text-emerald-500">
+                                                        <svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="3" viewBox="0 0 24 24">
+                                                            <path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+                                                        </svg>
+                                                        {{ __('messages.paid') }}
+                                                    </span>
+                                                @else
+                                                    {{ $periodDaysLeft }}d left
+                                                @endif
+                                            </span>
+                                            <span class="text-[11px] font-medium {{ $monthTextColor }}">{{ $periodPercent }}%</span>
+                                        </div>
+                                        <div class="h-1.5 w-full rounded-full bg-slate-100 overflow-hidden">
+                                            <div class="h-full rounded-full {{ $monthBarColor }}" style="width: {{ $periodPercent }}%"></div>
+                                        </div>
+                                    </div>
+                                    @endif
+                                @else
+                                    <span class="text-slate-300 text-xs">—</span>
+                                @endif
+                            </td>
+                            <td class="px-4 py-3">
+                                @php
+                                    $tenantManager = $tenant?->manager ?? null;
+                                    $displaySupervisor = $tenantManager ?? $apartment->supervisor;
+                                @endphp
+                                @if($displaySupervisor)
+                                    <span class="text-sm text-slate-600">{{ $displaySupervisor->name }}</span>
+                                @else
+                                    <span class="text-slate-300 text-sm">—</span>
+                                @endif
+                            </td>
                             <td class="px-4 py-3 text-right">
                                 <div class="flex items-center justify-end gap-1">
+                                    @if(!$tenant || $tenant->status !== 'active')
+                                    <button type="button"
+                                            data-apartment-id="{{ $apartment->id }}"
+                                            data-apartment-number="{{ $apartment->apartment_number }}"
+                                            class="assign-tenant-btn text-emerald-600 hover:text-emerald-700 p-1.5 rounded-lg bg-emerald-50/20 hover:bg-emerald-50 transition"
+                                            title="{{ __('messages.assign_tenant') }}">
+                                        <svg class="w-[16px] h-[16px]" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" />
+                                        </svg>
+                                    </button>
+                                    @endif
+
                                     <a href="{{ route('admin.apartments.show', $apartment->id) }}"
                                        title="{{ __('messages.view_apartment') }}"
                                        class="text-slate-600 hover:text-slate-800 p-1.5 rounded-lg hover:bg-slate-50 transition">
@@ -86,7 +261,7 @@
                                         </svg>
                                     </a>
 
-                                    <a href="{{ route('admin.apartments.edit', $apartment->id) }}" 
+                                    <a href="{{ route('admin.apartments.edit', $apartment->id) }}"
                                        title="{{ __('messages.edit_apartment') }}"
                                        class="text-sky-600 hover:text-sky-700 p-1.5 rounded-lg bg-sky-50/20 hover:bg-slate-50 transition">
                                         <svg class="w-[16px] h-[16px]" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
@@ -105,16 +280,64 @@
                 <div class="md:hidden border-t border-slate-50 divide-y divide-slate-50">
                     @foreach($apartmentsInFloor as $apartment)
                         @php
-                            $mStatusBg = $apartment->status === 'available' ? 'bg-emerald-400' :
-                                ($apartment->status === 'occupied' ? 'bg-sky-400' : 'bg-amber-400');
+                            $mTenant = $apartment->tenants()->whereNull('deleted_at')->latest()->first();
+                            $mRental = $mTenant ? $apartment->rentals()->where('tenant_id', $mTenant->id)->latest()->first() : null;
+                            $mRent = (float) ($mRental->rent_amount ?? $apartment->monthly_rent ?? 0);
+                            $mSupervisor = ($mTenant?->manager ?? null) ?? $apartment->supervisor;
+                            $mStatusText = match($apartment->status) {
+                                'available' => 'text-emerald-600',
+                                'occupied' => 'text-sky-600',
+                                default => 'text-slate-500',
+                            };
+                            $mStatusBg = match($apartment->status) {
+                                'available' => 'bg-emerald-400',
+                                'occupied' => 'bg-sky-400',
+                                default => 'bg-slate-300',
+                            };
                         @endphp
                         <div class="p-4">
-                            <div class="flex items-center justify-between gap-3">
+                            <div class="flex items-start justify-between gap-3">
                                 <div class="flex items-center gap-2 min-w-0">
-                                    <span class="w-1.5 h-1.5 rounded-full {{ $mStatusBg }} flex-shrink-0" title="{{ __('messages.' . $apartment->status) }}"></span>
+                                    <span class="w-1.5 h-1.5 rounded-full {{ $mStatusBg }} flex-shrink-0"></span>
                                     <span class="text-base font-semibold text-slate-800">{{ $apartment->apartment_number }}</span>
+                                    <span class="inline-flex items-center gap-1.5 text-[11px] font-medium {{ $mStatusText }}">{{ ucfirst($apartment->status) }}</span>
+                                </div>
+                                <span class="text-sm font-semibold text-slate-700 flex-shrink-0">${{ number_format($mRent, 2) }}</span>
+                            </div>
+
+                            <div class="mt-3">
+                                @if($mTenant)
+                                    <div class="flex items-center gap-2.5">
+                                        @if($mTenant->photo_path && !str_ends_with($mTenant->photo_path, '.pdf'))
+                                            <img src="{{ asset('storage/' . $mTenant->photo_path) }}" alt="{{ $mTenant->name }}" class="h-9 w-9 rounded-full object-cover border border-slate-200">
+                                        @else
+                                            <div class="h-9 w-9 rounded-full bg-slate-100 flex items-center justify-center text-xs font-medium text-slate-500">{{ strtoupper(substr($mTenant->name, 0, 1)) }}</div>
+                                        @endif
+                                        <div class="min-w-0">
+                                            <div class="text-sm font-medium text-slate-700 truncate">{{ $mTenant->name }}</div>
+                                            <div class="text-[11px] text-slate-400">{{ $mTenant->phone }}</div>
+                                        </div>
+                                    </div>
+                                @else
+                                    <span class="text-slate-300 text-sm">{{ __('messages.vacant') ?? '—' }}</span>
+                                @endif
+                            </div>
+
+                            <div class="mt-3 flex items-center justify-between gap-3">
+                                <div class="text-xs text-slate-400 truncate">
+                                    @if($mSupervisor)
+                                        <span class="text-slate-300">{{ __('messages.supervisor') }}:</span> {{ $mSupervisor->name }}
+                                    @endif
                                 </div>
                                 <div class="flex items-center gap-1 flex-shrink-0">
+                                    @if(!$mTenant || $mTenant->status !== 'active')
+                                    <button type="button"
+                                            data-apartment-id="{{ $apartment->id }}"
+                                            data-apartment-number="{{ $apartment->apartment_number }}"
+                                            class="assign-tenant-btn inline-flex items-center justify-center h-9 w-9 rounded-lg text-emerald-600 bg-emerald-50 active:bg-emerald-100 transition" title="{{ __('messages.assign_tenant') }}">
+                                        <svg class="w-[18px] h-[18px]" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" /></svg>
+                                    </button>
+                                    @endif
                                     <a href="{{ route('admin.apartments.show', $apartment->id) }}" class="inline-flex items-center justify-center h-9 w-9 rounded-lg text-slate-600 bg-slate-50 active:bg-slate-100 transition" title="{{ __('messages.view_apartment') }}">
                                         <svg class="w-[18px] h-[18px]" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z" /><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
                                     </a>
