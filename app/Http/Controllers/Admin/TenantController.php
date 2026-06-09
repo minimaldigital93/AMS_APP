@@ -68,7 +68,7 @@ class TenantController extends Controller
 
         $tenants = $query->orderBy('id', 'desc')->paginate(15);
         $apartments = Apartments::all();
-        $floors = Floors::whereHas('apartments')->orderBy('floor_name')->get();
+        $floors = Floors::whereHas('apartments')->orderBy('id', 'asc')->get();
 
         $rentProgressMap = $this->rentProgressCalculator->map($tenants);
 

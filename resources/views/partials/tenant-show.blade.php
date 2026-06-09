@@ -21,7 +21,6 @@
     $ringCls = $isSup ? 'focus:ring-emerald-500 focus:border-emerald-500' : 'focus:ring-blue-500 focus:border-blue-500';
     $history = $tenant->paymentHistory();
     $unpaid = $history->where('paid', false);
-    $totalCollected = $history->where('paid', true)->sum('amount_paid');
     $totalDue = $unpaid->sum('rent_amount');
     $hasPhoto = $tenant->photo_path && ! \Illuminate\Support\Str::endsWith($tenant->photo_path, '.pdf');
     $statusLabel = method_exists($tenant, 'trashed') && $tenant->trashed() ? 'Departed' : ucfirst($tenant->status);
@@ -138,45 +137,33 @@
     <div class="bg-white rounded-xl border border-slate-100 p-6">
         <div class="flex items-center justify-between mb-4">
             <h3 class="text-sm font-medium text-slate-500 uppercase tracking-wide">{{ __('messages.payment_history') }}</h3>
-            <div class="flex items-center gap-2 text-xs">
-                <span class="px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-600 font-medium">{{ __('messages.collected') }} ${{ number_format($totalCollected, 2) }}</span>
-                @if($totalDue > 0)
+            @if($totalDue > 0)
+                <div class="flex items-center gap-2 text-xs">
                     <span class="px-2.5 py-1 rounded-full bg-red-50 text-red-600 font-medium">{{ __('messages.outstanding') }} ${{ number_format($totalDue, 2) }}</span>
-                @endif
-            </div>
+                </div>
+            @endif
         </div>
 
         @if($history->isEmpty())
             <p class="text-slate-400 text-sm">{{ __('messages.no_rental_period') }}</p>
         @else
-            <div class="overflow-x-auto">
-                <table class="min-w-full text-sm">
-                    <thead>
-                        <tr class="text-left text-xs text-slate-400 uppercase tracking-wide border-b border-slate-100">
-                            <th class="py-2 pr-4 font-medium">{{ __('messages.month') }}</th>
-                            <th class="py-2 pr-4 font-medium">{{ __('messages.apartment') }}</th>
-                            <th class="py-2 pr-4 font-medium">{{ __('messages.rent') }}</th>
-                            <th class="py-2 pr-0 font-medium">{{ __('messages.status') }}</th>
-                        </tr>
-                    </thead>
-                    <tbody class="divide-y divide-slate-50">
-                        @foreach($history as $row)
-                            <tr class="hover:bg-slate-50/60">
-                                <td class="py-2.5 pr-4 font-medium text-slate-800">{{ $row['label'] }}</td>
-                                <td class="py-2.5 pr-4 text-slate-600">{{ $row['apartment'] ?? '—' }}</td>
-                                <td class="py-2.5 pr-4 text-slate-700">${{ number_format($row['paid'] ? ($row['amount_paid'] ?? $row['rent_amount']) : $row['rent_amount'], 2) }}</td>
-                                <td class="py-2.5 pr-0">
-                                    @if($row['paid'])
-                                        <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-emerald-50 text-emerald-600">{{ __('messages.paid') }}{{ $row['paid_at'] ? ' · '.$row['paid_at']->format('M d') : '' }}
-                                        </span>
-                                    @else
-                                        <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-red-50 text-red-600">{{ __('messages.unpaid') }}</span>
-                                    @endif
-                                </td>
-                            </tr>
-                        @endforeach
-                    </tbody>
-                </table>
+            {{-- One row per renting month: month/year · amount paid · status. --}}
+            <div class="divide-y divide-slate-100">
+                @foreach($history as $row)
+                    @php
+                        $paid = $row['paid'];
+                        $amount = $row['amount_paid'] ?? $row['rent_amount'];
+                    @endphp
+                    <div class="flex items-center justify-between gap-3 py-3">
+                        <p class="text-sm font-medium text-slate-700 w-20 shrink-0">{{ $row['label'] }}</p>
+                        <p class="text-sm font-semibold {{ $paid ? 'text-emerald-700' : 'text-slate-400' }} flex-1 text-right">${{ number_format($amount, 2) }}</p>
+                        @if($paid)
+                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-50 text-emerald-600 w-20 justify-center shrink-0">{{ __('messages.paid') }}</span>
+                        @else
+                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-50 text-red-600 w-20 justify-center shrink-0">{{ __('messages.unpaid') }}</span>
+                        @endif
+                    </div>
+                @endforeach
             </div>
         @endif
     </div>

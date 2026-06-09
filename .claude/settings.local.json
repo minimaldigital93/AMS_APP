@@ -421,7 +421,9 @@
       "Bash(sed -n '355,385p' resources/views/admin/apartments/index.blade.php)",
       "Bash(sed -n '120,140p' resources/views/admin/settings/index.blade.php)",
       "Bash(perl -i -pe \"s/if \\\\\\(!confirm\\\\\\('\\\\{\\\\{ __\\\\\\('messages.remove_charge_confirm'\\\\\\) \\\\}\\\\}'\\\\\\)\\\\\\) return;/if \\(!\\(await window.confirmAction\\({ message: '{{ __\\('messages.remove_charge_confirm'\\) }}' }\\)\\)\\) return;/\" resources/views/supervisor/revenue_expense/record_income.blade.php)",
-      "Bash(perl -i -pe \"s/if \\\\\\(!confirm\\\\\\('\\\\{\\\\{ __\\\\\\('messages.delete_all_confirm'\\\\\\) \\\\}\\\\}'\\\\\\)\\\\\\) return;/if \\(!\\(await window.confirmAction\\({ message: '{{ __\\('messages.delete_all_confirm'\\) }}' }\\)\\)\\) return;/\" resources/views/supervisor/revenue_expense/record_income.blade.php)"
+      "Bash(perl -i -pe \"s/if \\\\\\(!confirm\\\\\\('\\\\{\\\\{ __\\\\\\('messages.delete_all_confirm'\\\\\\) \\\\}\\\\}'\\\\\\)\\\\\\) return;/if \\(!\\(await window.confirmAction\\({ message: '{{ __\\('messages.delete_all_confirm'\\) }}' }\\)\\)\\) return;/\" resources/views/supervisor/revenue_expense/record_income.blade.php)",
+      "Bash(php -l resources/views/admin/TenantManagement/activeTenants.blade.php)",
+      "Bash(php -l resources/views/admin/TenantManagement/archivedTenants.blade.php)"
     ],
     "additionalDirectories": [
       "/Users/sarotmoniodom/AMS_APP",

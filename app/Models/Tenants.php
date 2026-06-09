@@ -106,11 +106,15 @@ class Tenants extends Model
                 $month = $cursor->month;
                 $year = $cursor->year;
 
-                $payment = $rental->payments
-                    ->where('payment_type', 'rent')
-                    ->first(fn ($p) => $p->paid_at
+                // All payments the tenant actually made in this month, regardless
+                // of type (rent, utilities, charges, late fees, …).
+                $monthPayments = $rental->payments
+                    ->filter(fn ($p) => $p->paid_at
                         && $p->paid_at->month === $month
                         && $p->paid_at->year === $year);
+
+                // The month counts as paid once rent for it has been settled.
+                $rentPayment = $monthPayments->firstWhere('payment_type', 'rent');
 
                 // Date to stamp on a catch-up payment: end of that month, but
                 // never in the future (clamp the current month to today).
@@ -126,9 +130,10 @@ class Tenants extends Model
                     'year' => $year,
                     'label' => $cursor->format('M Y'),
                     'rent_amount' => (float) $rental->rent_amount,
-                    'paid' => (bool) $payment,
-                    'paid_at' => $payment?->paid_at,
-                    'amount_paid' => $payment ? (float) $payment->amount : null,
+                    'paid' => (bool) $rentPayment,
+                    'paid_at' => $rentPayment?->paid_at,
+                    // Total of everything the tenant actually paid this month.
+                    'amount_paid' => $monthPayments->isNotEmpty() ? (float) $monthPayments->sum('amount') : null,
                     'pay_date' => $payDate->toDateString(),
                 ]);
 

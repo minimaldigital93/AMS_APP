@@ -1,18 +1,32 @@
 @extends('layouts.admin')
 
 @section('content')
-<div class="min-h-screen bg-gray-50 py-8">
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+<div x-data="{ searchOpen: {{ request('search') ? 'true' : 'false' }} }" class="max-w-6xl mx-auto space-y-8">
         <!-- Header Section -->
-        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-8">
-            <div>
-                <h1 class="text-2xl font-semibold text-slate-800 tracking-tight">{{ __('messages.archived_tenants_management') }}</h1>
-            </div>
+        <div class="flex items-center justify-between gap-4">
+            <h1 class="text-2xl font-semibold text-slate-800 tracking-tight">{{ __('messages.archived_tenants') }}</h1>
+
+            <!-- Search (icon → expands to input) -->
+            <form method="GET" action="{{ route('admin.tenants.archived') }}" class="relative flex items-center">
+                @if(request('floor'))<input type="hidden" name="floor" value="{{ request('floor') }}">@endif
+                <div x-show="searchOpen" x-transition.opacity x-cloak class="relative">
+                    <svg class="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-4.35-4.35M11 18a7 7 0 100-14 7 7 0 000 14z"/></svg>
+                    <input type="text" name="search" x-ref="searchInput" placeholder="{{ __('messages.search_archived_tenants') }}" value="{{ request('search') }}"
+                        class="w-56 sm:w-64 h-10 pl-10 pr-9 text-sm bg-white border border-slate-200 rounded-full focus:outline-none focus:ring-2 focus:ring-slate-300 focus:border-slate-300 transition">
+                    <a href="{{ route('admin.tenants.archived', request('floor') ? ['floor' => request('floor')] : []) }}" class="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+                    </a>
+                </div>
+                <button type="button" x-show="!searchOpen" @click="searchOpen = true; $nextTick(() => $refs.searchInput.focus())"
+                    class="inline-flex items-center justify-center h-10 w-10 rounded-full bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 transition" aria-label="{{ __('messages.search') }}">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-4.35-4.35M11 18a7 7 0 100-14 7 7 0 000 14z"/></svg>
+                </button>
+            </form>
         </div>
 
         <!-- Statistics Section -->
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-            <div class="bg-white rounded-xl border border-slate-100 p-6">
+        <div class="grid grid-cols-2 gap-4 sm:gap-6">
+            <div class="bg-white rounded-xl border border-slate-100 p-5 sm:p-6">
                 <div class="flex items-center">
                     <div class="p-3 rounded-full bg-slate-50">
                         <svg class="w-6 h-6 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -25,7 +39,7 @@
                     </div>
                 </div>
             </div>
-            <div class="bg-white rounded-xl border border-slate-100 p-6">
+            <div class="bg-white rounded-xl border border-slate-100 p-5 sm:p-6">
                 <div class="flex items-center">
                     <div class="p-3 rounded-full bg-slate-50">
                         <svg class="w-6 h-6 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -38,51 +52,24 @@
                     </div>
                 </div>
             </div>
-            <div class="bg-white rounded-xl border border-slate-100 p-6">
-                <div class="flex items-center">
-                    <div class="p-3 rounded-full bg-slate-50">
-                        <svg class="w-6 h-6 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                        </svg>
-                    </div>
-                    <div class="ml-4">
-                        <p class="text-slate-500 text-sm">{{ __('messages.total_deposits') }}</p>
-                        <p class="text-2xl font-bold text-slate-800">${{ number_format($totalDeposits, 2) }}</p>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Filters / Search Section -->
-        <div class="bg-white rounded-xl border border-slate-100 mb-6 p-6">
-            <form method="GET" action="{{ route('admin.tenants.archived') }}" class="grid grid-cols-1 md:grid-cols-4 gap-4">
-                <div class="md:col-span-2">
-                    <label class="block text-sm font-medium text-slate-500 mb-2">{{ __('messages.search_by_name_phone') }}</label>
-                    <div class="relative">
-                        <svg class="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-4.35-4.35M11 18a7 7 0 100-14 7 7 0 000 14z"/></svg>
-                        <input type="text" name="search" placeholder="{{ __('messages.search_archived_tenants') }}" value="{{ request('search') }}" class="w-full h-10 pl-10 pr-4 text-sm bg-gray-50 border border-gray-200 rounded-lg focus:bg-white focus:outline-none focus:ring-2 focus:ring-slate-300 focus:border-slate-300 transition">
-                    </div>
-                </div>
-                <div class="md:col-span-1">
-                    <label class="block text-sm font-medium text-slate-500 mb-2">{{ __('messages.sort_by_floor') }}</label>
-                    <select name="floor" class="w-full h-10 px-3 text-sm border border-slate-200 rounded-lg focus:ring-2 focus:ring-slate-300 focus:border-transparent">
-                        <option value="">{{ __('messages.all_floors') }}</option>
-                        @foreach($floors ?? [] as $floor)
-                            <option value="{{ $floor->id }}" {{ request('floor') == $floor->id ? 'selected' : '' }}>{{ $floor->floor_name }}</option>
-                        @endforeach
-                    </select>
-                </div>
-                <div class="flex items-end justify-center md:col-span-1">
-                    <a href="{{ route('admin.tenants.archived') }}" class="inline-flex items-center h-10 px-3 whitespace-nowrap border border-slate-200 rounded-md text-slate-700 hover:bg-slate-50 transition font-medium text-center text-sm" title="{{ __('messages.reset') }}">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 mr-2 text-slate-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v6h6M20 20v-6h-6M4 10a8 8 0 0116 0M20 14a8 8 0 01-16 0" />
-                        </svg></a>
-                </div>
-            </form>
         </div>
 
         <!-- Tenants Table -->
         <div class="bg-white rounded-xl border border-slate-100 overflow-hidden">
+            <!-- Filter Bar -->
+            <div class="px-4 sm:px-6 py-4 border-b border-slate-100 flex flex-wrap items-center gap-2">
+                <!-- Floor dropdown (server-side filter) -->
+                <div class="ms-auto">
+                    <select onchange="window.location.href = this.value"
+                        class="h-9 pl-3 pr-8 text-sm bg-slate-50 border border-slate-200 rounded-lg text-slate-700 font-medium focus:outline-none focus:ring-2 focus:ring-slate-300 cursor-pointer">
+                        <option value="{{ request()->fullUrlWithQuery(['floor' => null, 'page' => null]) }}" @selected(!request()->filled('floor'))>{{ __('messages.all_floors') }}</option>
+                        @foreach($floors ?? [] as $floor)
+                            <option value="{{ request()->fullUrlWithQuery(['floor' => $floor->id, 'page' => null]) }}" @selected(request('floor') == $floor->id)>{{ $floor->floor_name }}</option>
+                        @endforeach
+                    </select>
+                </div>
+            </div>
+            <!-- Desktop table (hidden on mobile) -->
             <div class="hidden md:block p-6 overflow-x-auto">
                 <table class="min-w-full divide-y divide-gray-200">
                     <thead class="bg-gray-50">
@@ -91,7 +78,7 @@
                             <th class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">{{ __('messages.tenant_name') }}</th>
                             <th class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">{{ __('messages.floor_apartment') }}</th>
                             <th class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">{{ __('messages.tenancy_duration') }}</th>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">{{ __('messages.actions') }}</th>
+                            <th class="px-6 py-3 text-right text-xs font-medium text-slate-500 uppercase tracking-wider">{{ __('messages.actions') }}</th>
                         </tr>
                     </thead>
                     <tbody class="bg-white divide-y divide-gray-200">
@@ -124,20 +111,22 @@
                                         N/A
                                     @endif
                                 </td>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium flex items-center space-x-3 mt-3">
-                                    <button onclick="viewTenantSettlement('{{ $tenant->id }}', '{{ addslashes($tenant->name) }}')" title="{{ __('messages.view_settlement') }}" class="inline-flex items-center justify-center h-8 w-8 rounded-md text-sky-600 bg-sky-50 hover:bg-sky-100 transition" aria-label="View Settlement">
-                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
-                                        </svg>
-                                    </button>
-                                    @if($tenant->document_path)
-                                        <button type="button" onclick="viewTenantDocument('{{ $tenant->id }}', '{{ addslashes($tenant->name) }}')" title="{{ __('messages.view_document') }}" class="inline-flex items-center justify-center h-8 w-8 rounded-md text-red-600 bg-red-50 hover:bg-red-100 transition" aria-label="Document">
-                                            <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                                                <path d="M4 2h7l5 5v11a2 2 0 01-2 2H4a2 2 0 01-2-2V4a2 2 0 012-2z" />
+                                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                                    <div class="flex items-center justify-end gap-2">
+                                        <button onclick="viewTenantSettlement('{{ $tenant->id }}', '{{ addslashes($tenant->name) }}')" title="{{ __('messages.view_settlement') }}" class="inline-flex items-center justify-center h-8 w-8 rounded-md text-sky-600 bg-sky-50 hover:bg-sky-100 transition" aria-label="View Settlement">
+                                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
                                             </svg>
                                         </button>
-                                    @endif
+                                        @if($tenant->document_path)
+                                            <button type="button" onclick="viewTenantDocument('{{ $tenant->id }}', '{{ addslashes($tenant->name) }}')" title="{{ __('messages.view_document') }}" class="inline-flex items-center justify-center h-8 w-8 rounded-md text-red-600 bg-red-50 hover:bg-red-100 transition" aria-label="Document">
+                                                <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                                                    <path d="M4 2h7l5 5v11a2 2 0 01-2 2H4a2 2 0 01-2-2V4a2 2 0 012-2z" />
+                                                </svg>
+                                            </button>
+                                        @endif
+                                    </div>
                                 </td>
                             </tr>
                         @empty
@@ -204,11 +193,10 @@
             <!-- Pagination -->
             @if($tenants->hasPages())
             <div class="bg-white px-6 py-4 border-t border-gray-200">
-                {{ $tenants->links() }}
+                {{ $tenants->withQueryString()->links() }}
             </div>
             @endif
         </div>
-    </div>
 </div>
 
 <!-- View Tenant Details Modal -->
