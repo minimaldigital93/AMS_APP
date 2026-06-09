@@ -504,7 +504,7 @@ return [
     'no_other_business' => 'មិនទាន់មានការចំណាយផ្សេងៗ ឬអាជីវកម្មត្រូវបានកត់ត្រាទេ។',
     'apartments_count' => 'បន្ទប់ :count',
     // Record income / billing
-    'monthly_billing_payments' => 'វិក្កយបត្រ និងការទូទាត់ប្រចាំខែ',
+    'monthly_billing_payments' => 'វិក្កយបត្រ និងការទូទាត់',
     'manage_payments_for' => 'គ្រប់គ្រងការទូទាត់អ្នកជួលសម្រាប់',
     'total_expected' => 'សរុបដែលរំពឹងទុក',
     'active_tenants_n' => 'អ្នកជួលសកម្ម :count នាក់',

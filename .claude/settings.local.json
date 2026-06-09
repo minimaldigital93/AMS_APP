@@ -423,7 +423,10 @@
       "Bash(perl -i -pe \"s/if \\\\\\(!confirm\\\\\\('\\\\{\\\\{ __\\\\\\('messages.remove_charge_confirm'\\\\\\) \\\\}\\\\}'\\\\\\)\\\\\\) return;/if \\(!\\(await window.confirmAction\\({ message: '{{ __\\('messages.remove_charge_confirm'\\) }}' }\\)\\)\\) return;/\" resources/views/supervisor/revenue_expense/record_income.blade.php)",
       "Bash(perl -i -pe \"s/if \\\\\\(!confirm\\\\\\('\\\\{\\\\{ __\\\\\\('messages.delete_all_confirm'\\\\\\) \\\\}\\\\}'\\\\\\)\\\\\\) return;/if \\(!\\(await window.confirmAction\\({ message: '{{ __\\('messages.delete_all_confirm'\\) }}' }\\)\\)\\) return;/\" resources/views/supervisor/revenue_expense/record_income.blade.php)",
       "Bash(php -l resources/views/admin/TenantManagement/activeTenants.blade.php)",
-      "Bash(php -l resources/views/admin/TenantManagement/archivedTenants.blade.php)"
+      "Bash(php -l resources/views/admin/TenantManagement/archivedTenants.blade.php)",
+      "Bash(php -r '$f=\"resources/views/admin/revenue_expense/record_income.blade.php\"; $c=file_get_contents\\($f\\); echo \"th count: \".substr_count\\($c,\"<th \"\\).\"\\\\n\"; echo \"open php: \".substr_count\\($c,\"@php\"\\).\", end php: \".substr_count\\($c,\"@endphp\"\\).\"\\\\n\";')",
+      "Bash(node -p \"require\\('./node_modules/chart.js/package.json'\\).version\")",
+      "Bash(echo \"chart.js installed OK \\($\\(node -p \"require\\('./node_modules/chart.js/package.json'\\).version\"\\)\\)\")"
     ],
     "additionalDirectories": [
       "/Users/sarotmoniodom/AMS_APP",

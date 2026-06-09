@@ -504,7 +504,7 @@ return [
     'no_other_business' => 'No other or business expenses recorded yet.',
     'apartments_count' => ':count apartments',
     // Record income / billing
-    'monthly_billing_payments' => 'Monthly Billing & Payments',
+    'monthly_billing_payments' => 'Billing & Payments',
     'manage_payments_for' => 'Manage tenant payments for',
     'total_expected' => 'Total Expected',
     'active_tenants_n' => ':count active tenant(s)',
