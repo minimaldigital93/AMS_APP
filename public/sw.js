@@ -1,7 +1,7 @@
 // AMS service worker — bump CACHE_VERSION to invalidate old caches on deploy.
-const CACHE_VERSION = 'ams-v5';
+const CACHE_VERSION = 'ams-v6';
 const STATIC_CACHE = `${CACHE_VERSION}-static`;
-const OFFLINE_URL = '/offline.html';
+const OFFLINE_URL = '/ams_app/offline.html';
 
 // How long to wait on the network for a page navigation before showing the
 // offline page. Without this, a flaky mobile connection leaves iOS staring at
@@ -12,9 +12,9 @@ const NAV_TIMEOUT_MS = 10000;
 // Static, fingerprint-free assets that are safe to precache.
 const PRECACHE_URLS = [
     OFFLINE_URL,
-    '/icons/icon-192.png',
-    '/icons/icon-512.png',
-    '/manifest.webmanifest',
+    '/ams_app/icons/icon-192.png',
+    '/ams_app/icons/icon-512.png',
+    '/ams_app/manifest.webmanifest',
 ];
 
 self.addEventListener('install', (event) => {
@@ -61,9 +61,9 @@ self.addEventListener('fetch', (event) => {
     // Built/static assets (Vite build, icons, fonts): cache-first, then network.
     const url = new URL(request.url);
     const isStatic =
-        url.pathname.startsWith('/build/') ||
-        url.pathname.startsWith('/icons/') ||
-        url.pathname.startsWith('/fonts/');
+        url.pathname.startsWith('/ams_app/build/') ||
+        url.pathname.startsWith('/ams_app/icons/') ||
+        url.pathname.startsWith('/ams_app/fonts/');
 
     if (isStatic) {
         event.respondWith(

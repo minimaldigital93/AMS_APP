@@ -52,7 +52,7 @@
 <script>
     if ('serviceWorker' in navigator) {
         window.addEventListener('load', function () {
-            navigator.serviceWorker.register('{{ asset('sw.js') }}', { scope: '/' })
+            navigator.serviceWorker.register('{{ asset('sw.js') }}', { scope: '/ams_app/' })
                 .catch(function (err) {
                     console.error('Service worker registration failed:', err);
                 });

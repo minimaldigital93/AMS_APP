@@ -2,28 +2,28 @@
     "name": "AMS — Apartment Management System",
     "short_name": "AMS",
     "description": "Manage your apartments, tenants, billing and payments.",
-    "id": "/",
-    "start_url": "/?source=pwa",
-    "scope": "/",
+    "id": "/ams_app/",
+    "start_url": "/ams_app/?source=pwa",
+    "scope": "/ams_app/",
     "display": "standalone",
     "orientation": "portrait-primary",
     "background_color": "#ffffff",
     "theme_color": "#3b82f6",
     "icons": [
         {
-            "src": "/icons/icon-192.png",
+            "src": "/ams_app/icons/icon-192.png",
             "sizes": "192x192",
             "type": "image/png",
             "purpose": "any"
         },
         {
-            "src": "/icons/icon-512.png",
+            "src": "/ams_app/icons/icon-512.png",
             "sizes": "512x512",
             "type": "image/png",
             "purpose": "any"
         },
         {
-            "src": "/icons/maskable-512.png",
+            "src": "/ams_app/icons/maskable-512.png",
             "sizes": "512x512",
             "type": "image/png",
             "purpose": "maskable"
