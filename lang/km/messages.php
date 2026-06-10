@@ -849,7 +849,7 @@ return [
     'eg_floor_2' => 'ឧ. ជាន់ 1, ជាន់ Ground, ជាន់ A',
     'eg_unit' => 'ឧ. 101',
     // Users module
-    'user_management_title' => 'ការគ្រប់គ្រងអ្នកប្រើ',
+    'user_management_title' => 'អ្នកប្រើ',
     'create_new_user' => 'បង្កើតអ្នកប្រើថ្មី',
     'add_new_user_subtitle' => 'បន្ថែមគណនីអ្នកប្រើថ្មី',
     'edit_user_subtitle' => 'ធ្វើបច្ចុប្បន្នភាពព័ត៌មានគណនីអ្នកប្រើ',

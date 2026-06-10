@@ -437,7 +437,11 @@
       "Bash(php -l /Users/moniodom/AMS_APP/app/Http/Controllers/Admin/RevenueExpenseController.php)",
       "Bash(php -l /Users/moniodom/AMS_APP/app/Http/Controllers/Supervisor/RevenueExpenseController.php)",
       "Bash(python3 -c \"import json; json.load\\(open\\('.claude/settings.local.json'\\)\\); print\\('JSON valid'\\)\")",
-      "Bash(git -C /Users/sarotmoniodom/AMS_APP_dev diff resources/views/admin/revenue_expense/record_income.blade.php)"
+      "Bash(git -C /Users/sarotmoniodom/AMS_APP_dev diff resources/views/admin/revenue_expense/record_income.blade.php)",
+      "Bash(claude --version)",
+      "Bash(python3 -c \"import json,sys; d=json.load\\(sys.stdin\\); print\\('installMethod:', d.get\\('installMethod'\\)\\); print\\('lastReleaseNotesSeen:', d.get\\('lastReleaseNotesSeen'\\)\\); print\\('subscriptionType:', d.get\\('subscriptionType'\\)\\); print\\('oauthAccount:', json.dumps\\(d.get\\('oauthAccount'\\), indent=2\\) if d.get\\('oauthAccount'\\) else None\\)\")",
+      "Bash(sed -i '' \"s/'user_management_title' => 'User Management',/'user_management_title' => 'User',/\" lang/en/messages.php)",
+      "Bash(sed -i '' \"s/'user_management_title' => 'ការគ្រប់គ្រងអ្នកប្រើ',/'user_management_title' => 'អ្នកប្រើ',/\" lang/km/messages.php)"
     ],
     "additionalDirectories": [
       "/Users/sarotmoniodom/AMS_APP",

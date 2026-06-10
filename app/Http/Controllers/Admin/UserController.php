@@ -42,6 +42,20 @@ class UserController extends Controller
             });
         }
 
+        // Admins/superadmins first, then supervisors, then tenants (users without a role last).
+        $query->orderByRaw(
+            "COALESCE((select min(case roles.name
+                    when 'superadmin' then 0
+                    when 'admin' then 0
+                    when 'supervisor' then 1
+                    else 2 end)
+                from model_has_roles
+                join roles on roles.id = model_has_roles.role_id
+                where model_has_roles.model_id = users.id
+                  and model_has_roles.model_type = ?), 3) asc",
+            [User::class]
+        )->orderBy('name');
+
         $users = $query->paginate(15);
         $roles = Role::whereIn('name', self::ASSIGNABLE_ROLES)->get();
 

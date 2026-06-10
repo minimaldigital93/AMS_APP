@@ -849,7 +849,7 @@ return [
     'eg_floor_2' => 'e.g., 1st Floor, Ground Floor, Floor A',
     'eg_unit' => 'e.g., 101',
     // Users module
-    'user_management_title' => 'User Management',
+    'user_management_title' => 'User',
     'create_new_user' => 'Create New User',
     'add_new_user_subtitle' => 'Add a new user account',
     'edit_user_subtitle' => 'Update user account information',
