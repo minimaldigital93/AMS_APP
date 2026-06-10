@@ -1,4 +1,4 @@
-@extends('layouts.admin')
+@extends('layouts.supervisor')
 
 @section('title', 'Floor Layout')
 
@@ -6,13 +6,19 @@
 <div class="max-w-6xl mx-auto space-y-6">
 
     {{-- Header --}}
-    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-        <div>
-            <h1 class="text-2xl font-semibold text-slate-800 tracking-tight">{{ __('messages.floor_layout') }}</h1>
+    <div class="flex items-center justify-between gap-4">
+        <h1 class="text-2xl font-semibold text-slate-800 tracking-tight">{{ __('messages.floor_layout') }}</h1>
+        <div class="flex items-center gap-2">
+            <a href="{{ route('supervisor.revenue_expense.record_income') }}"
+               class="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium text-white bg-emerald-600 hover:bg-emerald-700 transition shadow-sm" title="{{ __('messages.record_income') }}">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg></a>
+            <a href="{{ route('supervisor.revenue_expense.record_expense') }}"
+               class="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium text-white bg-rose-600 hover:bg-rose-700 transition shadow-sm" title="{{ __('messages.record_expense') }}">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 12H4"/></svg></a>
+            <a href="{{ route('supervisor.dashboard') }}"
+               class="inline-flex items-center justify-center h-10 w-10 bg-slate-800 hover:bg-slate-700 text-white rounded-lg transition flex-shrink-0" title="{{ __('messages.back') }}">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/></svg></a>
         </div>
-        <a href="{{ route('supervisor.dashboard') }}"
-           class="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium text-slate-600 bg-white border border-slate-200 hover:bg-slate-50 transition self-start" title="Back to Dashboard">
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg></a>
     </div>
 
     {{-- Summary chips --}}

@@ -376,7 +376,9 @@ class TenantController extends Controller
      */
     public function create(): View
     {
-        $apartments = Apartments::all();
+        $apartments = Apartments::where('status', 'available')
+            ->with('floor')
+            ->get();
 
         return view('admin.TenantManagement.createTenant', compact('apartments'));
     }
@@ -438,6 +440,20 @@ class TenantController extends Controller
         $validated['user_id'] = $tenantUser->id;
         $tenant = Tenants::create($validated);
 
+        // Update apartment status to occupied
+        $apartment = Apartments::findOrFail($validated['apartment_id']);
+        $apartment->update(['status' => 'occupied']);
+
+        // Auto-create Rental record
+        $rental = Rentals::create([
+            'apartment_id' => $apartment->id,
+            'tenant_id' => $tenant->id,
+            'start_date' => Carbon::parse($validated['move_in_date']),
+            'end_date' => $validated['move_out_date'] ? Carbon::parse($validated['move_out_date']) : null,
+            'rent_amount' => $apartment->monthly_rent,
+            'deposit' => $validated['deposit'] ?? 0,
+        ]);
+
         // Auto-record deposit income when a deposit amount is set
         $depositAmount = $validated['deposit'] ?? 0;
         if ($depositAmount > 0) {
@@ -447,20 +463,23 @@ class TenantController extends Controller
                 ->first();
 
             if ($activePeriod) {
-                $apartment = Apartments::find($validated['apartment_id']);
-                $aptNumber = $apartment?->apartment_number ?? 'N/A';
+                $reference = 'deposit:rental:'.$rental->id;
 
-                Accounts::create([
-                    'fiscal_period_id' => $activePeriod->id,
-                    'payment_id' => null,
-                    'user_id' => Auth::id(),
-                    'account_type' => Accounts::TYPE_INCOME,
-                    'category' => Accounts::CAT_DEPOSIT_INCOME,
-                    'description' => '[Apt '.$aptNumber.'] Security deposit received — '.$tenant->name,
-                    'amount' => $depositAmount,
-                    'transaction_date' => $validated['move_in_date'],
-                    'note' => 'Deposit collected on move-in',
-                ]);
+                Accounts::firstOrCreate(
+                    ['reference_number' => $reference],
+                    [
+                        'fiscal_period_id' => $activePeriod->id,
+                        'payment_id' => null,
+                        'user_id' => Auth::id(),
+                        'account_type' => Accounts::TYPE_INCOME,
+                        'category' => Accounts::CAT_DEPOSIT_INCOME,
+                        'description' => '[Apt '.$apartment->apartment_number.'] Security deposit received — '.$tenant->name,
+                        'amount' => $depositAmount,
+                        'transaction_date' => $validated['move_in_date'],
+                        'note' => 'Deposit collected on move-in',
+                        'reference_number' => $reference,
+                    ]
+                );
             }
         }
 
@@ -483,7 +502,11 @@ class TenantController extends Controller
      */
     public function edit(Tenants $tenant): View
     {
-        $apartments = Apartments::all();
+        $apartments = Apartments::where(function ($q) use ($tenant) {
+            $q->where('status', 'available')
+                ->orWhere('id', $tenant->apartment_id);
+        })
+            ->get();
 
         return view('admin.TenantManagement.editTenant', compact('tenant', 'apartments'));
     }
@@ -512,6 +535,40 @@ class TenantController extends Controller
         ], [
             'phone.unique' => __('messages.validation_phone_taken'),
         ]);
+
+        // Handle apartment change
+        $oldApartmentId = $tenant->apartment_id;
+        $newApartmentId = $validated['apartment_id'];
+
+        if ($oldApartmentId != $newApartmentId) {
+            // Free old apartment
+            Apartments::where('id', $oldApartmentId)->update(['status' => 'available']);
+            // Occupy new apartment
+            Apartments::where('id', $newApartmentId)->update(['status' => 'occupied']);
+
+            // Update active rental
+            $activeRental = Rentals::where('tenant_id', $tenant->id)
+                ->where('apartment_id', $oldApartmentId)
+                ->where(function ($q) {
+                    $q->whereNull('end_date')->orWhere('end_date', '>=', now());
+                })
+                ->latest()
+                ->first();
+
+            if ($activeRental) {
+                $activeRental->update(['end_date' => now()]);
+            }
+
+            $newApartment = Apartments::find($newApartmentId);
+            Rentals::create([
+                'apartment_id' => $newApartmentId,
+                'tenant_id' => $tenant->id,
+                'start_date' => Carbon::parse($validated['move_in_date']),
+                'end_date' => $validated['move_out_date'] ? Carbon::parse($validated['move_out_date']) : null,
+                'rent_amount' => $newApartment->monthly_rent,
+                'deposit' => $validated['deposit'] ?? 0,
+            ]);
+        }
 
         // Handle photo upload - SEPARATE from validation
         if ($request->hasFile('photo') && $request->file('photo')->isValid()) {

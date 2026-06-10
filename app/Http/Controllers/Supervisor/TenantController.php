@@ -611,8 +611,9 @@ class TenantController extends Controller
             // Update active rental
             $activeRental = Rentals::where('tenant_id', $tenant->id)
                 ->where('apartment_id', $oldApartmentId)
-                ->whereNull('end_date')
-                ->orWhere('end_date', '>=', now())
+                ->where(function ($q) {
+                    $q->whereNull('end_date')->orWhere('end_date', '>=', now());
+                })
                 ->latest()
                 ->first();
 

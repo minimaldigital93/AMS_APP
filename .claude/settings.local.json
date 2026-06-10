@@ -466,7 +466,10 @@
       "Bash(sed -n 7,11p resources/views/supervisor/revenue_expense/income_statement.blade.php)",
       "Bash(sed -n 1,6p resources/views/supervisor/tenants/leave.blade.php)",
       "Bash(./vendor/bin/pint --dirty --quiet)",
-      "Bash(echo \"pint exit: $?\")"
+      "Bash(echo \"pint exit: $?\")",
+      "Bash(./vendor/bin/pint app/Http/Controllers/Admin/TenantController.php app/Http/Controllers/Supervisor/TenantController.php)",
+      "Bash(./vendor/bin/pest tests/Feature/Tenants/)",
+      "Bash(./vendor/bin/pest --filter=\"tenant\")"
     ],
     "additionalDirectories": [
       "/Users/sarotmoniodom/AMS_APP",
