@@ -889,6 +889,13 @@ return [
     'no_notifications' => 'មិនមានការជូនដំណឹងថ្មីទេ។',
     'items' => 'ធាតុ',
 
+    // Notification group headers
+    'notif_group_billing' => 'ការជាវ',
+    'notif_group_rent' => 'ថ្លៃជួល និងការបង់ប្រាក់',
+    'notif_group_utilities' => 'សេវាសាធារណូបភោគ',
+    'notif_group_expenses' => 'ការចំណាយ',
+    'notif_group_tenants' => 'អ្នកជួល',
+
     // Notification messages
     'notif_upcoming_due' => 'ដល់ពេលបង់ប្រាក់',
     'notif_upcoming_due_msg' => 'ថ្លៃជួលរបស់ :name ត្រូវបង់នៅ :date ($:amount)។',

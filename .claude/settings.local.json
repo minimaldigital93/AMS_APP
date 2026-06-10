@@ -442,7 +442,8 @@
       "Bash(python3 -c \"import json,sys; d=json.load\\(sys.stdin\\); print\\('installMethod:', d.get\\('installMethod'\\)\\); print\\('lastReleaseNotesSeen:', d.get\\('lastReleaseNotesSeen'\\)\\); print\\('subscriptionType:', d.get\\('subscriptionType'\\)\\); print\\('oauthAccount:', json.dumps\\(d.get\\('oauthAccount'\\), indent=2\\) if d.get\\('oauthAccount'\\) else None\\)\")",
       "Bash(sed -i '' \"s/'user_management_title' => 'User Management',/'user_management_title' => 'User',/\" lang/en/messages.php)",
       "Bash(sed -i '' \"s/'user_management_title' => 'ការគ្រប់គ្រងអ្នកប្រើ',/'user_management_title' => 'អ្នកប្រើ',/\" lang/km/messages.php)",
-      "Bash(perl -pi -e 's/ dir=\"rtl\"//g; s/<option dir=\"ltr\"/<option/g; s/\\(focus:ring-0 focus:outline-none cursor-pointer\\)/text-right $1/g if 0' resources/views/admin/settings/index.blade.php)"
+      "Bash(perl -pi -e 's/ dir=\"rtl\"//g; s/<option dir=\"ltr\"/<option/g; s/\\(focus:ring-0 focus:outline-none cursor-pointer\\)/text-right $1/g if 0' resources/views/admin/settings/index.blade.php)",
+      "Bash(./vendor/bin/pint app/Services/NotificationService.php --test)"
     ],
     "additionalDirectories": [
       "/Users/sarotmoniodom/AMS_APP",

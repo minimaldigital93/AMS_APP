@@ -21,6 +21,22 @@ class NotificationService
     /** Warn the admin this many days before their subscription expires. */
     const SUBSCRIPTION_ALERT_DAYS = 3;
 
+    /**
+     * Functional group per notification type — drives the section headers
+     * in the topbar dropdown. Render order is defined in the blade.
+     */
+    const TYPE_GROUPS = [
+        'subscription_due' => 'billing',
+        'due_soon' => 'rent',
+        'overdue' => 'rent',
+        'paid' => 'rent',
+        'utility_charge' => 'utilities',
+        'utility_paid' => 'utilities',
+        'expense' => 'expenses',
+        'new_tenant' => 'tenants',
+        'tenant_moved_out' => 'tenants',
+    ];
+
     public function for(?User $user): Collection
     {
         if (! $user) {
@@ -85,6 +101,7 @@ class NotificationService
 
         return [
             'type' => 'subscription_due',
+            'group' => 'billing',
             'icon' => 'card_membership',
             'color' => $days <= 1 ? 'red' : 'amber',
             'title' => __('messages.notif_subscription_due'),
@@ -489,6 +506,7 @@ class NotificationService
     protected function sortAndLimit(Collection $items): Collection
     {
         return $items
+            ->map(fn ($i) => $i + ['group' => self::TYPE_GROUPS[$i['type']] ?? 'tenants'])
             ->sortByDesc(fn ($i) => $i['time'] ? Carbon::parse($i['time'])->timestamp : 0)
             ->values()
             ->take(self::MAX_ITEMS);

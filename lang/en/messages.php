@@ -889,6 +889,13 @@ return [
     'no_notifications' => 'You\'re all caught up.',
     'items' => 'items',
 
+    // Notification group headers
+    'notif_group_billing' => 'Billing',
+    'notif_group_rent' => 'Rent & Payments',
+    'notif_group_utilities' => 'Utilities',
+    'notif_group_expenses' => 'Expenses',
+    'notif_group_tenants' => 'Tenants',
+
     // Notification messages
     'notif_upcoming_due' => 'Upcoming Due',
     'notif_upcoming_due_msg' => ':name\'s rent is due :date ($:amount).',

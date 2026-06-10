@@ -35,6 +35,16 @@
                 'blue'    => ['bg' => 'bg-blue-50',    'text' => 'text-blue-600',    'ring' => 'ring-blue-100'],
                 'slate'   => ['bg' => 'bg-slate-50',   'text' => 'text-slate-600',   'ring' => 'ring-slate-100'],
             ];
+            $groupLabels = [
+                'billing'   => __('messages.notif_group_billing'),
+                'rent'      => __('messages.notif_group_rent'),
+                'utilities' => __('messages.notif_group_utilities'),
+                'expenses'  => __('messages.notif_group_expenses'),
+                'tenants'   => __('messages.notif_group_tenants'),
+            ];
+            $groupedNotifications = $notifications
+                ->groupBy(fn ($n) => $n['group'] ?? 'tenants')
+                ->sortBy(fn ($g, $key) => array_search($key, array_keys($groupLabels)));
         @endphp
 
         <!-- Notification bell -->
@@ -98,36 +108,44 @@
                     <span class="text-xs text-slate-500">{{ $notifCount }} {{ __('messages.items') }}</span>
                 </div>
 
-                <div class="max-h-[60vh] sm:max-h-96 overflow-y-auto divide-y divide-gray-100">
-                    @forelse($notifications as $n)
-                        @php
-                            $c = $colorMap[$n['color']] ?? $colorMap['blue'];
-                            $time = $n['time'] ? \Carbon\Carbon::parse($n['time']) : null;
-                        @endphp
-                        @if(!empty($n['url']))
-                            <a href="{{ $n['url'] }}" class="block px-4 py-3 hover:bg-slate-50 transition">
-                        @else
-                            <div class="px-4 py-3">
-                        @endif
-                            <div class="flex items-start gap-3">
-                                <span class="flex-shrink-0 w-9 h-9 rounded-full {{ $c['bg'] }} {{ $c['text'] }} ring-1 {{ $c['ring'] }} flex items-center justify-center">
-                                    <span class="material-icons text-base">{{ $n['icon'] }}</span>
-                                </span>
-                                <div class="min-w-0 flex-1">
-                                    <div class="flex items-center justify-between gap-2">
-                                        <p class="text-sm font-semibold text-slate-800 truncate">{{ $n['title'] }}</p>
-                                        @if($time)
-                                            <span class="text-[11px] text-slate-400 flex-shrink-0">{{ $time->diffForHumans() }}</span>
-                                        @endif
+                <div class="max-h-[60vh] sm:max-h-96 overflow-y-auto">
+                    @forelse($groupedNotifications as $group => $groupItems)
+                        <div class="sticky top-0 z-10 px-4 py-1.5 bg-slate-100/95 backdrop-blur-sm border-y border-slate-200/60 flex items-center justify-between">
+                            <span class="text-[11px] font-bold uppercase tracking-wide text-slate-500">{{ $groupLabels[$group] ?? $group }}</span>
+                            <span class="text-[11px] text-slate-400">{{ $groupItems->count() }}</span>
+                        </div>
+                        <div class="divide-y divide-gray-100">
+                        @foreach($groupItems as $n)
+                            @php
+                                $c = $colorMap[$n['color']] ?? $colorMap['blue'];
+                                $time = $n['time'] ? \Carbon\Carbon::parse($n['time']) : null;
+                            @endphp
+                            @if(!empty($n['url']))
+                                <a href="{{ $n['url'] }}" class="block px-4 py-3 hover:bg-slate-50 transition">
+                            @else
+                                <div class="px-4 py-3">
+                            @endif
+                                <div class="flex items-start gap-3">
+                                    <span class="flex-shrink-0 w-9 h-9 rounded-full {{ $c['bg'] }} {{ $c['text'] }} ring-1 {{ $c['ring'] }} flex items-center justify-center">
+                                        <span class="material-icons text-base">{{ $n['icon'] }}</span>
+                                    </span>
+                                    <div class="min-w-0 flex-1">
+                                        <div class="flex items-center justify-between gap-2">
+                                            <p class="text-sm font-semibold text-slate-800 truncate">{{ $n['title'] }}</p>
+                                            @if($time)
+                                                <span class="text-[11px] text-slate-400 flex-shrink-0">{{ $time->diffForHumans() }}</span>
+                                            @endif
+                                        </div>
+                                        <p class="text-xs text-slate-600 mt-0.5 break-words">{{ $n['message'] }}</p>
                                     </div>
-                                    <p class="text-xs text-slate-600 mt-0.5 break-words">{{ $n['message'] }}</p>
                                 </div>
-                            </div>
-                        @if(!empty($n['url']))
-                            </a>
-                        @else
-                            </div>
-                        @endif
+                            @if(!empty($n['url']))
+                                </a>
+                            @else
+                                </div>
+                            @endif
+                        @endforeach
+                        </div>
                     @empty
                         <div class="px-4 py-10 text-center">
                             <span class="material-icons text-slate-300 text-4xl">notifications_off</span>
