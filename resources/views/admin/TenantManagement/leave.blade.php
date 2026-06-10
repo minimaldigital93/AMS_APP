@@ -6,10 +6,10 @@
 <div class="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6" x-data="leaveForm()">
 
     <!-- Header -->
-    <div>
-        <a href="{{ route('admin.tenants.index') }}" class="inline-flex items-center text-blue-600 hover:text-blue-800 text-sm mb-3" title="{{ __('messages.back_to_tenants') }}">
-            <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path></svg></a>
+    <div class="flex items-center justify-between">
         <h1 class="text-2xl font-semibold text-slate-800 tracking-tight">{{ __('messages.process_tenant_leave') }}</h1>
+        <a href="{{ route('admin.tenants.index') }}" class="inline-flex items-center px-4 py-2 bg-slate-800 text-white rounded-lg hover:bg-slate-700 transition" title="{{ __('messages.back_to_tenants') }}">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/></svg></a>
     </div>
 
     @if($errors->any())
@@ -85,11 +85,9 @@
             </div>
 
             <!-- Outstanding Charges -->
+            @if($pendingCharges->isNotEmpty())
             <div>
                 <p class="text-sm font-medium text-gray-700 mb-2">{{ __('messages.outstanding_charges') }}</p>
-                @if($pendingCharges->isEmpty())
-                    <p class="text-xs text-gray-400 italic">{{ __('messages.no_outstanding_charges') }}</p>
-                @else
                     <div class="border border-slate-200 rounded-lg overflow-hidden">
                         <table class="w-full text-sm">
                             <thead class="bg-slate-50 text-xs text-slate-500 uppercase">
@@ -126,64 +124,70 @@
                             </tbody>
                         </table>
                     </div>
-                @endif
             </div>
+            @endif
+
+            <!-- Deposit Handling — Toggle Switches (only shown when tenant has a deposit) -->
+            @if(($tenant->deposit ?? 0) > 0)
+            <div class="flex items-center justify-between p-3 bg-slate-50 rounded-lg border border-slate-200">
+                <div>
+                    <p class="text-sm font-medium text-gray-700">{{ __('messages.return_deposit_option') }}</p>
+                    <p class="text-xs text-gray-400 mt-0.5">{{ __('messages.return_deposit_hint') }}</p>
+                </div>
+                <button type="button" @click="depositAction = depositAction === 'return_deposit' ? 'last_payment' : 'return_deposit'; updateCalculations()"
+                    :class="depositAction === 'return_deposit' ? 'bg-blue-600' : 'bg-slate-300'"
+                    class="relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2">
+                    <span :class="depositAction === 'return_deposit' ? 'translate-x-5' : 'translate-x-0'"
+                        class="pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out"></span>
+                </button>
+            </div>
+            <div class="flex items-center justify-between p-3 bg-slate-50 rounded-lg border border-slate-200">
+                <div>
+                    <p class="text-sm font-medium text-gray-700">{{ __('messages.deposit_as_last_payment_option') }}</p>
+                    <p class="text-xs text-gray-400 mt-0.5">{{ __('messages.deposit_as_last_payment_hint') }}</p>
+                </div>
+                <button type="button" @click="depositAction = depositAction === 'last_payment' ? 'return_deposit' : 'last_payment'; updateCalculations()"
+                    :class="depositAction === 'last_payment' ? 'bg-green-600' : 'bg-slate-300'"
+                    class="relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2">
+                    <span :class="depositAction === 'last_payment' ? 'translate-x-5' : 'translate-x-0'"
+                        class="pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out"></span>
+                </button>
+            </div>
+            <!-- Hidden input to carry the value on form submit -->
+            <input type="hidden" name="deposit_action" :value="depositAction">
+            @endif
 
             <!-- Extra Charges (optional) -->
-            <div>
-                <p class="text-sm font-medium text-gray-700 mb-2">{{ __('messages.extra_charges') }} <span class="text-xs font-normal text-gray-400">{{ __('messages.extra_charges_hint') }}</span></p>
+            <div class="p-3 bg-slate-50 rounded-lg border border-slate-200">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-sm font-medium text-gray-700">{{ __('messages.extra_charges') }}</p>
+                        <p class="text-xs text-gray-400 mt-0.5">{{ __('messages.extra_charges_hint') }}</p>
+                    </div>
+                    <button type="button" @click="addExtraCharge()"
+                        class="inline-flex items-center justify-center w-8 h-8 flex-shrink-0 rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition" title="{{ __('messages.add_extra_charge') }}">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg></button>
+                </div>
                 <template x-for="(row, idx) in extraCharges" :key="idx">
-                    <div class="flex gap-2 mb-2">
+                    <div class="flex gap-2 mt-2">
                         <input type="text"
                             :name="'extra_charges[' + idx + '][description]'"
                             x-model="row.description"
                             placeholder="{{ __('messages.what_is_charge_for') }}"
-                            class="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm">
+                            class="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm bg-white">
                         <input type="number" step="0.01" min="0"
                             :name="'extra_charges[' + idx + '][amount]'"
                             x-model.number="row.amount"
                             @input="updateCalculations()"
                             placeholder="0.00"
-                            class="w-28 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm">
+                            class="w-28 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm bg-white">
                         <button type="button" @click="removeExtraCharge(idx)"
                             class="px-2 text-red-500 hover:text-red-700" title="{{ __('messages.remove') }}">
                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
                         </button>
                     </div>
                 </template>
-                <button type="button" @click="addExtraCharge()"
-                    class="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-blue-700 bg-blue-50 border border-blue-200 rounded-lg hover:bg-blue-100" title="{{ __('messages.add_extra_charge') }}">
-                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg></button>
             </div>
-
-            <!-- Deposit Handling (only shown when tenant has a deposit) -->
-            @if(($tenant->deposit ?? 0) > 0)
-            <div>
-                <p class="text-sm font-medium text-gray-700 mb-2">{{ __('messages.deposit_handling') }}</p>
-                <div class="space-y-2">
-                    <label class="flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition"
-                        :class="depositAction === 'return_deposit' ? 'bg-blue-50 border-blue-300' : 'bg-slate-50 border-slate-200'">
-                        <input type="radio" name="deposit_action" value="return_deposit"
-                            x-model="depositAction" @change="updateCalculations()"
-                            class="mt-0.5 text-blue-600">
-                        <div>
-                            <p class="text-sm font-medium text-gray-700">{{ __('messages.return_deposit_option') }}</p>
-                            <p class="text-xs text-gray-400 mt-0.5">{{ __('messages.return_deposit_hint') }}</p>
-                        </div>
-                    </label>
-                    <label class="flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition"
-                        :class="depositAction === 'last_payment' ? 'bg-green-50 border-green-300' : 'bg-slate-50 border-slate-200'">
-                        <input type="radio" name="deposit_action" value="last_payment"
-                            x-model="depositAction" @change="updateCalculations()"
-                            class="mt-0.5 text-green-600">
-                        <div>
-                            <p class="text-sm font-medium text-gray-700">{{ __('messages.deposit_as_last_payment_option') }}</p>
-                            <p class="text-xs text-gray-400 mt-0.5">{{ __('messages.deposit_as_last_payment_hint') }}</p>
-                        </div>
-                    </label>
-                </div>
-            </div>
-            @endif
 
             <!-- Notes -->
             <div>
