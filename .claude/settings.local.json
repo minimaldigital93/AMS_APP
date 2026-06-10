@@ -436,7 +436,8 @@
       "Bash(grep -n 'Tenant Billing Table\\\\|Tenant Bills —\\\\|divide-y divide-slate-50\\\\|tenantBills as \\\\|method_exists\\($tenantBills' resources/views/supervisor/revenue_expense/record_income.blade.php)",
       "Bash(php -l /Users/moniodom/AMS_APP/app/Http/Controllers/Admin/RevenueExpenseController.php)",
       "Bash(php -l /Users/moniodom/AMS_APP/app/Http/Controllers/Supervisor/RevenueExpenseController.php)",
-      "Bash(python3 -c \"import json; json.load\\(open\\('.claude/settings.local.json'\\)\\); print\\('JSON valid'\\)\")"
+      "Bash(python3 -c \"import json; json.load\\(open\\('.claude/settings.local.json'\\)\\); print\\('JSON valid'\\)\")",
+      "Bash(git -C /Users/sarotmoniodom/AMS_APP_dev diff resources/views/admin/revenue_expense/record_income.blade.php)"
     ],
     "additionalDirectories": [
       "/Users/sarotmoniodom/AMS_APP",

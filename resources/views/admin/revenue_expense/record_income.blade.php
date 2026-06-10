@@ -137,49 +137,46 @@
     </div>
 
     <!-- Filter Bar -->
-    <div class="bg-white rounded-xl border border-slate-100 p-4 flex items-center gap-2 overflow-x-auto">
+    <div class="bg-white rounded-xl border border-slate-100 p-3 md:p-4 flex items-center gap-2 overflow-x-auto">
         <button @click="filter = 'all'" :class="filter === 'all' ? 'bg-slate-800 text-white' : 'bg-slate-50 text-slate-600 hover:bg-slate-100'"
-            class="px-3 py-1.5 rounded-lg text-sm font-medium transition flex-shrink-0">{{ __('messages.all') }} {{ count($tenantBillsAll ?? $tenantBills) }}</button>
+            class="px-3 py-1.5 rounded-lg text-sm font-medium transition flex-shrink-0 whitespace-nowrap">{{ __('messages.all') }} {{ count($tenantBillsAll ?? $tenantBills) }}</button>
         @if(!$isFutureMonth)
         <button @click="filter = 'overdue'" :class="filter === 'overdue' ? 'bg-red-600 text-white' : 'bg-slate-50 text-slate-600 hover:bg-slate-100'"
-            class="px-3 py-1.5 rounded-lg text-sm font-medium transition flex-shrink-0">{{ __('messages.overdue') }} {{ $overdueCount }}</button>
+            class="px-3 py-1.5 rounded-lg text-sm font-medium transition flex-shrink-0 whitespace-nowrap">{{ __('messages.overdue') }} {{ $overdueCount }}</button>
         @endif
         <button @click="filter = 'pending'" :class="filter === 'pending' ? 'bg-amber-600 text-white' : 'bg-slate-50 text-slate-600 hover:bg-slate-100'"
-            class="px-3 py-1.5 rounded-lg text-sm font-medium transition flex-shrink-0">{{ $isFutureMonth ? __('messages.upcoming') : __('messages.pending') }} {{ $pendingCount }}</button>
+            class="px-3 py-1.5 rounded-lg text-sm font-medium transition flex-shrink-0 whitespace-nowrap">{{ $isFutureMonth ? __('messages.upcoming') : __('messages.pending') }} {{ $pendingCount }}</button>
         <button @click="filter = 'paid'" :class="filter === 'paid' ? 'bg-emerald-600 text-white' : 'bg-slate-50 text-slate-600 hover:bg-slate-100'"
-            class="px-3 py-1.5 rounded-lg text-sm font-medium transition flex-shrink-0">{{ __('messages.paid') }} {{ $paidCount }}</button>
-
-        <!-- Floor dropdown (server-side filter) -->
-        <select onchange="window.location.href = this.value"
-            class="ms-auto flex-shrink-0 h-9 pl-3 pr-8 text-sm bg-slate-50 border border-slate-200 rounded-lg text-slate-700 font-medium focus:outline-none focus:ring-2 focus:ring-slate-300 cursor-pointer">
-            <option value="{{ request()->fullUrlWithQuery(['floor' => null, 'page' => null]) }}" @selected(!request()->filled('floor'))>{{ __('messages.all_floors') }}</option>
-            @foreach($floors as $floor)
-                <option value="{{ request()->fullUrlWithQuery(['floor' => $floor->id, 'page' => null]) }}" @selected(request('floor') == $floor->id)>{{ $floor->floor_name }}</option>
-            @endforeach
-        </select>
+            class="px-3 py-1.5 rounded-lg text-sm font-medium transition flex-shrink-0 whitespace-nowrap">{{ __('messages.paid') }} {{ $paidCount }}</button>
     </div>
 
     <!-- Tenant Billing Table -->
     <div class="bg-white rounded-xl border border-slate-100 overflow-hidden">
-        <div class="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
-            <h2 class="text-lg font-semibold text-slate-800 flex items-center">
-                <svg class="w-5 h-5 mr-2 text-sky-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
-                {{ __('messages.tenant_bills') }} — {{ $selectedDate->format('F Y') }}
+        <div class="px-4 md:px-6 py-4 border-b border-slate-100 flex items-center justify-between gap-3">
+            <h2 class="text-lg font-semibold text-slate-800 flex items-center min-w-0">
+                <svg class="w-5 h-5 mr-2 text-sky-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
+                <span class="truncate">{{ __('messages.tenant_bills') }} — {{ $selectedDate->format('F Y') }}</span>
             </h2>
+            <!-- Floor dropdown (server-side filter) -->
+            <select onchange="window.location.href = this.value"
+                class="flex-shrink-0 h-9 pl-3 pr-8 text-sm bg-slate-50 border border-slate-200 rounded-lg text-slate-700 font-medium focus:outline-none focus:ring-2 focus:ring-slate-300 cursor-pointer">
+                <option value="{{ request()->fullUrlWithQuery(['floor' => null, 'page' => null]) }}" @selected(!request()->filled('floor'))>{{ __('messages.all_floors') }}</option>
+                @foreach($floors as $floor)
+                    <option value="{{ request()->fullUrlWithQuery(['floor' => $floor->id, 'page' => null]) }}" @selected(request('floor') == $floor->id)>{{ $floor->floor_name }}</option>
+                @endforeach
+            </select>
         </div>
 
         @if(count($tenantBillsAll ?? $tenantBills) > 0)
         <!-- Desktop table (hidden on mobile) -->
         <div class="hidden md:block p-6 overflow-x-auto">
-            <table class="min-w-full divide-y divide-gray-200">
+            <table class="min-w-full table-fixed divide-y divide-gray-200">
                 <thead class="bg-gray-50">
                     <tr>
-                        <th class="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">{{ __('messages.no_col') }}</th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">{{ __('messages.apartment') }}</th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">{{ __('messages.tenant') }}</th>
-                        <th class="px-6 py-3 text-right text-xs font-medium text-slate-500 uppercase tracking-wider">{{ __('messages.total') }}</th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">{{ __('messages.status') }}</th>
-                        <th class="px-6 py-3 text-right text-xs font-medium text-slate-500 uppercase tracking-wider">{{ __('messages.actions') }}</th>
+                        <th class="w-12 px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">{{ __('messages.no_col') }}</th>
+                        <th class="w-1/3 px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">{{ __('messages.apartment') }} / {{ __('messages.tenant') }}</th>
+                        <th class="w-1/3 px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">{{ __('messages.total') }} / {{ __('messages.status') }}</th>
+                        <th class="w-1/3 px-4 py-3 text-right text-xs font-medium text-slate-500 uppercase tracking-wider">{{ __('messages.actions') }}</th>
                     </tr>
                 </thead>
                 <tbody class="bg-white divide-y divide-gray-200">
@@ -195,35 +192,31 @@
                     <tr x-show="matchesFilter('{{ $bill['status'] }}', '{{ strtolower($bill['tenant']->name ?? '') }}', '{{ strtolower($bill['apartment']->apartment_number ?? '') }}')"
                         class="hover:bg-gray-50 transition {{ $bill['status'] === 'overdue' ? 'bg-red-50/40' : ($bill['status'] === 'paid' ? 'bg-emerald-50/40' : ($isFutureMonth ? 'bg-sky-50/30' : '')) }}">
                         <td class="px-4 py-4 whitespace-nowrap text-sm text-gray-600">{{ $tenantBills->firstItem() ? $tenantBills->firstItem() + $loop->index : $loop->iteration }}</td>
-                        <td class="px-6 py-4 whitespace-nowrap">
+                        <td class="px-4 py-4">
                             <div class="flex items-center">
                                 <div class="h-10 w-10 rounded-lg bg-sky-50 flex items-center justify-center flex-shrink-0">
                                     <svg class="w-5 h-5 text-sky-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/></svg>
                                 </div>
-                                <div class="ml-4">
-                                    <p class="font-semibold text-slate-800">{{ $bill['apartment']->apartment_number }}</p>
-                                    <p class="text-xs text-slate-400">{{ __('messages.floor') }} {{ $bill['apartment']->floor->floor_number ?? 'N/A' }}</p>
+                                <div class="ml-4 min-w-0">
+                                    <p class="font-semibold text-slate-800 truncate">{{ $bill['apartment']->apartment_number }}</p>
+                                    <p class="text-xs text-slate-400 truncate">{{ __('messages.floor') }} {{ $bill['apartment']->floor->floor_number ?? 'N/A' }}</p>
+                                    <p class="font-medium text-gray-900 text-sm truncate">{{ $bill['tenant']->name ?? 'N/A' }}</p>
+                                    <p class="text-xs text-gray-500 truncate">{{ $bill['tenant']->phone ?? '' }}</p>
                                 </div>
                             </div>
                         </td>
-                        <td class="px-6 py-4 whitespace-nowrap">
-                            <p class="font-medium text-gray-900">{{ $bill['tenant']->name ?? 'N/A' }}</p>
-                            <p class="text-sm text-gray-500">{{ $bill['tenant']->phone ?? '' }}</p>
-                        </td>
-                        <td class="px-6 py-4 whitespace-nowrap text-right">
+                        <td class="px-4 py-4 whitespace-nowrap">
                             <p class="text-sm font-bold {{ $bill['status'] === 'paid' ? 'text-emerald-600' : 'text-slate-800' }}">${{ number_format($bill['total_bill'], 2) }}</p>
                             <p class="text-xs text-slate-400">{{ __('messages.rent') }} ${{ number_format($bill['monthly_rent'], 2) }}</p>
-                        </td>
-                        <td class="px-6 py-4 whitespace-nowrap">
                             @if($bill['status'] === 'paid')
-                                <span class="px-2 py-1 text-xs font-semibold rounded-md bg-emerald-100 text-emerald-700">{{ __('messages.paid') }}</span>
+                                <span class="mt-1 inline-block px-2 py-1 text-xs font-semibold rounded-md bg-emerald-100 text-emerald-700">{{ __('messages.paid') }}</span>
                             @elseif($bill['status'] === 'overdue')
-                                <span class="px-2 py-1 text-xs font-semibold rounded-md bg-red-100 text-red-700">{{ __('messages.overdue') }}</span>
+                                <span class="mt-1 inline-block px-2 py-1 text-xs font-semibold rounded-md bg-red-100 text-red-700">{{ __('messages.overdue') }}</span>
                             @else
-                                <span class="px-2 py-1 text-xs font-semibold rounded-md bg-amber-100 text-amber-700">{{ $isFutureMonth ? __('messages.upcoming') : __('messages.pending') }}</span>
+                                <span class="mt-1 inline-block px-2 py-1 text-xs font-semibold rounded-md bg-amber-100 text-amber-700">{{ $isFutureMonth ? __('messages.upcoming') : __('messages.pending') }}</span>
                             @endif
                         </td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                        <td class="px-4 py-4 whitespace-nowrap text-sm font-medium">
                             <div class="flex items-center justify-end gap-2">
                                 @if($bill['status'] !== 'paid')
                                 <button @click="openAddCharge({{ $bill['rental']->id }}, '{{ addslashes($bill['tenant']->name ?? __('messages.tenant')) }}', '{{ $bill['apartment']->apartment_number }}')"
@@ -262,16 +255,17 @@
             @endphp
             <div x-show="matchesFilter('{{ $bill['status'] }}', '{{ strtolower($bill['tenant']->name ?? '') }}', '{{ strtolower($bill['apartment']->apartment_number ?? '') }}')"
                  class="flex items-center gap-3 px-4 py-3 active:bg-slate-50 transition {{ $bill['status'] === 'overdue' ? 'bg-red-50/40' : ($bill['status'] === 'paid' ? 'bg-emerald-50/40' : ($isFutureMonth ? 'bg-sky-50/30' : '')) }}">
+                <span class="w-5 text-xs font-medium text-slate-400 text-center flex-shrink-0">{{ $tenantBills->firstItem() ? $tenantBills->firstItem() + $loop->index : $loop->iteration }}</span>
                 <div class="h-9 w-9 rounded-lg bg-sky-50 flex items-center justify-center flex-shrink-0">
                     <svg class="w-5 h-5 text-sky-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/></svg>
                 </div>
                 <!-- Apartment + tenant -->
-                <div class="min-w-0 flex-1">
+                <div class="min-w-0 flex-3">
                     <p class="font-semibold text-slate-800 text-sm truncate">{{ $bill['apartment']->apartment_number }}</p>
                     <p class="text-xs text-slate-400 truncate">{{ $bill['tenant']->name ?? 'N/A' }}</p>
                 </div>
                 <!-- Amount + status -->
-                <div class="flex flex-col items-end flex-shrink-0">
+                <div class="flex flex-col items-center flex-1 min-w-0">
                     <p class="text-sm font-bold {{ $bill['status'] === 'paid' ? 'text-emerald-600' : 'text-slate-800' }} whitespace-nowrap">${{ number_format($bill['total_bill'], 2) }}</p>
                     @if($bill['status'] === 'paid')
                         <span class="mt-0.5 px-1.5 py-0.5 text-[10px] font-semibold rounded bg-emerald-100 text-emerald-700">{{ __('messages.paid') }}</span>

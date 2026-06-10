@@ -1152,12 +1152,16 @@ class RevenueExpenseController extends Controller
             'other' => 'Other',
         ];
 
-        // Tenants expense collection (utilities + fixed charges billed to tenants) — tracked
-        // separately and intentionally excluded from grand total business expenses.
+        // Tenants expense collection (utilities + fixed charges billed to tenants).
         $tenantsExpenseCollected = $totalExpenses;
 
-        // Grand total of business-side expenses for the selected month
-        $grandTotalExpenses = $totalOtherExpenses + $businessTotal;
+        // Net of tenant collections against business expenses: negative → remaining
+        // business expense, positive → expense revenue (counts toward revenue).
+        $expenseNet = $tenantsExpenseCollected - $businessTotal;
+
+        // Grand total of business-side expenses for the selected month — only the
+        // portion of business expenses not covered by tenant collections counts.
+        $grandTotalExpenses = $totalOtherExpenses + max(0, -$expenseNet);
 
         $currentMonth = now()->month;
         $currentYear = now()->year;
@@ -1166,7 +1170,7 @@ class RevenueExpenseController extends Controller
             'activePeriod', 'apartments', 'apartmentExpenses', 'apartmentExpensesAll', 'recentExpenses',
             'utilityTypes', 'totalExpenses', 'otherExpenseCategories', 'otherExpenses',
             'totalOtherExpenses', 'businessExpenses', 'businessTotal', 'businessCategories',
-            'grandTotalExpenses', 'tenantsExpenseCollected', 'currentMonth', 'currentYear',
+            'grandTotalExpenses', 'tenantsExpenseCollected', 'expenseNet', 'currentMonth', 'currentYear',
             'filterMonth', 'filterYear', 'periodMonths'
         ));
     }
