@@ -426,7 +426,13 @@
       "Bash(php -l resources/views/admin/TenantManagement/archivedTenants.blade.php)",
       "Bash(php -r '$f=\"resources/views/admin/revenue_expense/record_income.blade.php\"; $c=file_get_contents\\($f\\); echo \"th count: \".substr_count\\($c,\"<th \"\\).\"\\\\n\"; echo \"open php: \".substr_count\\($c,\"@php\"\\).\", end php: \".substr_count\\($c,\"@endphp\"\\).\"\\\\n\";')",
       "Bash(node -p \"require\\('./node_modules/chart.js/package.json'\\).version\")",
-      "Bash(echo \"chart.js installed OK \\($\\(node -p \"require\\('./node_modules/chart.js/package.json'\\).version\"\\)\\)\")"
+      "Bash(echo \"chart.js installed OK \\($\\(node -p \"require\\('./node_modules/chart.js/package.json'\\).version\"\\)\\)\")",
+      "Bash(ipconfig getifaddr *)",
+      "Bash(sudo -n systemsetup -getremotelogin)",
+      "Bash(git -C /Users/sarotmoniodom/AMS_APP remote -v)",
+      "Bash(lsof -nP -iTCP:22 -sTCP:LISTEN)",
+      "Bash(/Applications/Tailscale.app/Contents/MacOS/Tailscale status *)",
+      "Bash(chmod +x /Users/sarotmoniodom/AMS_APP/deploy.sh)"
     ],
     "additionalDirectories": [
       "/Users/sarotmoniodom/AMS_APP",
