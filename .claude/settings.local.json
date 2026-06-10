@@ -432,7 +432,11 @@
       "Bash(git -C /Users/sarotmoniodom/AMS_APP remote -v)",
       "Bash(lsof -nP -iTCP:22 -sTCP:LISTEN)",
       "Bash(/Applications/Tailscale.app/Contents/MacOS/Tailscale status *)",
-      "Bash(chmod +x /Users/sarotmoniodom/AMS_APP/deploy.sh)"
+      "Bash(chmod +x /Users/sarotmoniodom/AMS_APP/deploy.sh)",
+      "Bash(grep -n 'Tenant Billing Table\\\\|Tenant Bills —\\\\|divide-y divide-slate-50\\\\|tenantBills as \\\\|method_exists\\($tenantBills' resources/views/supervisor/revenue_expense/record_income.blade.php)",
+      "Bash(php -l /Users/moniodom/AMS_APP/app/Http/Controllers/Admin/RevenueExpenseController.php)",
+      "Bash(php -l /Users/moniodom/AMS_APP/app/Http/Controllers/Supervisor/RevenueExpenseController.php)",
+      "Bash(python3 -c \"import json; json.load\\(open\\('.claude/settings.local.json'\\)\\); print\\('JSON valid'\\)\")"
     ],
     "additionalDirectories": [
       "/Users/sarotmoniodom/AMS_APP",
