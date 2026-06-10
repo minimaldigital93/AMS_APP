@@ -453,7 +453,20 @@
       "Bash(sed -i '' '432i\\\\ *)",
       "Bash(sed -n '430,434p' lang/en/messages.php)",
       "Bash(sed -n '430,434p' lang/km/messages.php)",
-      "Bash(./vendor/bin/pint app/Http/Controllers/Admin/DashboardController.php app/Http/Controllers/Supervisor/DashboardController.php app/Http/Controllers/Admin/RevenueExpenseController.php app/Http/Controllers/Supervisor/RevenueExpenseController.php app/Http/Controllers/Admin/TenantController.php app/helpers.php lang/en/messages.php lang/km/messages.php)"
+      "Bash(./vendor/bin/pint app/Http/Controllers/Admin/DashboardController.php app/Http/Controllers/Supervisor/DashboardController.php app/Http/Controllers/Admin/RevenueExpenseController.php app/Http/Controllers/Supervisor/RevenueExpenseController.php app/Http/Controllers/Admin/TenantController.php app/helpers.php lang/en/messages.php lang/km/messages.php)",
+      "Bash(echo \"---exit $?\")",
+      "Bash(sed -E \"s/layouts\\\\.admin/layouts.supervisor/g; s/route\\\\\\('admin\\\\./route\\('supervisor./g\" resources/views/admin/TenantManagement/activeTenants.blade.php)",
+      "Bash(sed -E \"s/layouts\\\\.admin/layouts.supervisor/g; s/route\\\\\\('admin\\\\./route\\('supervisor./g\" resources/views/admin/TenantManagement/archivedTenants.blade.php)",
+      "Bash(sed -n 350,371p resources/views/supervisor/apartments/index.blade.php)",
+      "Bash(sed -n 360,395p resources/views/admin/apartments/index.blade.php)",
+      "Bash(sed \"s|/admin/apartments|/supervisor/apartments|g\" resources/views/admin/apartments/_assign-tenant-modal.blade.php)",
+      "Bash(sed -E \"s/layouts\\\\.admin/layouts.supervisor/g; s/route\\\\\\('admin\\\\./route\\('supervisor./g; s|@include\\\\\\('admin\\\\.apartments\\\\._assign-tenant-modal'\\\\\\)|@include\\('supervisor.apartments._assign-tenant-modal'\\)|; s|/admin/tenants/|/supervisor/tenants/|g\" resources/views/admin/apartments/index.blade.php)",
+      "Bash(grep -n 'floorsWithApartments\\\\|$supervisors\\\\|$roles\\\\b' resources/views/supervisor/apartments/index.blade.php resources/views/admin/apartments/index.blade.php resources/views/supervisor/apartments/_assign-tenant-modal.blade.php)",
+      "Bash(sed -n 115,123p resources/views/supervisor/revenue_expense/index.blade.php)",
+      "Bash(sed -n 7,11p resources/views/supervisor/revenue_expense/income_statement.blade.php)",
+      "Bash(sed -n 1,6p resources/views/supervisor/tenants/leave.blade.php)",
+      "Bash(./vendor/bin/pint --dirty --quiet)",
+      "Bash(echo \"pint exit: $?\")"
     ],
     "additionalDirectories": [
       "/Users/sarotmoniodom/AMS_APP",

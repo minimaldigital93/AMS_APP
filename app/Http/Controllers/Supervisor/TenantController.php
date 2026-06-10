@@ -132,7 +132,7 @@ class TenantController extends Controller
     public function archived(Request $request): View
     {
         $query = Tenants::onlyTrashed()
-            ->with(['apartment.floor', 'leaves']);
+            ->with(['apartment.floor', 'leaves.apartment.floor']);
 
         if ($search = $request->input('search')) {
             $query->where(function (Builder $q) use ($search) {
@@ -141,9 +141,15 @@ class TenantController extends Controller
             });
         }
 
+        // Archived tenants have apartment_id cleared, so match on the apartment
+        // recorded in their leave history as well as any current apartment.
         if ($floorId = $request->input('floor')) {
-            $query->whereHas('apartment.floor', function (Builder $q) use ($floorId) {
-                $q->where('id', $floorId);
+            $query->where(function (Builder $q) use ($floorId) {
+                $q->whereHas('apartment.floor', function (Builder $sub) use ($floorId) {
+                    $sub->where('id', $floorId);
+                })->orWhereHas('leaves.apartment.floor', function (Builder $sub) use ($floorId) {
+                    $sub->where('id', $floorId);
+                });
             });
         }
 
@@ -191,24 +197,32 @@ class TenantController extends Controller
      */
     public function store(Request $request): RedirectResponse
     {
+        $minBirthDate = now()->subYears(18)->toDateString();
+        $minMoveInDate = now()->subDays(3)->toDateString();
+
         $validated = $request->validate([
             'apartment_id' => 'required|exists:apartments,id',
             'name' => 'required|string|max:255',
             'phone' => [
-                'required', 'string', 'max:20',
+                'required', 'string', 'max:20', 'regex:/^[0-9+\-\s()]+$/',
+                // Per-account uniqueness so each admin's tenants are independent.
                 Rule::unique('tenants', 'phone')->where('account_id', current_account_id())->whereNull('deleted_at'),
                 Rule::unique('users', 'phone')->where('account_id', current_account_id()),
             ],
             'email' => 'nullable|email|max:255',
             'address' => 'nullable|string',
-            'date_of_birth' => 'nullable|date',
-            'move_in_date' => 'required|date',
+            'date_of_birth' => 'nullable|date|before_or_equal:'.$minBirthDate,
+            'move_in_date' => 'required|date|after_or_equal:'.$minMoveInDate,
             'move_out_date' => 'nullable|date|after:move_in_date',
-            'status' => 'required|in:pending,active',
+            'status' => 'required|in:pending,active,inactive',
             'deposit' => 'nullable|numeric|min:0',
             'photo' => 'nullable|image|mimes:jpeg,png,jpg,gif,webp|max:10240',
+            'notes' => 'nullable|string',
         ], [
             'phone.unique' => __('messages.validation_phone_taken'),
+            'phone.regex' => __('messages.phone_must_be_english'),
+            'date_of_birth.before_or_equal' => __('messages.tenant_must_be_18'),
+            'move_in_date.after_or_equal' => __('messages.move_in_date_min'),
         ]);
 
         if ($request->hasFile('photo') && $request->file('photo')->isValid()) {
@@ -239,7 +253,7 @@ class TenantController extends Controller
         $apartment->update(['status' => 'occupied']);
 
         // Auto-create Rental record
-        Rentals::create([
+        $rental = Rentals::create([
             'apartment_id' => $apartment->id,
             'tenant_id' => $tenant->id,
             'start_date' => Carbon::parse($validated['move_in_date']),
@@ -247,6 +261,39 @@ class TenantController extends Controller
             'rent_amount' => $apartment->monthly_rent,
             'deposit' => $validated['deposit'] ?? 0,
         ]);
+
+        // Auto-record deposit income when a deposit amount is set (mirrors the
+        // admin flow). Ledger rows go into the admin's open period under the
+        // admin's user_id — supervisors don't own periods.
+        $depositAmount = $validated['deposit'] ?? 0;
+        if ($depositAmount > 0) {
+            $activePeriod = FiscalPeriods::where('status', 'open')
+                ->whereHas('user', function ($q) {
+                    $q->role('admin');
+                })
+                ->orderBy('opening_date', 'desc')
+                ->first();
+
+            if ($activePeriod) {
+                $reference = 'deposit:rental:'.$rental->id;
+
+                Accounts::firstOrCreate(
+                    ['reference_number' => $reference],
+                    [
+                        'fiscal_period_id' => $activePeriod->id,
+                        'payment_id' => null,
+                        'user_id' => $activePeriod->user_id,
+                        'account_type' => Accounts::TYPE_INCOME,
+                        'category' => Accounts::CAT_DEPOSIT_INCOME,
+                        'description' => '[Apt '.$apartment->apartment_number.'] Security deposit received — '.$tenant->name,
+                        'amount' => $depositAmount,
+                        'transaction_date' => $validated['move_in_date'],
+                        'note' => 'Deposit collected on move-in',
+                        'reference_number' => $reference,
+                    ]
+                );
+            }
+        }
 
         return redirect()->route('supervisor.tenants.index')
             ->with('success', __('messages.flash_tenant_registered'));

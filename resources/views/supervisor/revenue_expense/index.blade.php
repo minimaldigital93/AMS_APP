@@ -116,7 +116,7 @@
     @endif
 
      {{-- Summary Cards  --}}
-    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+    <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
         <div class="bg-white rounded-xl border border-slate-100 p-5">
             <div class="flex items-center gap-3">
                 <div class="w-10 h-10 rounded-lg bg-emerald-50 flex items-center justify-center">

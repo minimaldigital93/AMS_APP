@@ -278,7 +278,8 @@ class ApartmentController extends Controller
                     [
                         'fiscal_period_id' => $activePeriod?->id,
                         'payment_id' => null,
-                        'user_id' => Auth::id(),
+                        // Ledger rows carry the admin's user_id (one-ledger invariant).
+                        'user_id' => $activePeriod?->user_id ?? Auth::id(),
                         'account_type' => Accounts::TYPE_INCOME,
                         'category' => Accounts::CAT_DEPOSIT_INCOME,
                         'description' => 'Security deposit — Apt '.($apartment->apartment_number ?? 'N/A'),

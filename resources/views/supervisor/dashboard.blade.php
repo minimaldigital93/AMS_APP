@@ -7,11 +7,11 @@
 
 
     {{-- Header --}}
-    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+    <div class="flex flex-row items-center justify-between gap-3">
         <div>
             <h1 class="text-2xl font-semibold text-slate-800 tracking-tight">{{ __('messages.dashboard') }}</h1>
         </div>
-        <div class="flex items-center gap-2">
+        <div class="flex items-center gap-2 shrink-0">
             <a href="{{ route('supervisor.floors.plan3d') }}"
                class="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 transition shadow-sm" title="{{ __('messages.floor_view_3d') }}">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/></svg></a>
@@ -201,20 +201,20 @@
     {{-- Payment Status Quick View --}}
     @if($fiscalData['has_active_period'] && !$isFullPeriod)
     <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div class="bg-emerald-50/70 border border-emerald-100 rounded-xl p-4 flex items-center justify-between">
+        <div class="bg-white border border-slate-200 rounded-xl p-4 flex items-center justify-between">
             <div>
-                <p class="flex items-center gap-2 text-sm font-medium text-emerald-700">
-                    <span class="p-1.5 rounded-full bg-emerald-100 inline-flex items-center justify-center">
+                <p class="flex items-center gap-2 text-sm font-medium text-slate-600">
+                    <span class="p-1.5 rounded-full bg-emerald-50 inline-flex items-center justify-center">
                         <svg class="w-4 h-4 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
                     </span>
                     {{ __('messages.paid') }}
                 </p>
-                <p class="text-2xl font-bold text-emerald-800">{{ $stats['payments']['paid'] }}</p>
+                <p class="text-2xl font-bold text-slate-800">{{ $stats['payments']['paid'] }}</p>
                 @if(!empty($stats['tenants_on_leave']) && $stats['tenants_on_leave'] > 0)
                     @php $leaveCount = (int) $stats['tenants_on_leave']; @endphp
-                    <p class="flex items-center gap-2 text-sm text-slate-500 mt-2" title="{{ $leaveCount === 1 ? '1 tenant is on leave' : $leaveCount . ' tenants on leave' }}">
+                    <p class="flex items-center gap-2 text-sm text-slate-500 mt-2" title="{{ __('messages.tenants_on_leave', ['count' => $leaveCount]) }}">
                         <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-sky-500 shrink-0" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path fill-rule="evenodd" d="M18 10A8 8 0 1110 2a8 8 0 018 8zm-9-3a1 1 0 102 0 1 1 0 00-2 0zm1 4a1 1 0 00-1 1v1a1 1 0 102 0v-1a1 1 0 00-1-1z" clip-rule="evenodd"/></svg>
-                        <span>{{ $leaveCount === 1 ? '1 tenant is on leave' : $leaveCount . ' tenants on leave' }}</span>
+                        <span>{{ __('messages.tenants_on_leave', ['count' => $leaveCount]) }}</span>
                     </p>
                 @endif
             </div>
@@ -225,15 +225,15 @@
             </div>
         </div>
 
-        <div class="bg-amber-50/70 border border-amber-100 rounded-xl p-4 flex items-center justify-between">
+        <div class="bg-white border border-slate-200 rounded-xl p-4 flex items-center justify-between">
             <div>
-                <p class="flex items-center gap-2 text-sm font-medium text-amber-700">
-                    <span class="p-1.5 rounded-full bg-amber-100 inline-flex items-center justify-center">
+                <p class="flex items-center gap-2 text-sm font-medium text-slate-600">
+                    <span class="p-1.5 rounded-full bg-amber-50 inline-flex items-center justify-center">
                         <svg class="w-4 h-4 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
                     </span>
                     {{ __('messages.pending') }}
                 </p>
-                <p class="text-2xl font-bold text-amber-800">{{ $stats['payments']['pending'] }}</p>
+                <p class="text-2xl font-bold text-slate-800">{{ $stats['payments']['pending'] }}</p>
             </div>
             @php $pending = $stats['payments']['pending'] ?? 0; @endphp
             <div class="relative w-16 h-16 flex items-center justify-center">
@@ -242,15 +242,15 @@
             </div>
         </div>
 
-        <div class="bg-red-50/70 border border-red-100 rounded-xl p-4 flex items-center justify-between">
+        <div class="bg-white border border-slate-200 rounded-xl p-4 flex items-center justify-between">
             <div>
-                <p class="flex items-center gap-2 text-sm font-medium text-red-600">
-                    <span class="p-1.5 rounded-full bg-red-100 inline-flex items-center justify-center">
+                <p class="flex items-center gap-2 text-sm font-medium text-slate-600">
+                    <span class="p-1.5 rounded-full bg-red-50 inline-flex items-center justify-center">
                         <svg class="w-4 h-4 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
                     </span>
                     {{ __('messages.overdue') }}
                 </p>
-                <p class="text-2xl font-bold text-red-700">{{ $stats['payments']['overdue'] }}</p>
+                <p class="text-2xl font-bold text-slate-800">{{ $stats['payments']['overdue'] }}</p>
             </div>
             @php $overdue = $stats['payments']['overdue'] ?? 0; @endphp
             <div class="relative w-16 h-16 flex items-center justify-center">

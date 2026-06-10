@@ -3,16 +3,14 @@
 @section('content')
 <div class="max-w-6xl mx-auto space-y-8" x-data="billingManager()">
     <!-- Header -->
-    <div class="flex items-center justify-between">
-        <div>
-            <h1 class="text-2xl font-semibold text-slate-800 tracking-tight">{{ __('messages.monthly_billing_payments') }}</h1>
-        </div>
-        <a href="{{ route('supervisor.revenue_expense.index') }}" class="inline-flex items-center gap-2 bg-slate-800 hover:bg-slate-700 text-white text-sm font-medium py-2.5 px-5 rounded-lg transition" title="{{ __('messages.back') }}">
-            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/></svg></a>
+    <div class="flex items-center justify-between gap-4">
+        <h1 class="text-2xl font-semibold text-slate-800 tracking-tight">{{ __('messages.monthly_billing_payments') }}</h1>
+        <a href="{{ route('supervisor.revenue_expense.index') }}" class="inline-flex items-center justify-center h-10 w-10 bg-slate-800 hover:bg-slate-700 text-white rounded-lg transition flex-shrink-0" title="{{ __('messages.back') }}">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/></svg></a>
     </div>
 
-    <!-- Month Navigation -->
-    <div class="flex items-center justify-center">
+    <!-- Month Navigation + Search (one row) -->
+    <div class="relative flex flex-wrap items-center justify-center gap-3">
         <div class="inline-flex items-center bg-white rounded-xl border border-slate-100 px-2 py-1.5 gap-1">
             <a href="{{ route('supervisor.revenue_expense.record_income', ['month' => $prevDate->month, 'year' => $prevDate->year]) }}"
                class="inline-flex items-center justify-center w-10 h-10 rounded-lg text-slate-500 hover:bg-slate-50 hover:text-sky-600 transition" title="{{ __('messages.previous_month') }}">
@@ -41,6 +39,24 @@
                 <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg></a>
             @endif
         </div>
+
+        <!-- Search (icon → expands to input): inline on mobile, pinned right on sm+ -->
+        <div class="flex items-center justify-end sm:absolute sm:right-0 sm:top-1/2 sm:-translate-y-1/2">
+            <div class="relative flex items-center justify-end">
+                <div x-show="searchOpen" x-transition.opacity x-cloak class="relative">
+                    <svg class="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-4.35-4.35M11 18a7 7 0 100-14 7 7 0 000 14z"/></svg>
+                    <input type="text" x-model="searchQuery" x-ref="searchInput" placeholder="{{ __('messages.search_tenant_apartment') }}"
+                        class="w-44 sm:w-64 h-10 pl-10 pr-9 text-sm bg-white border border-slate-200 rounded-full focus:outline-none focus:ring-2 focus:ring-slate-300 focus:border-slate-300 transition">
+                    <button type="button" @click="searchQuery = ''; searchOpen = false" class="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+                    </button>
+                </div>
+                <button type="button" x-show="!searchOpen" @click="searchOpen = true; $nextTick(() => $refs.searchInput.focus())"
+                    class="inline-flex items-center justify-center h-10 w-10 rounded-full bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 transition" aria-label="{{ __('messages.search') }}">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-4.35-4.35M11 18a7 7 0 100-14 7 7 0 000 14z"/></svg>
+                </button>
+            </div>
+        </div>
     </div>
 
     @if($errors->any())
@@ -54,7 +70,7 @@
     @endif
 
     <!-- Summary Cards -->
-    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+    <div class="grid grid-cols-2 gap-3 md:gap-4">
         <div class="bg-white rounded-xl border border-slate-100 p-5">
             <div class="flex items-center gap-3">
                 <div class="w-10 h-10 rounded-lg bg-sky-50 flex items-center justify-center">
@@ -121,55 +137,46 @@
     </div>
 
     <!-- Filter Bar -->
-    <div class="bg-white rounded-xl border border-slate-100 p-4 flex items-center gap-2 overflow-x-auto">
-        <span class="text-sm font-medium text-slate-500 flex-shrink-0">{{ __('messages.filter') }}:</span>
+    <div class="bg-white rounded-xl border border-slate-100 p-3 md:p-4 flex items-center gap-2 overflow-x-auto">
         <button @click="filter = 'all'" :class="filter === 'all' ? 'bg-slate-800 text-white' : 'bg-slate-50 text-slate-600 hover:bg-slate-100'"
-            class="px-3 py-1.5 rounded-lg text-sm font-medium transition flex-shrink-0">{{ __('messages.all') }} ({{ count($tenantBillsAll ?? $tenantBills) }})</button>
+            class="px-3 py-1.5 rounded-lg text-sm font-medium transition flex-shrink-0 whitespace-nowrap">{{ __('messages.all') }} {{ count($tenantBillsAll ?? $tenantBills) }}</button>
         @if(!$isFutureMonth)
         <button @click="filter = 'overdue'" :class="filter === 'overdue' ? 'bg-red-600 text-white' : 'bg-slate-50 text-slate-600 hover:bg-slate-100'"
-            class="px-3 py-1.5 rounded-lg text-sm font-medium transition flex-shrink-0">{{ __('messages.overdue') }} ({{ $overdueCount }})</button>
+            class="px-3 py-1.5 rounded-lg text-sm font-medium transition flex-shrink-0 whitespace-nowrap">{{ __('messages.overdue') }} {{ $overdueCount }}</button>
         @endif
         <button @click="filter = 'pending'" :class="filter === 'pending' ? 'bg-amber-600 text-white' : 'bg-slate-50 text-slate-600 hover:bg-slate-100'"
-            class="px-3 py-1.5 rounded-lg text-sm font-medium transition flex-shrink-0">{{ $isFutureMonth ? __('messages.upcoming') : __('messages.pending') }} ({{ $pendingCount }})</button>
+            class="px-3 py-1.5 rounded-lg text-sm font-medium transition flex-shrink-0 whitespace-nowrap">{{ $isFutureMonth ? __('messages.upcoming') : __('messages.pending') }} {{ $pendingCount }}</button>
         <button @click="filter = 'paid'" :class="filter === 'paid' ? 'bg-emerald-600 text-white' : 'bg-slate-50 text-slate-600 hover:bg-slate-100'"
-            class="px-3 py-1.5 rounded-lg text-sm font-medium transition flex-shrink-0">{{ __('messages.paid') }} ({{ $paidCount }})</button>
-
-        <!-- Floor dropdown (server-side filter) -->
-        <select onchange="window.location.href = this.value"
-            class="ms-auto flex-shrink-0 h-9 pl-3 pr-8 text-sm bg-slate-50 border border-slate-200 rounded-lg text-slate-700 font-medium focus:outline-none focus:ring-2 focus:ring-slate-300 cursor-pointer">
-            <option value="{{ request()->fullUrlWithQuery(['floor' => null, 'page' => null]) }}" @selected(!request()->filled('floor'))>{{ __('messages.all_floors') }}</option>
-            @foreach($floors as $floor)
-                <option value="{{ request()->fullUrlWithQuery(['floor' => $floor->id, 'page' => null]) }}" @selected(request('floor') == $floor->id)>{{ $floor->floor_name }}</option>
-            @endforeach
-        </select>
-        <div class="relative w-64 flex-shrink-0">
-            <svg class="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-4.35-4.35M11 18a7 7 0 100-14 7 7 0 000 14z"/></svg>
-            <input type="text" x-model="searchQuery" placeholder="{{ __('messages.search_tenant_apartment') }}"
-                class="w-full h-10 pl-10 pr-4 text-sm bg-gray-50 border border-gray-200 rounded-lg focus:bg-white focus:outline-none focus:ring-2 focus:ring-slate-300 focus:border-slate-300 transition">
-        </div>
+            class="px-3 py-1.5 rounded-lg text-sm font-medium transition flex-shrink-0 whitespace-nowrap">{{ __('messages.paid') }} {{ $paidCount }}</button>
     </div>
 
     <!-- Tenant Billing Table -->
     <div class="bg-white rounded-xl border border-slate-100 overflow-hidden">
-        <div class="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
-            <h2 class="text-lg font-semibold text-slate-800 flex items-center">
-                <svg class="w-5 h-5 mr-2 text-sky-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
-                {{ __('messages.tenant_bills') }} — {{ $selectedDate->format('F Y') }}
+        <div class="px-4 md:px-6 py-4 border-b border-slate-100 flex items-center justify-between gap-3">
+            <h2 class="text-lg font-semibold text-slate-800 flex items-center min-w-0">
+                <svg class="w-5 h-5 mr-2 text-sky-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
+                <span class="truncate">{{ __('messages.tenant_bills') }} — {{ $selectedDate->format('F Y') }}</span>
             </h2>
+            <!-- Floor dropdown (server-side filter) -->
+            <select onchange="window.location.href = this.value"
+                class="flex-shrink-0 h-9 pl-3 pr-8 text-sm bg-slate-50 border border-slate-200 rounded-lg text-slate-700 font-medium focus:outline-none focus:ring-2 focus:ring-slate-300 cursor-pointer">
+                <option value="{{ request()->fullUrlWithQuery(['floor' => null, 'page' => null]) }}" @selected(!request()->filled('floor'))>{{ __('messages.all_floors') }}</option>
+                @foreach($floors as $floor)
+                    <option value="{{ request()->fullUrlWithQuery(['floor' => $floor->id, 'page' => null]) }}" @selected(request('floor') == $floor->id)>{{ $floor->floor_name }}</option>
+                @endforeach
+            </select>
         </div>
 
         @if(count($tenantBillsAll ?? $tenantBills) > 0)
         <!-- Desktop table (hidden on mobile) -->
         <div class="hidden md:block p-6 overflow-x-auto">
-            <table class="min-w-full divide-y divide-gray-200">
+            <table class="min-w-full table-fixed divide-y divide-gray-200">
                 <thead class="bg-gray-50">
                     <tr>
-                        <th class="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">{{ __('messages.no_col') }}</th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">{{ __('messages.apartment') }}</th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">{{ __('messages.tenant') }}</th>
-                        <th class="px-6 py-3 text-right text-xs font-medium text-slate-500 uppercase tracking-wider">{{ __('messages.total') }}</th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">{{ __('messages.status') }}</th>
-                        <th class="px-6 py-3 text-right text-xs font-medium text-slate-500 uppercase tracking-wider">{{ __('messages.actions') }}</th>
+                        <th class="w-12 px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">{{ __('messages.no_col') }}</th>
+                        <th class="w-1/3 px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">{{ __('messages.apartment') }} / {{ __('messages.tenant') }}</th>
+                        <th class="w-1/3 px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">{{ __('messages.total') }} / {{ __('messages.status') }}</th>
+                        <th class="w-1/3 px-4 py-3 text-right text-xs font-medium text-slate-500 uppercase tracking-wider">{{ __('messages.actions') }}</th>
                     </tr>
                 </thead>
                 <tbody class="bg-white divide-y divide-gray-200">
@@ -185,35 +192,31 @@
                     <tr x-show="matchesFilter('{{ $bill['status'] }}', '{{ strtolower($bill['tenant']->name ?? '') }}', '{{ strtolower($bill['apartment']->apartment_number ?? '') }}')"
                         class="hover:bg-gray-50 transition {{ $bill['status'] === 'overdue' ? 'bg-red-50/40' : ($bill['status'] === 'paid' ? 'bg-emerald-50/40' : ($isFutureMonth ? 'bg-sky-50/30' : '')) }}">
                         <td class="px-4 py-4 whitespace-nowrap text-sm text-gray-600">{{ $tenantBills->firstItem() ? $tenantBills->firstItem() + $loop->index : $loop->iteration }}</td>
-                        <td class="px-6 py-4 whitespace-nowrap">
+                        <td class="px-4 py-4">
                             <div class="flex items-center">
                                 <div class="h-10 w-10 rounded-lg bg-sky-50 flex items-center justify-center flex-shrink-0">
                                     <svg class="w-5 h-5 text-sky-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/></svg>
                                 </div>
-                                <div class="ml-4">
-                                    <p class="font-semibold text-slate-800">{{ $bill['apartment']->apartment_number }}</p>
-                                    <p class="text-xs text-slate-400">{{ __('messages.floor') }} {{ $bill['apartment']->floor->floor_number ?? 'N/A' }}</p>
+                                <div class="ml-4 min-w-0">
+                                    <p class="font-semibold text-slate-800 truncate">{{ $bill['apartment']->apartment_number }}</p>
+                                    <p class="text-xs text-slate-400 truncate">{{ __('messages.floor') }} {{ $bill['apartment']->floor->floor_number ?? 'N/A' }}</p>
+                                    <p class="font-medium text-gray-900 text-sm truncate">{{ $bill['tenant']->name ?? 'N/A' }}</p>
+                                    <p class="text-xs text-gray-500 truncate">{{ $bill['tenant']->phone ?? '' }}</p>
                                 </div>
                             </div>
                         </td>
-                        <td class="px-6 py-4 whitespace-nowrap">
-                            <p class="font-medium text-gray-900">{{ $bill['tenant']->name ?? 'N/A' }}</p>
-                            <p class="text-sm text-gray-500">{{ $bill['tenant']->phone ?? '' }}</p>
-                        </td>
-                        <td class="px-6 py-4 whitespace-nowrap text-right">
+                        <td class="px-4 py-4 whitespace-nowrap">
                             <p class="text-sm font-bold {{ $bill['status'] === 'paid' ? 'text-emerald-600' : 'text-slate-800' }}">${{ number_format($bill['total_bill'], 2) }}</p>
                             <p class="text-xs text-slate-400">{{ __('messages.rent') }} ${{ number_format($bill['monthly_rent'], 2) }}</p>
-                        </td>
-                        <td class="px-6 py-4 whitespace-nowrap">
                             @if($bill['status'] === 'paid')
-                                <span class="px-2 py-1 text-xs font-semibold rounded-md bg-emerald-100 text-emerald-700">{{ __('messages.paid') }}</span>
+                                <span class="mt-1 inline-block px-2 py-1 text-xs font-semibold rounded-md bg-emerald-100 text-emerald-700">{{ __('messages.paid') }}</span>
                             @elseif($bill['status'] === 'overdue')
-                                <span class="px-2 py-1 text-xs font-semibold rounded-md bg-red-100 text-red-700">{{ __('messages.overdue') }}</span>
+                                <span class="mt-1 inline-block px-2 py-1 text-xs font-semibold rounded-md bg-red-100 text-red-700">{{ __('messages.overdue') }}</span>
                             @else
-                                <span class="px-2 py-1 text-xs font-semibold rounded-md bg-amber-100 text-amber-700">{{ $isFutureMonth ? __('messages.upcoming') : __('messages.pending') }}</span>
+                                <span class="mt-1 inline-block px-2 py-1 text-xs font-semibold rounded-md bg-amber-100 text-amber-700">{{ $isFutureMonth ? __('messages.upcoming') : __('messages.pending') }}</span>
                             @endif
                         </td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                        <td class="px-4 py-4 whitespace-nowrap text-sm font-medium">
                             <div class="flex items-center justify-end gap-2">
                                 @if($bill['status'] !== 'paid')
                                 <button @click="openAddCharge({{ $bill['rental']->id }}, '{{ addslashes($bill['tenant']->name ?? __('messages.tenant')) }}', '{{ $bill['apartment']->apartment_number }}')"
@@ -225,10 +228,6 @@
                                     class="inline-flex items-center justify-center h-8 w-8 rounded-md text-sky-600 bg-sky-50 hover:bg-sky-100 transition" title="{{ __('messages.view_charges') }}">
                                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
                                 </button>
-                                <a href="{{ route('supervisor.revenue_expense.print_bill', $bill['rental']->id) }}" target="_blank"
-                                    class="inline-flex items-center justify-center h-8 w-8 rounded-md text-purple-600 bg-purple-50 hover:bg-purple-100 transition" title="{{ __('messages.print_bill') }}">
-                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>
-                                </a>
                                 @if($bill['status'] !== 'paid')
                                 <button @click="openCheckout({{ $bill['rental']->id }}, '{{ addslashes($bill['tenant']->name ?? __('messages.tenant')) }}', '{{ $bill['apartment']->apartment_number }}', {{ $bill['monthly_rent'] }}, {{ $bill['total_utility_only'] }}, {{ $bill['total_other_charges'] }}, {{ $bill['total_fixed'] }}, {{ $bill['total_bill'] }})"
                                     class="inline-flex items-center justify-center h-8 w-8 rounded-md text-emerald-600 bg-emerald-50 hover:bg-emerald-100 transition" title="{{ __('messages.checkout_pay') }}">
@@ -256,16 +255,17 @@
             @endphp
             <div x-show="matchesFilter('{{ $bill['status'] }}', '{{ strtolower($bill['tenant']->name ?? '') }}', '{{ strtolower($bill['apartment']->apartment_number ?? '') }}')"
                  class="flex items-center gap-3 px-4 py-3 active:bg-slate-50 transition {{ $bill['status'] === 'overdue' ? 'bg-red-50/40' : ($bill['status'] === 'paid' ? 'bg-emerald-50/40' : ($isFutureMonth ? 'bg-sky-50/30' : '')) }}">
+                <span class="w-5 text-xs font-medium text-slate-400 text-center flex-shrink-0">{{ $tenantBills->firstItem() ? $tenantBills->firstItem() + $loop->index : $loop->iteration }}</span>
                 <div class="h-9 w-9 rounded-lg bg-sky-50 flex items-center justify-center flex-shrink-0">
                     <svg class="w-5 h-5 text-sky-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/></svg>
                 </div>
                 <!-- Apartment + tenant -->
-                <div class="min-w-0 flex-1">
+                <div class="min-w-0 flex-3">
                     <p class="font-semibold text-slate-800 text-sm truncate">{{ $bill['apartment']->apartment_number }}</p>
                     <p class="text-xs text-slate-400 truncate">{{ $bill['tenant']->name ?? 'N/A' }}</p>
                 </div>
                 <!-- Amount + status -->
-                <div class="flex flex-col items-end flex-shrink-0">
+                <div class="flex flex-col items-center flex-1 min-w-0">
                     <p class="text-sm font-bold {{ $bill['status'] === 'paid' ? 'text-emerald-600' : 'text-slate-800' }} whitespace-nowrap">${{ number_format($bill['total_bill'], 2) }}</p>
                     @if($bill['status'] === 'paid')
                         <span class="mt-0.5 px-1.5 py-0.5 text-[10px] font-semibold rounded bg-emerald-100 text-emerald-700">{{ __('messages.paid') }}</span>
@@ -288,10 +288,6 @@
                         class="inline-flex items-center justify-center h-8 w-8 rounded-lg text-sky-700 bg-sky-50 active:bg-sky-100 transition" title="{{ __('messages.view_charges') }}">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
                     </button>
-                    <a href="{{ route('supervisor.revenue_expense.print_bill', $bill['rental']->id) }}" target="_blank"
-                        class="inline-flex items-center justify-center h-8 w-8 rounded-lg text-purple-600 bg-purple-50 active:bg-purple-100 transition" title="{{ __('messages.print_bill') }}">
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>
-                    </a>
                     @if($bill['status'] !== 'paid')
                     <button @click="openCheckout({{ $bill['rental']->id }}, '{{ addslashes($bill['tenant']->name ?? __('messages.tenant')) }}', '{{ $bill['apartment']->apartment_number }}', {{ $bill['monthly_rent'] }}, {{ $bill['total_utility_only'] }}, {{ $bill['total_other_charges'] }}, {{ $bill['total_fixed'] }}, {{ $bill['total_bill'] }})"
                         class="inline-flex items-center justify-center h-8 w-8 rounded-lg text-emerald-600 bg-emerald-50 active:bg-emerald-100 transition" title="{{ __('messages.checkout_pay') }}">
@@ -523,16 +519,11 @@
                     <!-- Payment method chips -->
                     <div>
                         <p class="text-xs text-slate-400 mb-1.5">{{ __('messages.payment_method') }} <span class="text-red-400">*</span></p>
-                        <div class="grid grid-cols-3 gap-2">
+                        <div class="grid grid-cols-2 gap-2">
                             <label class="flex items-center justify-center gap-2 py-2.5 border rounded-xl cursor-pointer text-sm transition select-none"
                                 :class="checkoutMethod === 'cash' ? 'bg-emerald-50 border-emerald-300 text-emerald-700 font-medium' : 'border-slate-200 text-slate-500 hover:border-slate-300'">
                                 <input type="radio" name="payment_method" value="cash" x-model="checkoutMethod" class="sr-only" required>
                                 💵 {{ __('messages.cash') }}
-                            </label>
-                            <label class="flex items-center justify-center gap-2 py-2.5 border rounded-xl cursor-pointer text-sm transition select-none"
-                                :class="checkoutMethod === 'bank' ? 'bg-sky-50 border-sky-300 text-sky-700 font-medium' : 'border-slate-200 text-slate-500 hover:border-slate-300'">
-                                <input type="radio" name="payment_method" value="bank" x-model="checkoutMethod" class="sr-only">
-                                🏦 {{ __('messages.bank') }}
                             </label>
                             <label class="flex items-center justify-center gap-2 py-2.5 border rounded-xl cursor-pointer text-sm transition select-none"
                                 :class="checkoutMethod === 'khqr' ? 'bg-rose-50 border-rose-300 text-rose-700 font-medium' : 'border-slate-200 text-slate-500 hover:border-slate-300'">
@@ -610,7 +601,22 @@ function billingManager() {
     return {
         typeLabels: { electricity: '{{ __('messages.electric') }}', water: '{{ __('messages.water') }}', internet: '{{ __('messages.type_internet') }}', parking: '{{ __('messages.type_parking') }}', trash: '{{ __('messages.type_trash') }}', other: '{{ __('messages.type_other') }}' },
         filter: 'all',
+        searchOpen: false,
         searchQuery: '',
+
+        // Open the printable bill in a new tab (auto-triggered on confirmed payment)
+        printBill(rentalId) {
+            if (!rentalId) return;
+            const url = '{{ route('supervisor.revenue_expense.print_bill', 'RENTAL_ID') }}'.replace('RENTAL_ID', rentalId);
+            window.open(url, '_blank');
+        },
+
+        init() {
+            // After a confirmed cash/bank payment the page reloads — print the bill.
+            @if(session('print_bill_rental'))
+            this.printBill('{{ session('print_bill_rental') }}');
+            @endif
+        },
 
         // Charges Receipt Modal
         showChargesReceipt: false,
@@ -809,6 +815,7 @@ function billingManager() {
                 if (j.paid) {
                     this.khqrPaid = true;
                     this.stopKhqrPoll();
+                    this.printBill(this.checkoutRentalId);
                     setTimeout(() => window.location.reload(), 1300);
                 }
             } catch (e) { /* keep polling */ }

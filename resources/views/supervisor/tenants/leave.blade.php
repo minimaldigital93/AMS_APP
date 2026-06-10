@@ -1,4 +1,6 @@
 @extends('layouts.supervisor')
+@section('title', __('messages.process_tenant_leave'))
+
 
 @section('content')
 <div class="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6" x-data="leaveForm()">

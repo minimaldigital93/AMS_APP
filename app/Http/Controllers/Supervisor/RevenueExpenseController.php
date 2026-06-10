@@ -842,15 +842,17 @@ class RevenueExpenseController extends Controller
         $tenantName = $rental->tenant->name ?? __('messages.tenant');
         $aptNumber = $rental->apartment->apartment_number;
 
-        return redirect()->back()->with(
-            'success',
-            __('messages.flash_checkout_payment', [
-                'amount' => $result['total_paid'],
-                'name' => $tenantName,
-                'apt' => $aptNumber,
-                'items' => implode(', ', $result['items']),
-            ])
-        );
+        return redirect()->back()
+            ->with('print_bill_rental', $rental->id)
+            ->with(
+                'success',
+                __('messages.flash_checkout_payment', [
+                    'amount' => $result['total_paid'],
+                    'name' => $tenantName,
+                    'apt' => $aptNumber,
+                    'items' => implode(', ', $result['items']),
+                ])
+            );
     }
 
     /**
