@@ -15,60 +15,45 @@
     @endphp
 
     {{-- Header --}}
-    <div class="flex items-center justify-between">
-        <h1 class="text-2xl font-semibold text-slate-800 tracking-tight">{{ __('messages.covering_costs_q') }}</h1>
-        <a href="{{ route('supervisor.revenue_expense.index') }}"
-           class="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm bg-slate-100 text-slate-600 rounded-lg hover:bg-slate-200 transition" title="{{ __('messages.back') }}">
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
-            </svg></a>
+    <div class="flex items-center justify-between gap-4">
+        <h1 class="text-2xl font-semibold text-slate-800 tracking-tight">{{ __('messages.break_even') }}</h1>
+        <a href="{{ route('supervisor.revenue_expense.index') }}" class="inline-flex items-center justify-center h-10 w-10 bg-slate-800 hover:bg-slate-700 text-white rounded-lg transition flex-shrink-0" title="{{ __('messages.back') }}">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/></svg></a>
     </div>
 
     {{-- Month navigation --}}
-    <div class="bg-white rounded-2xl border border-slate-100 p-3 flex items-center justify-between gap-2">
-        @if($hasPrev)
-            <a href="{{ route('supervisor.revenue_expense.break_even', ['month' => $prevMonth, 'year' => $prevYear]) }}"
-               class="inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-slate-600 bg-slate-50 hover:bg-slate-100 rounded-lg transition"
-               title="{{ \Carbon\Carbon::create($prevYear, $prevMonth, 1)->format('F Y') }}">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
-                </svg>
-                <span class="hidden sm:inline">{{ \Carbon\Carbon::create($prevYear, $prevMonth, 1)->format('M Y') }}</span>
-            </a>
-        @else
-            <span class="inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-slate-300 bg-slate-50 rounded-lg cursor-not-allowed">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
-                </svg>
-            </span>
-        @endif
+    <div class="flex flex-wrap items-center justify-center gap-3">
+        <div class="inline-flex items-center bg-white rounded-xl border border-slate-100 px-2 py-1.5 gap-1">
+            @if($hasPrev)
+                <a href="{{ route('supervisor.revenue_expense.break_even', ['month' => $prevMonth, 'year' => $prevYear]) }}"
+                   class="inline-flex items-center justify-center w-10 h-10 rounded-lg text-slate-500 hover:bg-slate-50 hover:text-sky-600 transition" title="{{ __('messages.previous_month') }}">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
+                </a>
+            @else
+                <span class="inline-flex items-center justify-center w-10 h-10 rounded-lg text-slate-200 cursor-not-allowed">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
+                </span>
+            @endif
 
-        <div class="flex items-center gap-2">
-            <svg class="w-5 h-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
-            </svg>
-            <span class="text-base font-bold text-slate-800">{{ $selectedDate->format('F Y') }}</span>
-            @if($selectedMonth === now()->month && $selectedYear === now()->year)
-                <span class="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-700 uppercase">{{ __('messages.current') }}</span>
+            <div class="px-4 py-2 min-w-[180px] text-center">
+                <span class="text-lg font-bold text-slate-800">{{ $selectedDate->format('F') }}</span>
+                <span class="text-lg text-slate-400 ml-1">{{ $selectedDate->format('Y') }}</span>
+                @if($selectedMonth === now()->month && $selectedYear === now()->year)
+                    <span class="ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-700">{{ __('messages.current') }}</span>
+                @endif
+            </div>
+
+            @if($hasNext)
+                <a href="{{ route('supervisor.revenue_expense.break_even', ['month' => $nextMonth, 'year' => $nextYear]) }}"
+                   class="inline-flex items-center justify-center w-10 h-10 rounded-lg text-slate-500 hover:bg-slate-50 hover:text-sky-600 transition" title="{{ __('messages.next_month') }}">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+                </a>
+            @else
+                <span class="inline-flex items-center justify-center w-10 h-10 rounded-lg text-slate-200 cursor-not-allowed">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+                </span>
             @endif
         </div>
-
-        @if($hasNext)
-            <a href="{{ route('supervisor.revenue_expense.break_even', ['month' => $nextMonth, 'year' => $nextYear]) }}"
-               class="inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-slate-600 bg-slate-50 hover:bg-slate-100 rounded-lg transition"
-               title="{{ \Carbon\Carbon::create($nextYear, $nextMonth, 1)->format('F Y') }}">
-                <span class="hidden sm:inline">{{ \Carbon\Carbon::create($nextYear, $nextMonth, 1)->format('M Y') }}</span>
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
-                </svg>
-            </a>
-        @else
-            <span class="inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-slate-300 bg-slate-50 rounded-lg cursor-not-allowed">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
-                </svg>
-            </span>
-        @endif
     </div>
 
     {{-- ── Headline: revenue vs expense ─────────────────────── --}}
