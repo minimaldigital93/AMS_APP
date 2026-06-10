@@ -429,6 +429,7 @@ return [
     'manage_apartment_costs' => 'Manage Apartment Costs',
     'billing_date' => 'Billing Date',
     'total_monthly_apt_costs' => 'Total Monthly Apartment Costs',
+    'select_all' => 'Select All',
     'select_all_apartments' => 'Select All Apartments',
     'total_monthly_bill' => 'Total Monthly Bill',
     'costs' => 'Costs',

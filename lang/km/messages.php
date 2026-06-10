@@ -429,6 +429,7 @@ return [
     'manage_apartment_costs' => 'គ្រប់គ្រងការចំណាយបន្ទប់',
     'billing_date' => 'កាលបរិច្ឆេទចេញវិក្កយបត្រ',
     'total_monthly_apt_costs' => 'ការចំណាយបន្ទប់ប្រចាំខែសរុប',
+    'select_all' => 'ជ្រើសរើសទាំងអស់',
     'select_all_apartments' => 'ជ្រើសរើសបន្ទប់ទាំងអស់',
     'total_monthly_bill' => 'វិក្កយបត្រប្រចាំខែសរុប',
     'costs' => 'ការចំណាយ',

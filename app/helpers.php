@@ -31,20 +31,6 @@ if (! function_exists('settings')) {
     }
 }
 
-if (! function_exists('setting')) {
-    /**
-     * Alias for settings()
-     *
-     * @param  string|array|null  $key
-     * @param  mixed  $default
-     * @return mixed
-     */
-    function setting($key = null, $default = null)
-    {
-        return settings($key, $default);
-    }
-}
-
 if (! function_exists('currency_symbol')) {
     /**
      * The currency symbol for the current account, from the `system_currency`

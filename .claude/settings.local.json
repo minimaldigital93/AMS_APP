@@ -443,7 +443,17 @@
       "Bash(sed -i '' \"s/'user_management_title' => 'User Management',/'user_management_title' => 'User',/\" lang/en/messages.php)",
       "Bash(sed -i '' \"s/'user_management_title' => 'ការគ្រប់គ្រងអ្នកប្រើ',/'user_management_title' => 'អ្នកប្រើ',/\" lang/km/messages.php)",
       "Bash(perl -pi -e 's/ dir=\"rtl\"//g; s/<option dir=\"ltr\"/<option/g; s/\\(focus:ring-0 focus:outline-none cursor-pointer\\)/text-right $1/g if 0' resources/views/admin/settings/index.blade.php)",
-      "Bash(./vendor/bin/pint app/Services/NotificationService.php --test)"
+      "Bash(./vendor/bin/pint app/Services/NotificationService.php --test)",
+      "Bash(git -C /Users/moniodom/AMS_APP diff --stat CLAUDE.md)",
+      "Bash(sort -u /tmp/views_used.txt -o /tmp/views_used.txt)",
+      "Bash(git check-ignore *)",
+      "Bash(echo \"exit:$?\")",
+      "Bash(php -r '$en=require \"lang/en/messages.php\"; $km=require \"lang/km/messages.php\"; $used=file\\(\"/tmp/keys_used.txt\", FILE_IGNORE_NEW_LINES\\); $miss_en=array_values\\(array_filter\\($used, fn\\($k\\)=>!array_key_exists\\($k,$en\\)\\)\\); $miss_km=array_values\\(array_filter\\($used, fn\\($k\\)=>!array_key_exists\\($k,$km\\)\\)\\); echo \"missing in EN: \".count\\($miss_en\\).\"\\\\n\"; foreach\\(array_slice\\($miss_en,0,30\\) as $k\\) echo \"  en: $k\\\\n\"; echo \"missing in KM: \".count\\($miss_km\\).\"\\\\n\"; foreach\\(array_slice\\($miss_km,0,30\\) as $k\\) echo \"  km: $k\\\\n\"; $unused=array_filter\\(array_keys\\($en\\), fn\\($k\\)=>!in_array\\($k,$used\\)\\); echo \"defined-but-unused in EN: \".count\\($unused\\).\"\\\\n\";')",
+      "Bash(php -r '$en=require \"lang/en/messages.php\"; foreach\\([\"select_all\",\"select_all_apartments\",\"type_internet\",\"type_parking\",\"type_trash\",\"type_other\"] as $k\\) echo $k.\": \".\\(array_key_exists\\($k,$en\\)?\"OK\":\"MISSING\"\\).\"\\\\n\";')",
+      "Bash(sed -i '' '432i\\\\ *)",
+      "Bash(sed -n '430,434p' lang/en/messages.php)",
+      "Bash(sed -n '430,434p' lang/km/messages.php)",
+      "Bash(./vendor/bin/pint app/Http/Controllers/Admin/DashboardController.php app/Http/Controllers/Supervisor/DashboardController.php app/Http/Controllers/Admin/RevenueExpenseController.php app/Http/Controllers/Supervisor/RevenueExpenseController.php app/Http/Controllers/Admin/TenantController.php app/helpers.php lang/en/messages.php lang/km/messages.php)"
     ],
     "additionalDirectories": [
       "/Users/sarotmoniodom/AMS_APP",

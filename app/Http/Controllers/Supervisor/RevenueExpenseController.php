@@ -509,24 +509,9 @@ class RevenueExpenseController extends Controller
         return view('supervisor.revenue_expense.break_event', $data);
     }
 
-    public function getRevenueExpenseData($startDate = null, $endDate = null)
+    private function getRevenueExpenseData($startDate = null, $endDate = null)
     {
         return $this->queryService()->getRevenueExpenseData($startDate, $endDate);
-    }
-
-    public function calculateIncome($startDate = null, $endDate = null)
-    {
-        return $this->queryService()->calculateIncome($startDate, $endDate);
-    }
-
-    public function calculateExpenses($startDate = null, $endDate = null)
-    {
-        return $this->queryService()->calculateExpenses($startDate, $endDate);
-    }
-
-    public function calculateSummary($income, $expenses)
-    {
-        return $this->queryService()->calculateSummary($income, $expenses);
     }
 
     private function calculatePerApartmentData($startDate = null, $endDate = null)
@@ -534,7 +519,7 @@ class RevenueExpenseController extends Controller
         return $this->queryService()->calculatePerApartmentData($startDate, $endDate);
     }
 
-    public function calculateBreakEvenPoint(?int $month = null, ?int $year = null)
+    private function calculateBreakEvenPoint(?int $month = null, ?int $year = null)
     {
         return $this->breakEvenService()->calculate($month, $year);
     }

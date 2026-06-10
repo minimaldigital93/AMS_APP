@@ -77,7 +77,7 @@ class TenantController extends Controller
         $archivedTenantCount = Tenants::onlyTrashed()->count();
         $totalDeposits = Tenants::where('status', 'active')->sum('deposit');
 
-        return view('admin.tenantManagement.activeTenants', compact('tenants', 'apartments', 'rentProgressMap', 'floors', 'activeTenantCount', 'archivedTenantCount', 'totalDeposits'));
+        return view('admin.TenantManagement.activeTenants', compact('tenants', 'apartments', 'rentProgressMap', 'floors', 'activeTenantCount', 'archivedTenantCount', 'totalDeposits'));
     }
 
     /**
@@ -114,7 +114,7 @@ class TenantController extends Controller
         $recentlyArchivedCount = Tenants::onlyTrashed()->where('deleted_at', '>=', now()->subDays(30))->count();
         $totalDeposits = Tenants::onlyTrashed()->sum('deposit');
 
-        return view('admin.tenantManagement.archivedTenants', compact('tenants', 'floors', 'archivedTenantCount', 'recentlyArchivedCount', 'totalDeposits'));
+        return view('admin.TenantManagement.archivedTenants', compact('tenants', 'floors', 'archivedTenantCount', 'recentlyArchivedCount', 'totalDeposits'));
     }
 
     /**
@@ -149,7 +149,7 @@ class TenantController extends Controller
 
         $pendingCharges = $this->pendingChargesQuery->forRental($rental);
 
-        return view('admin.tenantManagement.leave', compact('tenant', 'rental', 'pendingCharges'));
+        return view('admin.TenantManagement.leave', compact('tenant', 'rental', 'pendingCharges'));
     }
 
     /**
@@ -378,7 +378,7 @@ class TenantController extends Controller
     {
         $apartments = Apartments::all();
 
-        return view('admin.tenantManagement.createTenant', compact('apartments'));
+        return view('admin.TenantManagement.createTenant', compact('apartments'));
     }
 
     /**
@@ -475,7 +475,7 @@ class TenantController extends Controller
     {
         $tenant->load(['apartment.floor', 'rentals.apartment', 'rentals.payments', 'utilities']);
 
-        return view('admin.tenantManagement.showTenant', compact('tenant'));
+        return view('admin.TenantManagement.showTenant', compact('tenant'));
     }
 
     /**
@@ -485,7 +485,7 @@ class TenantController extends Controller
     {
         $apartments = Apartments::all();
 
-        return view('admin.tenantManagement.editTenant', compact('tenant', 'apartments'));
+        return view('admin.TenantManagement.editTenant', compact('tenant', 'apartments'));
     }
 
     /**

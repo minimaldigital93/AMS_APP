@@ -63,16 +63,6 @@ class DashboardController extends Controller
             ? null
             : (new DashboardCalendarService($userId, $apartmentIds))->build($activePeriod, $displayMonth);
 
-        $apartmentsWithRentals = Apartments::with(['rentals' => function ($q) {
-            $q->where(function ($q2) {
-                $q2->whereNull('end_date')->orWhere('end_date', '>=', now());
-            })->with('tenant');
-        }])
-            ->whereIn('id', $apartmentIds)
-            ->where('status', 'occupied')
-            ->orderBy('apartment_number')
-            ->get();
-
         $recentTransactions = $this->loadRecentTransactions($activePeriod, $apartmentIds, $dateRange);
 
         $apartmentRevenues = $isFullPeriod
@@ -83,7 +73,7 @@ class DashboardController extends Controller
 
         return view('supervisor.dashboard', compact(
             'stats', 'fiscalData', 'calendarData',
-            'activePeriod', 'apartmentsWithRentals', 'recentTransactions', 'apartmentRevenues',
+            'activePeriod', 'recentTransactions', 'apartmentRevenues',
             'selectedMonth', 'periodMonths', 'monthNavigation', 'isFullPeriod', 'displayMonth'
         ));
     }
