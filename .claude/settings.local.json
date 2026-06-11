@@ -491,7 +491,9 @@
       "Bash(git -C /Users/sarotmoniodom/AMS_APP diff -- resources/)",
       "Bash(git -C /Users/sarotmoniodom/AMS_APP diff origin/main -- resources/ .claude/)",
       "Bash(git -C /Users/sarotmoniodom/AMS_APP stash push -m \"pre-pull local changes\")",
-      "Bash(git -C /Users/sarotmoniodom/AMS_APP stash pop)"
+      "Bash(git -C /Users/sarotmoniodom/AMS_APP stash pop)",
+      "Bash(git commit -m 'merge local and upstream claude permission lists *)",
+      "Bash(git commit -m 'update claude permission list *)"
     ],
     "additionalDirectories": [
       "/Users/sarotmoniodom/AMS_APP",
