@@ -493,7 +493,14 @@
       "Bash(git -C /Users/sarotmoniodom/AMS_APP stash push -m \"pre-pull local changes\")",
       "Bash(git -C /Users/sarotmoniodom/AMS_APP stash pop)",
       "Bash(git commit -m 'merge local and upstream claude permission lists *)",
-      "Bash(git commit -m 'update claude permission list *)"
+      "Bash(git commit -m 'update claude permission list *)",
+      "Bash(php -i)",
+      "Bash(php --ini)",
+      "Bash(grep -n \"^upload_max_filesize\\\\|^post_max_size\" /opt/homebrew/etc/php/8.4/php.ini)",
+      "Read(//opt/homebrew/etc/php/8.4/**)",
+      "Bash(php -r 'echo \"upload_max_filesize=\" . ini_get\\(\"upload_max_filesize\"\\) . \" post_max_size=\" . ini_get\\(\"post_max_size\"\\) . PHP_EOL;')",
+      "Bash(php -r 'json_decode\\(file_get_contents\\(\".claude/settings.local.json\"\\)\\); echo json_last_error_msg\\(\\), PHP_EOL;')",
+      "Bash(git commit *)"
     ],
     "additionalDirectories": [
       "/Users/sarotmoniodom/AMS_APP",
