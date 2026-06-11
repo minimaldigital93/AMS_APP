@@ -495,6 +495,7 @@ class RevenueExpenseController extends Controller
         $hasNext = $next->lte($periodEnd);
 
         $data = $this->calculateBreakEvenPoint($selectedMonth, $selectedYear);
+        $data['health'] = $this->breakEvenService()->getBusinessHealth($data, $selectedMonth, $selectedYear);
         $data['activePeriod'] = $activePeriod;
         $data['selectedMonth'] = $selectedMonth;
         $data['selectedYear'] = $selectedYear;

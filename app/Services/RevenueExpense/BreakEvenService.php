@@ -115,6 +115,120 @@ class BreakEvenService
     }
 
     /**
+     * Advanced business-health data for the break-even page: composite 0–100
+     * scores, a trailing 6-month revenue/expense/occupancy trend (clamped to
+     * the fiscal period) and the selected month's revenue / cost composition.
+     *
+     * Pure chart data — `$snapshot` is the array returned by calculate() for
+     * the same month, so the scores can never disagree with the page above.
+     */
+    public function getBusinessHealth(array $snapshot, ?int $month = null, ?int $year = null): array
+    {
+        $month = $month ?: now()->month;
+        $year = $year ?: now()->year;
+        $selected = Carbon::create($year, $month, 1)->startOfMonth();
+
+        $windowStart = $selected->copy()->subMonths(5);
+        if ($this->period) {
+            $periodStart = Carbon::parse($this->period->opening_date)->startOfMonth();
+            if ($windowStart->lt($periodStart)) {
+                $windowStart = $periodStart->copy();
+            }
+        }
+
+        $apartmentIds = $this->apartmentsScope->clone()->pluck('id');
+        $totalApartments = (int) $snapshot['total_apartments'];
+
+        $trend = [];
+        $selectedIncome = null;
+        $selectedExpenses = null;
+
+        for ($cursor = $windowStart->copy(); $cursor->lte($selected); $cursor->addMonth()) {
+            $start = $cursor->copy()->startOfMonth();
+            $end = $cursor->copy()->endOfMonth();
+
+            $income = $this->queryService->calculateIncome($start, $end);
+            $expenses = $this->queryService->calculateExpenses($start, $end);
+            $occupied = $this->activeRentalsQuery($apartmentIds, $start, $end)->count();
+
+            $trend[] = [
+                'label' => $cursor->format('M Y'),
+                'revenue' => round((float) $income['total_income'], 2),
+                'expenses' => round((float) $expenses['total_expenses'], 2),
+                'net' => round((float) $income['total_income'] - (float) $expenses['total_expenses'], 2),
+                'occupancy_pct' => $totalApartments > 0 ? round($occupied / $totalApartments * 100, 1) : 0,
+            ];
+
+            if ($cursor->month === $selected->month && $cursor->year === $selected->year) {
+                $selectedIncome = $income;
+                $selectedExpenses = $expenses;
+            }
+        }
+
+        // Defensive: callers outside breakEvenPoint() may pass a month before
+        // the fiscal period start, leaving the loop empty.
+        if (! $selectedIncome || ! $selectedExpenses) {
+            $selectedIncome = $this->queryService->calculateIncome($selected, $selected->copy()->endOfMonth());
+            $selectedExpenses = $this->queryService->calculateExpenses($selected, $selected->copy()->endOfMonth());
+        }
+
+        $occupancyScore = $totalApartments > 0
+            ? min(100, $snapshot['current_occupancy'] / $totalApartments * 100)
+            : 0;
+
+        // A 30%+ net margin scores full marks.
+        $profitabilityScore = $snapshot['current_revenue'] > 0
+            ? min(100, max(0, $snapshot['safety_margin_percent'] / 30 * 100))
+            : 0;
+
+        $beCoverageScore = ! $snapshot['break_even_feasible'] ? 0
+            : ($snapshot['break_even_units'] <= 0 ? 100
+                : min(100, $snapshot['current_occupancy'] / $snapshot['break_even_units'] * 100));
+
+        // Share of each rent dollar left after the unit's variable costs.
+        $costEfficiencyScore = $snapshot['avg_rent_per_apartment'] > 0
+            ? min(100, max(0, $snapshot['contribution_margin_per_unit'] / $snapshot['avg_rent_per_apartment'] * 100))
+            : 0;
+
+        $expectedRent = $snapshot['avg_rent_per_apartment'] * $snapshot['current_occupancy'];
+        $collectionScore = $expectedRent > 0
+            ? min(100, (float) $selectedIncome['rent_income'] / $expectedRent * 100)
+            : 0;
+
+        $scores = [
+            'occupancy' => (int) round($occupancyScore),
+            'profitability' => (int) round($profitabilityScore),
+            'break_even_coverage' => (int) round($beCoverageScore),
+            'cost_efficiency' => (int) round($costEfficiencyScore),
+            'collection' => (int) round($collectionScore),
+        ];
+        $scores['overall'] = (int) round(array_sum($scores) / count($scores));
+
+        $revenueMix = array_filter([
+            'rent_income' => round((float) $selectedIncome['rent_income'], 2),
+            'utilities' => round((float) $selectedIncome['total_utility_income'], 2),
+            'late_fees' => round((float) $selectedIncome['late_fees'], 2),
+            'deposit' => round((float) $selectedIncome['deposit_income'], 2),
+            'other' => round((float) $selectedIncome['other_income'], 2),
+        ], fn ($v) => $v > 0);
+
+        $expenseMix = array_filter([
+            'fixed_expenses' => round((float) $selectedExpenses['fixed_expenses'], 2),
+            'variable_expenses' => round((float) $selectedExpenses['variable_expenses'], 2),
+            'utilities' => round((float) $selectedExpenses['utility_expenses'], 2),
+            'deposit_refunds' => round((float) $selectedExpenses['deposit_expenses'], 2),
+            'other' => round((float) $selectedExpenses['other_expenses'], 2),
+        ], fn ($v) => $v > 0);
+
+        return [
+            'scores' => $scores,
+            'trend' => $trend,
+            'revenue_mix' => $revenueMix,
+            'expense_mix' => $expenseMix,
+        ];
+    }
+
+    /**
      * Per-room utility insight for the given month — feeds the utilities donut
      * and the "average per room" / "most expensive apartment" cards.
      *
