@@ -180,15 +180,10 @@
             @endphp
             <button type="button"
                     onclick="openDocPreview(@js($docUrl), @js($docName), {{ $docIsImage ? 'true' : 'false' }})"
-                    class="inline-flex items-center gap-3 px-4 py-3 bg-slate-50 hover:bg-slate-100 rounded-lg border border-slate-200 hover:border-slate-300 transition group text-left">
-                <div class="h-10 w-10 rounded-lg bg-red-50 flex items-center justify-center">
-                    <svg class="w-5 h-5 text-red-600" fill="currentColor" viewBox="0 0 20 20"><path d="M4 2h7l5 5v11a2 2 0 01-2 2H4a2 2 0 01-2-2V4a2 2 0 012-2z"/></svg>
-                </div>
-                <div class="flex-1">
-                    <p class="text-sm font-medium text-slate-700 group-hover:text-slate-900">{{ __('messages.view_document') }}</p>
-                    <p class="text-xs text-slate-400">{{ $docName }}</p>
-                </div>
-                <svg class="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M13 7l5 5m0 0l-5 5m5-5H6"/></svg>
+                    title="{{ __('messages.view_document') }}"
+                    aria-label="{{ __('messages.view_document') }}"
+                    class="h-12 w-12 rounded-lg bg-red-50 hover:bg-red-100 border border-red-100 hover:border-red-200 flex items-center justify-center transition">
+                <svg class="w-6 h-6 text-red-600" fill="currentColor" viewBox="0 0 20 20"><path d="M4 2h7l5 5v11a2 2 0 01-2 2H4a2 2 0 01-2-2V4a2 2 0 012-2z"/></svg>
             </button>
         @else
             <p class="text-slate-400 text-sm">{{ __('messages.no_document_attached') }}</p>

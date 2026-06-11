@@ -8,7 +8,12 @@
             <div>
                 <h1 class="text-2xl font-semibold text-slate-800 tracking-tight">{{ __('messages.edit_tenant') }}</h1>
             </div>
-            <a href="{{ route('admin.tenants.show', $tenant->id) }}" class="text-slate-400 hover:text-slate-600 text-sm font-medium py-2 px-4 rounded-lg border border-slate-200 hover:border-slate-300 transition">{{ __('messages.back_to_details') }}</a>
+            <a href="{{ route('admin.tenants.show', $tenant->id) }}"
+                title="{{ __('messages.back_to_details') }}"
+                aria-label="{{ __('messages.back_to_details') }}"
+                class="h-10 w-10 inline-flex items-center justify-center rounded-lg border border-slate-200 text-slate-400 hover:text-slate-600 hover:border-slate-300 transition">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/></svg>
+            </a>
         </div>
 
         <!-- Form Card -->
@@ -33,13 +38,6 @@
                                 </a>
                             </div>
                         @endif
-                        @if($tenant->document_path)
-                            <div class="flex-shrink-0">
-                                <a href="{{ asset('storage/' . $tenant->document_path) }}" target="_blank" class="inline-flex items-center px-3 py-2 bg-gray-50 text-gray-700 rounded-lg border border-gray-200 hover:bg-gray-100" title="View Document">
-                                    <svg class="w-4 h-4 mr-2 text-red-600" fill="currentColor" viewBox="0 0 20 20"><path d="M4 2h7l5 5v11a2 2 0 01-2 2H4a2 2 0 01-2-2V4a2 2 0 012-2z" /></svg></a>
-                            </div>
-                        @endif
-                        
                         <!-- Upload Area -->
                         <div class="flex-1">
                             <label for="photo" class="flex flex-col items-center justify-center w-full h-32 border-2 border-slate-200 border-dashed rounded-lg cursor-pointer bg-slate-50 hover:bg-slate-100 transition text-slate-600">
@@ -67,8 +65,8 @@
                             <select id="apartment_id" name="apartment_id" required class="w-full px-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-slate-200 focus:border-transparent text-slate-600 {{ $errors->has('apartment_id') ? 'border-red-500' : '' }}">
                             <option value="">{{ __('messages.select_apartment') }}</option>
                             @foreach($apartments as $apartment)
-                                <option value="{{ $apartment->id }}" {{ $tenant->apartment_id == $apartment->id ? 'selected' : '' }}>
-                                    {{ $apartment->apartment_number }}
+                                <option value="{{ $apartment->id }}" {{ old('apartment_id', $tenant->apartment_id) == $apartment->id ? 'selected' : '' }}>
+                                    {{ $apartment->apartment_number }}@if($apartment->id == $tenant->apartment_id) ({{ __('messages.current') }})@endif
                                 </option>
                             @endforeach
                         </select>
@@ -86,15 +84,6 @@
                         @enderror
                     </div>
 
-                    <!-- Email -->
-                    <div>
-                        <label for="email" class="block text-sm font-medium text-slate-500 mb-2">{{ __('messages.email') }}</label>
-                        <input type="email" id="email" name="email" placeholder="email@example.com" value="{{ old('email', $tenant->email) }}" class="w-full px-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-slate-200 focus:border-transparent text-slate-600 {{ $errors->has('email') ? 'border-red-500' : '' }}">
-                        @error('email')
-                            <p class="text-red-500 text-sm mt-1">{{ $message }}</p>
-                        @enderror
-                    </div>
-
                     <!-- Phone -->
                     <div>
                         <label for="phone" class="block text-sm font-medium text-gray-700 mb-2">{{ __('messages.phone') }} *</label>
@@ -107,17 +96,8 @@
                     <!-- Move In Date -->
                     <div>
                         <label for="move_in_date" class="block text-sm font-medium text-gray-700 mb-2">{{ __('messages.move_in_date') }} *</label>
-                        <input type="date" id="move_in_date" name="move_in_date" required value="{{ old('move_in_date', $tenant->move_in_date) }}" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white appearance-none h-10 {{ $errors->has('move_in_date') ? 'border-red-500' : '' }}">
+                        <input type="date" id="move_in_date" name="move_in_date" required value="{{ old('move_in_date', $tenant->move_in_date?->format('Y-m-d')) }}" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white appearance-none h-10 {{ $errors->has('move_in_date') ? 'border-red-500' : '' }}">
                         @error('move_in_date')
-                            <p class="text-red-500 text-sm mt-1">{{ $message }}</p>
-                        @enderror
-                    </div>
-
-                    <!-- Move Out Date -->
-                    <div>
-                        <label for="move_out_date" class="block text-sm font-medium text-gray-700 mb-2">{{ __('messages.move_out_date') }}</label>
-                        <input type="date" id="move_out_date" name="move_out_date" value="{{ old('move_out_date', $tenant->move_out_date) }}" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white appearance-none h-10 {{ $errors->has('move_out_date') ? 'border-red-500' : '' }}">
-                        @error('move_out_date')
                             <p class="text-red-500 text-sm mt-1">{{ $message }}</p>
                         @enderror
                     </div>
@@ -125,7 +105,7 @@
                     <!-- Date of Birth -->
                     <div>
                         <label for="date_of_birth" class="block text-sm font-medium text-gray-700 mb-2">{{ __('messages.date_of_birth') }}</label>
-                        <input type="date" id="date_of_birth" name="date_of_birth" value="{{ old('date_of_birth', $tenant->date_of_birth) }}" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white appearance-none h-10 {{ $errors->has('date_of_birth') ? 'border-red-500' : '' }}">
+                        <input type="date" id="date_of_birth" name="date_of_birth" value="{{ old('date_of_birth', $tenant->date_of_birth?->format('Y-m-d')) }}" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white appearance-none h-10 {{ $errors->has('date_of_birth') ? 'border-red-500' : '' }}">
                         @error('date_of_birth')
                             <p class="text-red-500 text-sm mt-1">{{ $message }}</p>
                         @enderror
@@ -172,6 +152,19 @@
                         <p class="text-red-500 text-sm mt-1">{{ $message }}</p>
                     @enderror
                 </div>
+
+                <!-- Attached Document -->
+                @if($tenant->document_path)
+                    <div>
+                        <label class="block text-sm font-medium text-slate-500 mb-2">{{ __('messages.attached_document') }}</label>
+                        <a href="{{ asset('storage/' . $tenant->document_path) }}" target="_blank"
+                            title="{{ __('messages.view_document') }}"
+                            aria-label="{{ __('messages.view_document') }}"
+                            class="h-12 w-12 rounded-lg bg-red-50 hover:bg-red-100 border border-red-100 hover:border-red-200 inline-flex items-center justify-center transition">
+                            <svg class="w-6 h-6 text-red-600" fill="currentColor" viewBox="0 0 20 20"><path d="M4 2h7l5 5v11a2 2 0 01-2 2H4a2 2 0 01-2-2V4a2 2 0 012-2z"/></svg>
+                        </a>
+                    </div>
+                @endif
 
                 <!-- Buttons -->
                 <div class="flex gap-3 pt-6">

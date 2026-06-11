@@ -8,7 +8,12 @@
             <div>
                 <h1 class="text-2xl font-semibold text-slate-800 tracking-tight">{{ __('messages.edit_tenant') }}</h1>
             </div>
-            <a href="{{ route('supervisor.tenants.show', $tenant->id) }}" class="text-slate-400 hover:text-slate-600 text-sm font-medium py-2 px-4 rounded-lg border border-slate-200 hover:border-slate-300 transition">{{ __('messages.back_to_details') }}</a>
+            <a href="{{ route('supervisor.tenants.show', $tenant->id) }}"
+                title="{{ __('messages.back_to_details') }}"
+                aria-label="{{ __('messages.back_to_details') }}"
+                class="h-10 w-10 inline-flex items-center justify-center rounded-lg border border-slate-200 text-slate-400 hover:text-slate-600 hover:border-slate-300 transition">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/></svg>
+            </a>
         </div>
 
         @if($errors->any())
@@ -40,13 +45,6 @@
                             </a>
                         </div>
                     @endif
-                    @if($tenant->document_path)
-                    <div class="flex-shrink-0">
-                        <a href="{{ asset('storage/' . $tenant->document_path) }}" target="_blank" class="inline-flex items-center px-3 py-2 bg-gray-50 text-gray-700 rounded-lg border border-gray-200 hover:bg-gray-100" title="View Document">
-                            <svg class="w-4 h-4 mr-2 text-red-600" fill="currentColor" viewBox="0 0 20 20"><path d="M4 2h7l5 5v11a2 2 0 01-2 2H4a2 2 0 01-2-2V4a2 2 0 012-2z" /></svg></a>
-                    </div>
-                    @endif
-
                     <div class="flex-1">
                         <label for="photo" class="flex flex-col items-center justify-center w-full h-32 border-2 border-gray-300 border-dashed rounded-lg cursor-pointer bg-gray-50 hover:bg-gray-100 transition">
                             <div class="flex flex-col items-center justify-center pt-5 pb-6">
@@ -96,14 +94,6 @@
                     </div>
 
                     <div>
-                        <label for="email" class="block text-sm font-medium text-gray-700 mb-1">{{ __('messages.email') }} <span class="text-gray-400">({{ __('messages.optional') }})</span></label>
-                        <input type="email" id="email" name="email" value="{{ old('email', $tenant->email) }}" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent">
-                        @error('email')
-                            <p class="text-red-500 text-sm mt-1">{{ $message }}</p>
-                        @enderror
-                    </div>
-
-                    <div>
                         <label for="phone" class="block text-sm font-medium text-gray-700 mb-1">{{ __('messages.phone') }} <span class="text-red-500">*</span></label>
                         <input type="tel" id="phone" name="phone" required value="{{ old('phone', $tenant->phone) }}" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent">
                         @error('phone')
@@ -142,14 +132,6 @@
                     </div>
 
                     <div>
-                        <label for="move_out_date" class="block text-sm font-medium text-gray-700 mb-1">{{ __('messages.move_out_date') }}</label>
-                        <input type="date" id="move_out_date" name="move_out_date" value="{{ old('move_out_date', $tenant->move_out_date) }}" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent bg-white appearance-none h-10">
-                        @error('move_out_date')
-                            <p class="text-red-500 text-sm mt-1">{{ $message }}</p>
-                        @enderror
-                    </div>
-
-                    <div>
                         <label for="status" class="block text-sm font-medium text-gray-700 mb-1">{{ __('messages.status') }} <span class="text-red-500">*</span></label>
                         <select id="status" name="status" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent">
                             <option value="pending" {{ old('status', $tenant->status) === 'pending' ? 'selected' : '' }}>{{ __('messages.pending') }}</option>
@@ -177,6 +159,19 @@
                     @enderror
                 </div>
             </div>
+
+            {{-- Attached Document --}}
+            @if($tenant->document_path)
+                <div class="bg-white rounded-xl border border-slate-100 p-6">
+                    <h2 class="text-lg font-bold text-gray-900 mb-4">{{ __('messages.attached_document') }}</h2>
+                    <a href="{{ asset('storage/' . $tenant->document_path) }}" target="_blank"
+                        title="{{ __('messages.view_document') }}"
+                        aria-label="{{ __('messages.view_document') }}"
+                        class="h-12 w-12 rounded-lg bg-red-50 hover:bg-red-100 border border-red-100 hover:border-red-200 inline-flex items-center justify-center transition">
+                        <svg class="w-6 h-6 text-red-600" fill="currentColor" viewBox="0 0 20 20"><path d="M4 2h7l5 5v11a2 2 0 01-2 2H4a2 2 0 01-2-2V4a2 2 0 012-2z"/></svg>
+                    </a>
+                </div>
+            @endif
 
             {{-- Buttons --}}
             <div class="flex gap-3">

@@ -500,7 +500,9 @@
       "Read(//opt/homebrew/etc/php/8.4/**)",
       "Bash(php -r 'echo \"upload_max_filesize=\" . ini_get\\(\"upload_max_filesize\"\\) . \" post_max_size=\" . ini_get\\(\"post_max_size\"\\) . PHP_EOL;')",
       "Bash(php -r 'json_decode\\(file_get_contents\\(\".claude/settings.local.json\"\\)\\); echo json_last_error_msg\\(\\), PHP_EOL;')",
-      "Bash(git commit *)"
+      "Bash(git commit *)",
+      "Bash(php -l /Users/sarotmoniodom/AMS_APP_dev/app/Http/Controllers/Admin/TenantController.php)",
+      "Bash(php -l /Users/sarotmoniodom/AMS_APP_dev/app/Http/Controllers/Supervisor/TenantController.php)"
     ],
     "additionalDirectories": [
       "/Users/sarotmoniodom/AMS_APP",
