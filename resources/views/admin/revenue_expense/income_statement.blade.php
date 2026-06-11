@@ -3,8 +3,20 @@
 @section('content')
 <div class="container mx-auto px-4 py-8 max-w-4xl">
 
+    {{-- Print letterhead: business name & contact from Settings --}}
+    <div class="print-only">
+        @include('partials.business_header')
+        <div style="text-align:center; margin-bottom:16px;">
+            <div style="font-size:16px; font-weight:700; color:#111827;">{{ __('messages.income_statement_title') }}</div>
+            <div style="font-size:11px; color:#6b7280; margin-top:2px;">
+                {{ $activePeriod?->name }} &middot;
+                @if($filterMonth){{ \Carbon\Carbon::create($filterYear, $filterMonth, 1)->format('F Y') }}@else{{ __('messages.all_months') }}@endif
+            </div>
+        </div>
+    </div>
+
     {{-- Header --}}
-    <div class="mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+    <div class="mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 no-print">
         <div>
             <h1 class="text-2xl font-semibold text-slate-800 tracking-tight">📊 Income Statement</h1>
         </div>
@@ -37,7 +49,7 @@
         $prevMonth = ($currentIdx !== null && $currentIdx > 0) ? $periodMonths[$currentIdx - 1] : null;
         $nextMonth = ($currentIdx !== null && $currentIdx < count($periodMonths) - 1) ? $periodMonths[$currentIdx + 1] : null;
     @endphp
-    <div class="mb-6 flex items-center justify-center">
+    <div class="mb-6 flex items-center justify-center no-print">
         <div class="inline-flex items-center bg-white rounded-xl shadow border border-gray-200 px-2 py-1.5 gap-1">
             @if($prevMonth)
             <a href="{{ route('admin.revenue_expense.income_statement', ['period' => $activePeriod->id, 'month' => $prevMonth['month'], 'year' => $prevMonth['year']]) }}"
@@ -79,7 +91,7 @@
     </div>
 
     {{-- Quick Month Selector --}}
-    <div class="mb-6 flex flex-wrap justify-center gap-1">
+    <div class="mb-6 flex flex-wrap justify-center gap-1 no-print">
         @foreach($periodMonths as $pm)
             @php
                 $isActive = ($filterMonth == $pm['month'] && $filterYear == $pm['year']);

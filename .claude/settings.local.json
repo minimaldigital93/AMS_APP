@@ -502,7 +502,11 @@
       "Bash(php -r 'json_decode\\(file_get_contents\\(\".claude/settings.local.json\"\\)\\); echo json_last_error_msg\\(\\), PHP_EOL;')",
       "Bash(git commit *)",
       "Bash(php -l /Users/sarotmoniodom/AMS_APP_dev/app/Http/Controllers/Admin/TenantController.php)",
-      "Bash(php -l /Users/sarotmoniodom/AMS_APP_dev/app/Http/Controllers/Supervisor/TenantController.php)"
+      "Bash(php -l /Users/sarotmoniodom/AMS_APP_dev/app/Http/Controllers/Supervisor/TenantController.php)",
+      "Bash(sed -n 300,320p /Users/sarotmoniodom/AMS_APP_dev/resources/views/admin/revenue_expense/tenant_bill_print.blade.php)",
+      "Bash(sed -n 455,470p /Users/sarotmoniodom/AMS_APP_dev/resources/views/admin/revenue_expense/tenant_bill_print.blade.php)",
+      "Bash(git -C /Users/sarotmoniodom/AMS_APP_dev log -1 --format=\"%h %ad %s\" --date=short -S 'income@if' -- resources/views/admin/fiscalperiod/monthly-period-pdf.blade.php)",
+      "Bash(git -C /Users/sarotmoniodom/AMS_APP_dev status --short)"
     ],
     "additionalDirectories": [
       "/Users/sarotmoniodom/AMS_APP",

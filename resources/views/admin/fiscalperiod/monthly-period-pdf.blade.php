@@ -225,7 +225,7 @@
 <div style="background:#faf5ff;border:1px solid #d8b4fe;border-radius:6px;padding:16px 20px;display:flex;justify-content:space-between;align-items:center;margin-bottom:24px;">
     <div>
         <div style="font-size:12px;color:#6b7280;font-weight:600;text-transform:uppercase;">{{ __('messages.owner_profit_withdrawal') }}</div>
-        <div style="font-size:11px;color:#9ca3af;margin-top:2px;">Owner's draw — reduces carried-forward cash, not net income@if($monthlyPeriod->withdrawal_note) &nbsp;|&nbsp; {{ $monthlyPeriod->withdrawal_note }}@endif</div>
+        <div style="font-size:11px;color:#9ca3af;margin-top:2px;">Owner's draw — reduces carried-forward cash, not net income @if($monthlyPeriod->withdrawal_note)&nbsp;|&nbsp; {{ $monthlyPeriod->withdrawal_note }}@endif</div>
     </div>
     <div style="font-size:24px;font-weight:700;color:#7c3aed;">
         − {{ currency_symbol() }}{{ number_format($monthlyPeriod->owner_withdrawal, 2) }}

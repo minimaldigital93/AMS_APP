@@ -63,6 +63,17 @@
             .sidebar-container .sidebar-label { opacity: 1 !important; width: auto !important; overflow: visible !important; margin: inherit !important; }
         }
 
+        /* Printing: only the page content prints — app chrome is hidden and the
+           scroll containers are unclipped so multi-page documents paginate. */
+        .print-only { display: none; }
+        @media print {
+            #topbarNav, .sidebar-container, .no-print { display: none !important; }
+            body { display: block; height: auto; overflow: visible; background: #fff; }
+            body > div.overflow-hidden { display: block; overflow: visible !important; }
+            main { display: block; overflow: visible !important; height: auto !important; padding: 0 !important; }
+            .print-only { display: block; }
+        }
+
         .sidebar-collapse-button {
             transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
             position: relative;

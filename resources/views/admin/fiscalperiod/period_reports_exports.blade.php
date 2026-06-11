@@ -2,8 +2,17 @@
 
 @section('content')
 <div class="container mx-auto py-8" x-data="{ activeTab: 'overview' }">
+    {{-- Print letterhead: business name & contact from Settings --}}
+    <div class="print-only">
+        @include('partials.business_header')
+        <div style="text-align:center; margin-bottom:16px;">
+            <div style="font-size:16px; font-weight:700; color:#111827;">{{ __('messages.reports_exports') }} &mdash; {{ $fiscalperiod->name }}</div>
+            <div style="font-size:11px; color:#6b7280; margin-top:2px;">{{ $fiscalperiod->opening_date?->format('M j, Y') }} &mdash; {{ $fiscalperiod->closing_date?->format('M j, Y') ?? __('messages.current') }}</div>
+        </div>
+    </div>
+
     <!-- Header -->
-    <div class="flex items-start justify-between mb-6 gap-4">
+    <div class="flex items-start justify-between mb-6 gap-4 no-print">
         <div>
             <h1 class="text-2xl font-semibold text-slate-800 tracking-tight">{{ __('messages.reports_exports') }}</h1>
         </div>
