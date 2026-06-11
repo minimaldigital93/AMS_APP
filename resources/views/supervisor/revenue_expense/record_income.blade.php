@@ -687,7 +687,7 @@ function billingManager() {
             if (!(await window.confirmAction({ message: '{{ __('messages.remove_charge_confirm') }}' }))) return;
             const csrf = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
             try {
-                const res = await fetch('/supervisor/revenue-expense/remove-charge/' + chargeId, {
+                const res = await fetch('{{ url('/supervisor/revenue-expense/remove-charge') }}/' + chargeId, {
                     method: 'DELETE',
                     headers: { 'X-CSRF-TOKEN': csrf, 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' }
                 });
@@ -702,7 +702,7 @@ function billingManager() {
             if (!(await window.confirmAction({ message: '{{ __('messages.delete_all_confirm') }}' }))) return;
             const csrf = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
             try {
-                await fetch('/supervisor/revenue-expense/clear-charges/' + this.viewRentalId, {
+                await fetch('{{ url('/supervisor/revenue-expense/clear-charges') }}/' + this.viewRentalId, {
                     method: 'DELETE',
                     headers: { 'X-CSRF-TOKEN': csrf, 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' }
                 });

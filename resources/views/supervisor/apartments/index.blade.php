@@ -364,7 +364,7 @@ document.addEventListener('DOMContentLoaded', function() {
             title: `Process leave for ${tenantName}?`,
             message: 'This will archive the tenant, calculate the final settlement, and mark the apartment as available.'
         }).then(function (ok) {
-            if (ok) window.location.href = `/supervisor/tenants/${tenantId}/leave`;
+            if (ok) window.location.href = `{{ url('/supervisor/tenants') }}/${tenantId}/leave`;
         });
     };
 

@@ -1,4 +1,4 @@
-@php $assignBase = $assignBase ?? '/admin/apartments'; @endphp
+@php $assignBase = $assignBase ?? url('/admin/apartments'); @endphp
 <!-- Assign Tenant Modal (shared by apartments index & 3D view) -->
 <div id="assignTenantModal" class="hidden fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4 overflow-y-auto" data-assign-base="{{ $assignBase }}">
     <div class="bg-white rounded-2xl shadow-xl max-w-lg w-full my-8">
