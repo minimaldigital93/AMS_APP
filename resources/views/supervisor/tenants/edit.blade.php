@@ -71,7 +71,7 @@
                         @foreach($apartments as $apt)
                             <option value="{{ $apt->id }}" {{ old('apartment_id', $tenant->apartment_id) == $apt->id ? 'selected' : '' }}>
                                 {{ $apt->apartment_number }} — ${{ number_format($apt->monthly_rent, 2) }}/mo
-                                @if($apt->id == $tenant->apartment_id) (Current) @endif
+                                @if($apt->id == $tenant->apartment_id) ({{ __('messages.current') }}) @endif
                             </option>
                         @endforeach
                     </select>
