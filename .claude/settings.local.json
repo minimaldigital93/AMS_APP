@@ -483,7 +483,15 @@
       "Bash(grep -rnE \"\\(window\\\\.location\\(\\\\.href|\\\\.assign\\)?|\\\\.src|window\\\\.open|XMLHttpRequest|\\\\.action\\) ?[=\\(] ?[\\\\`'\\\\\"]/\\(admin|supervisor|tenant|superadmin\\)\\\\b\" /Users/sarotmoniodom/AMS_APP_dev/resources --include=\"*.blade.php\" --include=\"*.js\")",
       "Bash(grep -rnE \"[\\\\`'\\\\\"]/\\(admin|supervisor|superadmin\\)/\" /Users/sarotmoniodom/AMS_APP_dev/resources/js)",
       "Bash(curl -s -o /dev/null -w \"login page via nginx: %{http_code}\\\\n\" http://127.0.0.1:8090/ams_app/login)",
-      "Bash(curl -s http://127.0.0.1:8090/ams_app/login)"
+      "Bash(curl -s http://127.0.0.1:8090/ams_app/login)",
+      "Bash(git -C /Users/sarotmoniodom/AMS_APP status)",
+      "Bash(git -C /Users/sarotmoniodom/AMS_APP pull)",
+      "Bash(git -C /Users/sarotmoniodom/AMS_APP log --oneline 4d11a94..origin/main)",
+      "Bash(git -C /Users/sarotmoniodom/AMS_APP diff --stat)",
+      "Bash(git -C /Users/sarotmoniodom/AMS_APP diff -- resources/)",
+      "Bash(git -C /Users/sarotmoniodom/AMS_APP diff origin/main -- resources/ .claude/)",
+      "Bash(git -C /Users/sarotmoniodom/AMS_APP stash push -m \"pre-pull local changes\")",
+      "Bash(git -C /Users/sarotmoniodom/AMS_APP stash pop)"
     ],
     "additionalDirectories": [
       "/Users/sarotmoniodom/AMS_APP",
