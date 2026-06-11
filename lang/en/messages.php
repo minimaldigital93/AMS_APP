@@ -701,6 +701,7 @@ return [
     'closing_cash' => 'Closing Cash',
     'cash_available' => 'Cash Available',
     'close_this_period' => 'Close This Period',
+    'close_period' => 'Close Period',
     'close_month' => 'Close Month',
     'reopen' => 'Reopen',
     'period_progress' => 'Period Progress',

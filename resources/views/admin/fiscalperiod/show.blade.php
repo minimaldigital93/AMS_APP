@@ -2,7 +2,7 @@
 
 @section('content')
 <div class="container mx-auto py-8 max-w-5xl"
-     x-data="{ closeModal: { open: false, action: '', name: '', net: 0, available: 0, amount: '' } }">
+     x-data="{ closeModal: { open: false, action: '', name: '', net: 0, available: 0, amount: '' }, closePeriodOpen: false }">
     {{-- Header --}}
     <div class="flex items-start justify-between mb-6 gap-4">
         <div>
@@ -12,20 +12,20 @@
                     {{ ucfirst($fiscalperiod->status) }}
                 </span>
             </div>
-            <p class="text-sm text-gray-500 mt-1">
-                {{ $fiscalperiod->opening_date->format('M d, Y') }} — {{ $fiscalperiod->closing_date->format('M d, Y') }}
-                ({{ $fiscalperiod->opening_date->diffInDays($fiscalperiod->closing_date) }} days)
-            </p>
+          
         </div>
         <div class="flex flex-wrap gap-2 justify-end">
             @if($fiscalperiod->status === 'open')
-                <a href="{{ route('admin.fiscalperiod.edit', $fiscalperiod->id) }}" class="text-sm bg-gray-100 text-gray-700 px-3 py-2 rounded-lg hover:bg-gray-200">{{ __('messages.edit') }}</a>
+                <a href="{{ route('admin.fiscalperiod.edit', $fiscalperiod->id) }}" class="text-sm bg-gray-100 text-gray-700 px-3 py-2 rounded-lg hover:bg-gray-200 flex items-center" title="{{ __('messages.edit') }}">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg></a>
             @endif
-            <a href="{{ route('admin.fiscalperiod.reports', $fiscalperiod->id) }}" class="text-sm bg-indigo-600 text-white px-3 py-2 rounded-lg hover:bg-indigo-700">{{ __('messages.reports') }}</a>
+            <a href="{{ route('admin.fiscalperiod.reports', $fiscalperiod->id) }}" class="text-sm bg-indigo-600 text-white px-3 py-2 rounded-lg hover:bg-indigo-700 flex items-center" title="{{ __('messages.reports') }}">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-6m4 6V7m4 10v-3M5 21h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v14a2 2 0 002 2z"/></svg></a>
             <a href="{{ route('admin.fiscalperiod.exportPDF', $fiscalperiod->id) }}" target="_blank"
                class="text-sm bg-gray-700 text-white px-3 py-2 rounded-lg hover:bg-gray-800 flex items-center gap-1.5" title="{{ __('messages.print_annual_summary_pdf') }}">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg></a>
-            <a href="{{ route('admin.fiscalperiod.index') }}" class="text-sm bg-gray-100 text-gray-700 px-3 py-2 rounded-lg hover:bg-gray-200">← Back</a>
+            <a href="{{ route('admin.fiscalperiod.index') }}" class="text-sm bg-gray-100 text-gray-700 px-3 py-2 rounded-lg hover:bg-gray-200 flex items-center" title="{{ __('messages.back') }}">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/></svg></a>
         </div>
     </div>
 
@@ -112,19 +112,63 @@
     {{-- Monthly Periods --}}
     <div class="bg-white rounded-lg shadow mb-6">
         <div class="flex items-center justify-between px-5 py-3 border-b">
-            <div>
-                <h3 class="font-semibold">{{ __('messages.monthly_periods') }}</h3>
-                <p class="text-xs text-gray-400">{{ __('messages.close_each_month_help') }}</p>
-            </div>
+            <h3 class="font-semibold">{{ __('messages.monthly_periods') }}</h3>
             @if($fiscalperiod->status === 'open')
                 <form method="POST" action="{{ route('admin.fiscalperiod.recalculate-balances', $fiscalperiod->id) }}" data-confirm="Recalculate all monthly balances using carry-forward logic?">
                     @csrf
-                    <button type="submit" class="text-xs bg-amber-100 text-amber-700 px-3 py-1.5 rounded hover:bg-amber-200 font-semibold">↻ Recalculate</button>
+                    <button type="submit" class="p-2 rounded-lg bg-amber-100 text-amber-700 hover:bg-amber-200" title="Recalculate">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+                    </button>
                 </form>
             @endif
         </div>
         @if($monthlyPeriods->count())
-            <div class="overflow-x-auto">
+            {{-- Mobile: compact card per month with close + view-detail actions --}}
+            <div class="md:hidden divide-y">
+                @foreach($monthlyPeriods as $month)
+                    <div class="flex items-center justify-between gap-3 px-4 py-3 {{ $month->isClosed() ? 'bg-gray-50/40' : '' }}">
+                        <div class="min-w-0 flex-1">
+                            <div class="flex items-center gap-2">
+                                <span class="font-medium text-sm">{{ $month->name }}</span>
+                                <span class="px-2 py-0.5 rounded-full text-[10px] font-semibold {{ $month->status === 'open' ? 'bg-green-100 text-green-700' : ($month->status === 'closed' ? 'bg-red-100 text-red-700' : 'bg-gray-200 text-gray-700') }}">
+                                    {{ ucfirst($month->status) }}
+                                </span>
+                            </div>
+                            <p class="text-xs text-gray-500 mt-0.5">
+                                {{ __('messages.net') }}:
+                                <span class="font-semibold {{ $month->live_net >= 0 ? 'text-green-700' : 'text-red-700' }}">
+                                    {{ $month->live_net >= 0 ? '+' : '' }}${{ number_format($month->live_net, 2) }}
+                                </span>
+                                <span class="mx-1 text-gray-300">·</span>
+                                {{ __('messages.closing') }}:
+                                @if($month->isClosed())
+                                    <span class="font-semibold text-gray-700">${{ number_format($month->closing_balance, 2) }}</span>
+                                @else
+                                    <span class="font-semibold text-gray-400">${{ number_format($month->opening_balance + $month->live_net, 2) }}</span>
+                                @endif
+                            </p>
+                        </div>
+                        <div class="flex items-center gap-1.5 shrink-0">
+                            @if($month->canClose())
+                                {{-- Close Month (opens withdrawal modal) --}}
+                                <button type="button"
+                                        @click="closeModal = { open: true, action: '{{ route('admin.fiscalperiod.monthly-period.close', [$fiscalperiod->id, $month->id]) }}', name: @js($month->name), net: {{ $month->live_net }}, available: {{ $month->opening_balance + $month->live_net }}, amount: '' }"
+                                        class="p-2 rounded-lg text-amber-600 bg-amber-50 active:bg-amber-100" title="{{ __('messages.close_month') }}">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
+                                </button>
+                            @endif
+                            {{-- View detail --}}
+                            <a href="{{ route('admin.fiscalperiod.monthly-period.show', [$fiscalperiod->id, $month->id]) }}"
+                               class="p-2 rounded-lg text-blue-600 bg-blue-50 active:bg-blue-100" title="{{ __('messages.view_details') }}">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+                            </a>
+                        </div>
+                    </div>
+                @endforeach
+            </div>
+
+            {{-- Desktop: full table --}}
+            <div class="hidden md:block overflow-x-auto">
                 <table class="w-full text-sm">
                     <thead>
                         <tr class="bg-gray-50 border-b text-xs text-gray-500 uppercase">
@@ -212,26 +256,11 @@
 
     {{-- Close Period (only if open) --}}
     @if($fiscalperiod->status === 'open')
-        <div class="bg-white rounded-lg shadow p-5 mb-6">
-            <h3 class="font-semibold mb-3">{{ __('messages.close_this_period') }}</h3>
-            <form method="POST" action="{{ route('admin.fiscalperiod.closeperiod', $fiscalperiod->id) }}" data-confirm="Close this fiscal period? This cannot be undone.">
-                @csrf
-                <div class="flex items-end gap-3">
-                    <div class="flex-1">
-                        <label class="block text-xs text-gray-500 mb-1">{{ __('messages.closing_balance') }}</label>
-                        <div class="relative">
-                            <span class="absolute left-3 top-2 text-gray-500">$</span>
-                            <input type="number" name="closing_balance" step="0.01" required
-                                value="{{ $balanceSummary['total_assets'] - $balanceSummary['total_liabilities'] }}"
-                                class="w-full pl-7 pr-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none">
-                        </div>
-                        <p class="text-xs text-gray-400 mt-1">Suggested: ${{ number_format($balanceSummary['total_assets'] - $balanceSummary['total_liabilities'], 2) }} (Assets − Liabilities)</p>
-                    </div>
-                    <button type="submit" class="bg-orange-600 text-white px-5 py-2 rounded-lg hover:bg-orange-700 text-sm font-semibold whitespace-nowrap">
-                        Close Period
-                    </button>
-                </div>
-            </form>
+        <div class="text-center mb-6">
+            <button type="button" @click="closePeriodOpen = true"
+                    class="bg-orange-600 text-white px-5 py-2 rounded-lg hover:bg-orange-700 text-sm font-semibold">
+                {{ __('messages.close_period') }}
+            </button>
         </div>
     @endif
 
@@ -243,6 +272,42 @@
                 @method('DELETE')
                 <button type="submit" class="text-sm text-red-500 hover:text-red-700 hover:underline">{{ __('messages.delete_this_period') }}</button>
             </form>
+        </div>
+    @endif
+
+    {{-- Close-period modal: confirm closing balance --}}
+    @if($fiscalperiod->status === 'open')
+        <div x-show="closePeriodOpen" x-cloak
+             class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+             @keydown.escape.window="closePeriodOpen = false">
+            <div class="bg-white rounded-xl shadow-xl w-full max-w-md" @click.outside="closePeriodOpen = false">
+                <form method="POST" action="{{ route('admin.fiscalperiod.closeperiod', $fiscalperiod->id) }}" data-confirm="Close this fiscal period? This cannot be undone.">
+                    @csrf
+                    <div class="px-6 py-4 border-b">
+                        <h3 class="text-lg font-semibold">{{ __('messages.close_this_period') }}</h3>
+                    </div>
+
+                    <div class="px-6 py-4">
+                        <label class="block text-sm font-medium text-gray-700 mb-1">{{ __('messages.closing_balance') }}</label>
+                        <div class="relative">
+                            <span class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">$</span>
+                            <input type="number" name="closing_balance" step="0.01" required
+                                value="{{ $balanceSummary['total_assets'] - $balanceSummary['total_liabilities'] }}"
+                                class="w-full pl-7 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500">
+                        </div>
+                        <p class="text-xs text-gray-400 mt-1">Suggested: ${{ number_format($balanceSummary['total_assets'] - $balanceSummary['total_liabilities'], 2) }} (Assets − Liabilities)</p>
+                    </div>
+
+                    <div class="px-6 py-4 border-t flex justify-end gap-2">
+                        <button type="button" @click="closePeriodOpen = false"
+                                class="px-4 py-2 rounded-lg bg-gray-100 text-gray-700 hover:bg-gray-200 text-sm font-semibold">{{ __('messages.cancel') }}</button>
+                        <button type="submit"
+                                class="px-4 py-2 rounded-lg bg-orange-600 text-white hover:bg-orange-700 text-sm font-semibold">
+                            {{ __('messages.close_period') }}
+                        </button>
+                    </div>
+                </form>
+            </div>
         </div>
     @endif
 

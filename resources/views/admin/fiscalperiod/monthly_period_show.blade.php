@@ -4,7 +4,7 @@
 <div class="container mx-auto py-8 max-w-4xl"
      x-data="{ closeOpen: false, withdrawal: '', available: {{ $monthlyPeriod->opening_balance + $financials['net_income'] }} }">
     {{-- Header with navigation --}}
-    <div class="flex items-center justify-between mb-6">
+    <div class="flex items-start justify-between mb-6 gap-4">
         <div>
             <div class="flex items-center gap-3">
                 <h1 class="text-2xl font-semibold text-slate-800 tracking-tight">{{ $monthlyPeriod->name }}</h1>
@@ -16,16 +16,71 @@
                 {{ $monthlyPeriod->start_date->format('M d') }} – {{ $monthlyPeriod->end_date->format('M d, Y') }}
             </p>
         </div>
-        <div class="flex items-center gap-2">
-            @if($previousMonth)
-                <a href="{{ route('admin.fiscalperiod.monthly-period.show', [$fiscalperiod->id, $previousMonth->id]) }}" class="px-3 py-1.5 bg-gray-100 rounded-lg hover:bg-gray-200 text-sm">← {{ $previousMonth->name }}</a>
+        <div class="flex flex-wrap gap-2 justify-end">
+            @if($monthlyPeriod->canClose())
+                {{-- Close Month (opens withdrawal modal) --}}
+                <button type="button" @click="closeOpen = true; withdrawal = ''"
+                        class="text-sm bg-amber-600 text-white px-3 py-2 rounded-lg hover:bg-amber-700 flex items-center" title="{{ __('messages.close_month') }}">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
+                </button>
             @endif
-            @if($nextMonth)
-                <a href="{{ route('admin.fiscalperiod.monthly-period.show', [$fiscalperiod->id, $nextMonth->id]) }}" class="px-3 py-1.5 bg-gray-100 rounded-lg hover:bg-gray-200 text-sm">{{ $nextMonth->name }} →</a>
+            @if($monthlyPeriod->canReopen())
+                {{-- Reopen Month --}}
+                <form method="POST" action="{{ route('admin.fiscalperiod.monthly-period.reopen', [$fiscalperiod->id, $monthlyPeriod->id]) }}" data-confirm="Reopen {{ $monthlyPeriod->name }}?">
+                    @csrf
+                    <button class="text-sm bg-green-600 text-white px-3 py-2 rounded-lg hover:bg-green-700 flex items-center" title="{{ __('messages.reopen_month') }}">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 11V7a4 4 0 118 0m-4 8v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2z"/></svg>
+                    </button>
+                </form>
             @endif
+            {{-- Print Monthly PDF --}}
+            <a href="{{ route('admin.fiscalperiod.monthly-period.print', [$fiscalperiod->id, $monthlyPeriod->id]) }}" target="_blank"
+               class="text-sm bg-gray-700 text-white px-3 py-2 rounded-lg hover:bg-gray-800 flex items-center" title="{{ __('messages.print_summary_pdf') }}">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg></a>
+            {{-- Back to period --}}
+            <a href="{{ route('admin.fiscalperiod.show', $fiscalperiod->id) }}"
+               class="text-sm bg-gray-100 text-gray-700 px-3 py-2 rounded-lg hover:bg-gray-200 flex items-center" title="{{ __('messages.back') }}">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/></svg></a>
         </div>
     </div>
 
+
+    {{-- Month navigator --}}
+    <div class="flex items-center justify-center mb-6">
+        <div class="inline-flex items-center bg-white rounded-xl border border-slate-100 px-2 py-1.5 gap-1">
+            {{-- Previous Month --}}
+            @if($previousMonth)
+                <a href="{{ route('admin.fiscalperiod.monthly-period.show', [$fiscalperiod->id, $previousMonth->id]) }}"
+                   class="inline-flex items-center justify-center w-10 h-10 rounded-lg text-slate-500 hover:bg-slate-50 hover:text-sky-600 transition" title="{{ $previousMonth->name }}">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
+                </a>
+            @else
+                <span class="inline-flex items-center justify-center w-10 h-10 rounded-lg text-slate-300 cursor-not-allowed">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
+                </span>
+            @endif
+
+            {{-- Current Month Display --}}
+            <div class="px-4 py-2 min-w-[200px] text-center">
+                <span class="text-lg font-bold text-slate-800">{{ $monthlyPeriod->name }}</span>
+                <span class="ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium {{ $monthlyPeriod->status === 'open' ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-600' }}">
+                    {{ ucfirst($monthlyPeriod->status) }}
+                </span>
+            </div>
+
+            {{-- Next Month --}}
+            @if($nextMonth)
+                <a href="{{ route('admin.fiscalperiod.monthly-period.show', [$fiscalperiod->id, $nextMonth->id]) }}"
+                   class="inline-flex items-center justify-center w-10 h-10 rounded-lg text-slate-500 hover:bg-slate-50 hover:text-sky-600 transition" title="{{ $nextMonth->name }}">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+                </a>
+            @else
+                <span class="inline-flex items-center justify-center w-10 h-10 rounded-lg text-slate-300 cursor-not-allowed">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+                </span>
+            @endif
+        </div>
+    </div>
 
     {{-- Balance Flow --}}
     <div class="grid grid-cols-2 md:grid-cols-5 gap-3 mb-6">
@@ -132,25 +187,6 @@
             + retained earnings ${{ number_format($balanceSheet['retained_earnings'], 2) }}
             − owner draws ${{ number_format($balanceSheet['owner_withdrawals'], 2) }}.
         </p>
-    </div>
-
-    {{-- Actions --}}
-    <div class="flex flex-wrap gap-2">
-        @if($monthlyPeriod->canClose())
-            <button type="button" @click="closeOpen = true; withdrawal = ''"
-                    class="bg-amber-600 text-white px-4 py-2 rounded-lg hover:bg-amber-700 text-sm font-semibold">{{ __('messages.close_month') }}</button>
-        @endif
-        @if($monthlyPeriod->canReopen())
-            <form method="POST" action="{{ route('admin.fiscalperiod.monthly-period.reopen', [$fiscalperiod->id, $monthlyPeriod->id]) }}" data-confirm="Reopen {{ $monthlyPeriod->name }}?">
-                @csrf
-                <button class="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 text-sm font-semibold">{{ __('messages.reopen') }}</button>
-            </form>
-        @endif
-        {{-- Print Monthly PDF --}}
-        <a href="{{ route('admin.fiscalperiod.monthly-period.print', [$fiscalperiod->id, $monthlyPeriod->id]) }}" target="_blank"
-           class="bg-gray-700 text-white px-4 py-2 rounded-lg hover:bg-gray-800 text-sm font-semibold flex items-center gap-1.5" title="Print Summary">
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg></a>
-        <a href="{{ route('admin.fiscalperiod.show', $fiscalperiod->id) }}" class="bg-gray-100 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-200 text-sm font-semibold">← Back to Period</a>
     </div>
 
     {{-- Close-month modal: capture owner profit withdrawal --}}

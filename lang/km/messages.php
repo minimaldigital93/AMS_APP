@@ -701,6 +701,7 @@ return [
     'closing_cash' => 'សាច់ប្រាក់ចុង',
     'cash_available' => 'សាច់ប្រាក់ដែលមាន',
     'close_this_period' => 'បិទរយៈពេលនេះ',
+    'close_period' => 'បិទរយៈពេល',
     'close_month' => 'បិទខែ',
     'reopen' => 'បើកឡើងវិញ',
     'period_progress' => 'វឌ្ឍនភាពរយៈពេល',
