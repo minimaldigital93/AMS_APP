@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Concerns;
 
 use App\Models\KhqrPayment;
+use App\Models\MerchantPaymentSetting;
 use App\Models\Rentals;
 use App\Models\Utilities;
 use App\Services\RevenueExpense\KhqrPaymentService;
@@ -10,10 +11,13 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
 /**
- * KHQRPay checkout endpoints shared by Admin and Supervisor controllers.
+ * KHQR checkout endpoints shared by Admin and Supervisor controllers.
  *
- * - khqrGenerate(): mint a dynamic KHQR for the selected checkout items.
+ * - khqrGenerate(): create a payment for the selected checkout items. Channel
+ *   depends on the landlord's payment settings: 'api' (KHQRPay dynamic QR,
+ *   auto-verified) or 'manual' (static KHQR / bank details, landlord confirms).
  * - khqrStatus():   polled by the modal; verifies + finalizes once Bakong pays.
+ * - khqrConfirm()/khqrReject(): manual-channel resolution by the landlord.
  *
  * The host controller supplies role context via HasFiscalPeriodScope
  * (getActiveFiscalPeriod / ledgerUserId) and the route prefix below.
@@ -86,17 +90,31 @@ trait HandlesKhqrCheckout
             return response()->json(['message' => $e->getMessage()], 502);
         }
 
-        return response()->json([
+        $response = [
             'transaction_id' => $row->transaction_id,
             'amount' => number_format($row->amount, 2, '.', ''),
             'qr_url' => $row->qr_url,
+            'channel' => $row->channel,
             'status_url' => route($this->khqrRoutePrefix().'.khqr_status', $row->transaction_id),
-        ]);
+        ];
+
+        if ($row->channel === 'manual') {
+            $settings = MerchantPaymentSetting::forAccount($rental->account_id);
+            $response['confirm_url'] = route($this->khqrRoutePrefix().'.khqr_confirm', $row->transaction_id);
+            $response['reject_url'] = route($this->khqrRoutePrefix().'.khqr_reject', $row->transaction_id);
+            $response['bank'] = [
+                'bank_name' => $settings?->bank_name,
+                'account_name' => $settings?->bank_account_name,
+                'account_number' => $settings?->bank_account_number,
+            ];
+        }
+
+        return response()->json($response);
     }
 
     public function khqrStatus(string $transactionId, KhqrPaymentService $khqr): JsonResponse
     {
-        $row = KhqrPayment::where('transaction_id', $transactionId)->firstOrFail();
+        $row = $this->ownKhqrPayment($transactionId);
 
         if (! $row->isPaid() && $khqr->verify($row)) {
             $khqr->finalize($row);
@@ -107,5 +125,46 @@ trait HandlesKhqrCheckout
             'status' => $row->status,
             'paid' => $row->isPaid(),
         ]);
+    }
+
+    /** Landlord confirms a manual-channel payment after checking their bank app. */
+    public function khqrConfirm(string $transactionId, KhqrPaymentService $khqr): JsonResponse
+    {
+        $row = $this->ownKhqrPayment($transactionId);
+
+        $khqr->confirmManual($row);
+        $row->refresh();
+
+        return response()->json([
+            'status' => $row->status,
+            'paid' => $row->isPaid(),
+        ]);
+    }
+
+    /** Landlord rejects a manual-channel payment (money never arrived). */
+    public function khqrReject(string $transactionId, KhqrPaymentService $khqr): JsonResponse
+    {
+        $row = $this->ownKhqrPayment($transactionId);
+
+        $khqr->rejectManual($row);
+        $row->refresh();
+
+        return response()->json(['status' => $row->status, 'paid' => false]);
+    }
+
+    /**
+     * Resolve a rent KhqrPayment and assert it belongs to the current account —
+     * the rental lookup runs under the account global scope, so a foreign
+     * account's transaction 404s instead of leaking status.
+     */
+    private function ownKhqrPayment(string $transactionId): KhqrPayment
+    {
+        $row = KhqrPayment::where('transaction_id', $transactionId)
+            ->whereNotNull('rental_id')
+            ->firstOrFail();
+
+        Rentals::findOrFail($row->rental_id);
+
+        return $row;
     }
 }

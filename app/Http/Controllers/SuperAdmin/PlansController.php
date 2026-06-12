@@ -30,6 +30,7 @@ class PlansController extends Controller
             'max_floors' => ['nullable', 'integer', 'min:0'],
             'max_apartments' => ['nullable', 'integer', 'min:0'],
             'billing_period_days' => ['required', 'integer', 'min:1'],
+            'trial_days' => ['nullable', 'integer', 'min:0', 'max:365'],
             'is_active' => ['nullable', 'boolean'],
         ]);
 
@@ -41,6 +42,7 @@ class PlansController extends Controller
             'max_floors' => $validated['max_floors'] ?? null,
             'max_apartments' => $validated['max_apartments'] ?? null,
             'billing_period_days' => $validated['billing_period_days'],
+            'trial_days' => (int) ($validated['trial_days'] ?? 0),
             'is_active' => $request->boolean('is_active'),
         ]);
 
@@ -56,6 +58,7 @@ class PlansController extends Controller
             'max_floors' => ['nullable', 'integer', 'min:0'],
             'max_apartments' => ['nullable', 'integer', 'min:0'],
             'billing_period_days' => ['required', 'integer', 'min:1'],
+            'trial_days' => ['nullable', 'integer', 'min:0', 'max:365'],
             'is_active' => ['nullable', 'boolean'],
         ]);
 
@@ -66,6 +69,7 @@ class PlansController extends Controller
             'max_floors' => $validated['max_floors'] ?? null,
             'max_apartments' => $validated['max_apartments'] ?? null,
             'billing_period_days' => $validated['billing_period_days'],
+            'trial_days' => (int) ($validated['trial_days'] ?? 0),
             'is_active' => $request->boolean('is_active'),
         ]);
 

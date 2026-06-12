@@ -566,13 +566,33 @@
                     <!-- Error -->
                     <div x-show="khqrError" class="bg-red-50 border border-red-100 rounded-lg px-4 py-3 text-red-600 text-sm" x-text="khqrError"></div>
 
-                    <!-- QR + waiting -->
-                    <template x-if="!khqrLoading && khqrUrl && !khqrError">
+                    <!-- QR + waiting / manual confirmation -->
+                    <template x-if="!khqrLoading && !khqrError && (khqrUrl || khqrChannel === 'manual')">
                         <div class="space-y-4">
-                            <div class="inline-block p-3 bg-white border border-slate-200 rounded-2xl">
+                            <div x-show="khqrUrl" class="inline-block p-3 bg-white border border-slate-200 rounded-2xl">
                                 <img :src="khqrUrl" alt="KHQR" class="w-56 h-56 object-contain mx-auto">
                             </div>
-                            <div x-show="!khqrPaid" class="flex items-center justify-center gap-2 text-amber-600 text-sm">
+
+                            <!-- Manual channel: bank details + landlord confirms receipt -->
+                            <template x-if="khqrChannel === 'manual'">
+                                <div class="space-y-3">
+                                    <div x-show="khqrBank.bank_name || khqrBank.account_number"
+                                        class="bg-slate-50 border border-slate-200 rounded-lg px-4 py-3 text-left text-sm text-slate-600 space-y-1">
+                                        <div x-show="khqrBank.bank_name"><span class="text-slate-400">{{ __('messages.bank_name') }}:</span> <span class="font-medium" x-text="khqrBank.bank_name"></span></div>
+                                        <div x-show="khqrBank.account_name"><span class="text-slate-400">{{ __('messages.bank_account_name') }}:</span> <span class="font-medium" x-text="khqrBank.account_name"></span></div>
+                                        <div x-show="khqrBank.account_number"><span class="text-slate-400">{{ __('messages.bank_account_number') }}:</span> <span class="font-medium" x-text="khqrBank.account_number"></span></div>
+                                    </div>
+                                    <div x-show="!khqrPaid" class="space-y-2">
+                                        <p class="text-xs text-slate-400">{{ __('messages.khqr_manual_confirm_hint') }}</p>
+                                        <button type="button" @click="confirmKhqrManual()" :disabled="khqrConfirming"
+                                            class="w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold rounded-lg transition disabled:opacity-50">
+                                            {{ __('messages.khqr_mark_received') }}
+                                        </button>
+                                    </div>
+                                </div>
+                            </template>
+
+                            <div x-show="khqrChannel === 'api' && !khqrPaid" class="flex items-center justify-center gap-2 text-amber-600 text-sm">
                                 <svg class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/></svg>
                                 {{ __('messages.waiting_for_payment') }}
                             </div>
@@ -660,6 +680,10 @@ function billingManager() {
         khqrPaid: false,
         khqrError: '',
         khqrTimer: null,
+        khqrChannel: 'api',
+        khqrBank: {},
+        khqrConfirmUrl: '',
+        khqrConfirming: false,
 
         matchesFilter(status, tenantName, aptNumber) {
             if (this.filter !== 'all' && status !== this.filter) return false;
@@ -759,6 +783,10 @@ function billingManager() {
             this.khqrStatusUrl = '';
             this.khqrPaid = false;
             this.khqrError = '';
+            this.khqrChannel = 'api';
+            this.khqrBank = {};
+            this.khqrConfirmUrl = '';
+            this.khqrConfirming = false;
         },
 
         closeCheckout() {
@@ -784,15 +812,44 @@ function billingManager() {
                 this.khqrUrl = j.qr_url || '';
                 this.khqrAmount = j.amount || this.khqrAmount;
                 this.khqrStatusUrl = j.status_url || '';
+                this.khqrChannel = j.channel || 'api';
+                this.khqrBank = j.bank || {};
+                this.khqrConfirmUrl = j.confirm_url || '';
                 this.khqrLoading = false;
-                if (!this.khqrUrl) {
+                if (!this.khqrUrl && this.khqrChannel !== 'manual') {
                     this.khqrError = '{{ __('messages.khqr_no_qr') }}';
                     return;
                 }
-                this.startKhqrPoll();
+                if (this.khqrChannel === 'api') {
+                    this.startKhqrPoll();
+                }
             } catch (err) {
                 this.khqrLoading = false;
                 this.khqrError = err.message || 'Failed to generate KHQR.';
+            }
+        },
+
+        // Manual channel: the landlord checks their banking app, then confirms.
+        async confirmKhqrManual() {
+            if (!this.khqrConfirmUrl || this.khqrConfirming) return;
+            this.khqrConfirming = true;
+            const csrf = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+            try {
+                const res = await fetch(this.khqrConfirmUrl, {
+                    method: 'POST',
+                    headers: { 'X-CSRF-TOKEN': csrf, 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' }
+                });
+                const j = await res.json().catch(() => ({}));
+                if (!res.ok) throw new Error(j.message || ('HTTP ' + res.status));
+                if (j.paid) {
+                    this.khqrPaid = true;
+                    this.printBill(this.checkoutRentalId);
+                    setTimeout(() => window.location.reload(), 1300);
+                }
+            } catch (err) {
+                this.khqrError = err.message || 'Failed to confirm payment.';
+            } finally {
+                this.khqrConfirming = false;
             }
         },
 

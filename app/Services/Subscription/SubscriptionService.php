@@ -25,13 +25,40 @@ class SubscriptionService
     {
         return Subscription::query()
             ->where('account_id', $accountId)
-            ->where('status', 'active')
+            ->whereIn('status', ['active', 'trialing'])
             ->where(function ($q) {
                 $q->whereNull('expires_at')->orWhere('expires_at', '>', Carbon::now());
             })
             ->with('plan')
             ->latest('id')
             ->first();
+    }
+
+    /**
+     * Start a free trial on a plan — one per account, ever (trial_started_at is
+     * permanent; switching plans or expiring does not reset it).
+     */
+    public function startTrial(int $accountId, Plan $plan): Subscription
+    {
+        if (! $plan->hasTrial()) {
+            throw new \InvalidArgumentException("Plan [{$plan->slug}] has no trial period.");
+        }
+
+        $existing = Subscription::where('account_id', $accountId)->latest('id')->first();
+        if ($existing?->trialUsed()) {
+            throw new \RuntimeException(__('messages.trial_already_used'));
+        }
+
+        return Subscription::updateOrCreate(
+            ['account_id' => $accountId],
+            [
+                'plan_id' => $plan->id,
+                'status' => 'trialing',
+                'started_at' => now(),
+                'expires_at' => now()->addDays($plan->trial_days),
+                'trial_started_at' => now(),
+            ]
+        );
     }
 
     public function activePlan(int $accountId): ?Plan

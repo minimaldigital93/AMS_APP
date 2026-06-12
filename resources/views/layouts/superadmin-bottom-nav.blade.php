@@ -92,6 +92,12 @@
             <div x-show="sheet === 'more'" class="p-2">
                 <h3 class="px-3 pt-1 pb-2 text-xs font-bold uppercase tracking-wide text-gray-500">{{ __('Menu') }}</h3>
                 <div class="space-y-1">
+                    <a href="{{ route('superadmin.settings.payment') }}" class="bn-sheet-link {{ request()->routeIs('superadmin.settings.payment*') ? 'active' : '' }}">
+                        <span class="bn-sheet-icon">
+                            <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M3 14h18m-9-4v8m-7 4h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+                        </span>
+                        <span>{{ __('Payment Settings') }}</span>
+                    </a>
                     <form method="POST" action="{{ route('logout') }}" class="pt-1">
                         @csrf
                         <button type="submit" class="bn-sheet-link w-full text-left" style="color:#f87171;">

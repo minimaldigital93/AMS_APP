@@ -1,7 +1,8 @@
 <x-guest-layout>
     <h2 class="login-title">{{ __('Create your account') }}</h2>
 
-    <form method="POST" action="{{ route('subscribe.store') }}" x-data="{ plan: '{{ $selected->slug }}' }">
+    <form method="POST" action="{{ route('subscribe.store') }}"
+          x-data="{ plan: '{{ $selected->slug }}', trials: {{ \Illuminate\Support\Js::from($plans->pluck('trial_days', 'slug')) }} }">
         @csrf
 
         <!-- Plan picker -->
@@ -60,5 +61,11 @@
                 {{ __('Continue to payment') }}
             </x-primary-button>
         </div>
+
+        <!-- Free trial (only for plans that offer one) -->
+        <button type="submit" name="start_trial" value="1" x-show="(trials[plan] || 0) > 0" x-cloak
+            class="mt-3 w-full rounded-xl border border-emerald-400/60 bg-emerald-500/20 py-2.5 text-sm font-semibold text-emerald-100 hover:bg-emerald-500/30 transition">
+            {{ __('Start free trial') }} (<span x-text="trials[plan] || 0"></span> {{ __('days') }})
+        </button>
     </form>
 </x-guest-layout>

@@ -22,6 +22,8 @@ class KhqrPayment extends Model
         'amount',
         'currency',
         'status',
+        'settlement_target',
+        'channel',
         'checkout_payload',
         'qr_url',
         'provider_ref',

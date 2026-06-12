@@ -9,7 +9,10 @@ use Illuminate\Http\Request;
 
 /**
  * Inbound webhook from KHQRPay (khqr.cc). Unauthenticated + CSRF-exempt — the
- * payload is authenticated by its signature. On a valid, successful callback we
+ * payload is authenticated by its signature. The row is looked up FIRST so the
+ * signature can be checked against the right secret (platform for subscription
+ * payments, the landlord's own for rent payments) and the amount/currency can
+ * be matched against what the QR was minted for. On a valid callback we
  * finalize the matching KhqrPayment (idempotent with the status poll).
  */
 class KhqrCallbackController extends Controller
@@ -18,16 +21,19 @@ class KhqrCallbackController extends Controller
     {
         $payload = $request->all();
 
-        if (! $khqr->isValidCallback($payload)) {
-            return response()->json(['message' => 'Invalid signature'], 403);
-        }
-
         $transactionId = $payload['transaction_id'] ?? null;
         $row = $transactionId ? KhqrPayment::where('transaction_id', $transactionId)->first() : null;
 
-        if ($row) {
-            $khqr->finalize($row);
+        if (! $row) {
+            // Same response as a bad signature — don't leak which IDs exist.
+            return response()->json(['message' => 'Invalid signature'], 403);
         }
+
+        if (! $khqr->isValidCallbackFor($row, $payload)) {
+            return response()->json(['message' => 'Invalid signature'], 403);
+        }
+
+        $khqr->finalize($row);
 
         return response()->json(['ok' => true]);
     }

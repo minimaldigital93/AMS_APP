@@ -2,6 +2,7 @@
 
 use App\Models\Accounts;
 use App\Models\KhqrPayment;
+use App\Models\MerchantPaymentSetting;
 use App\Models\Payments;
 use App\Services\RevenueExpense\KhqrPaymentService;
 use Illuminate\Support\Facades\Http;
@@ -18,10 +19,32 @@ beforeEach(function () {
     $this->apartment = makeApartment(null, ['apartment_number' => 'A-101', 'monthly_rent' => 500]);
     $this->tenant = makeTenant($this->apartment);
     $this->rental = makeRental($this->tenant, $this->apartment, ['rent_amount' => 500]);
+    // Rent rows resolve the landlord's payment settings through the rental's account.
+    $this->rental->forceFill(['account_id' => $this->admin->id])->save();
     $this->service = new KhqrPaymentService;
 });
 
-it('creates a pending KhqrPayment row and stores the returned QR url', function () {
+/** The landlord's own KHQRPay credentials — Flow B settles to the merchant. */
+function givePaymentSettings(int $accountId, array $overrides = []): MerchantPaymentSetting
+{
+    $settings = new MerchantPaymentSetting(array_merge([
+        'bank_name' => 'Test Bank',
+        'bank_account_name' => 'Landlord One',
+        'bank_account_number' => '000-111-222',
+        'khqrpay_enabled' => true,
+        'khqrpay_profile_id' => 'merchant-profile',
+        'khqrpay_secret' => 'merchant-secret',
+        'currency' => 'USD',
+    ], $overrides));
+    $settings->account_id = $accountId;
+    $settings->save();
+
+    return $settings;
+}
+
+it('creates a pending api-channel row with the MERCHANT credentials and stores the QR url', function () {
+    givePaymentSettings($this->admin->id);
+
     Http::fake([
         'khqr.cc/*' => Http::response([
             'status' => 'success',
@@ -40,10 +63,74 @@ it('creates a pending KhqrPayment row and stores the returned QR url', function 
     );
 
     expect($row->status)->toBe('pending');
+    expect($row->settlement_target)->toBe('merchant');
+    expect($row->channel)->toBe('api');
     expect($row->qr_url)->toBe('https://khqr.cc/qr/abc123.png');
     expect($row->provider_ref)->toBe('deadbeef');
     expect((float) $row->amount)->toEqual(500.0);
-    expect(KhqrPayment::where('status', 'pending')->count())->toBe(1);
+
+    // The QR must be minted against the LANDLORD's profile, not the platform's.
+    Http::assertSent(fn ($request) => str_contains($request->url(), '/merchant-profile/'));
+});
+
+it('falls back to the manual channel when the landlord has no API credentials', function () {
+    givePaymentSettings($this->admin->id, ['khqrpay_enabled' => false, 'khqrpay_profile_id' => null, 'khqrpay_secret' => null]);
+    Http::fake();
+
+    $row = $this->service->createQr(
+        rental: $this->rental,
+        period: $this->period,
+        userId: $this->admin->id,
+        amount: 500.0,
+        payload: ['pay_rent' => true, 'rent_amount' => 500, 'payment_date' => now()->toDateString()],
+        successUrl: 'https://app.test/done',
+    );
+
+    expect($row->channel)->toBe('manual');
+    expect($row->settlement_target)->toBe('merchant');
+    expect($this->service->verify($row))->toBeFalse(); // never auto-confirms
+    Http::assertNothingSent();
+
+    // The landlord confirms by hand → payment is booked exactly once.
+    $this->service->confirmManual($row);
+    $row->refresh();
+    expect($row->status)->toBe('paid');
+    expect(Payments::count())->toBe(1);
+});
+
+it('refuses to mint a rent QR when the landlord has no payment settings', function () {
+    Http::fake();
+
+    $this->service->createQr(
+        rental: $this->rental,
+        period: $this->period,
+        userId: $this->admin->id,
+        amount: 500.0,
+        payload: ['pay_rent' => true, 'rent_amount' => 500, 'payment_date' => now()->toDateString()],
+        successUrl: 'https://app.test/done',
+    );
+})->throws(RuntimeException::class);
+
+it('rejecting a manual payment never books it', function () {
+    givePaymentSettings($this->admin->id, ['khqrpay_enabled' => false, 'khqrpay_profile_id' => null, 'khqrpay_secret' => null]);
+    Http::fake();
+
+    $row = $this->service->createQr(
+        rental: $this->rental,
+        period: $this->period,
+        userId: $this->admin->id,
+        amount: 500.0,
+        payload: ['pay_rent' => true, 'rent_amount' => 500, 'payment_date' => now()->toDateString()],
+        successUrl: 'https://app.test/done',
+    );
+
+    $this->service->rejectManual($row);
+    $row->refresh();
+    expect($row->status)->toBe('rejected');
+
+    // A rejected row can no longer be finalized.
+    $this->service->finalize($row);
+    expect(Payments::count())->toBe(0);
 });
 
 it('demo mode builds a local example QR without calling the live API', function () {

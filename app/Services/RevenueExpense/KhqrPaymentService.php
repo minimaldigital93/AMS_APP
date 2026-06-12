@@ -4,24 +4,34 @@ namespace App\Services\RevenueExpense;
 
 use App\Models\FiscalPeriods;
 use App\Models\KhqrPayment;
+use App\Models\MerchantPaymentSetting;
 use App\Models\Rentals;
 use App\Models\Subscription;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
 
 /**
- * KHQRPay (khqr.cc) client + payment finalizer.
+ * KHQRPay (khqr.cc) client + payment finalizer for BOTH settlement targets:
  *
- * Responsibilities:
- *  - createQr(): ask KHQRPay to mint a dynamic KHQR for a pending row.
- *  - verify():   ask KHQRPay whether Bakong has confirmed the payment.
- *  - finalize(): once confirmed, replay the stored checkout payload through
- *                IncomeRecordingService::checkout() so the Payments + Accounts
- *                rows are written exactly like a manual cash/bank checkout.
- *                Idempotent — safe to call from both the status poll and the
- *                webhook callback.
+ *  - Flow A (settlement_target=platform): merchant pays the super admin for a
+ *    subscription. Signed with the PLATFORM credentials from config/services.
+ *  - Flow B (settlement_target=merchant): tenant pays the landlord. Signed with
+ *    the LANDLORD's own credentials from merchant_payment_settings — rent money
+ *    settles directly in the landlord's bank, never the platform's.
+ *
+ * Flow B channels:
+ *  - api:    landlord has KHQRPay credentials → dynamic QR, auto-verified by
+ *            poll + webhook.
+ *  - manual: no API credentials → show the landlord's static KHQR image (or a
+ *            locally generated Bakong KHQR / bank details) and let the landlord
+ *            confirm receipt by hand. verify() never auto-confirms manual rows.
+ *
+ * finalize() replays the stored checkout payload through
+ * IncomeRecordingService::checkout(), idempotent under a row lock — safe to
+ * call from the status poll, the webhook, and the manual-confirm action.
  *
  * ───────────────────────────────────────────────────────────────────────────
  * PROVIDER-SPECIFIC WIRING (fill from your KHQRPay dashboard integration page):
@@ -34,13 +44,26 @@ use Illuminate\Support\Facades\Log;
 class KhqrPaymentService
 {
     /**
-     * Create a pending KhqrPayment row + ask KHQRPay to mint the QR.
+     * Create a pending KhqrPayment for a tenant RENT payment (Flow B) using the
+     * landlord's own payment settings. Picks the best available channel:
+     * api (dynamic QR) → manual (static image / generated Bakong QR / bank info).
      *
      * @param  array  $payload  checkout payload (pay_rent, pay_utilities, rent_amount, late_fee, payment_date, note)
-     * @return KhqrPayment with qr_url + provider_ref populated
+     * @return KhqrPayment with channel + qr_url (+ provider_ref for api) populated
      */
     public function createQr(Rentals $rental, FiscalPeriods $period, int $userId, float $amount, array $payload, string $successUrl): KhqrPayment
     {
+        $settings = MerchantPaymentSetting::forAccount($rental->account_id);
+        $demo = (bool) config('services.khqrpay.demo');
+
+        $canApi = $settings !== null && $settings->canUseApi();
+        $canManual = $settings !== null && ($settings->canUseManual() || filled($settings->bakong_account_id));
+
+        // Demo mode tolerates missing settings so the flow stays demonstrable.
+        if (! $canApi && ! $canManual && ! $demo) {
+            throw new \RuntimeException(__('messages.khqr_payment_settings_missing'));
+        }
+
         $transactionId = 'KHQR-'.$rental->id.'-'.now()->format('YmdHis').'-'.random_int(100, 999);
 
         $row = KhqrPayment::create([
@@ -49,65 +72,31 @@ class KhqrPaymentService
             'fiscal_period_id' => $period->id,
             'user_id' => $userId,
             'amount' => $amount,
-            'currency' => config('services.khqrpay.currency', 'USD'),
+            'currency' => ($settings?->currency) ?: config('services.khqrpay.currency', 'USD'),
             'status' => 'pending',
+            'settlement_target' => 'merchant',
+            'channel' => ($canApi || ! $canManual) ? 'api' : 'manual',
             'checkout_payload' => $payload,
         ]);
 
-        // Demo mode: render a local example KHQR and skip the live API entirely.
-        if (config('services.khqrpay.demo')) {
-            $row->forceFill([
-                'qr_url' => $this->demoQrImageUrl($transactionId, $amount),
-                'provider_ref' => 'DEMO-'.$transactionId,
-            ])->save();
+        if ($row->channel === 'manual') {
+            $row->forceFill(['qr_url' => $this->manualQrUrl($settings, $transactionId, $amount)])->save();
 
             return $row;
         }
 
-        $params = [
-            'transaction_id' => $transactionId,
-            'amount' => number_format($amount, 2, '.', ''),
-            'success_url' => $successUrl,
-        ];
-        $params['hash'] = $this->sign($params);
-
-        // TODO(khqrpay): the path below is from the public marketing docs, but it
-        // returns a Laravel 404 ("route ... could not be found") for the live
-        // profile — i.e. the documented path is stale, OR the payment-gateway/API
-        // feature still needs enabling on the merchant account (KHQRPay's own docs
-        // say to first link a payment merchant link from link.payway.com.kh).
-        // Replace this with the exact endpoint from the dashboard's API page.
-        $endpoint = rtrim((string) config('services.khqrpay.base_url'), '/')
-            .'/'.config('services.khqrpay.profile_id')
-            .'/payment-gateway/v1/payments/qr-api-khqr';
-
-        $response = Http::asForm()->acceptJson()->post($endpoint, $params);
-
-        if (! $response->successful()) {
-            Log::warning('KHQRPay createQr failed', ['status' => $response->status(), 'body' => $response->body(), 'tran' => $transactionId]);
-            $row->forceFill(['status' => 'expired'])->save();
-            throw new \RuntimeException('KHQRPay did not return a QR (HTTP '.$response->status().').');
+        // Demo mode: render a local example KHQR and skip the live API entirely.
+        if ($demo) {
+            return $this->fillDemo($row, $amount);
         }
 
-        $data = $response->json() ?? [];
-
-        // TODO(khqrpay): confirm the response field names against your dashboard.
-        // KHQRPay variants seen: qr / qr_url / qrImage / checkout_url for the image;
-        // md5 / tran / transaction_id for the tracking ref.
-        $qrUrl = $data['qr'] ?? $data['qr_url'] ?? $data['qrImage'] ?? $data['checkout_url'] ?? null;
-        $providerRef = $data['md5'] ?? $data['tran'] ?? $data['transaction_id'] ?? null;
-
-        $row->forceFill([
-            'qr_url' => $qrUrl,
-            'provider_ref' => $providerRef,
-        ])->save();
-
-        return $row;
+        return $this->requestQr($row, KhqrCredentials::forMerchant($settings), $successUrl);
     }
 
     /**
      * Create a pending KhqrPayment for a plan SUBSCRIPTION (signup or renewal)
-     * + mint the QR. Mirrors createQr() but carries no rental/fiscal context.
+     * + mint the QR with the PLATFORM credentials (Flow A — money goes to the
+     * super admin).
      */
     public function createSubscriptionQr(Subscription $subscription, float $amount, string $successUrl): KhqrPayment
     {
@@ -117,40 +106,55 @@ class KhqrPaymentService
             'transaction_id' => $transactionId,
             'subscription_id' => $subscription->id,
             'amount' => $amount,
-            'currency' => config('services.khqrpay.currency', 'USD'),
+            'currency' => KhqrCredentials::platform()->currency,
             'status' => 'pending',
+            'settlement_target' => 'platform',
+            'channel' => 'api',
             'checkout_payload' => ['type' => 'subscription', 'subscription_id' => $subscription->id],
         ]);
 
         if (config('services.khqrpay.demo')) {
-            $row->forceFill([
-                'qr_url' => $this->demoQrImageUrl($transactionId, $amount),
-                'provider_ref' => 'DEMO-'.$transactionId,
-            ])->save();
-
-            return $row;
+            return $this->fillDemo($row, $amount);
         }
 
+        return $this->requestQr($row, KhqrCredentials::platform(), $successUrl);
+    }
+
+    /**
+     * Ask KHQRPay (with the row's own credentials) to mint the dynamic QR.
+     */
+    private function requestQr(KhqrPayment $row, KhqrCredentials $creds, string $successUrl): KhqrPayment
+    {
         $params = [
-            'transaction_id' => $transactionId,
-            'amount' => number_format($amount, 2, '.', ''),
+            'transaction_id' => $row->transaction_id,
+            'amount' => number_format($row->amount, 2, '.', ''),
             'success_url' => $successUrl,
         ];
-        $params['hash'] = $this->sign($params);
+        $params['hash'] = $this->sign($params, $creds->secret);
 
-        $endpoint = rtrim((string) config('services.khqrpay.base_url'), '/')
-            .'/'.config('services.khqrpay.profile_id')
+        // TODO(khqrpay): the path below is from the public marketing docs, but it
+        // returns a Laravel 404 ("route ... could not be found") for the live
+        // profile — i.e. the documented path is stale, OR the payment-gateway/API
+        // feature still needs enabling on the merchant account (KHQRPay's own docs
+        // say to first link a payment merchant link from link.payway.com.kh).
+        // Replace this with the exact endpoint from the dashboard's API page.
+        $endpoint = rtrim($creds->baseUrl, '/')
+            .'/'.$creds->profileId
             .'/payment-gateway/v1/payments/qr-api-khqr';
 
         $response = Http::asForm()->acceptJson()->post($endpoint, $params);
 
         if (! $response->successful()) {
-            Log::warning('KHQRPay createSubscriptionQr failed', ['status' => $response->status(), 'tran' => $transactionId]);
+            Log::warning('KHQRPay createQr failed', ['status' => $response->status(), 'tran' => $row->transaction_id]);
             $row->forceFill(['status' => 'expired'])->save();
             throw new \RuntimeException('KHQRPay did not return a QR (HTTP '.$response->status().').');
         }
 
         $data = $response->json() ?? [];
+
+        // TODO(khqrpay): confirm the response field names against your dashboard.
+        // KHQRPay variants seen: qr / qr_url / qrImage / checkout_url for the image;
+        // md5 / tran / transaction_id for the tracking ref.
         $row->forceFill([
             'qr_url' => $data['qr'] ?? $data['qr_url'] ?? $data['qrImage'] ?? $data['checkout_url'] ?? null,
             'provider_ref' => $data['md5'] ?? $data['tran'] ?? $data['transaction_id'] ?? null,
@@ -160,13 +164,44 @@ class KhqrPaymentService
     }
 
     /**
+     * QR image for the manual channel: prefer a locally generated dynamic Bakong
+     * KHQR (exact amount, merchant's own Bakong ID), else the uploaded static
+     * image, else null (checkout shows bank details only).
+     */
+    private function manualQrUrl(MerchantPaymentSetting $settings, string $transactionId, float $amount): ?string
+    {
+        if (filled($settings->bakong_account_id)) {
+            $payload = $this->buildKhqrPayload(
+                $transactionId,
+                $amount,
+                bakongId: $settings->bakong_account_id,
+                merchantName: $settings->bank_account_name ?: 'Merchant',
+                currency: $settings->currency ?: 'USD',
+            );
+
+            return 'https://api.qrserver.com/v1/create-qr-code/?size=260x260&ecc=M&data='.rawurlencode($payload);
+        }
+
+        if (filled($settings->khqr_image_path)) {
+            return Storage::disk('public')->url($settings->khqr_image_path);
+        }
+
+        return null;
+    }
+
+    /**
      * Ask KHQRPay whether the payment has been confirmed by Bakong.
-     * On confirmation, finalize() is the caller's responsibility.
+     * Manual-channel rows are never auto-confirmed — the landlord confirms by
+     * hand (confirmManual). On confirmation, finalize() is the caller's job.
      */
     public function verify(KhqrPayment $row): bool
     {
         if ($row->isPaid()) {
             return true;
+        }
+
+        if ($row->channel === 'manual') {
+            return false;
         }
 
         // Demo mode: auto-confirm a few seconds after the QR is generated so the
@@ -175,17 +210,22 @@ class KhqrPaymentService
             return $row->created_at !== null && $row->created_at->diffInSeconds(now()) >= 8;
         }
 
+        $creds = $this->credentialsFor($row);
+        if ($creds === null) {
+            return false;
+        }
+
         // TODO(khqrpay): replace with the exact verify/status endpoint + params
         // from your dashboard. Shape below mirrors the documented check-by-ref call.
-        $endpoint = rtrim((string) config('services.khqrpay.base_url'), '/')
-            .'/'.config('services.khqrpay.profile_id')
+        $endpoint = rtrim($creds->baseUrl, '/')
+            .'/'.$creds->profileId
             .'/payment-gateway/v1/payments/check';
 
         $params = [
             'transaction_id' => $row->transaction_id,
             'md5' => $row->provider_ref,
         ];
-        $params['hash'] = $this->sign($params);
+        $params['hash'] = $this->sign($params, $creds->secret);
 
         try {
             $response = Http::asForm()->acceptJson()->post($endpoint, $params);
@@ -210,13 +250,20 @@ class KhqrPaymentService
     }
 
     /**
-     * Confirm signature on an inbound webhook payload. Returns true if the
-     * callback is authentic and indicates a successful payment.
+     * Authenticate an inbound webhook payload against a SPECIFIC payment row:
+     * the signature must verify with the secret of whoever the money settles to
+     * (platform vs merchant), and the paid amount/currency must match the row —
+     * a valid signature on a 0.01 payment must not finalize a $500 row.
      */
-    public function isValidCallback(array $payload): bool
+    public function isValidCallbackFor(KhqrPayment $row, array $payload): bool
     {
         $provided = $payload['hash'] ?? null;
         if (! $provided) {
+            return false;
+        }
+
+        $creds = $this->credentialsFor($row);
+        if ($creds === null || $creds->secret === '') {
             return false;
         }
 
@@ -224,7 +271,68 @@ class KhqrPaymentService
         unset($check['hash']);
 
         // TODO(khqrpay): match the webhook signing scheme from your dashboard.
-        return hash_equals($this->sign($check), (string) $provided);
+        if (! hash_equals($this->sign($check, $creds->secret), (string) $provided)) {
+            return false;
+        }
+
+        // Amount/currency must match what we minted the QR for (when the
+        // provider echoes them back).
+        if (isset($payload['amount']) && abs((float) $payload['amount'] - (float) $row->amount) > 0.01) {
+            Log::warning('KHQRPay callback amount mismatch', ['tran' => $row->transaction_id, 'got' => $payload['amount'], 'expected' => $row->amount]);
+
+            return false;
+        }
+
+        if (isset($payload['currency']) && strtoupper((string) $payload['currency']) !== strtoupper((string) $row->currency)) {
+            return false;
+        }
+
+        return true;
+    }
+
+    /**
+     * Resolve the signing credentials for a row from its settlement target.
+     */
+    public function credentialsFor(KhqrPayment $row): ?KhqrCredentials
+    {
+        if ($row->settlement_target !== 'merchant') {
+            return KhqrCredentials::platform();
+        }
+
+        $rental = Rentals::withoutAccountScope()->find($row->rental_id);
+        $settings = $rental ? MerchantPaymentSetting::forAccount($rental->account_id) : null;
+
+        return ($settings && $settings->canUseApi()) ? KhqrCredentials::forMerchant($settings) : null;
+    }
+
+    /**
+     * Landlord confirms a manual-channel payment after checking their banking
+     * app. Books the payment via the same idempotent finalize path.
+     */
+    public function confirmManual(KhqrPayment $row): void
+    {
+        if ($row->channel !== 'manual') {
+            throw new \LogicException('Only manual-channel payments can be confirmed by hand.');
+        }
+
+        $this->finalize($row);
+    }
+
+    /**
+     * Landlord rejects a manual-channel payment (money never arrived).
+     */
+    public function rejectManual(KhqrPayment $row): void
+    {
+        if ($row->channel !== 'manual') {
+            throw new \LogicException('Only manual-channel payments can be rejected.');
+        }
+
+        DB::transaction(function () use ($row) {
+            $locked = KhqrPayment::whereKey($row->getKey())->lockForUpdate()->first();
+            if ($locked && $locked->status === 'pending') {
+                $locked->forceFill(['status' => 'rejected'])->save();
+            }
+        });
     }
 
     /**
@@ -247,7 +355,7 @@ class KhqrPaymentService
         DB::transaction(function () use ($row) {
             // Re-load under a lock so concurrent poll + webhook can't double-book.
             $locked = KhqrPayment::whereKey($row->getKey())->lockForUpdate()->first();
-            if (! $locked || $locked->status === 'paid') {
+            if (! $locked || $locked->status !== 'pending') {
                 return;
             }
 
@@ -295,10 +403,15 @@ class KhqrPaymentService
 
             $days = $subscription->plan?->billing_period_days ?? 30;
 
+            // Early renewals EXTEND the remaining time instead of resetting it.
+            $base = ($subscription->expires_at !== null && $subscription->expires_at->isFuture() && $subscription->status !== 'trialing')
+                ? $subscription->expires_at->copy()
+                : now();
+
             $subscription->forceFill([
                 'status' => 'active',
-                'started_at' => now(),
-                'expires_at' => now()->addDays($days),
+                'started_at' => $subscription->started_at ?? now(),
+                'expires_at' => $base->addDays($days),
                 'khqr_payment_id' => $locked->id,
             ])->save();
 
@@ -322,21 +435,32 @@ class KhqrPaymentService
     }
 
     /**
-     * SHA1-sign the request with the merchant secret.
+     * SHA1-sign the request with the given secret (platform or merchant).
      *
      * TODO(khqrpay): replace the concatenation order with the exact formula
      * from your KHQRPay dashboard's API/Integration page. Current best-guess:
      * sha1(transaction_id . amount . secret).
      */
-    private function sign(array $params): string
+    private function sign(array $params, string $secret): string
     {
-        $secret = (string) config('services.khqrpay.secret');
-
         $base = ($params['transaction_id'] ?? '')
             .($params['amount'] ?? '')
             .$secret;
 
         return sha1($base);
+    }
+
+    /**
+     * Demo mode: render a local example KHQR instead of calling the live API.
+     */
+    private function fillDemo(KhqrPayment $row, float $amount): KhqrPayment
+    {
+        $row->forceFill([
+            'qr_url' => $this->demoQrImageUrl($row->transaction_id, $amount),
+            'provider_ref' => 'DEMO-'.$row->transaction_id,
+        ])->save();
+
+        return $row;
     }
 
     /**
@@ -353,16 +477,18 @@ class KhqrPaymentService
 
     /**
      * Compose an EMVCo-compliant Bakong KHQR string (individual, dynamic).
-     * Good enough to render and scan as an example; real payability requires a
-     * live KHQRPay/Bakong merchant account.
+     * With a real Bakong account ID this is scannable + payable directly —
+     * used for the merchant manual channel and for demo mode.
      */
-    private function buildKhqrPayload(string $transactionId, float $amount): string
+    private function buildKhqrPayload(string $transactionId, float $amount, ?string $bakongId = null, ?string $merchantName = null, ?string $currency = null): string
     {
         $tlv = fn (string $id, string $val): string => $id.str_pad((string) strlen($val), 2, '0', STR_PAD_LEFT).$val;
 
-        $bakongId = (string) (config('services.khqrpay.bakong_id') ?: 'demo@aclb');
-        $merchant = substr((string) (config('services.khqrpay.merchant_name') ?: 'AMS'), 0, 25);
-        $currency = strtoupper((string) config('services.khqrpay.currency', 'USD')) === 'KHR' ? '116' : '840';
+        // Platform defaults: superadmin panel settings first, then .env config.
+        $platform = \App\Models\PlatformPaymentSetting::current();
+        $bakongId = (string) ($bakongId ?: $platform?->bakong_account_id ?: config('services.khqrpay.bakong_id') ?: 'demo@aclb');
+        $merchant = substr((string) ($merchantName ?: $platform?->merchant_name ?: config('services.khqrpay.merchant_name') ?: 'AMS'), 0, 25);
+        $currency = strtoupper((string) ($currency ?: $platform?->currency ?: config('services.khqrpay.currency', 'USD'))) === 'KHR' ? '116' : '840';
 
         // Tag 29: merchant account information (Bakong) — sub-tag 00 = Bakong account ID.
         $merchantAccount = $tlv('00', $bakongId);

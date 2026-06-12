@@ -14,6 +14,7 @@ class Plan extends Model
         'max_floors',
         'max_apartments',
         'billing_period_days',
+        'trial_days',
         'is_active',
     ];
 
@@ -24,6 +25,7 @@ class Plan extends Model
             'max_floors' => 'integer',
             'max_apartments' => 'integer',
             'billing_period_days' => 'integer',
+            'trial_days' => 'integer',
             'is_active' => 'boolean',
         ];
     }
@@ -31,6 +33,11 @@ class Plan extends Model
     public function subscriptions(): HasMany
     {
         return $this->hasMany(Subscription::class);
+    }
+
+    public function hasTrial(): bool
+    {
+        return $this->trial_days > 0;
     }
 
     public function hasUnlimitedFloors(): bool

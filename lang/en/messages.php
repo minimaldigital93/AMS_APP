@@ -1063,4 +1063,40 @@ return [
     'flash_subscription_cancelled' => 'Subscription cancelled.',
     'flash_subscription_renewed' => 'Subscription renewed.',
     'flash_subscription_activated_signin' => 'Subscription activated — please sign in.',
+
+    // Merchant payment settings (Flow B: tenant → landlord)
+    'payment_settings' => 'Payment Settings',
+    'payment_settings_hint' => 'Where your tenants\' rent payments go. Money is paid directly to your bank account — the platform never holds it.',
+    'bank_details' => 'Bank Details',
+    'bank_details_hint' => 'Shown to tenants at checkout together with your KHQR.',
+    'bank_name' => 'Bank Name',
+    'bank_account_name' => 'Account Name',
+    'bank_account_number' => 'Account Number',
+    'currency' => 'Currency',
+    'enabled' => 'Enabled',
+    'khqr_image' => 'KHQR Image',
+    'khqr_image_hint' => 'Upload the static KHQR from your banking app (max 2 MB). Tenants scan it to pay you directly.',
+    'bakong_account_id' => 'Bakong Account ID',
+    'bakong_account_id_hint' => 'Optional. If set, a dynamic KHQR with the exact amount is generated for each payment (e.g. yourname@aclb).',
+    'khqrpay_api' => 'KHQRPay API (automatic verification)',
+    'khqrpay_api_hint' => 'Optional. With your own KHQRPay credentials, payments are verified automatically — no manual confirmation needed.',
+    'khqrpay_profile_id' => 'KHQRPay Profile ID',
+    'khqrpay_secret' => 'KHQRPay Secret',
+    'khqrpay_secret_hint' => 'Leave blank to keep the current secret.',
+    'khqrpay_secret_configured' => 'configured',
+    'payment_settings_saved' => 'Payment settings saved.',
+    'khqr_payment_settings_missing' => 'KHQR is not set up. Add your bank details or KHQR image in Settings → Payment Settings first.',
+
+    // Manual KHQR channel
+    'khqr_manual_confirm_hint' => 'After the tenant pays, check your banking app, then confirm below.',
+    'khqr_mark_received' => 'Mark as received',
+    'khqr_reject' => 'Reject',
+    'pending_khqr_payments' => 'Pending KHQR Confirmations',
+    'pending_khqr_payments_hint' => 'KHQR payments waiting for your confirmation. Check your banking app before confirming.',
+    'no_pending_khqr_payments' => 'No pending KHQR payments.',
+    'transaction' => 'Transaction',
+
+    // Trials
+    'flash_trial_started' => 'Your :days-day free trial has started — please sign in.',
+    'trial_already_used' => 'This account has already used its free trial.',
 ];

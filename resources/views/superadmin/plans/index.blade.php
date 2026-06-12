@@ -45,6 +45,10 @@
                 <label class="block text-xs font-medium text-gray-500">{{ __('Billing period (days)') }}</label>
                 <input name="billing_period_days" type="number" min="1" value="{{ old('billing_period_days', 30) }}" class="mt-1 w-full rounded-lg border-gray-300 text-sm" required>
             </div>
+            <div>
+                <label class="block text-xs font-medium text-gray-500">{{ __('Trial days (0 = none)') }}</label>
+                <input name="trial_days" type="number" min="0" max="365" value="{{ old('trial_days', 0) }}" class="mt-1 w-full rounded-lg border-gray-300 text-sm">
+            </div>
         </div>
 
         <label class="mt-3 inline-flex items-center gap-2 text-sm text-gray-700">
@@ -73,6 +77,7 @@
                     <div class="flex justify-between"><span>{{ __('Max floors') }}</span><span class="font-medium text-gray-900">{{ $plan->max_floors ?? '∞' }}</span></div>
                     <div class="flex justify-between"><span>{{ __('Max apartments') }}</span><span class="font-medium text-gray-900">{{ $plan->max_apartments ?? '∞' }}</span></div>
                     <div class="flex justify-between"><span>{{ __('Billing period (days)') }}</span><span class="font-medium text-gray-900">{{ $plan->billing_period_days }}</span></div>
+                    <div class="flex justify-between"><span>{{ __('Trial days') }}</span><span class="font-medium text-gray-900">{{ $plan->trial_days ?: '—' }}</span></div>
                     <div class="flex justify-between"><span>{{ __('Active') }}</span>
                         <span class="font-medium {{ $plan->is_active ? 'text-green-600' : 'text-gray-400' }}">{{ $plan->is_active ? __('Yes') : __('No') }}</span>
                     </div>
@@ -114,6 +119,9 @@
 
                     <label class="mt-3 block text-xs font-medium text-gray-500">{{ __('Billing period (days)') }}</label>
                     <input name="billing_period_days" type="number" min="1" value="{{ old('billing_period_days', $plan->billing_period_days) }}" class="mt-1 w-full rounded-lg border-gray-300 text-sm" required>
+
+                    <label class="mt-3 block text-xs font-medium text-gray-500">{{ __('Trial days (0 = none)') }}</label>
+                    <input name="trial_days" type="number" min="0" max="365" value="{{ old('trial_days', $plan->trial_days) }}" class="mt-1 w-full rounded-lg border-gray-300 text-sm">
 
                     <label class="mt-3 inline-flex items-center gap-2 text-sm text-gray-700">
                         <input type="checkbox" name="is_active" value="1" @checked(old('is_active', $plan->is_active)) class="rounded border-gray-300">

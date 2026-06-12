@@ -1063,4 +1063,40 @@ return [
     'flash_subscription_cancelled' => 'ការជាវត្រូវបានបោះបង់។',
     'flash_subscription_renewed' => 'ការជាវត្រូវបានបន្តឡើងវិញ។',
     'flash_subscription_activated_signin' => 'ការជាវត្រូវបានធ្វើឱ្យសកម្ម — សូមចូលគណនី។',
+
+    // Merchant payment settings (Flow B: tenant → landlord)
+    'payment_settings' => 'ការកំណត់ការទូទាត់',
+    'payment_settings_hint' => 'កន្លែងដែលប្រាក់ជួលរបស់អ្នកជួលត្រូវបង់ទៅ។ ប្រាក់ត្រូវបង់ដោយផ្ទាល់ទៅគណនីធនាគាររបស់អ្នក — ប្រព័ន្ធមិនកាន់ប្រាក់ឡើយ។',
+    'bank_details' => 'ព័ត៌មានធនាគារ',
+    'bank_details_hint' => 'បង្ហាញដល់អ្នកជួលនៅពេលទូទាត់ រួមជាមួយ KHQR របស់អ្នក។',
+    'bank_name' => 'ឈ្មោះធនាគារ',
+    'bank_account_name' => 'ឈ្មោះគណនី',
+    'bank_account_number' => 'លេខគណនី',
+    'currency' => 'រូបិយប័ណ្ណ',
+    'enabled' => 'បើកដំណើរការ',
+    'khqr_image' => 'រូបភាព KHQR',
+    'khqr_image_hint' => 'បញ្ចូលរូបភាព KHQR ឋិតិវន្តពីកម្មវិធីធនាគាររបស់អ្នក (អតិបរមា 2 MB)។ អ្នកជួលស្កេនវាដើម្បីបង់ប្រាក់ដោយផ្ទាល់ទៅអ្នក។',
+    'bakong_account_id' => 'លេខគណនី Bakong',
+    'bakong_account_id_hint' => 'ស្រេចចិត្ត។ បើកំណត់ KHQR ថាមវន្តដែលមានចំនួនទឹកប្រាក់ពិតប្រាកដ នឹងត្រូវបង្កើតសម្រាប់ការទូទាត់នីមួយៗ (ឧ. yourname@aclb)។',
+    'khqrpay_api' => 'KHQRPay API (ផ្ទៀងផ្ទាត់ស្វ័យប្រវត្តិ)',
+    'khqrpay_api_hint' => 'ស្រេចចិត្ត។ ជាមួយព័ត៌មាន KHQRPay ផ្ទាល់ខ្លួន ការទូទាត់ត្រូវផ្ទៀងផ្ទាត់ដោយស្វ័យប្រវត្តិ — មិនចាំបាច់បញ្ជាក់ដោយដៃ។',
+    'khqrpay_profile_id' => 'KHQRPay Profile ID',
+    'khqrpay_secret' => 'KHQRPay Secret',
+    'khqrpay_secret_hint' => 'ទុកទទេដើម្បីរក្សា secret បច្ចុប្បន្ន។',
+    'khqrpay_secret_configured' => 'បានកំណត់',
+    'payment_settings_saved' => 'ការកំណត់ការទូទាត់ត្រូវបានរក្សាទុក។',
+    'khqr_payment_settings_missing' => 'KHQR មិនទាន់បានកំណត់ទេ។ សូមបញ្ចូលព័ត៌មានធនាគារ ឬរូបភាព KHQR នៅ ការកំណត់ → ការកំណត់ការទូទាត់ ជាមុនសិន។',
+
+    // Manual KHQR channel
+    'khqr_manual_confirm_hint' => 'បន្ទាប់ពីអ្នកជួលបង់ប្រាក់ សូមពិនិត្យកម្មវិធីធនាគាររបស់អ្នក រួចបញ្ជាក់ខាងក្រោម។',
+    'khqr_mark_received' => 'បញ្ជាក់ថាបានទទួល',
+    'khqr_reject' => 'បដិសេធ',
+    'pending_khqr_payments' => 'ការទូទាត់ KHQR រង់ចាំការបញ្ជាក់',
+    'pending_khqr_payments_hint' => 'ការទូទាត់ KHQR ដែលរង់ចាំការបញ្ជាក់របស់អ្នក។ សូមពិនិត្យកម្មវិធីធនាគាររបស់អ្នកមុននឹងបញ្ជាក់។',
+    'no_pending_khqr_payments' => 'គ្មានការទូទាត់ KHQR រង់ចាំទេ។',
+    'transaction' => 'ប្រតិបត្តិការ',
+
+    // Trials
+    'flash_trial_started' => 'ការសាកល្បងឥតគិតថ្លៃ :days ថ្ងៃរបស់អ្នកបានចាប់ផ្តើម — សូមចូលគណនី។',
+    'trial_already_used' => 'គណនីនេះបានប្រើការសាកល្បងឥតគិតថ្លៃរួចហើយ។',
 ];

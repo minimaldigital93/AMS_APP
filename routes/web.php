@@ -36,7 +36,9 @@ Route::middleware('guest')->group(function () {
 });
 
 // KHQRPay webhook (signature-authenticated, CSRF-exempt — see bootstrap/app.php)
-Route::post('/khqr/callback', KhqrCallbackController::class)->name('khqr.callback');
+Route::post('/khqr/callback', KhqrCallbackController::class)
+    ->middleware('throttle:60,1')
+    ->name('khqr.callback');
 
 // Language Switch Route
 Route::post('/language/switch', function (\Illuminate\Http\Request $request) {
@@ -89,6 +91,10 @@ Route::middleware(['auth', 'role:superadmin'])->prefix('superadmin')->name('supe
     Route::post('/accounts/{account}/suspend', [SuperAdminAccountsController::class, 'toggleSuspend'])->name('accounts.suspend');
     Route::post('/accounts/{account}/activate', [SuperAdminAccountsController::class, 'activate'])->name('accounts.activate');
     Route::post('/accounts/{account}/plan', [SuperAdminAccountsController::class, 'changePlan'])->name('accounts.plan');
+
+    // Platform payment settings (bank + KHQRPay credentials for subscription payments)
+    Route::get('/settings/payment', [\App\Http\Controllers\SuperAdmin\PlatformPaymentSettingsController::class, 'edit'])->name('settings.payment');
+    Route::put('/settings/payment', [\App\Http\Controllers\SuperAdmin\PlatformPaymentSettingsController::class, 'update'])->name('settings.payment.update');
 
     // Plans
     Route::get('/plans', [SuperAdminPlansController::class, 'index'])->name('plans.index');
@@ -196,6 +202,13 @@ Route::middleware(['auth', 'role:admin|superadmin', 'subscription.active'])->gro
     Route::get('/admin/fiscalperiod/{fiscalperiod}/export-csv', [FiscalPeriodController::class, 'exportCSV'])->name('admin.fiscalperiod.exportCSV');
     Route::get('/admin/fiscalperiod/{fiscalperiod}/monthly-period/{monthlyPeriod}/print', [FiscalPeriodController::class, 'printMonthlyPDF'])->name('admin.fiscalperiod.monthly-period.print');
 
+    // Merchant Payment Settings (bank details, static KHQR, optional KHQRPay API)
+    Route::get('/admin/settings/payment', [\App\Http\Controllers\Admin\PaymentSettingsController::class, 'edit'])->name('admin.settings.payment');
+    Route::put('/admin/settings/payment', [\App\Http\Controllers\Admin\PaymentSettingsController::class, 'update'])->name('admin.settings.payment.update');
+
+    // Manual KHQR payments awaiting the landlord's confirmation
+    Route::get('/admin/payments/manual-pending', [\App\Http\Controllers\Admin\ManualPaymentReviewController::class, 'index'])->name('admin.payments.manual.index');
+
     // System Settings Routes
     Route::get('/admin/settings', [SettingsController::class, 'index'])->name('admin.settings.index');
     Route::put('/admin/settings/batch', [SettingsController::class, 'updateBatch'])->name('admin.settings.updateBatch');
@@ -220,6 +233,8 @@ Route::middleware(['auth', 'role:admin|superadmin', 'subscription.active'])->gro
         // KHQR (KHQRPay) dynamic-QR payment
         Route::post('/admin/revenue-expense/khqr/generate', [RevenueExpenseController::class, 'khqrGenerate'])->name('admin.revenue_expense.khqr_generate');
         Route::get('/admin/revenue-expense/khqr/status/{transaction}', [RevenueExpenseController::class, 'khqrStatus'])->name('admin.revenue_expense.khqr_status');
+        Route::post('/admin/revenue-expense/khqr/confirm/{transaction}', [RevenueExpenseController::class, 'khqrConfirm'])->name('admin.revenue_expense.khqr_confirm');
+        Route::post('/admin/revenue-expense/khqr/reject/{transaction}', [RevenueExpenseController::class, 'khqrReject'])->name('admin.revenue_expense.khqr_reject');
         Route::get('/admin/revenue-expense/print-bill/{rental}', [RevenueExpenseController::class, 'printTenantBill'])->name('admin.revenue_expense.print_bill');
 
         Route::get('/admin/revenue-expense/record-expense', [RevenueExpenseController::class, 'recordExpense'])->name('admin.revenue_expense.record_expense');
@@ -292,6 +307,8 @@ Route::middleware(['auth', 'role:supervisor|admin|superadmin'])->prefix('supervi
         // KHQR (KHQRPay) dynamic-QR payment
         Route::post('/revenue-expense/khqr/generate', [SupervisorRevenueExpenseController::class, 'khqrGenerate'])->name('supervisor.revenue_expense.khqr_generate');
         Route::get('/revenue-expense/khqr/status/{transaction}', [SupervisorRevenueExpenseController::class, 'khqrStatus'])->name('supervisor.revenue_expense.khqr_status');
+        Route::post('/revenue-expense/khqr/confirm/{transaction}', [SupervisorRevenueExpenseController::class, 'khqrConfirm'])->name('supervisor.revenue_expense.khqr_confirm');
+        Route::post('/revenue-expense/khqr/reject/{transaction}', [SupervisorRevenueExpenseController::class, 'khqrReject'])->name('supervisor.revenue_expense.khqr_reject');
         Route::get('/revenue-expense/print-bill/{rental}', [SupervisorRevenueExpenseController::class, 'printTenantBill'])->name('supervisor.revenue_expense.print_bill');
         Route::get('/revenue-expense/record-expense', [SupervisorRevenueExpenseController::class, 'recordExpense'])->name('supervisor.revenue_expense.record_expense');
         Route::post('/revenue-expense/record-expense', [SupervisorRevenueExpenseController::class, 'storeExpense'])->name('supervisor.revenue_expense.store_expense');

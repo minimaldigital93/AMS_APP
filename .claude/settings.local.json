@@ -506,11 +506,15 @@
       "Bash(sed -n 300,320p /Users/sarotmoniodom/AMS_APP_dev/resources/views/admin/revenue_expense/tenant_bill_print.blade.php)",
       "Bash(sed -n 455,470p /Users/sarotmoniodom/AMS_APP_dev/resources/views/admin/revenue_expense/tenant_bill_print.blade.php)",
       "Bash(git -C /Users/sarotmoniodom/AMS_APP_dev log -1 --format=\"%h %ad %s\" --date=short -S 'income@if' -- resources/views/admin/fiscalperiod/monthly-period-pdf.blade.php)",
-      "Bash(git -C /Users/sarotmoniodom/AMS_APP_dev status --short)"
+      "Bash(git -C /Users/sarotmoniodom/AMS_APP_dev status --short)",
+      "Bash(cat /Users/sarotmoniodom/AMS_APP_dev/routes/console.php; echo ===; sed -n '/khqrpay/,/]/p' /Users/sarotmoniodom/AMS_APP_dev/config/services.php; echo ===; grep -rln \"khqr\" /Users/sarotmoniodom/AMS_APP_dev/resources/views | head)",
+      "Bash(sed -n '1,60p' /Users/sarotmoniodom/AMS_APP_dev/app/Http/Controllers/SuperAdmin/PlansController.php)",
+      "Bash(sed -n '1,50p' /Users/sarotmoniodom/AMS_APP_dev/app/Services/NotificationService.php)"
     ],
     "additionalDirectories": [
       "/Users/sarotmoniodom/AMS_APP",
-      "/private/tmp"
+      "/private/tmp",
+      "/Users/sarotmoniodom/AMS_APP_dev/config"
     ]
   }
 }

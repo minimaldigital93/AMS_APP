@@ -22,6 +22,7 @@ class Subscription extends Model
         'status',
         'started_at',
         'expires_at',
+        'trial_started_at',
         'khqr_payment_id',
     ];
 
@@ -30,6 +31,7 @@ class Subscription extends Model
         return [
             'started_at' => 'datetime',
             'expires_at' => 'datetime',
+            'trial_started_at' => 'datetime',
         ];
     }
 
@@ -45,13 +47,25 @@ class Subscription extends Model
 
     public function isActive(): bool
     {
-        return $this->status === 'active'
+        return in_array($this->status, ['active', 'trialing'], true)
             && ($this->expires_at === null || $this->expires_at->isFuture());
+    }
+
+    public function onTrial(): bool
+    {
+        return $this->status === 'trialing'
+            && $this->expires_at !== null && $this->expires_at->isFuture();
+    }
+
+    /** A trial was ever started on this account — one free trial, ever. */
+    public function trialUsed(): bool
+    {
+        return $this->trial_started_at !== null;
     }
 
     public function isExpired(): bool
     {
         return $this->status === 'expired'
-            || ($this->status === 'active' && $this->expires_at !== null && $this->expires_at->isPast());
+            || (in_array($this->status, ['active', 'trialing'], true) && $this->expires_at !== null && $this->expires_at->isPast());
     }
 }
