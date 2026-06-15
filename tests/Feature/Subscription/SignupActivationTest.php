@@ -5,6 +5,7 @@ use App\Models\Plan;
 use App\Models\Subscription;
 use App\Models\User;
 use App\Services\RevenueExpense\KhqrPaymentService;
+use Illuminate\Support\Facades\Http;
 
 beforeEach(function () {
     seedRoles();
@@ -36,6 +37,28 @@ it('creates a pending account + subscription and redirects to checkout on signup
     $payment = KhqrPayment::where('subscription_id', $sub->id)->first();
     expect($payment)->not->toBeNull();
     $response->assertRedirect(route('subscribe.checkout', $payment->transaction_id));
+});
+
+it('does not 500 when KHQRPay fails during signup — rolls back and shows an error', function () {
+    config(['services.khqrpay.demo' => false, 'services.khqrpay.secret' => 'x', 'services.khqrpay.profile_id' => 'p']);
+
+    // KHQRPay is down / misconfigured — minting the QR fails.
+    Http::fake(['khqr.cc/*' => Http::response('Not Found', 404)]);
+
+    $response = $this->post(route('subscribe.store'), [
+        'name' => 'Unlucky Owner',
+        'phone' => '0999000999',
+        'password' => 'password123',
+        'password_confirmation' => 'password123',
+        'plan' => 'pro',
+    ]);
+
+    $response->assertRedirect();           // back to the form, NOT a 500
+    $response->assertSessionHas('error');
+
+    // The whole signup transaction rolled back — no orphaned account/subscription.
+    expect(User::where('phone', '0999000999')->exists())->toBeFalse();
+    expect(Subscription::count())->toBe(0);
 });
 
 it('activates the subscription and promotes the account to admin on payment', function () {

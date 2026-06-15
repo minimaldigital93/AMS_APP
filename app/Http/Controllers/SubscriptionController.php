@@ -90,12 +90,12 @@ class SubscriptionController extends Controller
                 return $khqr->createSubscriptionQr($subscription, (float) $plan->price_usd);
             });
         } catch (\Throwable $e) {
-            // QR minting failed (e.g. provider 502) — the transaction rolled back,
-            // so no orphan user/subscription was left. Surface a friendly message
-            // instead of a raw 500 and let the visitor retry.
+            // A KHQRPay outage / misconfiguration must not 500 the public signup
+            // page — roll back (the transaction already did) and show a friendly
+            // message instead of an uncaught exception.
             report($e);
 
-            return back()->withInput()->with('error', __('messages.khqr_payment_unavailable'));
+            return back()->withInput()->with('error', __('messages.subscription_payment_unavailable'));
         }
 
         return redirect()->route('subscribe.checkout', $row->transaction_id);

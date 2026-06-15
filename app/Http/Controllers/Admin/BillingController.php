@@ -49,11 +49,10 @@ class BillingController extends Controller
         try {
             $row = $khqr->createSubscriptionQr($subscription, (float) $plan->price_usd);
         } catch (\Throwable $e) {
-            // QR minting failed (e.g. provider 502) — show a friendly message and
-            // let the admin retry instead of bubbling up a raw 500.
+            // Don't 500 the billing page when KHQRPay is down / misconfigured.
             report($e);
 
-            return back()->with('error', __('messages.khqr_payment_unavailable'));
+            return back()->with('error', __('messages.subscription_payment_unavailable'));
         }
 
         return redirect()->route('admin.billing.checkout', $row->transaction_id);

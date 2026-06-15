@@ -7,9 +7,10 @@
     <h1 class="text-2xl font-semibold text-slate-800 tracking-tight">{{ __('Billing & Subscription') }}</h1>
 
     @if (session('error'))
-        <div class="mt-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-            {{ session('error') }}
-        </div>
+        <div class="mt-4 rounded-lg bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-600">{{ session('error') }}</div>
+    @endif
+    @if (session('success'))
+        <div class="mt-4 rounded-lg bg-emerald-50 border border-emerald-200 px-4 py-3 text-sm text-emerald-700">{{ session('success') }}</div>
     @endif
 
     @php($plan = $usage['plan'])

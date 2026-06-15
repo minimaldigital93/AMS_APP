@@ -2,7 +2,7 @@
     <h2 class="login-title">{{ __('Create your account') }}</h2>
 
     @if (session('error'))
-        <div class="mb-4 rounded-xl border border-red-400/40 bg-red-500/20 px-4 py-3 text-sm text-red-100">
+        <div class="mt-4 rounded-lg border border-red-400/40 bg-red-500/20 px-4 py-3 text-sm text-red-100">
             {{ session('error') }}
         </div>
     @endif
