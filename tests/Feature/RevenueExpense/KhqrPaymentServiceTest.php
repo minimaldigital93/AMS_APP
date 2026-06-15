@@ -155,6 +155,56 @@ it('demo mode builds a local example QR without calling the live API', function 
     Http::assertNothingSent();
 });
 
+it('verify does NOT confirm an api payment that has not actually settled', function () {
+    $row = KhqrPayment::create([
+        'transaction_id' => 'SUB-VERIFY-1',
+        'subscription_id' => null,
+        'amount' => 500,
+        'currency' => 'USD',
+        'status' => 'pending',
+        'settlement_target' => 'platform',
+        'channel' => 'api',
+        'provider_ref' => 'deadbeef',
+        'checkout_payload' => ['type' => 'subscription'],
+    ]);
+
+    // The status query succeeded (responseCode 0) but the money has NOT arrived.
+    // The old code treated responseCode 0 as "paid" and auto-confirmed here.
+    Http::fake([
+        'khqr.cc/*' => Http::response([
+            'responseCode' => 0,
+            'responseMessage' => 'Success',
+            'data' => ['transaction_id' => 'SUB-VERIFY-1', 'status' => 'PENDING'],
+        ], 200),
+    ]);
+
+    expect($this->service->verify($row))->toBeFalse();
+});
+
+it('verify confirms an api payment only once the status reads PAID', function () {
+    $row = KhqrPayment::create([
+        'transaction_id' => 'SUB-VERIFY-2',
+        'subscription_id' => null,
+        'amount' => 500,
+        'currency' => 'USD',
+        'status' => 'pending',
+        'settlement_target' => 'platform',
+        'channel' => 'api',
+        'provider_ref' => 'deadbeef',
+        'checkout_payload' => ['type' => 'subscription'],
+    ]);
+
+    Http::fake([
+        'khqr.cc/*' => Http::response([
+            'responseCode' => 0,
+            'responseMessage' => 'Success',
+            'data' => ['transaction_id' => 'SUB-VERIFY-2', 'status' => 'PAID'],
+        ], 200),
+    ]);
+
+    expect($this->service->verify($row))->toBeTrue();
+});
+
 it('finalize records Payments + Accounts exactly once (idempotent)', function () {
     $row = KhqrPayment::create([
         'transaction_id' => 'KHQR-TEST-1',
