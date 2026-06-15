@@ -86,7 +86,7 @@ class SubscriptionController extends Controller
                 'status' => 'pending',
             ]);
 
-            return $khqr->createSubscriptionQr($subscription, (float) $plan->price_usd, route('login'));
+            return $khqr->createSubscriptionQr($subscription, (float) $plan->price_usd);
         });
 
         return redirect()->route('subscribe.checkout', $row->transaction_id);

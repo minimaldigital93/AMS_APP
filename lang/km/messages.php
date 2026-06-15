@@ -1084,6 +1084,8 @@ return [
     'khqrpay_secret' => 'KHQRPay Secret',
     'khqrpay_secret_hint' => 'ទុកទទេដើម្បីរក្សា secret បច្ចុប្បន្ន។',
     'khqrpay_secret_configured' => 'បានកំណត់',
+    'khqrpay_webhook_url' => 'Webhook / Callback URL',
+    'khqrpay_webhook_url_hint' => 'ចម្លងតំណនេះទៅដាក់ក្នុងប្រអប់ "Global Webhook URL" នៃ profile khqr.cc របស់អ្នក ដើម្បីឱ្យការបង់ប្រាក់ជួលត្រូវបញ្ជាក់ដោយស្វ័យប្រវត្តិ។',
     'payment_settings_saved' => 'ការកំណត់ការទូទាត់ត្រូវបានរក្សាទុក។',
     'khqr_payment_settings_missing' => 'KHQR មិនទាន់បានកំណត់ទេ។ សូមបញ្ចូលព័ត៌មានធនាគារ ឬរូបភាព KHQR នៅ ការកំណត់ → ការកំណត់ការទូទាត់ ជាមុនសិន។',
 

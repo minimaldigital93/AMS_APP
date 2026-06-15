@@ -3,7 +3,7 @@
 @section('content')
 <div class="mx-auto max-w-3xl">
     <h1 class="text-2xl font-bold text-gray-900">{{ __('Payment Settings') }}</h1>
-    <p class="mt-1 text-sm text-gray-500">{{ __('Where subscription payments from your merchants go. Values saved here override the .env configuration; blank fields fall back to it.') }}</p>
+    <p class="mt-1 text-sm text-gray-500">{{ __('Where subscription payments from your landlords settle. Register your own bank and KHQRPay merchant details below — no server or developer setup needed.') }}</p>
 
     @if ($errors->any())
         <div class="mt-4 rounded-lg bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-600">
@@ -45,8 +45,8 @@
                 <div>
                     <label class="block text-sm font-medium text-gray-700">{{ __('Currency') }}</label>
                     <select name="currency" class="mt-1 w-full rounded-lg border-gray-300 text-sm focus:border-indigo-500 focus:ring-indigo-500">
-                        <option value="USD" @selected(old('currency', $settings?->currency ?? config('services.khqrpay.currency', 'USD')) === 'USD')>USD ($)</option>
-                        <option value="KHR" @selected(old('currency', $settings?->currency ?? config('services.khqrpay.currency')) === 'KHR')>KHR (៛)</option>
+                        <option value="USD" @selected(old('currency', $settings?->currency ?? 'USD') === 'USD')>USD ($)</option>
+                        <option value="KHR" @selected(old('currency', $settings?->currency) === 'KHR')>KHR (៛)</option>
                     </select>
                 </div>
             </div>
@@ -73,14 +73,14 @@
                     <label class="block text-sm font-medium text-gray-700">{{ __('Bakong Account ID') }}</label>
                     <p class="text-xs text-gray-400">{{ __('e.g. yourname@aclb — used to generate dynamic KHQR locally.') }}</p>
                     <input type="text" name="bakong_account_id" value="{{ old('bakong_account_id', $settings?->bakong_account_id) }}"
-                        placeholder="{{ config('services.khqrpay.bakong_id') }}"
+                        placeholder="yourname@aclb"
                         class="mt-1 w-full rounded-lg border-gray-300 text-sm focus:border-indigo-500 focus:ring-indigo-500">
                 </div>
                 <div>
                     <label class="block text-sm font-medium text-gray-700">{{ __('Merchant Name on QR') }}</label>
                     <p class="text-xs text-gray-400">{{ __('Shown in banking apps when scanning (max 25 characters).') }}</p>
                     <input type="text" name="merchant_name" maxlength="25" value="{{ old('merchant_name', $settings?->merchant_name) }}"
-                        placeholder="{{ config('services.khqrpay.merchant_name') }}"
+                        placeholder="{{ config('app.name', 'AMS') }}"
                         class="mt-1 w-full rounded-lg border-gray-300 text-sm focus:border-indigo-500 focus:ring-indigo-500">
                 </div>
             </div>
@@ -97,7 +97,7 @@
                 <div>
                     <label class="block text-sm font-medium text-gray-700">{{ __('Profile ID') }}</label>
                     <input type="text" name="khqrpay_profile_id" value="{{ old('khqrpay_profile_id', $settings?->khqrpay_profile_id) }}"
-                        placeholder="{{ config('services.khqrpay.profile_id') ? __('(currently from .env)') : '' }}"
+                        placeholder="{{ __('From your khqr.cc dashboard') }}"
                         class="mt-1 w-full rounded-lg border-gray-300 text-sm focus:border-indigo-500 focus:ring-indigo-500">
                 </div>
                 <div>
@@ -109,9 +109,15 @@
                 </div>
             </div>
 
+            <div class="rounded-lg bg-gray-50 border border-gray-200 px-4 py-3">
+                <label class="block text-xs font-medium text-gray-700">{{ __('Webhook / Callback URL') }}</label>
+                <p class="text-xs text-gray-400">{{ __('Paste this into the "Global Webhook URL" field of your khqr.cc profile so paid subscriptions are confirmed automatically.') }}</p>
+                <code class="mt-1 block break-all rounded bg-white border border-gray-200 px-2 py-1 text-xs text-indigo-700">{{ route('khqr.callback') }}</code>
+            </div>
+
             @if (config('services.khqrpay.demo'))
                 <div class="rounded-lg bg-amber-50 border border-amber-200 px-4 py-3 text-sm text-amber-700">
-                    {{ __('Demo mode is ON (KHQRPAY_DEMO=true in .env) — QRs are simulated and auto-confirm. Turn it off once the live credentials above are verified.') }}
+                    {{ __('Demo mode is ON — checkout QRs are simulated and auto-confirm without real money moving. Live payments use the credentials above.') }}
                 </div>
             @endif
         </div>

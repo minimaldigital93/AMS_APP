@@ -51,7 +51,7 @@ class KhqrPaymentService
      * @param  array  $payload  checkout payload (pay_rent, pay_utilities, rent_amount, late_fee, payment_date, note)
      * @return KhqrPayment with channel + qr_url (+ provider_ref for api) populated
      */
-    public function createQr(Rentals $rental, FiscalPeriods $period, int $userId, float $amount, array $payload, string $successUrl): KhqrPayment
+    public function createQr(Rentals $rental, FiscalPeriods $period, int $userId, float $amount, array $payload): KhqrPayment
     {
         $settings = MerchantPaymentSetting::forAccount($rental->account_id);
         $demo = (bool) config('services.khqrpay.demo');
@@ -90,7 +90,7 @@ class KhqrPaymentService
             return $this->fillDemo($row, $amount);
         }
 
-        return $this->requestQr($row, KhqrCredentials::forMerchant($settings), $successUrl);
+        return $this->requestQr($row, KhqrCredentials::forMerchant($settings));
     }
 
     /**
@@ -98,7 +98,7 @@ class KhqrPaymentService
      * + mint the QR with the PLATFORM credentials (Flow A — money goes to the
      * super admin).
      */
-    public function createSubscriptionQr(Subscription $subscription, float $amount, string $successUrl): KhqrPayment
+    public function createSubscriptionQr(Subscription $subscription, float $amount): KhqrPayment
     {
         $transactionId = 'SUB-'.$subscription->id.'-'.now()->format('YmdHis').'-'.random_int(100, 999);
 
@@ -117,46 +117,65 @@ class KhqrPaymentService
             return $this->fillDemo($row, $amount);
         }
 
-        return $this->requestQr($row, KhqrCredentials::platform(), $successUrl);
+        return $this->requestQr($row, KhqrCredentials::platform());
     }
 
     /**
      * Ask KHQRPay (with the row's own credentials) to mint the dynamic QR.
      */
-    private function requestQr(KhqrPayment $row, KhqrCredentials $creds, string $successUrl): KhqrPayment
+    private function requestQr(KhqrPayment $row, KhqrCredentials $creds): KhqrPayment
     {
+        // KHQRPay uses success_url as the webhook callback target when the
+        // profile has no Global Webhook URL set — so point it at our own signed
+        // callback endpoint, not a browser page. A Global Webhook URL configured
+        // on the profile still takes priority over this.
         $params = [
             'transaction_id' => $row->transaction_id,
             'amount' => number_format($row->amount, 2, '.', ''),
-            'success_url' => $successUrl,
+            'success_url' => route('khqr.callback'),
+            'remark' => $this->buildQrRemark($row),
         ];
         $params['hash'] = $this->sign($params, $creds->secret);
 
-        // TODO(khqrpay): the path below is from the public marketing docs, but it
-        // returns a Laravel 404 ("route ... could not be found") for the live
-        // profile — i.e. the documented path is stale, OR the payment-gateway/API
-        // feature still needs enabling on the merchant account (KHQRPay's own docs
-        // say to first link a payment merchant link from link.payway.com.kh).
-        // Replace this with the exact endpoint from the dashboard's API page.
+        // QR API (headless JSON) endpoint, per KHQRPay docs:
+        // /api/{profileId}/payment-gateway/v1/payments/qr-api-khqrcc
         $endpoint = rtrim($creds->baseUrl, '/')
-            .'/'.$creds->profileId
-            .'/payment-gateway/v1/payments/qr-api-khqr';
+            .'/api/'.$creds->profileId
+            .'/payment-gateway/v1/payments/qr-api-khqrcc';
+
+        // Log the outgoing request (avoid logging secrets)
+        Log::info('KHQRPay request', [
+            'endpoint' => $endpoint,
+            'transaction' => $row->transaction_id,
+            'amount' => $row->amount,
+        ]);
 
         $response = Http::asForm()->acceptJson()->post($endpoint, $params);
 
+        // Capture response body for diagnosis (safe to log; no secret in response)
+        $responseBody = $response->body();
+        Log::debug('KHQRPay response', ['status' => $response->status(), 'tran' => $row->transaction_id, 'body' => $responseBody]);
+
         if (! $response->successful()) {
-            Log::warning('KHQRPay createQr failed', ['status' => $response->status(), 'tran' => $row->transaction_id]);
+            Log::warning('KHQRPay createQr failed', ['status' => $response->status(), 'tran' => $row->transaction_id, 'body' => $responseBody]);
             $row->forceFill(['status' => 'expired'])->save();
             throw new \RuntimeException('KHQRPay did not return a QR (HTTP '.$response->status().').');
         }
 
-        $data = $response->json() ?? [];
+        $body = $response->json() ?? [];
+        if (isset($body['responseCode']) && (int) $body['responseCode'] !== 0) {
+            Log::warning('KHQRPay createQr returned error', ['code' => $body['responseCode'] ?? null, 'message' => $body['responseMessage'] ?? null, 'tran' => $row->transaction_id]);
+            $row->forceFill(['status' => 'expired'])->save();
+            throw new \RuntimeException('KHQRPay returned a non-success response.');
+        }
 
-        // TODO(khqrpay): confirm the response field names against your dashboard.
-        // KHQRPay variants seen: qr / qr_url / qrImage / checkout_url for the image;
-        // md5 / tran / transaction_id for the tracking ref.
+        $data = $body['data'] ?? $body;
+
+        // qr_url must be the hosted PNG image URL — the checkout view renders it
+        // as <img src>. data.qr is the raw EMV string (for local QR rendering),
+        // NOT an image, so it must never land in qr_url.
         $row->forceFill([
-            'qr_url' => $data['qr'] ?? $data['qr_url'] ?? $data['qrImage'] ?? $data['checkout_url'] ?? null,
+            'qr_url' => $data['qr_url'] ?? $data['qrImage'] ?? $data['checkout_url'] ?? null,
             'provider_ref' => $data['md5'] ?? $data['tran'] ?? $data['transaction_id'] ?? null,
         ])->save();
 
@@ -215,17 +234,17 @@ class KhqrPaymentService
             return false;
         }
 
-        // TODO(khqrpay): replace with the exact verify/status endpoint + params
-        // from your dashboard. Shape below mirrors the documented check-by-ref call.
+        // Use the KHQRPay documented transaction-verify endpoint and profile hash.
+        // POST https://{baseUrl}/api/{profileId}/payment-gateway/v1/payments/check-trans
         $endpoint = rtrim($creds->baseUrl, '/')
-            .'/'.$creds->profileId
-            .'/payment-gateway/v1/payments/check';
+            .'/api/' . $creds->profileId
+            .'/payment-gateway/v1/payments/check-trans';
 
         $params = [
             'transaction_id' => $row->transaction_id,
-            'md5' => $row->provider_ref,
         ];
-        $params['hash'] = $this->sign($params, $creds->secret);
+        // KHQRPay expects sha1(profile_key . transaction_id)
+        $params['hash'] = sha1($creds->secret . $row->transaction_id);
 
         try {
             $response = Http::asForm()->acceptJson()->post($endpoint, $params);
@@ -267,16 +286,18 @@ class KhqrPaymentService
             return false;
         }
 
-        $check = $payload;
-        unset($check['hash']);
-
-        // TODO(khqrpay): match the webhook signing scheme from your dashboard.
-        if (! hash_equals($this->sign($check, $creds->secret), (string) $provided)) {
+        if (strtoupper((string) ($payload['status'] ?? '')) !== 'SUCCESS') {
             return false;
         }
 
-        // Amount/currency must match what we minted the QR for (when the
-        // provider echoes them back).
+        if (! hash_equals($this->signCallback($payload, $creds->secret), (string) $provided)) {
+            return false;
+        }
+
+        if (isset($payload['transaction_id']) && (string) $payload['transaction_id'] !== (string) $row->transaction_id) {
+            return false;
+        }
+
         if (isset($payload['amount']) && abs((float) $payload['amount'] - (float) $row->amount) > 0.01) {
             Log::warning('KHQRPay callback amount mismatch', ['tran' => $row->transaction_id, 'got' => $payload['amount'], 'expected' => $row->amount]);
 
@@ -435,19 +456,37 @@ class KhqrPaymentService
     }
 
     /**
-     * SHA1-sign the request with the given secret (platform or merchant).
+     * SHA1-sign the QR API request with the given secret.
      *
-     * TODO(khqrpay): replace the concatenation order with the exact formula
-     * from your KHQRPay dashboard's API/Integration page. Current best-guess:
-     * sha1(transaction_id . amount . secret).
+     * KHQRPay request signature is:
+     *   sha1(secret . transaction_id . amount . success_url . remark)
      */
     private function sign(array $params, string $secret): string
     {
-        $base = ($params['transaction_id'] ?? '')
+        $base = $secret
+            .($params['transaction_id'] ?? '')
             .($params['amount'] ?? '')
-            .$secret;
+            .($params['success_url'] ?? '')
+            .($params['remark'] ?? '');
 
         return sha1($base);
+    }
+
+    /**
+     * SHA256-sign the callback payload with the given secret.
+     *
+     * KHQRPay callback signature is:
+     *   sha256(secret + req_time + transaction_id + amount + status)
+     */
+    private function signCallback(array $payload, string $secret): string
+    {
+        return hash('sha256',
+            $secret
+            .($payload['req_time'] ?? '')
+            .($payload['transaction_id'] ?? '')
+            .($payload['amount'] ?? '')
+            .strtoupper((string) ($payload['status'] ?? ''))
+        );
     }
 
     /**
@@ -508,6 +547,11 @@ class KhqrPaymentService
         $payload .= '6304';
 
         return $payload.strtoupper($this->crc16($payload));
+    }
+
+    private function buildQrRemark(KhqrPayment $row): string
+    {
+        return sprintf('KHQR rent payment %s', $row->transaction_id);
     }
 
     /** CRC-16/CCITT-FALSE (poly 0x1021, init 0xFFFF) — the KHQR checksum. */

@@ -47,9 +47,17 @@ it('creates a pending api-channel row with the MERCHANT credentials and stores t
 
     Http::fake([
         'khqr.cc/*' => Http::response([
-            'status' => 'success',
-            'qr' => 'https://khqr.cc/qr/abc123.png',
-            'md5' => 'deadbeef',
+            'responseCode' => 0,
+            'responseMessage' => 'Success',
+            'data' => [
+                'transaction_id' => 'KHQR-1',
+                'amount' => 500.00,
+                'qr' => 'https://khqr.cc/qr/abc123.png',
+                'qr_url' => 'https://khqr.cc/qr/abc123.png',
+                'md5' => 'deadbeef',
+                'req_time' => time(),
+                'hash' => 'abc123hash',
+            ],
         ], 200),
     ]);
 
@@ -59,7 +67,6 @@ it('creates a pending api-channel row with the MERCHANT credentials and stores t
         userId: $this->admin->id,
         amount: 500.0,
         payload: ['pay_rent' => true, 'rent_amount' => 500, 'payment_date' => now()->toDateString()],
-        successUrl: 'https://app.test/done',
     );
 
     expect($row->status)->toBe('pending');
@@ -83,7 +90,6 @@ it('falls back to the manual channel when the landlord has no API credentials', 
         userId: $this->admin->id,
         amount: 500.0,
         payload: ['pay_rent' => true, 'rent_amount' => 500, 'payment_date' => now()->toDateString()],
-        successUrl: 'https://app.test/done',
     );
 
     expect($row->channel)->toBe('manual');
@@ -107,7 +113,6 @@ it('refuses to mint a rent QR when the landlord has no payment settings', functi
         userId: $this->admin->id,
         amount: 500.0,
         payload: ['pay_rent' => true, 'rent_amount' => 500, 'payment_date' => now()->toDateString()],
-        successUrl: 'https://app.test/done',
     );
 })->throws(RuntimeException::class);
 
@@ -121,7 +126,6 @@ it('rejecting a manual payment never books it', function () {
         userId: $this->admin->id,
         amount: 500.0,
         payload: ['pay_rent' => true, 'rent_amount' => 500, 'payment_date' => now()->toDateString()],
-        successUrl: 'https://app.test/done',
     );
 
     $this->service->rejectManual($row);
@@ -143,7 +147,6 @@ it('demo mode builds a local example QR without calling the live API', function 
         userId: $this->admin->id,
         amount: 12.50,
         payload: ['pay_rent' => true, 'rent_amount' => 12.50, 'payment_date' => now()->toDateString()],
-        successUrl: 'https://app.test/done',
     );
 
     expect($row->status)->toBe('pending');

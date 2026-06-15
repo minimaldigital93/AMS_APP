@@ -84,7 +84,6 @@ trait HandlesKhqrCheckout
                 userId: $this->ledgerUserId(),
                 amount: $amount,
                 payload: $payload,
-                successUrl: route($this->khqrRoutePrefix().'.record_income'),
             );
         } catch (\Throwable $e) {
             return response()->json(['message' => $e->getMessage()], 502);

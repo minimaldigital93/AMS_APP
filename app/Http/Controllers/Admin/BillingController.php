@@ -46,7 +46,7 @@ class BillingController extends Controller
             ['plan_id' => $plan->id]
         );
 
-        $row = $khqr->createSubscriptionQr($subscription, (float) $plan->price_usd, route('admin.billing.index'));
+        $row = $khqr->createSubscriptionQr($subscription, (float) $plan->price_usd);
 
         return redirect()->route('admin.billing.checkout', $row->transaction_id);
     }

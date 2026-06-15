@@ -1084,6 +1084,8 @@ return [
     'khqrpay_secret' => 'KHQRPay Secret',
     'khqrpay_secret_hint' => 'Leave blank to keep the current secret.',
     'khqrpay_secret_configured' => 'configured',
+    'khqrpay_webhook_url' => 'Webhook / Callback URL',
+    'khqrpay_webhook_url_hint' => 'Paste this into the "Global Webhook URL" field of your khqr.cc profile so paid rents are confirmed automatically.',
     'payment_settings_saved' => 'Payment settings saved.',
     'khqr_payment_settings_missing' => 'KHQR is not set up. Add your bank details or KHQR image in Settings → Payment Settings first.',
 

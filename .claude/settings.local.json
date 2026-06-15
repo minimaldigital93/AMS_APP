@@ -509,7 +509,10 @@
       "Bash(git -C /Users/sarotmoniodom/AMS_APP_dev status --short)",
       "Bash(cat /Users/sarotmoniodom/AMS_APP_dev/routes/console.php; echo ===; sed -n '/khqrpay/,/]/p' /Users/sarotmoniodom/AMS_APP_dev/config/services.php; echo ===; grep -rln \"khqr\" /Users/sarotmoniodom/AMS_APP_dev/resources/views | head)",
       "Bash(sed -n '1,60p' /Users/sarotmoniodom/AMS_APP_dev/app/Http/Controllers/SuperAdmin/PlansController.php)",
-      "Bash(sed -n '1,50p' /Users/sarotmoniodom/AMS_APP_dev/app/Services/NotificationService.php)"
+      "Bash(sed -n '1,50p' /Users/sarotmoniodom/AMS_APP_dev/app/Services/NotificationService.php)",
+      "Bash(grep -rn 'successUrl\\\\|$successUrl' app tests)",
+      "Bash(find app/Models -iname '*PaymentSetting*' -o -iname 'KhqrCredentials*' | head -20; echo \"---SERVICES CONFIG---\"; sed -n '/khqrpay/,/],/p' config/services.php 2>/dev/null | head -60)",
+      "Bash(echo \"=== EXIT $? ===\")"
     ],
     "additionalDirectories": [
       "/Users/sarotmoniodom/AMS_APP",

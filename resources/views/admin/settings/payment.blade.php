@@ -111,6 +111,12 @@
                     <p class="mt-1 text-xs text-gray-400">{{ __('messages.khqrpay_secret_hint') }}</p>
                 </div>
             </div>
+
+            <div x-show="enabled" x-cloak class="rounded-lg bg-gray-50 border border-gray-200 px-4 py-3">
+                <label class="block text-xs font-medium text-gray-700">{{ __('messages.khqrpay_webhook_url') }}</label>
+                <p class="text-xs text-gray-400">{{ __('messages.khqrpay_webhook_url_hint') }}</p>
+                <code class="mt-1 block break-all rounded bg-white border border-gray-200 px-2 py-1 text-xs text-indigo-700">{{ route('khqr.callback') }}</code>
+            </div>
         </div>
 
         <div class="flex justify-end">
