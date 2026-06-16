@@ -2,11 +2,14 @@
 
 namespace App\Services\Subscription;
 
+use App\Enums\SubscriptionStatus;
 use App\Models\Apartments;
 use App\Models\Floors;
 use App\Models\Plan;
 use App\Models\Subscription;
+use App\Services\Audit\AuditLogger;
 use Carbon\Carbon;
+use Illuminate\Contracts\Auth\Authenticatable;
 
 /**
  * Resolves an account's plan and enforces its floor/apartment caps.
@@ -64,6 +67,37 @@ class SubscriptionService
     public function activePlan(int $accountId): ?Plan
     {
         return $this->activeSubscription($accountId)?->plan;
+    }
+
+    /**
+     * Cancel an account's subscription.
+     *
+     * Renewals here are manual KHQR payments (nothing auto-charges), so a normal
+     * cancel just marks intent and lets access run to expires_at (the expire cron
+     * flips it later). An immediate cancel revokes access now (expires_at = now),
+     * which is what a refund-driven revoke uses.
+     */
+    public function cancel(int $accountId, string $reason = '', bool $immediate = false, ?Authenticatable $actor = null): ?Subscription
+    {
+        $subscription = Subscription::where('account_id', $accountId)->latest('id')->first();
+        if ($subscription === null) {
+            return null;
+        }
+
+        $subscription->forceFill([
+            'cancelled_at' => now(),
+            'cancel_reason' => $reason !== '' ? $reason : null,
+            // Keep status/expiry for a period-end cancel; revoke now if immediate.
+            'status' => $immediate ? SubscriptionStatus::Cancelled->value : $subscription->status,
+            'expires_at' => $immediate ? now() : $subscription->expires_at,
+        ])->save();
+
+        app(AuditLogger::class)->record('subscription.cancelled', $subscription, [
+            'reason' => $reason,
+            'immediate' => $immediate,
+        ], $actor);
+
+        return $subscription;
     }
 
     public function floorCount(int $accountId): int

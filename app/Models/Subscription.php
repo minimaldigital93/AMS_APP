@@ -19,9 +19,12 @@ class Subscription extends Model
     protected $fillable = [
         'account_id',
         'plan_id',
+        'price_paid',
         'status',
         'started_at',
         'expires_at',
+        'cancelled_at',
+        'cancel_reason',
         'trial_started_at',
         'khqr_payment_id',
     ];
@@ -29,8 +32,10 @@ class Subscription extends Model
     protected function casts(): array
     {
         return [
+            'price_paid' => 'float',
             'started_at' => 'datetime',
             'expires_at' => 'datetime',
+            'cancelled_at' => 'datetime',
             'trial_started_at' => 'datetime',
         ];
     }

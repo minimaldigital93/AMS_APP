@@ -113,16 +113,12 @@ trait HandlesKhqrCheckout
 
     public function khqrStatus(string $transactionId, KhqrPaymentService $khqr): JsonResponse
     {
-        $row = $this->ownKhqrPayment($transactionId);
-
-        if (! $row->isPaid() && $khqr->verify($row)) {
-            $khqr->finalize($row);
-            $row->refresh();
-        }
+        $row = $khqr->pollAndAdvance($this->ownKhqrPayment($transactionId));
 
         return response()->json([
             'status' => $row->status,
             'paid' => $row->isPaid(),
+            'expires_at' => $row->expires_at?->toIso8601String(),
         ]);
     }
 

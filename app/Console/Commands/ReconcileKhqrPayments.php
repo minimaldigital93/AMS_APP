@@ -2,6 +2,7 @@
 
 namespace App\Console\Commands;
 
+use App\Enums\PaymentStatus;
 use App\Models\KhqrPayment;
 use App\Services\RevenueExpense\KhqrPaymentService;
 use Illuminate\Console\Command;
@@ -28,7 +29,7 @@ class ReconcileKhqrPayments extends Command
         $finalized = 0;
         $expired = 0;
 
-        KhqrPayment::where('status', 'pending')
+        KhqrPayment::whereIn('status', PaymentStatus::openValues())
             ->where('channel', 'api')
             ->where('created_at', '>', now()->subDay())
             ->chunkById(100, function ($rows) use ($khqr, $expireAfter, &$finalized, &$expired) {
@@ -37,8 +38,9 @@ class ReconcileKhqrPayments extends Command
                         if ($khqr->verify($row)) {
                             $khqr->finalize($row);
                             $finalized++;
-                        } elseif ($row->created_at->lt(now()->subMinutes($expireAfter))) {
-                            $row->update(['status' => 'expired']);
+                        } elseif ($this->isStale($row, $expireAfter)) {
+                            $row->transitionTo(PaymentStatus::Expired);
+                            $row->save();
                             $expired++;
                         }
                     } catch (\Throwable $e) {
@@ -50,5 +52,18 @@ class ReconcileKhqrPayments extends Command
         $this->info("Finalized: {$finalized}, expired: {$expired}");
 
         return self::SUCCESS;
+    }
+
+    /**
+     * A QR is stale once its own expires_at has passed; legacy rows minted before
+     * expires_at existed fall back to the created_at + expire-after cutoff.
+     */
+    private function isStale(KhqrPayment $row, int $expireAfter): bool
+    {
+        if ($row->expires_at !== null) {
+            return $row->expires_at->isPast();
+        }
+
+        return $row->created_at->lt(now()->subMinutes($expireAfter));
     }
 }

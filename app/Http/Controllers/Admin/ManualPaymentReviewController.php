@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\Enums\PaymentStatus;
 use App\Http\Controllers\Controller;
 use App\Models\KhqrPayment;
 use App\Models\Rentals;
@@ -21,7 +22,7 @@ class ManualPaymentReviewController extends Controller
         $rentalIds = Rentals::pluck('id');
 
         $pending = KhqrPayment::where('channel', 'manual')
-            ->where('status', 'pending')
+            ->whereIn('status', PaymentStatus::openValues())
             ->whereIn('rental_id', $rentalIds)
             ->latest('id')
             ->with(['rental.apartment', 'rental.tenant'])

@@ -3,6 +3,7 @@
 namespace App\Providers;
 
 use App\Services\NotificationService;
+use App\Services\Payment\PaymentManager;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\URL;
 use Illuminate\Support\Facades\View;
@@ -16,6 +17,7 @@ class AppServiceProvider extends ServiceProvider
     public function register(): void
     {
         $this->app->singleton(NotificationService::class, fn () => new NotificationService);
+        $this->app->singleton(PaymentManager::class, fn () => new PaymentManager);
     }
 
     /**

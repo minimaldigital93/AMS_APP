@@ -69,7 +69,7 @@ it('creates a pending api-channel row with the MERCHANT credentials and stores t
         payload: ['pay_rent' => true, 'rent_amount' => 500, 'payment_date' => now()->toDateString()],
     );
 
-    expect($row->status)->toBe('pending');
+    expect($row->status)->toBe('qr_generated'); // QR minted → awaiting payment
     expect($row->settlement_target)->toBe('merchant');
     expect($row->channel)->toBe('api');
     expect($row->qr_url)->toBe('https://khqr.cc/qr/abc123.png');
@@ -149,7 +149,7 @@ it('demo mode builds a local example QR without calling the live API', function 
         payload: ['pay_rent' => true, 'rent_amount' => 12.50, 'payment_date' => now()->toDateString()],
     );
 
-    expect($row->status)->toBe('pending');
+    expect($row->status)->toBe('qr_generated'); // demo QR minted → awaiting payment
     expect($row->qr_url)->toContain('api.qrserver.com');
     expect($row->provider_ref)->toStartWith('DEMO-');
     Http::assertNothingSent();

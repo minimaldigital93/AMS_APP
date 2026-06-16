@@ -98,15 +98,13 @@ class SubscriptionController extends Controller
             return back()->withInput()->with('error', __('messages.subscription_payment_unavailable'));
         }
 
-        return redirect()->route('subscribe.checkout', $row->transaction_id);
+        return redirect()->route('subscribe.checkout', $row->public_token);
     }
 
-    /** Scan/poll page for the subscription QR. */
-    public function checkout(string $transaction): View|RedirectResponse
+    /** Scan/poll page for the subscription QR (addressed by unguessable token). */
+    public function checkout(string $token): View|RedirectResponse
     {
-        $payment = KhqrPayment::where('transaction_id', $transaction)
-            ->whereNotNull('subscription_id')
-            ->firstOrFail();
+        $payment = $this->resolveSubscriptionPayment($token);
 
         if ($payment->isPaid()) {
             return redirect()->route('login')->with('status', __('messages.flash_subscription_activated_signin'));
@@ -118,21 +116,23 @@ class SubscriptionController extends Controller
     }
 
     /** Polled by the checkout page; verifies + activates on confirmation. */
-    public function status(string $transaction, KhqrPaymentService $khqr): JsonResponse
+    public function status(string $token, KhqrPaymentService $khqr): JsonResponse
     {
-        $payment = KhqrPayment::where('transaction_id', $transaction)
-            ->whereNotNull('subscription_id')
-            ->firstOrFail();
-
-        if (! $payment->isPaid() && $khqr->verify($payment)) {
-            $khqr->finalize($payment);
-            $payment->refresh();
-        }
+        $payment = $khqr->pollAndAdvance($this->resolveSubscriptionPayment($token));
 
         return response()->json([
             'status' => $payment->status,
             'paid' => $payment->isPaid(),
+            'expires_at' => $payment->expires_at?->toIso8601String(),
             'redirect' => $payment->isPaid() ? route('login') : null,
         ]);
+    }
+
+    /** Resolve a subscription payment by its unguessable public token, or 404. */
+    private function resolveSubscriptionPayment(string $token): KhqrPayment
+    {
+        return KhqrPayment::where('public_token', $token)
+            ->whereNotNull('subscription_id')
+            ->firstOrFail();
     }
 }

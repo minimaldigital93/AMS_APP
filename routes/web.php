@@ -31,8 +31,8 @@ Route::get('/', function () {
 Route::middleware('guest')->group(function () {
     Route::get('/subscribe', [\App\Http\Controllers\SubscriptionController::class, 'create'])->name('subscribe.create');
     Route::post('/subscribe', [\App\Http\Controllers\SubscriptionController::class, 'store'])->name('subscribe.store');
-    Route::get('/subscribe/checkout/{transaction}', [\App\Http\Controllers\SubscriptionController::class, 'checkout'])->name('subscribe.checkout');
-    Route::get('/subscribe/checkout/{transaction}/status', [\App\Http\Controllers\SubscriptionController::class, 'status'])->name('subscribe.checkout.status');
+    Route::get('/subscribe/checkout/{token}', [\App\Http\Controllers\SubscriptionController::class, 'checkout'])->name('subscribe.checkout');
+    Route::get('/subscribe/checkout/{token}/status', [\App\Http\Controllers\SubscriptionController::class, 'status'])->name('subscribe.checkout.status');
 });
 
 // KHQRPay webhook (signature-authenticated, CSRF-exempt — see bootstrap/app.php)
@@ -96,6 +96,10 @@ Route::middleware(['auth', 'role:superadmin'])->prefix('superadmin')->name('supe
     Route::get('/settings/payment', [\App\Http\Controllers\SuperAdmin\PlatformPaymentSettingsController::class, 'edit'])->name('settings.payment');
     Route::put('/settings/payment', [\App\Http\Controllers\SuperAdmin\PlatformPaymentSettingsController::class, 'update'])->name('settings.payment.update');
 
+    // Platform payments console: subscription transactions, webhooks, refunds
+    Route::get('/payments', [\App\Http\Controllers\SuperAdmin\PaymentsController::class, 'index'])->name('payments.index');
+    Route::post('/payments/{payment}/refund', [\App\Http\Controllers\SuperAdmin\PaymentsController::class, 'refund'])->name('payments.refund');
+
     // Plans
     Route::get('/plans', [SuperAdminPlansController::class, 'index'])->name('plans.index');
     Route::post('/plans', [SuperAdminPlansController::class, 'store'])->name('plans.store');
@@ -129,8 +133,9 @@ Route::middleware(['auth', 'role:admin|superadmin', 'subscription.active'])->gro
     // Billing & Subscription (exempt from the subscription gate inside the middleware)
     Route::get('/admin/billing', [\App\Http\Controllers\Admin\BillingController::class, 'index'])->name('admin.billing.index');
     Route::post('/admin/billing/renew', [\App\Http\Controllers\Admin\BillingController::class, 'renew'])->name('admin.billing.renew');
-    Route::get('/admin/billing/checkout/{transaction}', [\App\Http\Controllers\Admin\BillingController::class, 'checkout'])->name('admin.billing.checkout');
-    Route::get('/admin/billing/checkout/{transaction}/status', [\App\Http\Controllers\Admin\BillingController::class, 'status'])->name('admin.billing.status');
+    Route::post('/admin/billing/cancel', [\App\Http\Controllers\Admin\BillingController::class, 'cancel'])->name('admin.billing.cancel');
+    Route::get('/admin/billing/checkout/{token}', [\App\Http\Controllers\Admin\BillingController::class, 'checkout'])->name('admin.billing.checkout');
+    Route::get('/admin/billing/checkout/{token}/status', [\App\Http\Controllers\Admin\BillingController::class, 'status'])->name('admin.billing.status');
 
     // Floor Management Routes
     Route::get('/admin/floors', [FloorController::class, 'index'])->name('admin.floors.index');

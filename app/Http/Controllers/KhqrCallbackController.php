@@ -2,39 +2,25 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\KhqrPayment;
-use App\Services\RevenueExpense\KhqrPaymentService;
+use App\Services\Payment\WebhookIngestService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
 /**
  * Inbound webhook from KHQRPay (khqr.cc). Unauthenticated + CSRF-exempt — the
- * payload is authenticated by its signature. The row is looked up FIRST so the
- * signature can be checked against the right secret (platform for subscription
- * payments, the landlord's own for rent payments) and the amount/currency can
- * be matched against what the QR was minted for. On a valid callback we
- * finalize the matching KhqrPayment (idempotent with the status poll).
+ * payload is authenticated by its signature. All persistence, dedupe, freshness
+ * and signature handling lives in WebhookIngestService; this stays a one-liner.
+ *
+ * A duplicate/replayed delivery is acked with 200 (so the provider stops
+ * retrying); an unknown transaction or bad signature returns 403 with the same
+ * body either way, so the endpoint never reveals which transaction ids exist.
  */
 class KhqrCallbackController extends Controller
 {
-    public function __invoke(Request $request, KhqrPaymentService $khqr): JsonResponse
+    public function __invoke(Request $request, WebhookIngestService $webhooks): JsonResponse
     {
-        $payload = $request->all();
+        $result = $webhooks->ingest($request->all());
 
-        $transactionId = $payload['transaction_id'] ?? null;
-        $row = $transactionId ? KhqrPayment::where('transaction_id', $transactionId)->first() : null;
-
-        if (! $row) {
-            // Same response as a bad signature — don't leak which IDs exist.
-            return response()->json(['message' => 'Invalid signature'], 403);
-        }
-
-        if (! $khqr->isValidCallbackFor($row, $payload)) {
-            return response()->json(['message' => 'Invalid signature'], 403);
-        }
-
-        $khqr->finalize($row);
-
-        return response()->json(['ok' => true]);
+        return response()->json($result['body'], $result['status']);
     }
 }

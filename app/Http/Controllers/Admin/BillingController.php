@@ -55,14 +55,25 @@ class BillingController extends Controller
             return back()->with('error', __('messages.subscription_payment_unavailable'));
         }
 
-        return redirect()->route('admin.billing.checkout', $row->transaction_id);
+        return redirect()->route('admin.billing.checkout', $row->public_token);
     }
 
-    public function checkout(string $transaction): View|RedirectResponse
+    /** Self-service cancel: keep access until the period ends, just stop renewing. */
+    public function cancel(Request $request): RedirectResponse
     {
-        $payment = KhqrPayment::where('transaction_id', $transaction)
-            ->whereNotNull('subscription_id')
-            ->firstOrFail();
+        $this->subscriptions->cancel(
+            accountId: current_account_id(),
+            reason: (string) $request->input('reason', ''),
+            immediate: false,
+            actor: $request->user(),
+        );
+
+        return back()->with('success', __('Your subscription has been cancelled and will not renew.'));
+    }
+
+    public function checkout(string $token): View|RedirectResponse
+    {
+        $payment = $this->resolveSubscriptionPayment($token);
 
         if ($payment->isPaid()) {
             return redirect()->route('admin.billing.index')->with('success', __('messages.flash_subscription_renewed'));
@@ -72,26 +83,28 @@ class BillingController extends Controller
 
         return view('admin.billing.checkout', [
             'payment' => $payment,
-            'statusUrl' => route('admin.billing.status', $payment->transaction_id),
+            'statusUrl' => route('admin.billing.status', $payment->public_token),
             'redirectUrl' => route('admin.billing.index'),
         ]);
     }
 
-    public function status(string $transaction, KhqrPaymentService $khqr): JsonResponse
+    public function status(string $token, KhqrPaymentService $khqr): JsonResponse
     {
-        $payment = KhqrPayment::where('transaction_id', $transaction)
-            ->whereNotNull('subscription_id')
-            ->firstOrFail();
-
-        if (! $payment->isPaid() && $khqr->verify($payment)) {
-            $khqr->finalize($payment);
-            $payment->refresh();
-        }
+        $payment = $khqr->pollAndAdvance($this->resolveSubscriptionPayment($token));
 
         return response()->json([
             'status' => $payment->status,
             'paid' => $payment->isPaid(),
+            'expires_at' => $payment->expires_at?->toIso8601String(),
             'redirect' => $payment->isPaid() ? route('admin.billing.index') : null,
         ]);
+    }
+
+    /** Resolve this account's subscription payment by its public token, or 404. */
+    private function resolveSubscriptionPayment(string $token): KhqrPayment
+    {
+        return KhqrPayment::where('public_token', $token)
+            ->whereNotNull('subscription_id')
+            ->firstOrFail();
     }
 }

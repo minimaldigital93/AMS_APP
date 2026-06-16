@@ -1,7 +1,7 @@
 <x-guest-layout>
     <h2 class="login-title">{{ __('Scan to pay') }}</h2>
 
-    <div x-data="khqrCheckout('{{ route('subscribe.checkout.status', $payment->transaction_id) }}')"
+    <div x-data="khqrCheckout('{{ route('subscribe.checkout.status', $payment->public_token) }}')"
          x-init="start()"
          class="text-center text-white">
 

@@ -2,12 +2,14 @@
 
 namespace App\Services\RevenueExpense;
 
+use App\Enums\PaymentStatus;
 use App\Models\FiscalPeriods;
 use App\Models\KhqrPayment;
 use App\Models\MerchantPaymentSetting;
 use App\Models\Rentals;
 use App\Models\Subscription;
 use App\Models\User;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
@@ -77,10 +79,13 @@ class KhqrPaymentService
             'settlement_target' => 'merchant',
             'channel' => ($canApi || ! $canManual) ? 'api' : 'manual',
             'checkout_payload' => $payload,
+            'expires_at' => now()->addMinutes($this->qrTtlMinutes()),
         ]);
 
         if ($row->channel === 'manual') {
-            $row->forceFill(['qr_url' => $this->manualQrUrl($settings, $transactionId, $amount)])->save();
+            $row->forceFill(['qr_url' => $this->manualQrUrl($settings, $transactionId, $amount)]);
+            $row->transitionTo(PaymentStatus::QrGenerated);
+            $row->save();
 
             return $row;
         }
@@ -100,6 +105,24 @@ class KhqrPaymentService
      */
     public function createSubscriptionQr(Subscription $subscription, float $amount): KhqrPayment
     {
+        // Avoid double-payment: clicking "renew" repeatedly must not leave several
+        // payable QRs for the same subscription. Reuse a live, unexpired QR for
+        // the same amount (same plan); if the amount changed (plan switch), retire
+        // the stale open ones before minting a fresh QR.
+        $existing = KhqrPayment::where('subscription_id', $subscription->id)
+            ->where('settlement_target', 'platform')
+            ->whereIn('status', PaymentStatus::openValues())
+            ->where(fn ($q) => $q->whereNull('expires_at')->orWhere('expires_at', '>', now()))
+            ->latest('id')
+            ->get();
+
+        foreach ($existing as $open) {
+            if (abs((float) $open->amount - $amount) <= 0.01) {
+                return $open; // same plan/price → reuse the existing payable QR
+            }
+            $this->expireRow($open); // plan changed → retire the stale QR
+        }
+
         $transactionId = 'SUB-'.$subscription->id.'-'.now()->format('YmdHis').'-'.random_int(100, 999);
 
         $row = KhqrPayment::create([
@@ -111,6 +134,7 @@ class KhqrPaymentService
             'settlement_target' => 'platform',
             'channel' => 'api',
             'checkout_payload' => ['type' => 'subscription', 'subscription_id' => $subscription->id],
+            'expires_at' => now()->addMinutes($this->qrTtlMinutes()),
         ]);
 
         if (config('services.khqrpay.demo')) {
@@ -137,11 +161,7 @@ class KhqrPaymentService
         ];
         $params['hash'] = $this->sign($params, $creds->secret);
 
-        // QR API (headless JSON) endpoint, per KHQRPay docs:
-        // /api/{profileId}/payment-gateway/v1/payments/qr-api-khqrcc
-        $endpoint = rtrim($creds->baseUrl, '/')
-            .'/api/'.$creds->profileId
-            .'/payment-gateway/v1/payments/qr-api-khqrcc';
+        $endpoint = $this->qrApiEndpoint($creds);
 
         // Log the outgoing request (avoid logging secrets)
         Log::info('KHQRPay request', [
@@ -150,7 +170,9 @@ class KhqrPaymentService
             'amount' => $row->amount,
         ]);
 
-        $response = Http::asForm()->acceptJson()->post($endpoint, $params);
+        $response = Http::asForm()->acceptJson()
+            ->connectTimeout(3)->timeout(10)
+            ->post($endpoint, $params);
 
         // Capture response body for diagnosis (safe to log; no secret in response)
         $responseBody = $response->body();
@@ -158,14 +180,16 @@ class KhqrPaymentService
 
         if (! $response->successful()) {
             Log::warning('KHQRPay createQr failed', ['status' => $response->status(), 'tran' => $row->transaction_id, 'body' => $responseBody]);
-            $row->forceFill(['status' => 'expired'])->save();
+            $row->transitionTo(PaymentStatus::Failed);
+            $row->save();
             throw new \RuntimeException('KHQRPay did not return a QR (HTTP '.$response->status().').');
         }
 
         $body = $response->json() ?? [];
         if (isset($body['responseCode']) && (int) $body['responseCode'] !== 0) {
             Log::warning('KHQRPay createQr returned error', ['code' => $body['responseCode'] ?? null, 'message' => $body['responseMessage'] ?? null, 'tran' => $row->transaction_id]);
-            $row->forceFill(['status' => 'expired'])->save();
+            $row->transitionTo(PaymentStatus::Failed);
+            $row->save();
             throw new \RuntimeException('KHQRPay returned a non-success response.');
         }
 
@@ -177,7 +201,9 @@ class KhqrPaymentService
         $row->forceFill([
             'qr_url' => $data['qr_url'] ?? $data['qrImage'] ?? $data['checkout_url'] ?? null,
             'provider_ref' => $data['md5'] ?? $data['tran'] ?? $data['transaction_id'] ?? null,
-        ])->save();
+        ]);
+        $row->transitionTo(PaymentStatus::QrGenerated);
+        $row->save();
 
         return $row;
     }
@@ -219,6 +245,11 @@ class KhqrPaymentService
             return true;
         }
 
+        // Terminal rows (failed/expired/cancelled/refunded/rejected) never settle.
+        if (! $row->isOpen()) {
+            return false;
+        }
+
         if ($row->channel === 'manual') {
             return false;
         }
@@ -229,6 +260,28 @@ class KhqrPaymentService
             return $row->created_at !== null && $row->created_at->diffInSeconds(now()) >= 8;
         }
 
+        // Cooldown: a public status poll fires every few seconds — never make a
+        // live provider call more than once per verify_cooldown window. The last
+        // result is cached, so a confirmed payment is still seen promptly.
+        $cooldownKey = 'khqr:verify:'.$row->transaction_id;
+        $cached = Cache::get($cooldownKey);
+        if ($cached !== null) {
+            return (bool) $cached;
+        }
+
+        $result = $this->queryProviderPaid($row);
+        Cache::put($cooldownKey, $result, now()->addSeconds((int) config('services.khqrpay.verify_cooldown', 4)));
+
+        return $result;
+    }
+
+    /**
+     * Live provider call: ask KHQRPay whether the transaction has settled. Pinned
+     * to the row's own credentials, with the same amount/currency defence the
+     * webhook applies. Any error / non-success / mismatch reads as "unpaid".
+     */
+    private function queryProviderPaid(KhqrPayment $row): bool
+    {
         $creds = $this->credentialsFor($row);
         if ($creds === null) {
             return false;
@@ -247,7 +300,9 @@ class KhqrPaymentService
         $params['hash'] = sha1($creds->secret . $row->transaction_id);
 
         try {
-            $response = Http::asForm()->acceptJson()->post($endpoint, $params);
+            $response = Http::asForm()->acceptJson()
+                ->connectTimeout(3)->timeout(8)->retry(2, 200, throw: false)
+                ->post($endpoint, $params);
         } catch (\Throwable $e) {
             Log::warning('KHQRPay verify error', ['tran' => $row->transaction_id, 'msg' => $e->getMessage()]);
 
@@ -279,9 +334,40 @@ class KhqrPaymentService
             ?? ''
         ));
 
-        return ($data['verified'] ?? false) === true
+        $paid = ($data['verified'] ?? false) === true
             || ($data['paid'] ?? false) === true
             || in_array($status, ['COMPLETED', 'PAID', 'SUCCESS', 'PAID_SUCCESS'], true);
+
+        // Mirror the webhook's defence: if the provider echoes the settled amount/
+        // currency, they must match the row this QR was minted for. A "paid" that
+        // settled a different amount must never finalize a $500 subscription.
+        if ($paid && ! $this->amountCurrencyMatches($row, $data)) {
+            return false;
+        }
+
+        return $paid;
+    }
+
+    /**
+     * True when the provider-reported amount/currency (if present) match the row.
+     * Absent fields are treated as "can't contradict" → match, since some verify
+     * responses omit them.
+     */
+    private function amountCurrencyMatches(KhqrPayment $row, array $data): bool
+    {
+        if (isset($data['amount']) && abs((float) $data['amount'] - (float) $row->amount) > 0.01) {
+            Log::warning('KHQRPay verify amount mismatch', ['tran' => $row->transaction_id, 'got' => $data['amount'], 'expected' => $row->amount]);
+
+            return false;
+        }
+
+        if (isset($data['currency']) && strtoupper((string) $data['currency']) !== strtoupper((string) $row->currency)) {
+            Log::warning('KHQRPay verify currency mismatch', ['tran' => $row->transaction_id, 'got' => $data['currency'], 'expected' => $row->currency]);
+
+            return false;
+        }
+
+        return true;
     }
 
     /**
@@ -366,10 +452,101 @@ class KhqrPaymentService
 
         DB::transaction(function () use ($row) {
             $locked = KhqrPayment::whereKey($row->getKey())->lockForUpdate()->first();
-            if ($locked && $locked->status === 'pending') {
-                $locked->forceFill(['status' => 'rejected'])->save();
+            if ($locked && $locked->isOpen()) {
+                $locked->transitionTo(PaymentStatus::Rejected);
+                $locked->save();
             }
         });
+    }
+
+    /**
+     * Mark that the payer has opened the checkout and the client is now polling
+     * (qr_generated → waiting_payment). Idempotent and cheap: only the first poll
+     * takes the lock; later polls short-circuit on the in-memory status.
+     */
+    public function markWaiting(KhqrPayment $row): void
+    {
+        if ($row->statusEnum() !== PaymentStatus::QrGenerated) {
+            return;
+        }
+
+        DB::transaction(function () use ($row) {
+            $locked = KhqrPayment::whereKey($row->getKey())->lockForUpdate()->first();
+            if ($locked && $locked->statusEnum() === PaymentStatus::QrGenerated) {
+                $locked->transitionTo(PaymentStatus::WaitingPayment);
+                $locked->save();
+            }
+        });
+    }
+
+    /**
+     * Advance a row from a status poll: register the payer as waiting, confirm +
+     * finalize if the money has arrived, else lazily expire a dead QR. One place
+     * for the three checkout poll endpoints to call. Returns the fresh row.
+     */
+    public function pollAndAdvance(KhqrPayment $row): KhqrPayment
+    {
+        $this->markWaiting($row);
+
+        // Verify FIRST so a payment that lands right at the deadline still wins.
+        if (! $row->isPaid() && $this->verify($row)) {
+            $this->finalize($row);
+
+            return $row->refresh();
+        }
+
+        if ($this->expireIfElapsed($row)) {
+            return $row->refresh();
+        }
+
+        return $row;
+    }
+
+    /**
+     * Lazily expire an open row whose QR lifetime has elapsed, so the poller sees
+     * it immediately instead of waiting up to five minutes for the cron.
+     */
+    public function expireIfElapsed(KhqrPayment $row): bool
+    {
+        if (! $row->isOpen() || $row->expires_at === null || $row->expires_at->isFuture()) {
+            return false;
+        }
+
+        return $this->expireRow($row);
+    }
+
+    /** Transition an open row to expired under a lock. */
+    private function expireRow(KhqrPayment $row): bool
+    {
+        return (bool) DB::transaction(function () use ($row) {
+            $locked = KhqrPayment::whereKey($row->getKey())->lockForUpdate()->first();
+            if ($locked && $locked->isOpen()) {
+                $locked->transitionTo(PaymentStatus::Expired);
+                $locked->save();
+
+                return true;
+            }
+
+            return false;
+        });
+    }
+
+    /**
+     * The KHQRPay headless QR API (JSON) endpoint for a profile:
+     *   {baseUrl}/api/{profileId}/payment-gateway/v1/payments/qr-api-khqrcc
+     * Returns the hosted QR image URL + provider ref (vs. the /purchase hosted
+     * checkout page). Pinned to the row's own credentials by the caller.
+     */
+    private function qrApiEndpoint(KhqrCredentials $creds): string
+    {
+        return rtrim($creds->baseUrl, '/')
+            .'/api/'.$creds->profileId
+            .'/payment-gateway/v1/payments/qr-api-khqrcc';
+    }
+
+    private function qrTtlMinutes(): int
+    {
+        return max(1, (int) config('services.khqrpay.qr_ttl', 30));
     }
 
     /**
@@ -392,7 +569,7 @@ class KhqrPaymentService
         DB::transaction(function () use ($row) {
             // Re-load under a lock so concurrent poll + webhook can't double-book.
             $locked = KhqrPayment::whereKey($row->getKey())->lockForUpdate()->first();
-            if (! $locked || $locked->status !== 'pending') {
+            if (! $locked || ! $locked->isOpen()) {
                 return;
             }
 
@@ -411,10 +588,8 @@ class KhqrPaymentService
             (new IncomeRecordingService(userId: $locked->user_id, period: $period))
                 ->checkout($rental, $payload);
 
-            $locked->forceFill([
-                'status' => 'paid',
-                'paid_at' => now(),
-            ])->save();
+            $locked->transitionTo(PaymentStatus::Paid);
+            $locked->forceFill(['paid_at' => now()])->save();
         });
     }
 
@@ -427,7 +602,7 @@ class KhqrPaymentService
     {
         DB::transaction(function () use ($row) {
             $locked = KhqrPayment::whereKey($row->getKey())->lockForUpdate()->first();
-            if (! $locked || $locked->status === 'paid') {
+            if (! $locked || ! $locked->isOpen()) {
                 return;
             }
 
@@ -447,8 +622,11 @@ class KhqrPaymentService
 
             $subscription->forceFill([
                 'status' => 'active',
+                'price_paid' => $locked->amount, // snapshot — plan price may change later
                 'started_at' => $subscription->started_at ?? now(),
                 'expires_at' => $base->addDays($days),
+                'cancelled_at' => null,
+                'cancel_reason' => null,
                 'khqr_payment_id' => $locked->id,
             ])->save();
 
@@ -464,10 +642,17 @@ class KhqrPaymentService
                 }
             }
 
-            $locked->forceFill([
-                'status' => 'paid',
-                'paid_at' => now(),
-            ])->save();
+            $locked->transitionTo(PaymentStatus::Paid);
+            $locked->forceFill(['paid_at' => now()])->save();
+
+            // Actor is null here — activation runs from a webhook / poll / cron.
+            app(\App\Services\Audit\AuditLogger::class)->record('subscription.activated', $subscription, [
+                'transaction_id' => $locked->transaction_id,
+                'plan' => $subscription->plan?->slug,
+                'amount' => (float) $locked->amount,
+                'currency' => $locked->currency,
+                'expires_at' => $subscription->expires_at?->toIso8601String(),
+            ]);
         });
     }
 
@@ -513,7 +698,9 @@ class KhqrPaymentService
         $row->forceFill([
             'qr_url' => $this->demoQrImageUrl($row->transaction_id, $amount),
             'provider_ref' => 'DEMO-'.$row->transaction_id,
-        ])->save();
+        ]);
+        $row->transitionTo(PaymentStatus::QrGenerated);
+        $row->save();
 
         return $row;
     }

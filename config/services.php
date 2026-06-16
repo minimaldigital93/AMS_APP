@@ -49,7 +49,15 @@ return [
         // Demo mode: build a local example KHQR instead of calling the live API,
         // and auto-confirm the payment after a few seconds so the full flow is
         // demonstrable while the real KHQRPay endpoint/signing is pending.
-        'demo' => (bool) env('KHQRPAY_DEMO', false),
+        // Hard-disabled in production so it can never auto-confirm real money.
+        'demo' => (bool) env('KHQRPAY_DEMO', false) && env('APP_ENV') !== 'production',
+        // Max age (seconds) of a webhook's req_time before it's rejected as a replay.
+        'webhook_tolerance' => (int) env('KHQRPAY_WEBHOOK_TOLERANCE', 600),
+        // Min seconds between live verify() calls for the same transaction — caps
+        // how hard the public status poll can hammer the provider.
+        'verify_cooldown' => (int) env('KHQRPAY_VERIFY_COOLDOWN', 4),
+        // Minutes a minted QR stays payable before it's considered expired.
+        'qr_ttl' => (int) env('KHQRPAY_QR_TTL', 30),
     ],
 
 ];

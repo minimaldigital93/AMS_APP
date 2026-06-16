@@ -36,7 +36,7 @@ it('creates a pending account + subscription and redirects to checkout on signup
 
     $payment = KhqrPayment::where('subscription_id', $sub->id)->first();
     expect($payment)->not->toBeNull();
-    $response->assertRedirect(route('subscribe.checkout', $payment->transaction_id));
+    $response->assertRedirect(route('subscribe.checkout', $payment->public_token));
 });
 
 it('does not 500 when KHQRPay fails during signup — rolls back and shows an error', function () {
