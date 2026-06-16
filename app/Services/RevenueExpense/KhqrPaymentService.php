@@ -110,7 +110,9 @@ class KhqrPaymentService
         // — fail fast with a clear message the entry points already catch, so the
         // signup/billing pages show "payment unavailable" instead of a 500.
         if (! config('services.khqrpay.demo') && ! KhqrCredentials::platform()->isConfigured()) {
-            throw new \RuntimeException('KHQRPay platform credentials are not configured.');
+            throw new \App\Exceptions\KhqrPlatformCredentialsMissingException(
+                __('messages.khqr_payment_settings_missing')
+            );
         }
 
         // Avoid double-payment: clicking "renew" repeatedly must not leave several

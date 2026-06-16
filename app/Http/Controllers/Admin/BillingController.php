@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Exceptions\KhqrPlatformCredentialsMissingException;
 use App\Models\KhqrPayment;
 use App\Models\Plan;
 use App\Models\Subscription;
@@ -48,6 +49,10 @@ class BillingController extends Controller
 
         try {
             $row = $khqr->createSubscriptionQr($subscription, (float) $plan->price_usd);
+        } catch (KhqrPlatformCredentialsMissingException $e) {
+            report($e);
+
+            return back()->with('error', $e->getMessage());
         } catch (\Throwable $e) {
             // Don't 500 the billing page when KHQRPay is down / misconfigured.
             report($e);

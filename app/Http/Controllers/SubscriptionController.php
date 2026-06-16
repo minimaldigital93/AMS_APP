@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Exceptions\KhqrPlatformCredentialsMissingException;
 use App\Models\KhqrPayment;
 use App\Models\Plan;
 use App\Models\Subscription;
@@ -89,6 +90,10 @@ class SubscriptionController extends Controller
 
                 return $khqr->createSubscriptionQr($subscription, (float) $plan->price_usd);
             });
+        } catch (KhqrPlatformCredentialsMissingException $e) {
+            report($e);
+
+            return back()->withInput()->with('error', $e->getMessage());
         } catch (\Throwable $e) {
             // A KHQRPay outage / misconfiguration must not 500 the public signup
             // page — roll back (the transaction already did) and show a friendly

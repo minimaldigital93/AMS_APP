@@ -77,7 +77,7 @@ it('does not 500 (or call the gateway) when platform KHQRPay credentials are not
     ]);
 
     $response->assertRedirect();           // friendly redirect, NOT a 500
-    $response->assertSessionHas('error');
+    $response->assertSessionHas('error', __('messages.khqr_payment_settings_missing'));
 
     Http::assertNothingSent();             // never reached the gateway
     expect(User::where('phone', '0999000444')->exists())->toBeFalse();
