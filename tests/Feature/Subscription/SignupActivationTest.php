@@ -61,6 +61,29 @@ it('does not 500 when KHQRPay fails during signup — rolls back and shows an er
     expect(Subscription::count())->toBe(0);
 });
 
+it('does not 500 (or call the gateway) when platform KHQRPay credentials are not configured', function () {
+    // Cleared / never-configured state: no DB row, blank env credentials.
+    config(['services.khqrpay.demo' => false, 'services.khqrpay.profile_id' => '', 'services.khqrpay.secret' => '']);
+
+    // The fallback guard must short-circuit BEFORE any HTTP call is attempted.
+    Http::fake(['khqr.cc/*' => Http::response('Not Found', 404)]);
+
+    $response = $this->post(route('subscribe.store'), [
+        'name' => 'No Creds Owner',
+        'phone' => '0999000444',
+        'password' => 'password123',
+        'password_confirmation' => 'password123',
+        'plan' => 'pro',
+    ]);
+
+    $response->assertRedirect();           // friendly redirect, NOT a 500
+    $response->assertSessionHas('error');
+
+    Http::assertNothingSent();             // never reached the gateway
+    expect(User::where('phone', '0999000444')->exists())->toBeFalse();
+    expect(Subscription::count())->toBe(0);
+});
+
 it('activates the subscription and promotes the account to admin on payment', function () {
     $user = User::factory()->create(['phone' => '0999000222', 'status' => 'inactive']);
     $user->forceFill(['account_id' => $user->id])->save();

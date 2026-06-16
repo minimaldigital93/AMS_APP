@@ -13,7 +13,7 @@ function makeSuperadminUser(): User
     return $user;
 }
 
-it('lets the superadmin save platform payment settings with an encrypted secret', function () {
+it('lets the superadmin save platform KHQRPay credentials with an encrypted secret', function () {
     $superadmin = makeSuperadminUser();
 
     $this->actingAs($superadmin)
@@ -39,10 +39,11 @@ it('lets the superadmin save platform payment settings with an encrypted secret'
 
 it('keeps the existing secret when the field is left blank on update', function () {
     $superadmin = makeSuperadminUser();
-    PlatformPaymentSetting::create(['khqrpay_secret' => 'keep-me', 'currency' => 'USD']);
+    PlatformPaymentSetting::create(['khqrpay_profile_id' => 'keep-profile', 'khqrpay_secret' => 'keep-me', 'currency' => 'USD']);
 
     $this->actingAs($superadmin)
         ->put(route('superadmin.settings.payment.update'), [
+            'khqrpay_profile_id' => 'keep-profile',
             'khqrpay_secret' => '',
             'currency' => 'USD',
         ])

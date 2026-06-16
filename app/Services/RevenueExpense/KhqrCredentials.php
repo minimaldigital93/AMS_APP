@@ -48,4 +48,16 @@ final readonly class KhqrCredentials
             currency: (string) ($settings->currency ?: 'USD'),
         );
     }
+
+    /**
+     * True only when this context can actually sign a live request. A blank
+     * profile id / secret (the unconfigured or freshly-cleared state) would hit
+     * the gateway with empty credentials and 404/403 — callers check this first
+     * so a missing credential becomes a friendly "not configured" message, never
+     * a route 500.
+     */
+    public function isConfigured(): bool
+    {
+        return filled($this->profileId) && filled($this->secret) && filled($this->baseUrl);
+    }
 }

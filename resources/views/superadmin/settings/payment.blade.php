@@ -3,7 +3,11 @@
 @section('content')
 <div class="mx-auto max-w-3xl">
     <h1 class="text-2xl font-bold text-gray-900">{{ __('Payment Settings') }}</h1>
-    <p class="mt-1 text-sm text-gray-500">{{ __('Where subscription payments from your landlords settle. Register your KHQRPay merchant details below — no server or developer setup needed.') }}</p>
+    <p class="mt-1 text-sm text-gray-500">{{ __('Your KHQRPay credentials for subscription payments. Enter the Profile ID and Secret from your khqr.cc dashboard — no server or developer setup needed.') }}</p>
+
+    @if (session('success'))
+        <div class="mt-4 rounded-lg bg-emerald-50 border border-emerald-200 px-4 py-3 text-sm text-emerald-700">{{ session('success') }}</div>
+    @endif
 
     @if ($errors->any())
         <div class="mt-4 rounded-lg bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-600">
@@ -56,20 +60,6 @@
                         <option value="USD" @selected(old('currency', $settings?->currency ?? 'USD') === 'USD')>USD ($)</option>
                         <option value="KHR" @selected(old('currency', $settings?->currency) === 'KHR')>KHR (៛)</option>
                     </select>
-                </div>
-                <div>
-                    <label class="block text-sm font-medium text-gray-700">{{ __('Bakong Account ID') }}</label>
-                    <input type="text" name="bakong_account_id" value="{{ old('bakong_account_id', $settings?->bakong_account_id) }}"
-                        placeholder="name@bank"
-                        class="mt-1 w-full rounded-lg border-gray-300 text-sm focus:border-indigo-500 focus:ring-indigo-500">
-                    <p class="mt-1 text-xs text-gray-400">{{ __('Used to render demo & fallback KHQR codes.') }}</p>
-                </div>
-                <div>
-                    <label class="block text-sm font-medium text-gray-700">{{ __('Merchant Name') }}</label>
-                    <input type="text" name="merchant_name" value="{{ old('merchant_name', $settings?->merchant_name) }}"
-                        placeholder="{{ config('app.name') }}"
-                        class="mt-1 w-full rounded-lg border-gray-300 text-sm focus:border-indigo-500 focus:ring-indigo-500">
-                    <p class="mt-1 text-xs text-gray-400">{{ __('Shown on the generated QR (max 25 chars).') }}</p>
                 </div>
             </div>
 

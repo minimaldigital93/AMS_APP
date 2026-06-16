@@ -517,8 +517,7 @@
       "Bash(gh pr create --base main --head fix/khqr-verify-auto-confirm --title 'Fix KHQR verify\\(\\) auto-confirming unpaid payments' --body ' *)",
       "Bash(/opt/homebrew/bin/gh --version)",
       "Bash(/opt/homebrew/bin/gh auth *)",
-      "Bash(GIT_EDITOR=true git rebase --continue)",
-      "Bash(echo \"---EXIT: $?---\")"
+      "Bash(awk -F= '/^KHQRPAY_PROFILE_ID=/{p=$2} /^KHQRPAY_SECRET=/{s=$2} END{print \"profile_len=\"length\\(p\\)\" secret_len=\"length\\(s\\); print \"same_value=\"\\(p==s ? \"YES — profile_id and secret are identical \\(misconfig\\)\" : \"no\"\\)}' .env)"
     ],
     "additionalDirectories": [
       "/Users/sarotmoniodom/AMS_APP",

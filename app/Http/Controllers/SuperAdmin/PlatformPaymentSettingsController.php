@@ -9,13 +9,11 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 
 /**
- * The platform operator's payment destination for SUBSCRIPTION payments
- * (Flow A): the KHQRPay (khqr.cc) API credentials — profile ID, secret,
- * currency, plus the Bakong account ID / merchant name used to render demo &
- * fallback QRs — all self-service, no .env edit needed. These are the ONLY
- * source for those credentials (KhqrCredentials::platform() reads them straight
- * from here, not from .env); the stored secret is never rendered back — leaving
- * the field blank keeps the existing one.
+ * The platform operator's KHQRPay credentials for SUBSCRIPTION payments
+ * (Flow A): just the Profile ID + Secret from the khqr.cc dashboard, plus the
+ * settlement currency — self-service, no .env edit needed. Non-blank values
+ * override config/services.khqrpay (see KhqrCredentials::platform()); the stored
+ * secret is never rendered back — leaving the field blank keeps the existing one.
  */
 class PlatformPaymentSettingsController extends Controller
 {
@@ -35,8 +33,6 @@ class PlatformPaymentSettingsController extends Controller
         $validated = $request->validate([
             'khqrpay_profile_id' => ['nullable', 'string', 'max:255'],
             'khqrpay_secret' => ['nullable', 'string', 'max:255'],
-            'bakong_account_id' => ['nullable', 'string', 'max:255'],
-            'merchant_name' => ['nullable', 'string', 'max:255'],
             'currency' => ['required', 'in:USD,KHR'],
         ]);
 
@@ -44,8 +40,6 @@ class PlatformPaymentSettingsController extends Controller
 
         $settings->fill([
             'khqrpay_profile_id' => $validated['khqrpay_profile_id'] ?? null,
-            'bakong_account_id' => $validated['bakong_account_id'] ?? null,
-            'merchant_name' => $validated['merchant_name'] ?? null,
             'currency' => $validated['currency'],
         ]);
 

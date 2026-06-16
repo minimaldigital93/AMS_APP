@@ -105,6 +105,14 @@ class KhqrPaymentService
      */
     public function createSubscriptionQr(Subscription $subscription, float $amount): KhqrPayment
     {
+        // Fallback guard: with no platform KHQRPay credentials configured (the
+        // cleared / unconfigured state), don't call the gateway with empty creds
+        // — fail fast with a clear message the entry points already catch, so the
+        // signup/billing pages show "payment unavailable" instead of a 500.
+        if (! config('services.khqrpay.demo') && ! KhqrCredentials::platform()->isConfigured()) {
+            throw new \RuntimeException('KHQRPay platform credentials are not configured.');
+        }
+
         // Avoid double-payment: clicking "renew" repeatedly must not leave several
         // payable QRs for the same subscription. Reuse a live, unexpired QR for
         // the same amount (same plan); if the amount changed (plan switch), retire
