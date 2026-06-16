@@ -22,19 +22,15 @@ it('lets the superadmin save platform payment settings with an encrypted secret'
 
     $this->actingAs($superadmin)
         ->put(route('superadmin.settings.payment.update'), [
-            'bank_name' => 'ABA Bank',
-            'bank_account_name' => 'Platform Owner',
-            'bank_account_number' => '999-888-777',
             'khqrpay_profile_id' => 'platform-profile',
             'khqrpay_secret' => 'super-secret-key',
-            'bakong_account_id' => 'owner@aba',
-            'merchant_name' => 'AMS Platform',
             'currency' => 'USD',
         ])
         ->assertRedirect(route('superadmin.settings.payment'));
 
     $row = PlatformPaymentSetting::current();
-    expect($row->bank_name)->toBe('ABA Bank');
+    expect($row->khqrpay_profile_id)->toBe('platform-profile');
+    expect($row->currency)->toBe('USD');
     expect($row->khqrpay_secret)->toBe('super-secret-key'); // decrypts via cast
     // Raw DB value must NOT be plaintext.
     $raw = \DB::table('platform_payment_settings')->value('khqrpay_secret');
@@ -47,7 +43,6 @@ it('keeps the existing secret when the field is left blank on update', function 
 
     $this->actingAs($superadmin)
         ->put(route('superadmin.settings.payment.update'), [
-            'bank_name' => 'New Bank',
             'khqrpay_secret' => '',
             'currency' => 'USD',
         ])
@@ -65,17 +60,18 @@ it('blocks non-superadmins from the platform payment settings', function () {
         ->assertForbidden();
 });
 
-it('platform credentials prefer the DB row and fall back to config when blank', function () {
+it('platform credentials come only from the superadmin settings, never .env', function () {
+    // Even with .env/config values present, the platform flow must ignore them.
     config()->set('services.khqrpay.profile_id', 'env-profile');
     config()->set('services.khqrpay.secret', 'env-secret');
     config()->set('services.khqrpay.currency', 'USD');
 
-    // No DB row → pure env.
+    // No DB row → nothing configured (no .env fallback).
     $creds = KhqrCredentials::platform();
-    expect($creds->profileId)->toBe('env-profile');
-    expect($creds->secret)->toBe('env-secret');
+    expect($creds->profileId)->toBe('');
+    expect($creds->secret)->toBe('');
 
-    // DB row overrides profile/currency but its blank secret falls back to env.
+    // Values come straight from the DB row; a blank secret stays blank.
     PlatformPaymentSetting::create([
         'khqrpay_profile_id' => 'db-profile',
         'currency' => 'KHR',
@@ -83,6 +79,6 @@ it('platform credentials prefer the DB row and fall back to config when blank', 
 
     $creds = KhqrCredentials::platform();
     expect($creds->profileId)->toBe('db-profile');
-    expect($creds->secret)->toBe('env-secret');
+    expect($creds->secret)->toBe('');
     expect($creds->currency)->toBe('KHR');
 });
