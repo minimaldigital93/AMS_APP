@@ -150,7 +150,11 @@ class KhqrPaymentService
             'amount' => $row->amount,
         ]);
 
-        $response = Http::asForm()->acceptJson()->post($endpoint, $params);
+        // Retry a couple of times on transient upstream blips (khqr.cc sits behind
+        // Cloudflare and occasionally returns a momentary 502/503 while minting).
+        $response = Http::asForm()->acceptJson()
+            ->retry(3, 300, throw: false)
+            ->post($endpoint, $params);
 
         // Capture response body for diagnosis (safe to log; no secret in response)
         $responseBody = $response->body();
@@ -234,17 +238,17 @@ class KhqrPaymentService
             return false;
         }
 
-        // Use the KHQRPay documented transaction-verify endpoint and profile hash.
-        // POST https://{baseUrl}/api/{profileId}/payment-gateway/v1/payments/check-trans
+        // KHQRPay "Check Transaction V2" endpoint (fast confirmation with Bakong
+        // fallback). POST https://{baseUrl}/api/{profileId}/payment-gateway/v1/payments/check-transv2-khqrcc
         $endpoint = rtrim($creds->baseUrl, '/')
-            .'/api/' . $creds->profileId
-            .'/payment-gateway/v1/payments/check-trans';
+            .'/api/'.$creds->profileId
+            .'/payment-gateway/v1/payments/check-transv2-khqrcc';
 
         $params = [
             'transaction_id' => $row->transaction_id,
         ];
         // KHQRPay expects sha1(profile_key . transaction_id)
-        $params['hash'] = sha1($creds->secret . $row->transaction_id);
+        $params['hash'] = sha1($creds->secret.$row->transaction_id);
 
         try {
             $response = Http::asForm()->acceptJson()->post($endpoint, $params);
@@ -260,12 +264,13 @@ class KhqrPaymentService
 
         $data = $response->json() ?? [];
 
-        // TODO(khqrpay): confirm the "paid" shape. Common signals below.
-        return (bool) (
-            ($data['verified'] ?? false) === true
-            || in_array(strtoupper((string) ($data['status'] ?? '')), ['COMPLETED', 'PAID', 'SUCCESS'], true)
-            || (int) ($data['responseCode'] ?? -1) === 0
-        );
+        // KHQRPay check-trans v2 envelope: { responseCode, data: { status, amount } }.
+        // responseCode == 0 only means the REQUEST succeeded — a pending QR also
+        // returns 0 with data.status == "pending". The payment is confirmed ONLY
+        // when data.status == "success"; never treat the envelope code alone as
+        // paid or we'd book unpaid rent the instant a QR is generated.
+        return (int) ($data['responseCode'] ?? -1) === 0
+            && strtolower((string) ($data['data']['status'] ?? '')) === 'success';
     }
 
     /**

@@ -70,24 +70,33 @@ class SubscriptionController extends Controller
                 ->with('status', __('messages.flash_trial_started', ['days' => $plan->trial_days]));
         }
 
-        $row = DB::transaction(function () use ($validated, $plan, $khqr) {
-            $user = User::create([
-                'name' => $validated['name'],
-                'phone' => $validated['phone'],
-                'password' => Hash::make($validated['password']),
-                'status' => 'inactive',
-            ]);
-            // An account owner points at itself.
-            $user->forceFill(['account_id' => $user->id])->save();
+        try {
+            $row = DB::transaction(function () use ($validated, $plan, $khqr) {
+                $user = User::create([
+                    'name' => $validated['name'],
+                    'phone' => $validated['phone'],
+                    'password' => Hash::make($validated['password']),
+                    'status' => 'inactive',
+                ]);
+                // An account owner points at itself.
+                $user->forceFill(['account_id' => $user->id])->save();
 
-            $subscription = Subscription::create([
-                'account_id' => $user->id,
-                'plan_id' => $plan->id,
-                'status' => 'pending',
-            ]);
+                $subscription = Subscription::create([
+                    'account_id' => $user->id,
+                    'plan_id' => $plan->id,
+                    'status' => 'pending',
+                ]);
 
-            return $khqr->createSubscriptionQr($subscription, (float) $plan->price_usd);
-        });
+                return $khqr->createSubscriptionQr($subscription, (float) $plan->price_usd);
+            });
+        } catch (\Throwable $e) {
+            // QR minting failed (e.g. provider 502) — the transaction rolled back,
+            // so no orphan user/subscription was left. Surface a friendly message
+            // instead of a raw 500 and let the visitor retry.
+            report($e);
+
+            return back()->withInput()->with('error', __('messages.khqr_payment_unavailable'));
+        }
 
         return redirect()->route('subscribe.checkout', $row->transaction_id);
     }

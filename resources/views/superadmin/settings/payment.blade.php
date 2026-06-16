@@ -34,9 +34,19 @@
                         class="mt-1 w-full rounded-lg border-gray-300 text-sm focus:border-indigo-500 focus:ring-indigo-500">
                 </div>
                 <div>
-                    <label class="block text-sm font-medium text-gray-700">{{ __('Secret Key') }}</label>
+                    <label class="flex items-center gap-2 text-sm font-medium text-gray-700">
+                        {{ __('Secret Key') }}
+                        @if ($secretConfigured)
+                            <span class="inline-flex items-center gap-1 rounded-full border border-green-200 bg-green-50 px-2 py-0.5 text-xs font-medium text-green-700">
+                                <svg class="h-3 w-3" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                                    <path fill-rule="evenodd" d="M16.704 4.153a.75.75 0 0 1 .143 1.052l-8 10.5a.75.75 0 0 1-1.127.075l-4.5-4.5a.75.75 0 0 1 1.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 0 1 1.05-.143Z" clip-rule="evenodd" />
+                                </svg>
+                                {{ __('Configured') }}
+                            </span>
+                        @endif
+                    </label>
                     <input type="password" name="khqrpay_secret" value="" autocomplete="new-password"
-                        placeholder="{{ $secretConfigured ? '••••••••  ('.__('configured').')' : '' }}"
+                        placeholder="{{ $secretConfigured ? '••••••••' : '' }}"
                         class="mt-1 w-full rounded-lg border-gray-300 text-sm focus:border-indigo-500 focus:ring-indigo-500">
                     <p class="mt-1 text-xs text-gray-400">{{ __('Leave blank to keep the current secret.') }}</p>
                 </div>
@@ -46,6 +56,20 @@
                         <option value="USD" @selected(old('currency', $settings?->currency ?? 'USD') === 'USD')>USD ($)</option>
                         <option value="KHR" @selected(old('currency', $settings?->currency) === 'KHR')>KHR (៛)</option>
                     </select>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700">{{ __('Bakong Account ID') }}</label>
+                    <input type="text" name="bakong_account_id" value="{{ old('bakong_account_id', $settings?->bakong_account_id) }}"
+                        placeholder="name@bank"
+                        class="mt-1 w-full rounded-lg border-gray-300 text-sm focus:border-indigo-500 focus:ring-indigo-500">
+                    <p class="mt-1 text-xs text-gray-400">{{ __('Used to render demo & fallback KHQR codes.') }}</p>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700">{{ __('Merchant Name') }}</label>
+                    <input type="text" name="merchant_name" value="{{ old('merchant_name', $settings?->merchant_name) }}"
+                        placeholder="{{ config('app.name') }}"
+                        class="mt-1 w-full rounded-lg border-gray-300 text-sm focus:border-indigo-500 focus:ring-indigo-500">
+                    <p class="mt-1 text-xs text-gray-400">{{ __('Shown on the generated QR (max 25 chars).') }}</p>
                 </div>
             </div>
 

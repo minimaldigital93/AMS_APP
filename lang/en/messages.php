@@ -1088,6 +1088,7 @@ return [
     'khqrpay_webhook_url_hint' => 'Paste this into the "Global Webhook URL" field of your khqr.cc profile so paid rents are confirmed automatically.',
     'payment_settings_saved' => 'Payment settings saved.',
     'khqr_payment_settings_missing' => 'KHQR is not set up. Add your bank details or KHQR image in Settings → Payment Settings first.',
+    'khqr_payment_unavailable' => 'The payment service is temporarily unavailable. Please try again in a moment.',
 
     // Manual KHQR channel
     'khqr_manual_confirm_hint' => 'After the tenant pays, check your banking app, then confirm below.',
