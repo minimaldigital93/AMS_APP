@@ -3,6 +3,7 @@
 use App\Models\KhqrPayment;
 use App\Models\PaymentWebhook;
 use App\Models\Plan;
+use App\Models\PlatformPaymentSetting;
 use App\Models\Subscription;
 use App\Models\User;
 
@@ -12,6 +13,15 @@ beforeEach(function () {
     config()->set('services.khqrpay.secret', 'test-secret');
     config()->set('services.khqrpay.currency', 'USD');
     config()->set('services.khqrpay.demo', false);
+
+    // Platform KHQRPay credentials now live solely in the DB (superadmin panel),
+    // not .env — the inbound webhook signature is verified against this secret.
+    PlatformPaymentSetting::create([
+        'khqrpay_profile_id' => 'profile123',
+        'khqrpay_secret' => 'test-secret',
+        'currency' => 'USD',
+    ]);
+
     seedRoles();
 
     $this->plan = Plan::create([
