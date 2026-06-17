@@ -277,7 +277,7 @@ Route::middleware(['auth', 'role:admin|superadmin', 'subscription.active'])->gro
 // Supervisor Management Routes
 // Gated to supervisor, but admin/superadmin (the supervisor's account owner and the
 // platform owner) may also enter the supervisor panel to view/preview it.
-Route::middleware(['auth', 'role:supervisor|admin|superadmin'])->prefix('supervisor')->group(function () {
+Route::middleware(['auth', 'role:supervisor|admin|superadmin', 'subscription.active'])->prefix('supervisor')->group(function () {
     // Tenant Management
     Route::get('/tenants', [SupervisorTenantController::class, 'index'])->name('supervisor.tenants.index');
     Route::get('/tenants/create', [SupervisorTenantController::class, 'create'])->name('supervisor.tenants.create');

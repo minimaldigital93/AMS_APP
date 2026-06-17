@@ -20,7 +20,8 @@ it('redirects admin to fiscal-period create when no open period exists', functio
 it('lets supervisor through when an admin has an open period', function () {
     $admin = makeAdmin();
     makeFiscalPeriod($admin);
-    $supervisor = makeSupervisor();
+    // Supervisors belong to their admin's account (subscription.active gates them).
+    $supervisor = makeSupervisor(['account_id' => $admin->id]);
 
     $this->actingAs($supervisor)
         ->get(route('supervisor.revenue_expense.index'))
@@ -28,8 +29,8 @@ it('lets supervisor through when an admin has an open period', function () {
 });
 
 it('redirects supervisor to supervisor dashboard (not admin create) when no admin period is open', function () {
-    $supervisor = makeSupervisor();
-    makeAdmin(); // exists but has no open period
+    $admin = makeAdmin(); // subscribed, but has no open period
+    $supervisor = makeSupervisor(['account_id' => $admin->id]);
 
     $this->actingAs($supervisor)
         ->get(route('supervisor.revenue_expense.index'))
@@ -42,7 +43,7 @@ it('does not bounce supervisor through their own user_id check', function () {
     // regression to the old `where('user_id', Auth::id())` behaviour.
     $admin = makeAdmin();
     makeFiscalPeriod($admin);
-    $supervisor = makeSupervisor();
+    $supervisor = makeSupervisor(['account_id' => $admin->id]);
 
     $this->actingAs($supervisor)
         ->get(route('supervisor.revenue_expense.record_income'))

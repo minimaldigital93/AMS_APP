@@ -2,8 +2,10 @@
 
 namespace App\Providers;
 
+use App\Models\Subscription;
 use App\Services\NotificationService;
 use App\Services\Payment\PaymentManager;
+use App\Services\Subscription\SubscriptionService;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\URL;
 use Illuminate\Support\Facades\View;
@@ -40,6 +42,32 @@ class AppServiceProvider extends ServiceProvider
                 }
             }
             $view->with('topbarNotifications', $items);
+        });
+
+        // The subscription-expired blocking modal: mirrors EnsureSubscriptionActive
+        // (an admin — never a superadmin — with no active subscription is locked
+        // out). Resolves which plan to re-pay so the modal can mint a fresh QR.
+        View::composer('partials.subscription-block', function ($view) {
+            $blocked = false;
+            $plan = null;
+
+            try {
+                $user = Auth::user();
+                if ($user && $user->hasRole('admin') && ! $user->hasRole('superadmin')) {
+                    $accountId = $user->account_id ?? $user->id;
+                    if (app(SubscriptionService::class)->activeSubscription($accountId) === null) {
+                        $blocked = true;
+                        $plan = Subscription::where('account_id', $accountId)
+                            ->with('plan')->latest('id')->first()?->plan;
+                    }
+                }
+            } catch (\Throwable $e) {
+                // Never let the gate-modal computation break a page render.
+                $blocked = false;
+            }
+
+            $view->with('subscriptionBlocked', $blocked);
+            $view->with('subscriptionRenewPlan', $plan);
         });
     }
 }

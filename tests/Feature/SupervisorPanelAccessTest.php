@@ -40,6 +40,7 @@ const ALL_PAGES = [
 
 it('still lets a supervisor in (no regression)', function () {
     $admin = makeOwner('admin');
+    giveActiveSubscription($admin); // the account must be subscribed (subscription.active gate)
     $sup = User::factory()->create(['status' => 'active', 'account_id' => $admin->id]);
     $sup->assignRole('supervisor');
 
@@ -54,6 +55,7 @@ it('still lets a supervisor in (no regression)', function () {
 
 it('now lets an admin into the supervisor panel (no 403)', function () {
     $admin = makeOwner('admin');
+    giveActiveSubscription($admin);
     makeFiscalPeriod($admin);
 
     $this->actingAs($admin);
@@ -84,4 +86,24 @@ it('still blocks a tenant from the supervisor panel (403)', function () {
 
     $this->actingAs($tenant);
     expect($this->get('/supervisor/dashboard')->getStatusCode())->toBe(403);
+});
+
+it('blocks a supervisor whose account has no active subscription', function () {
+    $admin = makeOwner('admin'); // no subscription
+    $sup = User::factory()->create(['status' => 'active', 'account_id' => $admin->id]);
+    $sup->assignRole('supervisor');
+
+    // Gated supervisor pages bounce to the (ungated) supervisor dashboard — the
+    // supervisor can't renew, so they're told to ask the account owner.
+    $this->actingAs($sup)
+        ->get('/supervisor/apartments')
+        ->assertRedirect(route('supervisor.dashboard'));
+});
+
+it('bounces a lapsed admin previewing the supervisor panel to billing', function () {
+    $admin = makeOwner('admin'); // no subscription
+
+    $this->actingAs($admin)
+        ->get('/supervisor/apartments')
+        ->assertRedirect(route('admin.billing.index'));
 });
