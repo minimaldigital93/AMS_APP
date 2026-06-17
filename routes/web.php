@@ -211,9 +211,6 @@ Route::middleware(['auth', 'role:admin|superadmin', 'subscription.active'])->gro
     Route::get('/admin/settings/payment', [\App\Http\Controllers\Admin\PaymentSettingsController::class, 'edit'])->name('admin.settings.payment');
     Route::put('/admin/settings/payment', [\App\Http\Controllers\Admin\PaymentSettingsController::class, 'update'])->name('admin.settings.payment.update');
 
-    // Manual KHQR payments awaiting the landlord's confirmation
-    Route::get('/admin/payments/manual-pending', [\App\Http\Controllers\Admin\ManualPaymentReviewController::class, 'index'])->name('admin.payments.manual.index');
-
     // System Settings Routes
     Route::get('/admin/settings', [SettingsController::class, 'index'])->name('admin.settings.index');
     Route::put('/admin/settings/batch', [SettingsController::class, 'updateBatch'])->name('admin.settings.updateBatch');

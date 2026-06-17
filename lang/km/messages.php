@@ -1097,9 +1097,6 @@ return [
     'khqr_manual_confirm_hint' => 'បន្ទាប់ពីអ្នកជួលបង់ប្រាក់ សូមពិនិត្យកម្មវិធីធនាគាររបស់អ្នក រួចបញ្ជាក់ខាងក្រោម។',
     'khqr_mark_received' => 'បញ្ជាក់ថាបានទទួល',
     'khqr_reject' => 'បដិសេធ',
-    'pending_khqr_payments' => 'ការទូទាត់ KHQR រង់ចាំការបញ្ជាក់',
-    'pending_khqr_payments_hint' => 'ការទូទាត់ KHQR ដែលរង់ចាំការបញ្ជាក់របស់អ្នក។ សូមពិនិត្យកម្មវិធីធនាគាររបស់អ្នកមុននឹងបញ្ជាក់។',
-    'no_pending_khqr_payments' => 'គ្មានការទូទាត់ KHQR រង់ចាំទេ។',
     'transaction' => 'ប្រតិបត្តិការ',
 
     // Trials

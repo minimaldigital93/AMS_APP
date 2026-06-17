@@ -625,16 +625,6 @@
                 <span class="nav-text truncate sidebar-label">{{ __('messages.payment_settings') }}</span>
             </a>
 
-            {{-- Pending KHQR confirmations --}}
-            <a href="{{ route('admin.payments.manual.index') }}" class="submenu-item nav-link flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm {{ request()->routeIs('admin.payments.manual.*') ? 'text-blue-700 active' : 'text-gray-700 hover:text-blue-700' }} transition-all sidebar-transition">
-                <span class="nav-icon sidebar-transition">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
-                </span>
-                <span class="nav-text truncate sidebar-label">{{ __('messages.pending_khqr_payments') }}</span>
-            </a>
-
             {{-- System Settings --}}
             <a href="{{ route('admin.settings.index') }}" class="submenu-item nav-link flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm {{ request()->routeIs('admin.settings.*') && ! request()->routeIs('admin.settings.payment*') ? 'text-blue-700 active' : 'text-gray-700 hover:text-blue-700' }} transition-all sidebar-transition">
                 <span class="nav-icon sidebar-transition">

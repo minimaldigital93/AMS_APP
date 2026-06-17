@@ -1097,9 +1097,6 @@ return [
     'khqr_manual_confirm_hint' => 'After the tenant pays, check your banking app, then confirm below.',
     'khqr_mark_received' => 'Mark as received',
     'khqr_reject' => 'Reject',
-    'pending_khqr_payments' => 'Pending KHQR Confirmations',
-    'pending_khqr_payments_hint' => 'KHQR payments waiting for your confirmation. Check your banking app before confirming.',
-    'no_pending_khqr_payments' => 'No pending KHQR payments.',
     'transaction' => 'Transaction',
 
     // Trials

@@ -26,7 +26,7 @@
         @method('PUT')
 
         <!-- KHQRPay API (auto-verified channel) -->
-        <div class="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm space-y-4" x-data="{ enabled: {{ old('khqrpay_enabled', $settings?->khqrpay_enabled) ? 'true' : 'false' }} }">
+        <div class="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm space-y-4">
             <div class="flex items-start justify-between gap-4">
                 <div>
                     <h2 class="text-lg font-semibold text-gray-900">{{ __('messages.khqrpay_api') }}</h2>
@@ -34,13 +34,13 @@
                 </div>
                 <label class="inline-flex items-center gap-2 shrink-0 text-sm font-medium text-gray-700">
                     <input type="hidden" name="khqrpay_enabled" value="0">
-                    <input type="checkbox" name="khqrpay_enabled" value="1" x-model="enabled"
+                    <input type="checkbox" name="khqrpay_enabled" value="1" @checked(old('khqrpay_enabled', $settings?->khqrpay_enabled))
                         class="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500">
                     {{ __('messages.enabled') }}
                 </label>
             </div>
 
-            <div x-show="enabled" x-cloak class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                     <label class="block text-sm font-medium text-gray-700">{{ __('messages.khqrpay_profile_id') }}</label>
                     <input type="text" name="khqrpay_profile_id" value="{{ old('khqrpay_profile_id', $settings?->khqrpay_profile_id) }}"
@@ -69,7 +69,7 @@
                 </div>
             </div>
 
-            <div x-show="enabled" x-cloak class="rounded-lg bg-gray-50 border border-gray-200 px-4 py-3">
+            <div class="rounded-lg bg-gray-50 border border-gray-200 px-4 py-3">
                 <label class="block text-xs font-medium text-gray-700">{{ __('messages.khqrpay_webhook_url') }}</label>
                 <p class="text-xs text-gray-400">{{ __('messages.khqrpay_webhook_url_hint') }}</p>
                 <code class="mt-1 block break-all rounded bg-white border border-gray-200 px-2 py-1 text-xs text-indigo-700">{{ route('khqr.callback') }}</code>
