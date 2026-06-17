@@ -95,6 +95,7 @@ trait HandlesKhqrCheckout
             'qr_url' => $row->qr_url,
             'channel' => $row->channel,
             'status_url' => route($this->khqrRoutePrefix().'.khqr_status', $row->transaction_id),
+            'expires_at' => $row->expires_at?->toIso8601String(),
         ];
 
         if ($row->channel === 'manual') {

@@ -8,7 +8,8 @@
     @endif
 
     <form method="POST" action="{{ route('subscribe.store') }}"
-          x-data="{ plan: '{{ $selected->slug }}', trials: {{ \Illuminate\Support\Js::from($plans->pluck('trial_days', 'slug')) }} }">
+          x-data="{ plan: '{{ $selected->slug }}', trials: {{ \Illuminate\Support\Js::from($plans->pluck('trial_days', 'slug')) }}, submitting: false }"
+          @submit="submitting ? $event.preventDefault() : (submitting = true)">
         @csrf
 
         <!-- Plan picker -->
@@ -63,13 +64,25 @@
             <a class="text-sm text-white/80 underline hover:text-white" href="{{ route('login') }}">
                 {{ __('Already registered?') }}
             </a>
-            <x-primary-button class="login-btn rounded-xl">
-                {{ __('Continue to payment') }}
+            <x-primary-button class="login-btn rounded-xl" x-bind:disabled="submitting"
+                              x-bind:class="submitting ? 'opacity-60 cursor-not-allowed' : ''">
+                <span x-show="!submitting">{{ __('Continue to payment') }}</span>
+                <span x-show="submitting" x-cloak class="flex items-center gap-2">
+                    <svg class="h-4 w-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 0 1 8-8v4a4 4 0 0 0-4 4H4z"/>
+                    </svg>
+                    {{ __('Please wait…') }}
+                </span>
             </x-primary-button>
         </div>
 
         <!-- Free trial (only for plans that offer one) -->
+        {{-- Not disabled on submit: a disabled submit button is dropped from the
+             form data set, which would strip start_trial=1. The form's @submit
+             re-entry guard blocks the double-submit instead; this is visual only. --}}
         <button type="submit" name="start_trial" value="1" x-show="(trials[plan] || 0) > 0" x-cloak
+            x-bind:class="submitting ? 'opacity-60 cursor-not-allowed pointer-events-none' : ''"
             class="mt-3 w-full rounded-xl border border-emerald-400/60 bg-emerald-500/20 py-2.5 text-sm font-semibold text-emerald-100 hover:bg-emerald-500/30 transition">
             {{ __('Start free trial') }} (<span x-text="trials[plan] || 0"></span> {{ __('days') }})
         </button>

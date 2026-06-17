@@ -36,7 +36,12 @@ it('creates a pending account + subscription and redirects to checkout on signup
 
     $payment = KhqrPayment::where('subscription_id', $sub->id)->first();
     expect($payment)->not->toBeNull();
-    $response->assertRedirect(route('subscribe.checkout', $payment->public_token));
+
+    // Signup redirects AWAY to the KHQRPay hosted-checkout URL; success_url points
+    // back at our local polling page (subscribe.checkout) for after the payment.
+    $location = $response->headers->get('Location');
+    expect($location)->toContain('/api/payment/request/');
+    expect($location)->toContain(urlencode(route('subscribe.checkout', $payment->public_token)));
 });
 
 it('does not 500 when KHQRPay fails during signup — rolls back and shows an error', function () {

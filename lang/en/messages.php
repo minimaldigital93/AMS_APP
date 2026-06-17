@@ -1093,6 +1093,16 @@ return [
     'khqr_payment_settings_missing' => 'KHQR is not set up. Add your bank details or KHQR image in Settings → Payment Settings first.',
     'khqr_payment_unavailable' => 'The payment service is temporarily unavailable. Please try again in a moment.',
 
+    // Checkout polling / fallback states
+    'payment_confirming_title' => 'Confirming your payment',
+    'payment_waiting' => 'Waiting for confirmation…',
+    'payment_received_redirecting' => 'Payment received! Redirecting…',
+    'payment_session_ended' => 'Payment not completed',
+    'payment_session_ended_hint' => 'This payment session has expired or could not be confirmed. No charge was made — you can safely try again.',
+    'payment_try_again' => 'Try again',
+    'payment_expires_in' => 'Expires in',
+    'subscription_cancelled' => 'Your subscription has been cancelled and will not renew.',
+
     // Manual KHQR channel
     'khqr_manual_confirm_hint' => 'After the tenant pays, check your banking app, then confirm below.',
     'khqr_mark_received' => 'Mark as received',

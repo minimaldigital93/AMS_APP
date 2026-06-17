@@ -2,8 +2,8 @@
 
 namespace App\Http\Controllers\Admin;
 
-use App\Http\Controllers\Controller;
 use App\Exceptions\KhqrPlatformCredentialsMissingException;
+use App\Http\Controllers\Controller;
 use App\Models\KhqrPayment;
 use App\Models\Plan;
 use App\Models\Subscription;
@@ -75,7 +75,7 @@ class BillingController extends Controller
             actor: $request->user(),
         );
 
-        return back()->with('success', __('Your subscription has been cancelled and will not renew.'));
+        return back()->with('success', __('messages.subscription_cancelled'));
     }
 
     public function checkout(string $token): View|RedirectResponse

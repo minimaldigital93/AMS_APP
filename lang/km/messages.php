@@ -1093,6 +1093,16 @@ return [
     'khqr_payment_settings_missing' => 'KHQR មិនទាន់បានកំណត់ទេ។ សូមបញ្ចូលព័ត៌មានធនាគារ ឬរូបភាព KHQR នៅ ការកំណត់ → ការកំណត់ការទូទាត់ ជាមុនសិន។',
     'khqr_payment_unavailable' => 'សេវាកម្មទូទាត់ប្រាក់មិនអាចប្រើបានជាបណ្ដោះអាសន្ន។ សូមព្យាយាមម្ដងទៀតក្នុងពេលបន្តិចទៀត។',
 
+    // Checkout polling / fallback states
+    'payment_confirming_title' => 'កំពុងបញ្ជាក់ការទូទាត់របស់អ្នក',
+    'payment_waiting' => 'កំពុងរង់ចាំការបញ្ជាក់…',
+    'payment_received_redirecting' => 'បានទទួលការទូទាត់! កំពុងបញ្ជូនបន្ត…',
+    'payment_session_ended' => 'ការទូទាត់មិនបានបញ្ចប់',
+    'payment_session_ended_hint' => 'វគ្គទូទាត់នេះបានផុតកំណត់ ឬមិនអាចបញ្ជាក់បានទេ។ មិនមានការគិតប្រាក់ទេ — អ្នកអាចព្យាយាមម្ដងទៀតដោយសុវត្ថិភាព។',
+    'payment_try_again' => 'ព្យាយាមម្ដងទៀត',
+    'payment_expires_in' => 'ផុតកំណត់ក្នុង',
+    'subscription_cancelled' => 'ការជាវរបស់អ្នកត្រូវបានបោះបង់ ហើយនឹងមិនបន្តឡើងវិញទេ។',
+
     // Manual KHQR channel
     'khqr_manual_confirm_hint' => 'បន្ទាប់ពីអ្នកជួលបង់ប្រាក់ សូមពិនិត្យកម្មវិធីធនាគាររបស់អ្នក រួចបញ្ជាក់ខាងក្រោម។',
     'khqr_mark_received' => 'បញ្ជាក់ថាបានទទួល',

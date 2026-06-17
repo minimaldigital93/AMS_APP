@@ -569,7 +569,7 @@
                     <!-- QR + waiting / manual confirmation -->
                     <template x-if="!khqrLoading && !khqrError && (khqrUrl || khqrChannel === 'manual')">
                         <div class="space-y-4">
-                            <div x-show="khqrUrl" class="inline-block p-3 bg-white border border-slate-200 rounded-2xl">
+                            <div x-show="khqrUrl && !khqrExpired" class="inline-block p-3 bg-white border border-slate-200 rounded-2xl">
                                 <img :src="khqrUrl" alt="KHQR" class="w-56 h-56 object-contain mx-auto">
                             </div>
 
@@ -592,9 +592,21 @@
                                 </div>
                             </template>
 
-                            <div x-show="khqrChannel === 'api' && !khqrPaid" class="flex items-center justify-center gap-2 text-amber-600 text-sm">
-                                <svg class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/></svg>
-                                {{ __('messages.waiting_for_payment') }}
+                            <div x-show="khqrChannel === 'api' && !khqrPaid && !khqrExpired" class="flex flex-col items-center gap-1">
+                                <div class="flex items-center justify-center gap-2 text-amber-600 text-sm">
+                                    <svg class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/></svg>
+                                    {{ __('messages.waiting_for_payment') }}
+                                </div>
+                                <p x-show="khqrCountdown" class="text-xs text-slate-400">{{ __('messages.payment_expires_in') }} <span class="font-medium tabular-nums" x-text="khqrCountdown"></span></p>
+                            </div>
+                            <!-- Expired / failed — friendly fallback, no infinite spinner -->
+                            <div x-show="khqrExpired" class="bg-amber-50 border border-amber-200 rounded-lg px-4 py-3 text-left space-y-2">
+                                <p class="text-sm font-semibold text-amber-800">{{ __('messages.payment_session_ended') }}</p>
+                                <p class="text-xs text-amber-700">{{ __('messages.payment_session_ended_hint') }}</p>
+                                <button type="button" @click="regenerateKhqr()"
+                                    class="w-full py-2 bg-amber-500 hover:bg-amber-600 text-white text-sm font-semibold rounded-lg transition">
+                                    {{ __('messages.payment_try_again') }}
+                                </button>
                             </div>
                             <div x-show="khqrPaid" class="flex flex-col items-center gap-2 text-emerald-600">
                                 <svg class="w-12 h-12" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/></svg>
@@ -684,6 +696,10 @@ function billingManager() {
         khqrBank: {},
         khqrConfirmUrl: '',
         khqrConfirming: false,
+        khqrExpired: false,
+        khqrForm: null,
+        khqrCountdown: '',
+        khqrCountdownTimer: null,
 
         matchesFilter(status, tenantName, aptNumber) {
             if (this.filter !== 'all' && status !== this.filter) return false;
@@ -776,6 +792,7 @@ function billingManager() {
 
         resetKhqr() {
             this.stopKhqrPoll();
+            this.stopKhqrCountdown();
             this.khqrActive = false;
             this.khqrLoading = false;
             this.khqrUrl = '';
@@ -787,6 +804,8 @@ function billingManager() {
             this.khqrBank = {};
             this.khqrConfirmUrl = '';
             this.khqrConfirming = false;
+            this.khqrExpired = false;
+            this.khqrCountdown = '';
         },
 
         closeCheckout() {
@@ -795,11 +814,14 @@ function billingManager() {
         },
 
         async generateKhqr(form) {
+            this.khqrForm = form;
             this.khqrError = '';
             this.khqrPaid = false;
+            this.khqrExpired = false;
             this.khqrUrl = '';
             this.khqrLoading = true;
             this.khqrActive = true;
+            this.stopKhqrCountdown();
             const csrf = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
             try {
                 const res = await fetch('{{ route('supervisor.revenue_expense.khqr_generate') }}', {
@@ -822,11 +844,16 @@ function billingManager() {
                 }
                 if (this.khqrChannel === 'api') {
                     this.startKhqrPoll();
+                    this.startKhqrCountdown(j.expires_at);
                 }
             } catch (err) {
                 this.khqrLoading = false;
                 this.khqrError = err.message || 'Failed to generate KHQR.';
             }
+        },
+
+        regenerateKhqr() {
+            if (this.khqrForm) this.generateKhqr(this.khqrForm);
         },
 
         // Manual channel: the landlord checks their banking app, then confirms.
@@ -864,18 +891,52 @@ function billingManager() {
 
         async checkKhqr() {
             if (!this.khqrStatusUrl) return;
+            // Open states the gateway may still advance to "paid".
+            const OPEN = ['pending', 'qr_generated', 'waiting_payment'];
             try {
                 const res = await fetch(this.khqrStatusUrl, {
                     headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' }
                 });
+                if (!res.ok) return; // transient server hiccup — keep polling
                 const j = await res.json().catch(() => ({}));
                 if (j.paid) {
                     this.khqrPaid = true;
                     this.stopKhqrPoll();
+                    this.stopKhqrCountdown();
                     this.printBill(this.checkoutRentalId);
                     setTimeout(() => window.location.reload(), 1300);
+                    return;
+                }
+                // Anything neither paid nor still open is terminal (expired /
+                // failed / cancelled) — stop and offer a fresh QR instead of
+                // spinning "waiting for payment" forever.
+                if (j.status && !OPEN.includes(j.status)) {
+                    this.stopKhqrPoll();
+                    this.stopKhqrCountdown();
+                    this.khqrExpired = true;
+                    this.khqrCountdown = '';
                 }
             } catch (e) { /* keep polling */ }
+        },
+
+        // Live countdown to the QR's expiry, so the payer knows their window.
+        startKhqrCountdown(expiresAt) {
+            this.stopKhqrCountdown();
+            const deadline = expiresAt ? Date.parse(expiresAt) : NaN;
+            if (isNaN(deadline)) { this.khqrCountdown = ''; return; }
+            const tick = () => {
+                const secs = Math.max(0, Math.round((deadline - Date.now()) / 1000));
+                const m = Math.floor(secs / 60);
+                const s = secs % 60;
+                this.khqrCountdown = m + ':' + String(s).padStart(2, '0');
+                if (secs <= 0) this.stopKhqrCountdown(); // poll flips to expired
+            };
+            tick();
+            this.khqrCountdownTimer = setInterval(tick, 1000);
+        },
+
+        stopKhqrCountdown() {
+            if (this.khqrCountdownTimer) { clearInterval(this.khqrCountdownTimer); this.khqrCountdownTimer = null; }
         },
 
         saveDone() {
