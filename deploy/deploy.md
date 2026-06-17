@@ -82,35 +82,45 @@ composer setup
   Visitor's browser
         │
         ▼
-   minimaldigital.dev          ← domain, DNS managed by Cloudflare
+   minimaldigital.dev / www    ← domain, DNS on Cloudflare (mycoding5555 account; NS elsa/theo)
         │
         ▼
   Cloudflare's network
         │   (encrypted outbound tunnel — no open ports on the Mac)
         ▼
   cloudflared  (tunnel: minimaldigital, id e3728a94-42ff-470f-a6f7-ef0f46b6388d)
-        │   forwards to http://localhost:8000
-        ▼
-  php artisan serve  on 127.0.0.1:8000
         │
-        ▼
-   Laravel app (AMS_APP)
+        ├─ path /smart_sell/*  ───────────►  Next.js (next-server) on localhost:3000
+        │
+        └─ everything else     ───────────►  nginx on 127.0.0.1:8090
+                                                 │
+                                                 ├─ /         → placeholder "coming soon"
+                                                 └─ /ams_app/ → proxy_pass http://127.0.0.1:8000/
+                                                                    │
+                                                                    ▼
+                                                            php artisan serve (Laravel, AMS_APP)
 ```
 
-### The three pieces
+### The pieces
 
-1. **`php artisan serve`** — Laravel's dev server, bound to `127.0.0.1:8000`
-   (local-only). Managed by `com.minimaldigital.laravel.plist`.
-2. **`cloudflared`** — holds an outbound tunnel to Cloudflare and forwards
-   public requests to `localhost:8000`. Managed by
-   `com.minimaldigital.cloudflared.plist`. Ingress rules live in
-   `~/.cloudflared/config.yml`:
-   - `minimaldigital.dev`      → `http://localhost:8000`
-   - `www.minimaldigital.dev`  → `http://localhost:8000`
-   - anything else             → `404`
-3. **launchd** — the two `.plist` files in `~/Library/LaunchAgents/` are macOS
-   services with `RunAtLoad` (start at login) and `KeepAlive` (restart on
-   crash), so the site stays up on its own.
+1. **`cloudflared`** — holds an outbound tunnel to Cloudflare and routes public
+   requests **by path**. Managed by `com.minimaldigital.cloudflared.plist`.
+   Ingress rules live in `~/.cloudflared/config.yml`:
+   - `minimaldigital.dev` / `www`, path `^/smart_sell(/.*)?$` → `http://localhost:3000`
+   - `minimaldigital.dev` / `www`, everything else            → `http://localhost:8090`
+   - anything else                                            → `404`
+2. **nginx** — the front door on `127.0.0.1:8090`. Serves the "coming soon"
+   placeholder at `/`, and reverse-proxies `/ams_app/` → `http://127.0.0.1:8000/`
+   (Laravel runs under the public base path `/ams_app`). Managed by Homebrew
+   (`brew services`, `~/Library/LaunchAgents/homebrew.mxcl.nginx.plist`).
+3. **`php artisan serve`** — Laravel's dev server, bound to `127.0.0.1:8000`
+   (local-only, sits behind nginx). Managed by `com.minimaldigital.laravel.plist`.
+4. **Next.js** (`next-server`) — the Smart_sell app on `localhost:3000`
+   (basePath `/smart_sell`). Managed by `com.minimaldigital.smartsell.plist`.
+5. **launchd** — the `.plist` files in `~/Library/LaunchAgents/` (the three
+   `com.minimaldigital.*` services plus `homebrew.mxcl.nginx`) have `RunAtLoad`
+   (start at login) and `KeepAlive` (restart on crash), so the stack stays up
+   on its own.
 
 ## Two meanings of "deploy"
 
@@ -186,3 +196,12 @@ composer deploy  # migrate + re-cache + build assets, with a maintenance window
 - `bootout` only stops a service for the current login session; it starts again
   at next login. To stop auto-start permanently, move the `.plist` out of
   `~/Library/LaunchAgents/`.
+- **DNS lives in the `mycoding5555@gmail.com` Cloudflare account** (zone
+  nameservers `elsa.ns.cloudflare.com` / `theo.ns.cloudflare.com`); Namecheap
+  must delegate to those. An older duplicate zone exists in the
+  `Minimaldigital93@gmail.com` account (`holly`/`rayden`) — if the registrar
+  ever points back there, you get **Cloudflare Error 1000 ("DNS points to
+  prohibited IP")**. Fix: set Namecheap NS to elsa/theo, then in the
+  mycoding5555 account click **Check nameservers now** so the zone goes Active.
+  (The cloudflared `cert.pem` token can read/edit that zone's DNS via the API
+  but cannot trigger activation.)
