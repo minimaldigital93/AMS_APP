@@ -21,11 +21,15 @@ class AccountsController extends Controller
 {
     public function index(): View
     {
-        // Every customer account owner (admins + pending/unpaid signups). Owners
-        // point account_id at themselves and are the only users with a subscription,
-        // so this also surfaces signups that haven't paid yet (status inactive,
-        // no admin role) — previously only visible on the Subscriptions page.
+        // Customer account owners that have actually completed signup. Owners point
+        // account_id at themselves and are the only users with a subscription. A
+        // signup that registered but never successfully paid stays status 'inactive'
+        // (it only flips off 'inactive' once payment is finalized / a trial starts —
+        // see SubscriptionController + KhqrPaymentService::finalizeSubscription), so
+        // excluding 'inactive' hides never-paid signups while keeping active and
+        // suspended (paid) accounts visible.
         $accounts = User::whereColumn('account_id', 'id')
+            ->where('status', '!=', 'inactive')
             ->whereHas('subscription')
             ->with(['subscription.plan'])
             ->orderBy('name')

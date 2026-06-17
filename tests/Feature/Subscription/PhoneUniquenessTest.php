@@ -13,11 +13,15 @@ beforeEach(function () {
     ]);
 });
 
-/** A completed owner = registered AND subscribed. Their phone is reserved. */
+/** A completed owner = registered AND subscribed (live subscription). Their phone is reserved. */
 it('rejects a phone already held by a completed (active) account owner', function () {
     $owner = User::factory()->create(['phone' => '0999111000', 'status' => 'active']);
     $owner->forceFill(['account_id' => $owner->id])->save();
     $owner->assignRole('admin');
+    Subscription::create([
+        'account_id' => $owner->id, 'plan_id' => $this->plan->id,
+        'status' => 'active', 'expires_at' => now()->addMonth(),
+    ]);
 
     $response = $this->post(route('subscribe.store'), [
         'name' => 'Impostor',
@@ -54,6 +58,38 @@ it('lets an abandoned (inactive) signup re-register on the same phone, reusing t
     expect($user->name)->toBe('Fresh Attempt');
     // And exactly one (still pending) subscription — the prior one was reused.
     expect(Subscription::where('account_id', $abandoned->id)->count())->toBe(1);
+});
+
+/**
+ * The reported bug: an owner whose row is NOT 'inactive' but who never became a
+ * live customer (legacy default, or a subscription that lapsed/expired) must
+ * still be free to re-register — only a *current* successful customer is blocked.
+ */
+it('lets an owner with no live subscription re-register on the same phone, reusing the row', function () {
+    $lapsed = User::factory()->create(['name' => 'Lapsed', 'phone' => '0999111555', 'status' => 'active']);
+    $lapsed->forceFill(['account_id' => $lapsed->id])->save();
+    $lapsed->assignRole('admin');
+    // Paid once, then the subscription expired — no longer a live customer.
+    Subscription::create([
+        'account_id' => $lapsed->id, 'plan_id' => $this->plan->id,
+        'status' => 'active', 'expires_at' => now()->subDay(),
+    ]);
+
+    $response = $this->post(route('subscribe.store'), [
+        'name' => 'Comeback',
+        'phone' => '0999111555',
+        'password' => 'password123',
+        'password_confirmation' => 'password123',
+        'plan' => 'pro',
+    ]);
+
+    $response->assertSessionHasNoErrors();
+    // Same row taken over (reset to inactive until they pay) — not duplicated.
+    expect(User::where('phone', '0999111555')->count())->toBe(1);
+    $user = User::where('phone', '0999111555')->first();
+    expect($user->id)->toBe($lapsed->id);
+    expect($user->name)->toBe('Comeback');
+    expect($user->status)->toBe('inactive');
 });
 
 /** A number used only by another account's tenant/supervisor is not an owner — free to register. */

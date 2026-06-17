@@ -44,19 +44,34 @@ class SubscriptionController extends Controller
     {
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255'],
-            // A phone is only "taken" when a *completed* account owner already
-            // holds it — i.e. someone who registered AND subscribed. On signup
-            // the owner row is created inactive (status = 'inactive') and only
-            // flips off 'inactive' once they pay/start a trial (see store() and
-            // KhqrPaymentService::finalizeSubscription). So this rule lets every
-            // other phone through: abandoned never-paid signups (still inactive)
-            // and numbers used only by another account's tenants/supervisors
-            // (which are not account owners, account_id != id).
+            // A phone is only "taken" when it belongs to a *successfully
+            // registered* account owner: someone who actually paid and is still
+            // a live customer (an active/trialing subscription that hasn't
+            // expired), or an owner the platform has deliberately suspended.
+            // Every other owner row is a failed/lapsed signup we let re-register:
+            //   - abandoned never-paid attempts (subscription still 'pending'),
+            //   - legacy rows the `status` column default left non-inactive but
+            //     that never reached a live subscription,
+            //   - accounts whose subscription has expired or was cancelled.
+            // Keying off the subscription (not `users.status`) is what fixes
+            // re-registration: a user who didn't pay in time is NOT a completed
+            // owner, so their phone stays free. Numbers used only by another
+            // account's tenants/supervisors are not owners (account_id != id)
+            // and are always free. provisionOwner() then takes over any such
+            // reusable owner row rather than minting a duplicate owner.
             'phone' => [
                 'required', 'string', 'max:255',
                 Rule::unique('users', 'phone')->where(fn ($q) => $q
                     ->whereColumn('account_id', 'id')
-                    ->where('status', '!=', 'inactive')),
+                    ->where(fn ($owner) => $owner
+                        ->where('status', 'suspended')
+                        ->orWhereExists(fn ($sub) => $sub
+                            ->from('subscriptions')
+                            ->whereColumn('subscriptions.account_id', 'users.id')
+                            ->whereIn('subscriptions.status', ['active', 'trialing'])
+                            ->where(fn ($exp) => $exp
+                                ->whereNull('subscriptions.expires_at')
+                                ->orWhere('subscriptions.expires_at', '>', now()))))),
             ],
             'password' => ['required', 'confirmed', Password::defaults()],
             'plan' => ['required', 'exists:plans,slug'],
@@ -114,16 +129,18 @@ class SubscriptionController extends Controller
     /**
      * Create (or take over) the account-owner user for a signup.
      *
-     * Validation has already rejected the phone if a completed owner holds it,
-     * so any existing match here is a prior abandoned (never-paid) signup —
-     * still inactive. We reuse that row instead of stacking a duplicate owner
-     * on the same phone, which would otherwise make login-by-phone ambiguous.
+     * Validation has already rejected the phone if a *successfully registered*
+     * owner holds it (live subscription or suspended), so any existing owner
+     * row here is a failed/lapsed signup safe to reuse. We take it over instead
+     * of stacking a duplicate owner on the same phone, which would otherwise
+     * make login-by-phone ambiguous. The row is reset to `inactive`, so it
+     * stays locked out (LoginRequest blocks non-active logins) until payment
+     * finalizes and re-grants the admin role + active status.
      */
     private function provisionOwner(array $validated, string $status): User
     {
         $user = User::whereColumn('account_id', 'id')
             ->where('phone', $validated['phone'])
-            ->where('status', 'inactive')
             ->latest('id')
             ->first() ?? new User;
 

@@ -115,23 +115,20 @@ class KhqrPaymentService
             );
         }
 
-        // Avoid double-payment: clicking "renew" repeatedly must not leave several
-        // payable QRs for the same subscription. Reuse a live, unexpired QR for
-        // the same amount (same plan); if the amount changed (plan switch), retire
-        // the stale open ones before minting a fresh QR.
-        $existing = KhqrPayment::where('subscription_id', $subscription->id)
+        // Each call mints a FRESH transaction. KHQRPay hosted-checkout sessions
+        // are single-use and short-lived on khqr.cc's side: once a transaction_id
+        // has been opened there and its session lapses, redirecting to it again
+        // shows "payment session expired — return to the shop to refresh". So we
+        // never reuse a transaction_id across checkout initiations (signup,
+        // re-register, renew). Instead we retire any QR still open for this
+        // subscription before minting the new one — that keeps the double-payment
+        // invariant (at most one payable QR per subscription at a time) while
+        // guaranteeing the customer is always handed a live session.
+        KhqrPayment::where('subscription_id', $subscription->id)
             ->where('settlement_target', 'platform')
             ->whereIn('status', PaymentStatus::openValues())
-            ->where(fn ($q) => $q->whereNull('expires_at')->orWhere('expires_at', '>', now()))
-            ->latest('id')
-            ->get();
-
-        foreach ($existing as $open) {
-            if (abs((float) $open->amount - $amount) <= 0.01) {
-                return $open; // same plan/price → reuse the existing payable QR
-            }
-            $this->expireRow($open); // plan changed → retire the stale QR
-        }
+            ->get()
+            ->each(fn (KhqrPayment $open) => $this->expireRow($open));
 
         $transactionId = 'SUB-'.$subscription->id.'-'.now()->format('YmdHis').'-'.random_int(100, 999);
 
@@ -339,14 +336,14 @@ class KhqrPaymentService
         // /check-trans path 404s, so verify() never confirmed a polled payment.
         // POST https://{baseUrl}/api/{profileId}/payment-gateway/v1/payments/check-transv2-khqrcc
         $endpoint = rtrim($creds->baseUrl, '/')
-            .'/api/' . $creds->profileId
+            .'/api/'.$creds->profileId
             .'/payment-gateway/v1/payments/check-transv2-khqrcc';
 
         $params = [
             'transaction_id' => $row->transaction_id,
         ];
         // KHQRPay expects sha1(profile_key . transaction_id)
-        $params['hash'] = sha1($creds->secret . $row->transaction_id);
+        $params['hash'] = sha1($creds->secret.$row->transaction_id);
 
         try {
             $response = Http::asForm()->acceptJson()

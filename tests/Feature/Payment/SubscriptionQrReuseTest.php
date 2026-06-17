@@ -27,12 +27,18 @@ beforeEach(function () {
     $this->svc = app(KhqrPaymentService::class);
 });
 
-it('reuses the existing payable QR when renew is clicked twice for the same plan', function () {
+it('retires the previous QR and mints a fresh session each time checkout is re-initiated', function () {
+    // Re-initiating checkout (re-register / renew) must hand the customer a fresh,
+    // live khqr.cc session — reusing the old transaction_id shows "session expired".
     $first = $this->svc->createSubscriptionQr($this->sub, 24.0);
     $second = $this->svc->createSubscriptionQr($this->sub, 24.0);
 
-    expect($second->id)->toBe($first->id);            // same transaction reused
-    expect(KhqrPayment::where('subscription_id', $this->sub->id)->count())->toBe(1);
+    expect($second->id)->not->toBe($first->id);       // fresh transaction minted
+    expect($first->fresh()->status)->toBe('expired'); // stale QR retired
+    // Double-payment invariant: at most one *payable* (open) QR per subscription.
+    expect(KhqrPayment::where('subscription_id', $this->sub->id)
+        ->whereIn('status', \App\Enums\PaymentStatus::openValues())
+        ->count())->toBe(1);
 });
 
 it('retires the stale QR and mints a fresh one when the plan/price changes', function () {
