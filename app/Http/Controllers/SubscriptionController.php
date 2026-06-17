@@ -15,6 +15,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Validation\Rule;
 use Illuminate\Validation\Rules\Password;
 
 /**
@@ -43,10 +44,25 @@ class SubscriptionController extends Controller
     {
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255'],
-            'phone' => ['required', 'string', 'max:255', 'unique:users,phone'],
+            // A phone is only "taken" when a *completed* account owner already
+            // holds it — i.e. someone who registered AND subscribed. On signup
+            // the owner row is created inactive (status = 'inactive') and only
+            // flips off 'inactive' once they pay/start a trial (see store() and
+            // KhqrPaymentService::finalizeSubscription). So this rule lets every
+            // other phone through: abandoned never-paid signups (still inactive)
+            // and numbers used only by another account's tenants/supervisors
+            // (which are not account owners, account_id != id).
+            'phone' => [
+                'required', 'string', 'max:255',
+                Rule::unique('users', 'phone')->where(fn ($q) => $q
+                    ->whereColumn('account_id', 'id')
+                    ->where('status', '!=', 'inactive')),
+            ],
             'password' => ['required', 'confirmed', Password::defaults()],
             'plan' => ['required', 'exists:plans,slug'],
             'start_trial' => ['nullable', 'boolean'],
+        ], [
+            'phone.unique' => __('messages.validation_phone_taken'),
         ]);
 
         $plan = Plan::where('slug', $validated['plan'])->firstOrFail();
@@ -54,14 +70,7 @@ class SubscriptionController extends Controller
 
         if ($wantsTrial) {
             DB::transaction(function () use ($validated, $plan, $subscriptions) {
-                $user = User::create([
-                    'name' => $validated['name'],
-                    'phone' => $validated['phone'],
-                    'password' => Hash::make($validated['password']),
-                    'status' => 'active',
-                ]);
-                // An account owner points at itself.
-                $user->forceFill(['account_id' => $user->id])->save();
+                $user = $this->provisionOwner($validated, 'active');
                 $user->assignRole('admin');
 
                 $subscriptions->startTrial($user->id, $plan);
@@ -73,20 +82,14 @@ class SubscriptionController extends Controller
 
         try {
             $row = DB::transaction(function () use ($validated, $plan, $khqr) {
-                $user = User::create([
-                    'name' => $validated['name'],
-                    'phone' => $validated['phone'],
-                    'password' => Hash::make($validated['password']),
-                    'status' => 'inactive',
-                ]);
-                // An account owner points at itself.
-                $user->forceFill(['account_id' => $user->id])->save();
+                $user = $this->provisionOwner($validated, 'inactive');
 
-                $subscription = Subscription::create([
-                    'account_id' => $user->id,
-                    'plan_id' => $plan->id,
-                    'status' => 'pending',
-                ]);
+                // Reuse the account's pending subscription if it already has one
+                // (an earlier abandoned attempt) instead of creating a second row.
+                $subscription = Subscription::updateOrCreate(
+                    ['account_id' => $user->id],
+                    ['plan_id' => $plan->id, 'status' => 'pending'],
+                );
 
                 return $khqr->createSubscriptionQr($subscription, (float) $plan->price_usd);
             });
@@ -106,6 +109,37 @@ class SubscriptionController extends Controller
         return redirect()->away(
             $khqr->subscriptionCheckoutUrl($row, route('subscribe.checkout', $row->public_token))
         );
+    }
+
+    /**
+     * Create (or take over) the account-owner user for a signup.
+     *
+     * Validation has already rejected the phone if a completed owner holds it,
+     * so any existing match here is a prior abandoned (never-paid) signup —
+     * still inactive. We reuse that row instead of stacking a duplicate owner
+     * on the same phone, which would otherwise make login-by-phone ambiguous.
+     */
+    private function provisionOwner(array $validated, string $status): User
+    {
+        $user = User::whereColumn('account_id', 'id')
+            ->where('phone', $validated['phone'])
+            ->where('status', 'inactive')
+            ->latest('id')
+            ->first() ?? new User;
+
+        $user->fill([
+            'name' => $validated['name'],
+            'phone' => $validated['phone'],
+            'password' => Hash::make($validated['password']),
+            'status' => $status,
+        ])->save();
+
+        // An account owner points at itself.
+        if ($user->account_id !== $user->id) {
+            $user->forceFill(['account_id' => $user->id])->save();
+        }
+
+        return $user;
     }
 
     /** Browser return page after KHQRPay checkout; polls until the webhook confirms. */
