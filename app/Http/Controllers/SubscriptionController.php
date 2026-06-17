@@ -103,10 +103,12 @@ class SubscriptionController extends Controller
             return back()->withInput()->with('error', __('messages.subscription_payment_unavailable'));
         }
 
-        return redirect()->route('subscribe.checkout', $row->public_token);
+        return redirect()->away(
+            $khqr->subscriptionCheckoutUrl($row, route('subscribe.checkout', $row->public_token))
+        );
     }
 
-    /** Scan/poll page for the subscription QR (addressed by unguessable token). */
+    /** Browser return page after KHQRPay checkout; polls until the webhook confirms. */
     public function checkout(string $token): View|RedirectResponse
     {
         $payment = $this->resolveSubscriptionPayment($token);

@@ -151,7 +151,44 @@ class KhqrPaymentService
             return $this->fillDemo($row, $amount);
         }
 
-        return $this->requestQr($row, KhqrCredentials::platform());
+        // KHQRPay is a HOSTED-CHECKOUT gateway — there is no headless "mint me a
+        // QR image" API to call here (the old qr-api-khqrcc endpoint never
+        // existed for this profile and 502'd every time). Instead the customer is
+        // redirected to the signed checkout URL (see subscriptionCheckoutUrl) and
+        // pays on khqr.cc, which settles back via the signed webhook to
+        // khqr.callback. Just mark the row payable so the return page can poll it.
+        $row->transitionTo(PaymentStatus::QrGenerated);
+        $row->save();
+
+        return $row;
+    }
+
+    /**
+     * Build the signed KHQRPay HOSTED-CHECKOUT URL for a subscription payment.
+     *
+     * KHQRPay has no headless QR API: the customer is redirected (GET) to this
+     * URL, pays on khqr.cc, and settlement returns via the signed webhook to
+     * khqr.callback (which must be set as the profile's Global Webhook URL).
+     * $successUrl is where khqr.cc sends the customer's browser back afterwards.
+     *
+     *   {baseUrl}/api/payment/request/{profileId}?transaction_id&amount&success_url&remark&hash
+     *   hash = sha1(secret + transaction_id + amount + success_url + remark)
+     */
+    public function subscriptionCheckoutUrl(KhqrPayment $row, string $successUrl): string
+    {
+        $creds = KhqrCredentials::platform();
+
+        $params = [
+            'transaction_id' => $row->transaction_id,
+            'amount' => number_format((float) $row->amount, 2, '.', ''),
+            'success_url' => $successUrl,
+            'remark' => $this->buildQrRemark($row),
+        ];
+        $params['hash'] = $this->sign($params, $creds->secret);
+
+        return rtrim($creds->baseUrl, '/')
+            .'/api/payment/request/'.$creds->profileId
+            .'?'.http_build_query($params);
     }
 
     /**

@@ -60,7 +60,9 @@ class BillingController extends Controller
             return back()->with('error', __('messages.subscription_payment_unavailable'));
         }
 
-        return redirect()->route('admin.billing.checkout', $row->public_token);
+        return redirect()->away(
+            $khqr->subscriptionCheckoutUrl($row, route('admin.billing.checkout', $row->public_token))
+        );
     }
 
     /** Self-service cancel: keep access until the period ends, just stop renewing. */

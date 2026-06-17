@@ -6,19 +6,13 @@
 <div class="mx-auto max-w-md text-center"
      x-data="khqrBillingCheckout('{{ $statusUrl }}', '{{ $redirectUrl }}')" x-init="start()">
 
-    <h1 class="text-2xl font-semibold text-slate-800 tracking-tight">{{ __('Scan to pay') }}</h1>
+    <h1 class="text-2xl font-semibold text-slate-800 tracking-tight">{{ __('Confirming your payment') }}</h1>
 
-    <div class="mx-auto mt-5 w-[260px] rounded-2xl border border-gray-200 bg-white p-3 shadow-sm">
-        @if ($payment->qr_url)
-            <img src="{{ $payment->qr_url }}" alt="KHQR" class="h-[240px] w-[240px] object-contain">
-        @else
-            <div class="flex h-[240px] items-center justify-center text-gray-400">{{ __('QR unavailable') }}</div>
-        @endif
-    </div>
+    <p class="mt-3 text-sm text-gray-500">{{ __('Once your payment is confirmed this page will update automatically.') }}</p>
 
     <div class="mt-5">
         <template x-if="!paid">
-            <span class="text-sm text-gray-500">{{ __('Waiting for payment…') }}</span>
+            <span class="text-sm text-gray-500">{{ __('Waiting for confirmation…') }}</span>
         </template>
         <template x-if="paid">
             <span class="font-semibold text-green-600">{{ __('Payment received! Redirecting…') }}</span>

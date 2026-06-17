@@ -87,19 +87,17 @@ class TestKhqrQr extends Command
             return self::FAILURE;
         }
 
-        if (blank($row->qr_url)) {
-            $this->error('khqr.cc returned no QR image URL — see storage/logs/laravel.log (KHQRPay response).');
-
-            return self::FAILURE;
-        }
+        // KHQRPay is a hosted-checkout gateway — there is no QR image to fetch.
+        // Build the signed checkout URL the signup funnel redirects customers to.
+        $checkoutUrl = $khqr->subscriptionCheckoutUrl($row, route('subscribe.checkout', $row->public_token));
 
         $this->newLine();
-        $this->info('Real KHQR minted ✔');
+        $this->info('Hosted checkout ready ✔');
         $this->line('  Amount      : '.number_format($amount, 2).' '.$creds->currency);
         $this->line('  Transaction : '.$row->transaction_id);
-        $this->line('  QR image    : '.$row->qr_url);
+        $this->line('  Checkout URL: '.$checkoutUrl);
         $this->newLine();
-        $this->line('Open the QR image URL, scan + pay with a Bakong app.');
+        $this->line('Open the checkout URL in a browser and pay with a Bakong app.');
         $this->line('It auto-confirms via the webhook; to force a check run: php artisan khqr:reconcile');
         $this->line('Clean up test data when done:  php artisan khqr:test-qr --cleanup');
 
