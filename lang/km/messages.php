@@ -1084,6 +1084,8 @@ return [
     'khqrpay_secret' => 'KHQRPay Secret',
     'khqrpay_secret_hint' => 'ទុកទទេដើម្បីរក្សា secret បច្ចុប្បន្ន។',
     'khqrpay_secret_configured' => 'បានកំណត់',
+    'khqrpay_secret_saved' => 'Secret key ត្រូវបានរក្សាទុក — ទុកទទេដើម្បីរក្សាវា។',
+    'khqrpay_secret_replace_placeholder' => 'បញ្ចូល key ថ្មីដើម្បីជំនួស',
     'subscription_payment_unavailable' => 'មិនអាចចាប់ផ្តើមការទូទាត់បានទេនៅពេលនេះ។ សូមព្យាយាមម្តងទៀតក្នុងពេលបន្តិច ឬទាក់ទងផ្នែកជំនួយ ប្រសិនបើបញ្ហានេះនៅតែកើតមាន។',
     'khqrpay_webhook_url' => 'Webhook / Callback URL',
     'khqrpay_webhook_url_hint' => 'ចម្លងតំណនេះទៅដាក់ក្នុងប្រអប់ "Global Webhook URL" នៃ profile khqr.cc របស់អ្នក ដើម្បីឱ្យការបង់ប្រាក់ជួលត្រូវបញ្ជាក់ដោយស្វ័យប្រវត្តិ។',

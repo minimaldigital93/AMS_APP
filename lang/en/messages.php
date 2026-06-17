@@ -1084,6 +1084,8 @@ return [
     'khqrpay_secret' => 'KHQRPay Secret',
     'khqrpay_secret_hint' => 'Leave blank to keep the current secret.',
     'khqrpay_secret_configured' => 'configured',
+    'khqrpay_secret_saved' => 'A secret key is saved — leave blank to keep it.',
+    'khqrpay_secret_replace_placeholder' => 'Enter a new key to replace the saved one',
     'subscription_payment_unavailable' => 'Payment could not be started right now. Please try again in a moment, or contact support if this keeps happening.',
     'khqrpay_webhook_url' => 'Webhook / Callback URL',
     'khqrpay_webhook_url_hint' => 'Paste this into the "Global Webhook URL" field of your khqr.cc profile so paid rents are confirmed automatically.',

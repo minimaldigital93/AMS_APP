@@ -49,9 +49,16 @@
                 <div>
                     <label class="block text-sm font-medium text-gray-700">{{ __('messages.khqrpay_secret') }}</label>
                     <input type="password" name="khqrpay_secret" value="" autocomplete="new-password"
-                        placeholder="{{ $secretConfigured ? '••••••••  ('.__('messages.khqrpay_secret_configured').')' : '' }}"
+                        placeholder="{{ $secretConfigured ? __('messages.khqrpay_secret_replace_placeholder') : '' }}"
                         class="mt-1 w-full rounded-lg border-gray-300 text-sm focus:border-indigo-500 focus:ring-indigo-500">
-                    <p class="mt-1 text-xs text-gray-400">{{ __('messages.khqrpay_secret_hint') }}</p>
+                    @if ($secretConfigured)
+                        <p class="mt-1 flex items-center gap-1 text-xs font-medium text-emerald-600">
+                            <svg class="h-3.5 w-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="m4.5 12.75 6 6 9-13.5" /></svg>
+                            {{ __('messages.khqrpay_secret_saved') }}
+                        </p>
+                    @else
+                        <p class="mt-1 text-xs text-gray-400">{{ __('messages.khqrpay_secret_hint') }}</p>
+                    @endif
                 </div>
                 <div>
                     <label class="block text-sm font-medium text-gray-700">{{ __('messages.currency') }}</label>

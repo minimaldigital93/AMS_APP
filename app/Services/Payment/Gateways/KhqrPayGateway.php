@@ -8,7 +8,7 @@ use App\Services\RevenueExpense\KhqrPaymentService;
 
 /**
  * KHQRPay (khqr.cc) driver — the first PaymentGateway implementation. The KHQR
- * protocol (SHA1 request signing, the qr-api-khqrcc / check-trans endpoints,
+ * protocol (SHA1 request signing, the qr-api-khqrcc / check-transv2-khqrcc endpoints,
  * SHA256 webhook verification) currently lives in KhqrPaymentService; this is the
  * thin adapter that exposes it behind the provider-agnostic contract so callers
  * resolve it via PaymentManager rather than depending on KHQR directly.

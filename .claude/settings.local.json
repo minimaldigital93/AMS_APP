@@ -518,7 +518,11 @@
       "Bash(/opt/homebrew/bin/gh --version)",
       "Bash(/opt/homebrew/bin/gh auth *)",
       "Bash(awk -F= '/^KHQRPAY_PROFILE_ID=/{p=$2} /^KHQRPAY_SECRET=/{s=$2} END{print \"profile_len=\"length\\(p\\)\" secret_len=\"length\\(s\\); print \"same_value=\"\\(p==s ? \"YES — profile_id and secret are identical \\(misconfig\\)\" : \"no\"\\)}' .env)",
-      "Bash(echo \"Pending count: $\\(php artisan migrate:status 2>&1)"
+      "Bash(echo \"Pending count: $\\(php artisan migrate:status 2>&1)",
+      "Bash(git log *)",
+      "Bash(git merge-base *)",
+      "Bash(php -r \"require 'lang/en/messages.php';\")",
+      "Bash(php -r \"require 'lang/km/messages.php';\")"
     ],
     "additionalDirectories": [
       "/Users/sarotmoniodom/AMS_APP",

@@ -297,11 +297,13 @@ class KhqrPaymentService
             return false;
         }
 
-        // Use the KHQRPay documented transaction-verify endpoint and profile hash.
-        // POST https://{baseUrl}/api/{profileId}/payment-gateway/v1/payments/check-trans
+        // KHQRPay "Check Transaction V2" endpoint (fast confirmation with Bakong
+        // fallback) — the path the live khqr.cc gateway actually answers. The old
+        // /check-trans path 404s, so verify() never confirmed a polled payment.
+        // POST https://{baseUrl}/api/{profileId}/payment-gateway/v1/payments/check-transv2-khqrcc
         $endpoint = rtrim($creds->baseUrl, '/')
             .'/api/' . $creds->profileId
-            .'/payment-gateway/v1/payments/check-trans';
+            .'/payment-gateway/v1/payments/check-transv2-khqrcc';
 
         $params = [
             'transaction_id' => $row->transaction_id,
