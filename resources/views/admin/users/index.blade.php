@@ -60,7 +60,7 @@
                         <td class="px-6 py-4 font-medium text-gray-900">{{ $user->name }}</td>
                         <td class="px-6 py-4 text-gray-600">{{ $user->phone }}</td>
                         <td class="px-6 py-4">
-                            <span class="px-3 py-1 text-sm font-semibold rounded-full bg-blue-100 text-blue-700">{{ ucfirst($user->roles->first()?->name ?? 'N/A') }}</span>
+                            <span class="px-3 py-1 text-sm font-semibold rounded-full bg-sky-100 text-sky-700">{{ ucfirst($user->roles->first()?->name ?? 'N/A') }}</span>
                         </td>
                         <td class="px-6 py-4">
                             @php
@@ -69,7 +69,7 @@
                                     : null;
                             @endphp
                             @if($tenantRecord?->apartment)
-                                <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-indigo-50 text-indigo-700">
+                                <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-sky-50 text-sky-700">
                                     {{ $tenantRecord->apartment->apartment_number }}
                                 </span>
                             @else
@@ -91,7 +91,7 @@
                                 <form action="{{ route('admin.users.updateRole', $user) }}" method="POST">
                                     @csrf
                                     @method('PATCH')
-                                    <select name="role" onchange="this.form.submit()" class="w-56 px-2 py-1 text-xs font-medium rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                    <select name="role" onchange="this.form.submit()" class="w-56 px-2 py-1 text-xs font-medium rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-slate-400">
                                         <option value="">{{ __('messages.assign_role') }}</option>
                                         @foreach($roles->whereIn('name', ['supervisor', 'tenant']) as $role)
                                             <option value="{{ $role->id }}" {{ $user->roles->contains($role->id) ? 'selected' : '' }}>{{ ucfirst($role->name) }}</option>
@@ -141,7 +141,7 @@
                     <div class="min-w-0 flex-1">
                         <p class="text-sm font-medium text-gray-900 truncate">{{ $user->name }}</p>
                         @if($tenantRecord?->apartment)
-                            <p class="text-xs text-indigo-600 truncate">{{ $tenantRecord->apartment->apartment_number }}</p>
+                            <p class="text-xs text-sky-600 truncate">{{ $tenantRecord->apartment->apartment_number }}</p>
                         @endif
                     </div>
                     @if($user->hasAnyRole(['admin', 'superadmin']))
@@ -155,7 +155,7 @@
                         <form action="{{ route('admin.users.updateRole', $user) }}" method="POST" class="flex-shrink-0">
                             @csrf
                             @method('PATCH')
-                            <select name="role" onchange="this.form.submit()" class="w-28 px-2 py-1.5 text-xs font-medium rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            <select name="role" onchange="this.form.submit()" class="w-28 px-2 py-1.5 text-xs font-medium rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-slate-400">
                                 <option value="">{{ __('messages.assign_role') }}</option>
                                 @foreach($roles->whereIn('name', ['supervisor', 'tenant']) as $role)
                                     <option value="{{ $role->id }}" {{ $user->roles->contains($role->id) ? 'selected' : '' }}>{{ ucfirst($role->name) }}</option>

@@ -36,19 +36,19 @@
         <div>
             <label for="name" class="block text-sm font-medium text-gray-700 mb-1">{{ __('messages.period_name') }}</label>
             <input type="text" id="name" name="name" value="{{ old('name', $fiscalperiod->name) }}" required
-                class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none">
+                class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-slate-400 focus:outline-none">
         </div>
 
         <div class="grid grid-cols-2 gap-4">
             <div>
                 <label for="opening_date" class="block text-sm font-medium text-gray-700 mb-1">{{ __('messages.start_date') }}</label>
                 <input type="date" id="opening_date" name="opening_date" value="{{ old('opening_date', $fiscalperiod->opening_date->format('Y-m-d')) }}" required
-                    class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none bg-white appearance-none h-10">
+                    class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-slate-400 focus:outline-none bg-white appearance-none h-10">
             </div>
             <div>
                 <label for="closing_date" class="block text-sm font-medium text-gray-700 mb-1">{{ __('messages.end_date') }}</label>
                 <input type="date" id="closing_date" name="closing_date" value="{{ old('closing_date', $fiscalperiod->closing_date->format('Y-m-d')) }}" required
-                    class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none bg-white appearance-none h-10">
+                    class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-slate-400 focus:outline-none bg-white appearance-none h-10">
             </div>
         </div>
 
@@ -66,7 +66,7 @@
                         <span class="absolute left-3 top-2 text-gray-500">$</span>
                         <input type="number" id="opening_assets" name="opening_assets" x-model.number="assets"
                             value="{{ old('opening_assets', $fiscalperiod->opening_assets) }}" required step="0.01" min="0"
-                            class="w-full pl-7 pr-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none">
+                            class="w-full pl-7 pr-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-slate-400 focus:outline-none">
                     </div>
                 </div>
                 <div>
@@ -75,7 +75,7 @@
                         <span class="absolute left-3 top-2 text-gray-500">$</span>
                         <input type="number" id="opening_liabilities" name="opening_liabilities" x-model.number="liabilities"
                             value="{{ old('opening_liabilities', $fiscalperiod->opening_liabilities) }}" required step="0.01" min="0"
-                            class="w-full pl-7 pr-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none">
+                            class="w-full pl-7 pr-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-slate-400 focus:outline-none">
                     </div>
                 </div>
                 <div>
@@ -84,7 +84,7 @@
                         <span class="absolute left-3 top-2 text-gray-500">$</span>
                         <input type="number" id="opening_equity" name="opening_equity" x-model.number="equity"
                             value="{{ old('opening_equity', $fiscalperiod->opening_equity) }}" required step="0.01" min="0"
-                            class="w-full pl-7 pr-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none">
+                            class="w-full pl-7 pr-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-slate-400 focus:outline-none">
                     </div>
                 </div>
             </div>
@@ -105,7 +105,7 @@
                 {{ __('messages.cancel') }}
             </a>
             <button type="submit" :disabled="!balanced"
-                class="flex-1 bg-blue-600 text-white py-2.5 rounded-lg font-semibold hover:bg-blue-700 text-sm disabled:opacity-50 disabled:cursor-not-allowed">
+                class="flex-1 bg-slate-800 text-white py-2.5 rounded-lg font-semibold hover:bg-slate-700 text-sm disabled:opacity-50 disabled:cursor-not-allowed">
                 Save Changes
             </button>
         </div>

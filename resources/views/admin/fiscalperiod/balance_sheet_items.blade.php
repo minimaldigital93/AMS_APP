@@ -15,7 +15,7 @@
     </div>
 
     {{-- How it works --}}
-    <div class="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-6 text-sm text-blue-800">
+    <div class="bg-sky-50 border border-sky-200 rounded-lg p-3 mb-6 text-sm text-sky-800">
         This balance sheet is calculated automatically. You set the opening Assets, Liabilities and Equity when the
         period was created; the system rolls them forward every month from your recorded income and expenses.
     </div>
@@ -24,7 +24,7 @@
     <div class="grid grid-cols-3 gap-4 mb-2">
         <div class="bg-white rounded-lg shadow p-4 text-center">
             <p class="text-xs text-gray-500 uppercase">{{ __('messages.assets') }}</p>
-            <p class="text-lg font-bold text-blue-600">${{ number_format($summary['total_assets'], 2) }}</p>
+            <p class="text-lg font-bold text-sky-600">${{ number_format($summary['total_assets'], 2) }}</p>
         </div>
         <div class="bg-white rounded-lg shadow p-4 text-center">
             <p class="text-xs text-gray-500 uppercase">{{ __('messages.liabilities') }}</p>
@@ -63,7 +63,7 @@
                         <td class="py-2 text-right">${{ number_format($summary['opening_assets'], 2) }}</td>
                         <td class="py-2 text-right text-green-600">+${{ number_format($summary['retained_earnings'], 2) }}</td>
                         <td class="py-2 text-right text-purple-600">−${{ number_format($summary['owner_withdrawals'], 2) }}</td>
-                        <td class="py-2 text-right font-semibold text-blue-600">${{ number_format($summary['total_assets'], 2) }}</td>
+                        <td class="py-2 text-right font-semibold text-sky-600">${{ number_format($summary['total_assets'], 2) }}</td>
                     </tr>
                     <tr>
                         <td class="py-2 font-medium text-gray-700">{{ __('messages.liabilities') }}</td>
@@ -153,7 +153,7 @@
             </div>
             <div>
                 <p class="text-xs text-gray-400">{{ __('messages.net_worth') }}</p>
-                <p class="font-bold text-sm text-blue-600">${{ number_format($summary['net_worth'] ?? 0, 2) }}</p>
+                <p class="font-bold text-sm text-sky-600">${{ number_format($summary['net_worth'] ?? 0, 2) }}</p>
             </div>
         </div>
     </div>

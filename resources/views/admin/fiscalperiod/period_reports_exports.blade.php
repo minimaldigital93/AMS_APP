@@ -27,27 +27,27 @@
 
     <!-- Tab Navigation -->
     <div class="bg-white rounded-t-lg shadow-sm border-b flex overflow-x-auto no-print">
-        <button @click="activeTab = 'overview'" :class="activeTab === 'overview' ? 'border-b-2 border-blue-600 text-blue-700 bg-blue-50' : 'text-gray-600 hover:text-gray-800 hover:bg-gray-50'"
+        <button @click="activeTab = 'overview'" :class="activeTab === 'overview' ? 'border-b-2 border-slate-800 text-slate-800 bg-slate-50' : 'text-gray-600 hover:text-gray-800 hover:bg-gray-50'"
                 class="px-5 py-3 text-sm font-semibold whitespace-nowrap transition">
             Overview
         </button>
-        <button @click="activeTab = 'income_statement'" :class="activeTab === 'income_statement' ? 'border-b-2 border-blue-600 text-blue-700 bg-blue-50' : 'text-gray-600 hover:text-gray-800 hover:bg-gray-50'"
+        <button @click="activeTab = 'income_statement'" :class="activeTab === 'income_statement' ? 'border-b-2 border-slate-800 text-slate-800 bg-slate-50' : 'text-gray-600 hover:text-gray-800 hover:bg-gray-50'"
                 class="px-5 py-3 text-sm font-semibold whitespace-nowrap transition">
             {{ __('messages.income_statement_title') }}
         </button>
-        <button @click="activeTab = 'balance_sheet'" :class="activeTab === 'balance_sheet' ? 'border-b-2 border-blue-600 text-blue-700 bg-blue-50' : 'text-gray-600 hover:text-gray-800 hover:bg-gray-50'"
+        <button @click="activeTab = 'balance_sheet'" :class="activeTab === 'balance_sheet' ? 'border-b-2 border-slate-800 text-slate-800 bg-slate-50' : 'text-gray-600 hover:text-gray-800 hover:bg-gray-50'"
                 class="px-5 py-3 text-sm font-semibold whitespace-nowrap transition">
             {{ __('messages.balance_sheet') }}
         </button>
-        <button @click="activeTab = 'cash_flow'" :class="activeTab === 'cash_flow' ? 'border-b-2 border-blue-600 text-blue-700 bg-blue-50' : 'text-gray-600 hover:text-gray-800 hover:bg-gray-50'"
+        <button @click="activeTab = 'cash_flow'" :class="activeTab === 'cash_flow' ? 'border-b-2 border-slate-800 text-slate-800 bg-slate-50' : 'text-gray-600 hover:text-gray-800 hover:bg-gray-50'"
                 class="px-5 py-3 text-sm font-semibold whitespace-nowrap transition">
             Cash Flow
         </button>
-        <button @click="activeTab = 'trial_balance'" :class="activeTab === 'trial_balance' ? 'border-b-2 border-blue-600 text-blue-700 bg-blue-50' : 'text-gray-600 hover:text-gray-800 hover:bg-gray-50'"
+        <button @click="activeTab = 'trial_balance'" :class="activeTab === 'trial_balance' ? 'border-b-2 border-slate-800 text-slate-800 bg-slate-50' : 'text-gray-600 hover:text-gray-800 hover:bg-gray-50'"
                 class="px-5 py-3 text-sm font-semibold whitespace-nowrap transition">
             {{ __('messages.trial_balance') }}
         </button>
-        <button @click="activeTab = 'monthly'" :class="activeTab === 'monthly' ? 'border-b-2 border-blue-600 text-blue-700 bg-blue-50' : 'text-gray-600 hover:text-gray-800 hover:bg-gray-50'"
+        <button @click="activeTab = 'monthly'" :class="activeTab === 'monthly' ? 'border-b-2 border-slate-800 text-slate-800 bg-slate-50' : 'text-gray-600 hover:text-gray-800 hover:bg-gray-50'"
                 class="px-5 py-3 text-sm font-semibold whitespace-nowrap transition">
             {{ __('messages.monthly_breakdown') }}
         </button>
@@ -241,7 +241,7 @@
                             @foreach($items as $item)
                                 <tr class="border-b hover:bg-gray-50">
                                     <td class="px-4 py-2">
-                                        <span class="px-2 py-0.5 rounded text-xs font-semibold {{ $item->item_type === 'asset' ? 'bg-blue-100 text-blue-800' : ($item->item_type === 'liability' ? 'bg-red-100 text-red-800' : 'bg-green-100 text-green-800') }}">
+                                        <span class="px-2 py-0.5 rounded text-xs font-semibold {{ $item->item_type === 'asset' ? 'bg-sky-100 text-sky-800' : ($item->item_type === 'liability' ? 'bg-red-100 text-red-800' : 'bg-green-100 text-green-800') }}">
                                             {{ ucfirst($item->item_type) }}
                                         </span>
                                     </td>
@@ -269,7 +269,7 @@
         @else
             <div class="text-center py-8 text-gray-500">
                 No balance sheet items recorded. 
-                <a href="{{ route('admin.fiscalperiod.balance-sheet', $fiscalperiod->id) }}" class="text-blue-600 font-semibold">{{ __('messages.add_items') }}</a>
+                <a href="{{ route('admin.fiscalperiod.balance-sheet', $fiscalperiod->id) }}" class="text-sky-600 font-semibold">{{ __('messages.add_items') }}</a>
             </div>
         @endif
     </div>
@@ -385,7 +385,7 @@
             <!-- Debits -->
             <div>
                 <h3 class="text-sm font-bold text-gray-700 uppercase mb-3 flex items-center gap-2">
-                    <span class="w-3 h-3 rounded-full bg-blue-500"></span> Debit Accounts
+                    <span class="w-3 h-3 rounded-full bg-sky-500"></span> Debit Accounts
                 </h3>
                 <div class="bg-gray-50 rounded-lg overflow-hidden">
                     @forelse($trialBalance['debits'] as $debit)
@@ -396,9 +396,9 @@
                     @empty
                         <div class="px-4 py-3 text-gray-400 text-sm">{{ __('messages.no_debit_entries') }}</div>
                     @endforelse
-                    <div class="flex justify-between items-center px-4 py-3 bg-blue-100 border-t-2 border-blue-300">
+                    <div class="flex justify-between items-center px-4 py-3 bg-sky-100 border-t-2 border-sky-300">
                         <span class="font-bold">{{ __('messages.total_debits') }}</span>
-                        <span class="font-bold text-blue-700">${{ number_format($trialBalance['total_debits'], 2) }}</span>
+                        <span class="font-bold text-sky-700">${{ number_format($trialBalance['total_debits'], 2) }}</span>
                     </div>
                 </div>
             </div>
@@ -453,7 +453,7 @@
                 <h2 class="text-xl font-bold">{{ __('messages.monthly_breakdown') }}</h2>
                 <p class="text-sm text-gray-500">{{ __('messages.month_by_month') }}</p>
             </div>
-            <a href="{{ route('admin.fiscalperiod.show', $fiscalperiod->id) }}" class="text-blue-600 text-sm font-semibold hover:underline">
+            <a href="{{ route('admin.fiscalperiod.show', $fiscalperiod->id) }}" class="text-sky-600 text-sm font-semibold hover:underline">
                 Manage Monthly Periods →
             </a>
         </div>
@@ -462,8 +462,8 @@
             <div class="space-y-4">
                 @foreach($monthlyData as $md)
                     @php $mp = $md['period']; $mf = $md['financials']; @endphp
-                    <div class="border rounded-lg overflow-hidden {{ $mp->isClosed() ? 'border-gray-200' : 'border-blue-200' }}">
-                        <div class="flex items-center justify-between px-5 py-3 {{ $mp->isClosed() ? 'bg-gray-50' : 'bg-blue-50' }}">
+                    <div class="border rounded-lg overflow-hidden {{ $mp->isClosed() ? 'border-gray-200' : 'border-sky-200' }}">
+                        <div class="flex items-center justify-between px-5 py-3 {{ $mp->isClosed() ? 'bg-gray-50' : 'bg-sky-50' }}">
                             <div class="flex items-center gap-3">
                                 <h3 class="font-semibold">{{ $mp->name }}</h3>
                                 <span class="px-2 py-0.5 rounded-full text-xs font-semibold {{ $mp->status === 'open' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800' }}">

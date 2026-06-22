@@ -27,7 +27,7 @@
                     name="name" 
                     value="{{ old('name') }}"
                     required 
-                    class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 @error('name') border-red-500 @else border-gray-300 @enderror"
+                    class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-400 @error('name') border-red-500 @else border-gray-300 @enderror"
                     placeholder="{{ __('messages.enter_username') }}"
                 >
                 @error('name')
@@ -43,7 +43,7 @@
                     name="phone"
                     value="{{ old('phone') }}"
                     required
-                    class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 @error('phone') border-red-500 @else border-gray-300 @enderror"
+                    class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-400 @error('phone') border-red-500 @else border-gray-300 @enderror"
                     placeholder="{{ __('messages.enter_phone') }}"
                 >
                 @error('phone')
@@ -58,7 +58,7 @@
                     type="password" 
                     name="password" 
                     required 
-                    class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 @error('password') border-red-500 @else border-gray-300 @enderror"
+                    class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-400 @error('password') border-red-500 @else border-gray-300 @enderror"
                     placeholder="{{ __('messages.enter_password') }}"
                 >
                 @error('password')
@@ -73,7 +73,7 @@
                 <select 
                     name="role" 
                     required 
-                    class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 @error('role') border-red-500 @else border-gray-300 @enderror"
+                    class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-400 @error('role') border-red-500 @else border-gray-300 @enderror"
                 >
                     <option value="">{{ __('messages.select_a_role') }}</option>
                     @foreach($roles as $role)
@@ -97,7 +97,7 @@
                 </a>
                 <button
                     type="submit"
-                    class="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition font-medium"
+                    class="px-6 py-2 bg-slate-800 text-white rounded-lg hover:bg-slate-700 transition font-medium"
                 >
                     Create User
                 </button>

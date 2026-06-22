@@ -28,7 +28,7 @@
                     name="name" 
                     value="{{ old('name', $user->name) }}"
                     required 
-                    class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 {{ $errors->has('name') ? 'border-red-500' : 'border-gray-300' }}"
+                    class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-400 {{ $errors->has('name') ? 'border-red-500' : 'border-gray-300' }}"
                     placeholder="{{ __('messages.enter_username') }}"
                 >
                 @error('name')
@@ -44,7 +44,7 @@
                     name="phone"
                     value="{{ old('phone', $user->phone) }}"
                     required
-                    class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 {{ $errors->has('phone') ? 'border-red-500' : 'border-gray-300' }}"
+                    class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-400 {{ $errors->has('phone') ? 'border-red-500' : 'border-gray-300' }}"
                     placeholder="{{ __('messages.enter_phone') }}"
                 >
                 @error('phone')
@@ -58,7 +58,7 @@
                 <select 
                     name="role" 
                     required 
-                    class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 {{ $errors->has('role') ? 'border-red-500' : 'border-gray-300' }}"
+                    class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-400 {{ $errors->has('role') ? 'border-red-500' : 'border-gray-300' }}"
                 >
                     <option value="">{{ __('messages.select_a_role') }}</option>
                     @foreach($roles as $role)
@@ -77,7 +77,7 @@
                 <label class="block text-sm font-medium text-gray-700 mb-2">{{ __('messages.status') }}</label>
                 <select 
                     name="status" 
-                    class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 {{ $errors->has('status') ? 'border-red-500' : 'border-gray-300' }}"
+                    class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-400 {{ $errors->has('status') ? 'border-red-500' : 'border-gray-300' }}"
                 >
                     <option value="active" {{ $user->status === 'active' ? 'selected' : '' }}>{{ __('messages.active') }}</option>
                     <option value="inactive" {{ $user->status === 'inactive' ? 'selected' : '' }}>{{ __('messages.inactive') }}</option>
@@ -95,7 +95,7 @@
                     type="password"
                     name="password"
                     autocomplete="new-password"
-                    class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 {{ $errors->has('password') ? 'border-red-500' : 'border-gray-300' }}"
+                    class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-400 {{ $errors->has('password') ? 'border-red-500' : 'border-gray-300' }}"
                     placeholder="{{ __('messages.enter_password') }}"
                 >
                 @error('password')
@@ -114,7 +114,7 @@
                 </a>
                 <button
                     type="submit"
-                    class="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition font-medium"
+                    class="px-6 py-2 bg-slate-800 text-white rounded-lg hover:bg-slate-700 transition font-medium"
                 >
                     Update User
                 </button>

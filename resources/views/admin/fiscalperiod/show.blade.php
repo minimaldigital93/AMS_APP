@@ -19,7 +19,7 @@
                 <a href="{{ route('admin.fiscalperiod.edit', $fiscalperiod->id) }}" class="text-sm bg-gray-100 text-gray-700 px-3 py-2 rounded-lg hover:bg-gray-200 flex items-center" title="{{ __('messages.edit') }}">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg></a>
             @endif
-            <a href="{{ route('admin.fiscalperiod.reports', $fiscalperiod->id) }}" class="text-sm bg-indigo-600 text-white px-3 py-2 rounded-lg hover:bg-indigo-700 flex items-center" title="{{ __('messages.reports') }}">
+            <a href="{{ route('admin.fiscalperiod.reports', $fiscalperiod->id) }}" class="text-sm bg-slate-800 text-white px-3 py-2 rounded-lg hover:bg-slate-700 flex items-center" title="{{ __('messages.reports') }}">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-6m4 6V7m4 10v-3M5 21h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v14a2 2 0 002 2z"/></svg></a>
             <a href="{{ route('admin.fiscalperiod.exportPDF', $fiscalperiod->id) }}" target="_blank"
                class="text-sm bg-gray-700 text-white px-3 py-2 rounded-lg hover:bg-gray-800 flex items-center gap-1.5" title="{{ __('messages.print_annual_summary_pdf') }}">
@@ -48,7 +48,7 @@
             <span class="text-sm font-bold text-gray-700">{{ $periodPercent }}%</span>
         </div>
         <div class="w-full bg-gray-100 rounded-full h-2.5 overflow-hidden">
-            <div class="h-2.5 rounded-full {{ $periodPercent >= 100 ? 'bg-red-500' : ($periodPercent >= 80 ? 'bg-amber-500' : 'bg-indigo-500') }}"
+            <div class="h-2.5 rounded-full {{ $periodPercent >= 100 ? 'bg-red-500' : ($periodPercent >= 80 ? 'bg-amber-500' : 'bg-sky-500') }}"
                  style="width: {{ $periodPercent }}%"></div>
         </div>
         <div class="flex items-center justify-between mt-2 text-xs text-gray-500">
@@ -159,7 +159,7 @@
                             @endif
                             {{-- View detail --}}
                             <a href="{{ route('admin.fiscalperiod.monthly-period.show', [$fiscalperiod->id, $month->id]) }}"
-                               class="p-2 rounded-lg text-blue-600 bg-blue-50 active:bg-blue-100" title="{{ __('messages.view_details') }}">
+                               class="p-2 rounded-lg text-sky-600 bg-sky-50 active:bg-sky-100" title="{{ __('messages.view_details') }}">
                                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
                             </a>
                         </div>
@@ -213,7 +213,7 @@
                                     <div class="flex items-center justify-center gap-1">
                                         {{-- View --}}
                                         <a href="{{ route('admin.fiscalperiod.monthly-period.show', [$fiscalperiod->id, $month->id]) }}"
-                                           class="p-1.5 rounded text-blue-600 hover:bg-blue-50 transition" title="{{ __('messages.view_details') }}">
+                                           class="p-1.5 rounded text-sky-600 hover:bg-sky-50 transition" title="{{ __('messages.view_details') }}">
                                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
                                         </a>
 

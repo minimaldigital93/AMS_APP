@@ -4,7 +4,7 @@
 <div class="container mx-auto py-8 max-w-4xl">
     <div class="flex items-center justify-between mb-6">
         <h1 class="text-2xl font-semibold text-slate-800 tracking-tight">{{ __('messages.fiscal_periods') }}</h1>
-        <a href="{{ route('admin.fiscalperiod.create') }}" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 text-sm font-semibold">
+        <a href="{{ route('admin.fiscalperiod.create') }}" class="bg-slate-800 text-white px-4 py-2 rounded-lg hover:bg-slate-700 text-sm font-semibold">
             + New Period
         </a>
     </div>
@@ -45,7 +45,7 @@
     @else
         <div class="bg-white rounded-lg shadow p-8 text-center">
             <p class="text-gray-500 mb-4">{{ __('messages.no_fiscal_periods_yet') }}</p>
-            <a href="{{ route('admin.fiscalperiod.create') }}" class="inline-block bg-blue-600 text-white px-5 py-2 rounded-lg hover:bg-blue-700 font-semibold">
+            <a href="{{ route('admin.fiscalperiod.create') }}" class="inline-block bg-slate-800 text-white px-5 py-2 rounded-lg hover:bg-slate-700 font-semibold">
                 Create First Period
             </a>
         </div>

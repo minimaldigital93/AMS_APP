@@ -171,7 +171,7 @@
         <div class="grid grid-cols-3 gap-4 text-center">
             <div>
                 <p class="text-xs text-gray-500 uppercase">{{ __('messages.assets') }}</p>
-                <p class="text-lg font-bold text-blue-600">${{ number_format($balanceSheet['total_assets'], 2) }}</p>
+                <p class="text-lg font-bold text-sky-600">${{ number_format($balanceSheet['total_assets'], 2) }}</p>
             </div>
             <div>
                 <p class="text-xs text-gray-500 uppercase">{{ __('messages.liabilities') }}</p>
