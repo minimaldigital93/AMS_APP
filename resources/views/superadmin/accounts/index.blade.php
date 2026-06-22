@@ -98,34 +98,60 @@
                             {{ $sub?->expires_at ? $sub->expires_at->format('M j, Y') : '—' }}
                         </td>
                         <td class="px-6 py-4">
-                            @if ($account->status !== 'suspended' && $sub && ! $sub->isActive())
-                                <form method="POST" action="{{ route('superadmin.accounts.activate', $account) }}" class="inline">
+                            <div class="flex items-center gap-1">
+                                {{-- View account detail --}}
+                                <a href="{{ route('superadmin.accounts.show', $account) }}" class="inline-flex items-center justify-center h-9 w-9 rounded-lg text-slate-500 hover:bg-slate-100 transition" title="{{ __('View') }}">
+                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                                    </svg>
+                                </a>
+
+                                {{-- Single pause / resume / activate toggle (only one shows per state) --}}
+                                @if ($account->status === 'suspended')
+                                    <form method="POST" action="{{ route('superadmin.accounts.suspend', $account) }}" class="inline">
+                                        @csrf
+                                        <button type="submit" class="inline-flex items-center justify-center h-9 w-9 rounded-lg text-green-600 hover:bg-green-50 transition" title="{{ __('Resume') }}">
+                                            <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
+                                                <path stroke-linecap="round" stroke-linejoin="round" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                            </svg>
+                                        </button>
+                                    </form>
+                                @elseif ($sub && ! $sub->isActive())
+                                    <form method="POST" action="{{ route('superadmin.accounts.activate', $account) }}" class="inline">
+                                        @csrf
+                                        <button type="submit" class="inline-flex items-center justify-center h-9 w-9 rounded-lg text-green-600 hover:bg-green-50 transition" title="{{ __('Activate') }}">
+                                            <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
+                                                <path stroke-linecap="round" stroke-linejoin="round" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                            </svg>
+                                        </button>
+                                    </form>
+                                @else
+                                    <form method="POST" action="{{ route('superadmin.accounts.suspend', $account) }}" class="inline">
+                                        @csrf
+                                        <button type="submit" class="inline-flex items-center justify-center h-9 w-9 rounded-lg text-amber-600 hover:bg-amber-50 transition" title="{{ __('Pause') }}">
+                                            <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" d="M10 9v6m4-6v6m7-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                            </svg>
+                                        </button>
+                                    </form>
+                                @endif
+
+                                {{-- Delete account --}}
+                                <form method="POST" action="{{ route('superadmin.accounts.destroy', $account) }}" class="inline"
+                                      data-confirm="{{ __('messages.confirm_delete_account', ['name' => $account->name]) }}"
+                                      data-confirm-ok="{{ __('messages.confirm_delete_ok') }}">
                                     @csrf
-                                    <button type="submit" class="inline-flex items-center justify-center h-9 w-9 rounded-lg text-green-600 hover:bg-green-50 transition" title="{{ __('Activate') }}">
+                                    @method('DELETE')
+                                    <button type="submit" class="inline-flex items-center justify-center h-9 w-9 rounded-lg text-red-600 hover:bg-red-50 transition" title="{{ __('Delete') }}">
                                         <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
-                                            <path stroke-linecap="round" stroke-linejoin="round" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                            <path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                                         </svg>
                                     </button>
                                 </form>
-                            @endif
-                            <form method="POST" action="{{ route('superadmin.accounts.suspend', $account) }}" class="inline">
-                                @csrf
-                                @if ($account->status === 'suspended')
-                                    <button type="submit" class="inline-flex items-center justify-center h-9 w-9 rounded-lg text-green-600 hover:bg-green-50 transition" title="{{ __('Reactivate') }}">
-                                        <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
-                                            <path stroke-linecap="round" stroke-linejoin="round" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                                        </svg>
-                                    </button>
-                                @else
-                                    <button type="submit" class="inline-flex items-center justify-center h-9 w-9 rounded-lg text-red-600 hover:bg-red-50 transition" title="{{ __('Suspend') }}">
-                                        <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" d="M10 9v6m4-6v6m7-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                                        </svg>
-                                    </button>
-                                @endif
-                            </form>
+                            </div>
                         </td>
                     </tr>
                     @empty
