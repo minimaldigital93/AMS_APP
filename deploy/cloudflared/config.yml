@@ -1,0 +1,18 @@
+tunnel: e3728a94-42ff-470f-a6f7-ef0f46b6388d
+credentials-file: /Users/sarotmoniodom/.cloudflared/e3728a94-42ff-470f-a6f7-ef0f46b6388d.json
+
+ingress:
+  # Smart_sell (Next.js, basePath /smart_sell) -> straight to Next on :3000.
+  - hostname: minimaldigital.dev
+    path: ^/smart_sell(/.*)?$
+    service: http://localhost:3000
+  - hostname: www.minimaldigital.dev
+    path: ^/smart_sell(/.*)?$
+    service: http://localhost:3000
+  # Everything else (website root + /ams_app) -> nginx front door on :8090,
+  # which serves the placeholder at / and reverse-proxies /ams_app to Laravel.
+  - hostname: minimaldigital.dev
+    service: http://localhost:8090
+  - hostname: www.minimaldigital.dev
+    service: http://localhost:8090
+  - service: http_status:404

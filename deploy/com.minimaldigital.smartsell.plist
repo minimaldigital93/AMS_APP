@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.minimaldigital.smartsell</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>/opt/homebrew/bin/node</string>
+        <string>node_modules/next/dist/bin/next</string>
+        <string>start</string>
+        <string>-H</string>
+        <string>127.0.0.1</string>
+        <string>-p</string>
+        <string>3000</string>
+    </array>
+
+    <key>WorkingDirectory</key>
+    <string>/Users/sarotmoniodom/Smart_sell</string>
+
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>PATH</key>
+        <string>/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
+        <key>NODE_ENV</key>
+        <string>production</string>
+    </dict>
+
+    <!-- Restart automatically if it ever crashes -->
+    <key>KeepAlive</key>
+    <true/>
+
+    <!-- Start on login/boot -->
+    <key>RunAtLoad</key>
+    <true/>
+
+    <key>StandardOutPath</key>
+    <string>/Users/sarotmoniodom/Smart_sell/logs/smartsell.out.log</string>
+    <key>StandardErrorPath</key>
+    <string>/Users/sarotmoniodom/Smart_sell/logs/smartsell.err.log</string>
+</dict>
+</plist>

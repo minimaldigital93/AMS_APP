@@ -50,12 +50,16 @@ composer deploy
 # Pull latest, then ship
 git pull && composer deploy
 
-# Take site OFFLINE   (tunnel first, then server)
+# Take site OFFLINE   (tunnel first, then the backends)
 launchctl bootout gui/$(id -u)/com.minimaldigital.cloudflared
+launchctl bootout gui/$(id -u)/com.minimaldigital.smartsell
 launchctl bootout gui/$(id -u)/com.minimaldigital.laravel
+brew services stop nginx
 
-# Bring site ONLINE   (server first, then tunnel)
+# Bring site ONLINE   (backends first, tunnel LAST)
+brew services start nginx
 launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.minimaldigital.laravel.plist
+launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.minimaldigital.smartsell.plist
 launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.minimaldigital.cloudflared.plist
 
 # Restart just the app after editing .env
@@ -64,6 +68,7 @@ launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.minimaldigital.larav
 
 # Status & logs
 launchctl list | grep minimaldigital
+brew services list | grep nginx
 tail -f storage/logs/serve.out.log storage/logs/cloudflared.out.log
 
 # Fresh clone / new machine
@@ -73,7 +78,7 @@ composer setup
 **Rules of thumb:**
 - Plain code change → just `composer deploy`. No service restart needed.
 - Restart services only when `.env`, a `.plist`, or the tunnel config changes.
-- Stopping order: tunnel → server. Starting order: server → tunnel.
+- Stopping order: tunnel → backends. Starting order: backends → tunnel.
 - Mac must stay **awake & logged in** or the site goes down (`caffeinate -s`).
 
 ## Architecture
@@ -126,14 +131,19 @@ composer setup
 
 ### A) Hosting — keeping the site online (launchd + tunnel)
 
+The stack is **four services**: nginx (front door), Laravel (AMS_APP),
+Next.js (Smart_sell), and the cloudflared tunnel.
+
 | Goal | Command |
 |------|---------|
-| Take site **offline** | `launchctl bootout gui/$(id -u)/com.minimaldigital.cloudflared`<br>`launchctl bootout gui/$(id -u)/com.minimaldigital.laravel` |
-| Bring site **online** | `launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.minimaldigital.laravel.plist`<br>`launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.minimaldigital.cloudflared.plist` |
-| Check status | `launchctl list \| grep minimaldigital` |
+| Take site **offline** | `launchctl bootout gui/$(id -u)/com.minimaldigital.cloudflared`<br>`launchctl bootout gui/$(id -u)/com.minimaldigital.smartsell`<br>`launchctl bootout gui/$(id -u)/com.minimaldigital.laravel`<br>`brew services stop nginx` |
+| Bring site **online** | `brew services start nginx`<br>`launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.minimaldigital.laravel.plist`<br>`launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.minimaldigital.smartsell.plist`<br>`launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.minimaldigital.cloudflared.plist` |
+| Check status | `launchctl list \| grep minimaldigital` and `brew services list \| grep nginx` |
 | Watch logs | `tail -f storage/logs/serve.out.log storage/logs/cloudflared.out.log` |
 
-Order matters when stopping: drop the tunnel first, then the server.
+Order matters: when stopping, drop the tunnel **first**, then the backends; when
+starting, bring the backends up **first** and the tunnel **last**, so the public
+tunnel never opens before nginx / Laravel / Smart_sell can answer.
 
 Restart one service after a config change (e.g. editing `.env`):
 
@@ -173,18 +183,61 @@ files, or the tunnel config change.
 
 ## Common workflows
 
-**Fresh machine / fresh clone:**
-
-```bash
-composer setup   # deps, .env, app key, migrate, build assets
-```
-
 **Day-to-day after editing code:**
 
 ```bash
 git pull         # if pulling changes
 composer deploy  # migrate + re-cache + build assets, with a maintenance window
 ```
+
+## Recover hosting after a machine reset
+
+A full wipe deletes the `~/Library/LaunchAgents/` plists, the nginx config, the
+Homebrew packages, and `~/.cloudflared/`. The repo keeps copies of the config
+files in `deploy/` so you can rebuild the whole stack. **Secrets are not in the
+repo** — the cloudflared credentials (`~/.cloudflared/cert.pem` and
+`<tunnel-id>.json`) must be restored from your own backup or re-issued with
+`cloudflared tunnel login` / `cloudflared tunnel token`.
+
+```bash
+# 1. Prerequisites
+brew install php composer node nginx cloudflared
+
+# 2. Code — both checkouts
+#    AMS_APP (this repo) at ~/AMS_APP, Smart_sell at ~/Smart_sell
+cd ~/AMS_APP && composer setup            # deps, .env, app key, migrate, build
+cd ~/Smart_sell && npm install && npm run build
+
+# 3. Restore configs from this repo into their live locations
+cp ~/AMS_APP/deploy/com.minimaldigital.laravel.plist     ~/Library/LaunchAgents/
+cp ~/AMS_APP/deploy/com.minimaldigital.smartsell.plist   ~/Library/LaunchAgents/
+cp ~/AMS_APP/deploy/com.minimaldigital.cloudflared.plist ~/Library/LaunchAgents/
+cp ~/AMS_APP/deploy/nginx/ams_app.conf      /opt/homebrew/etc/nginx/servers/
+cp ~/AMS_APP/deploy/cloudflared/config.yml  ~/.cloudflared/
+
+# 4. Restore the cloudflared secrets (NOT in the repo) into ~/.cloudflared/
+#    cert.pem  and  e3728a94-42ff-470f-a6f7-ef0f46b6388d.json
+
+# 5. Bring the stack online (backends first, tunnel last)
+brew services start nginx
+launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.minimaldigital.laravel.plist
+launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.minimaldigital.smartsell.plist
+launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.minimaldigital.cloudflared.plist
+
+# 6. Keep the Mac from sleeping (or the tunnel drops)
+caffeinate -s
+```
+
+The config files backed up in `deploy/`:
+
+| Live location | Backup in repo |
+|---|---|
+| `~/Library/LaunchAgents/com.minimaldigital.laravel.plist` | `deploy/com.minimaldigital.laravel.plist` |
+| `~/Library/LaunchAgents/com.minimaldigital.smartsell.plist` | `deploy/com.minimaldigital.smartsell.plist` |
+| `~/Library/LaunchAgents/com.minimaldigital.cloudflared.plist` | `deploy/com.minimaldigital.cloudflared.plist` |
+| `/opt/homebrew/etc/nginx/servers/ams_app.conf` | `deploy/nginx/ams_app.conf` |
+| `~/.cloudflared/config.yml` | `deploy/cloudflared/config.yml` |
+| `~/.cloudflared/cert.pem` + `<tunnel-id>.json` | **not stored — secrets, back up separately** |
 
 ## Notes & gotchas
 
@@ -205,3 +258,22 @@ composer deploy  # migrate + re-cache + build assets, with a maintenance window
   mycoding5555 account click **Check nameservers now** so the zone goes Active.
   (The cloudflared `cert.pem` token can read/edit that zone's DNS via the API
   but cannot trigger activation.)
+
+  
+## boot hotsing
+# 1. nginx — the front door on :8090 (Homebrew-managed)
+brew services start nginx
+
+# 2. AMS_APP (Laravel) on :8000
+launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.minimaldigital.laravel.plist
+
+# 3. Smart_sell (Next.js) on :3000
+launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.minimaldigital.smartsell.plist
+
+# 4. Cloudflare tunnel — LAST (so it only opens once the backends are up)
+launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.minimaldigital.cloudflared.plist
+Check everything came up:
+
+
+launchctl list | grep minimaldigital
+brew services list | grep nginx
