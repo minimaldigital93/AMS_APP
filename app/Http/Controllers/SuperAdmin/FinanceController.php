@@ -26,6 +26,9 @@ class FinanceController extends Controller
     {
         $periods = $this->finance->periods();
 
+        // A new period can't be opened while one is still open.
+        $hasOpenPeriod = $periods->contains(fn ($p) => ! $p->isClosed());
+
         // No period defined yet — show the empty state with a "create" prompt.
         if ($periods->isEmpty()) {
             return view('superadmin.finance.index', [
@@ -34,6 +37,7 @@ class FinanceController extends Controller
                 'pnl' => null,
                 'expenses' => null,
                 'categories' => PlatformExpense::CATEGORIES,
+                'hasOpenPeriod' => $hasOpenPeriod,
             ]);
         }
 
@@ -58,6 +62,7 @@ class FinanceController extends Controller
             'pnl' => $pnl,
             'expenses' => $expenses,
             'categories' => PlatformExpense::CATEGORIES,
+            'hasOpenPeriod' => $hasOpenPeriod,
         ]);
     }
 
@@ -180,12 +185,29 @@ class FinanceController extends Controller
     /** Create a fiscal period spanning an exact start date to an end date. */
     public function storePeriod(Request $request): RedirectResponse
     {
+        // Only one platform fiscal period may be open at a time — the current one
+        // must be closed before a new one is opened, so the carry-forward chain
+        // stays unambiguous.
+        if (PlatformFiscalPeriod::where('status', 'open')->exists()) {
+            return redirect()
+                ->route('superadmin.finance.index')
+                ->with('warning', __('messages.flash_fp_close_current_first'));
+        }
+
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255'],
             'start_date' => ['required', 'date'],
             'end_date' => ['required', 'date', 'after_or_equal:start_date'],
             'opening_balance' => ['nullable', 'numeric', 'min:0'],
         ]);
+
+        // Date ranges must not overlap another period, or the same revenue would
+        // count in two periods and the carry-forward chain would be ambiguous.
+        if ($this->overlapsAnotherPeriod($validated['start_date'], $validated['end_date'])) {
+            return redirect()
+                ->route('superadmin.finance.index')
+                ->with('warning', __('messages.flash_fp_period_overlap'));
+        }
 
         $period = $this->finance->createPeriod(
             $validated['name'],
@@ -208,6 +230,13 @@ class FinanceController extends Controller
             'end_date' => ['required', 'date', 'after_or_equal:start_date'],
             'opening_balance' => ['nullable', 'numeric', 'min:0'],
         ]);
+
+        // Re-dating must not push this period onto another's range.
+        if ($this->overlapsAnotherPeriod($validated['start_date'], $validated['end_date'], $period->id)) {
+            return redirect()
+                ->route('superadmin.finance.index', ['period' => $period->id])
+                ->with('warning', __('messages.flash_fp_period_overlap'));
+        }
 
         $this->finance->updatePeriod(
             $period,
@@ -274,11 +303,34 @@ class FinanceController extends Controller
     /** Reopen a closed fiscal period — unlocks its months. */
     public function reopenPeriod(PlatformFiscalPeriod $period): RedirectResponse
     {
+        // Single-open invariant: closing a period spins up an open successor, so
+        // reopening this one while a later period is already open would leave two
+        // open at once. Make the user close the open one first.
+        if (PlatformFiscalPeriod::where('status', 'open')->where('id', '!=', $period->id)->exists()) {
+            return redirect()
+                ->route('superadmin.finance.index', ['period' => $period->id])
+                ->with('warning', __('messages.flash_fp_close_before_reopen'));
+        }
+
         $this->finance->reopenPeriod($period);
 
         return redirect()
             ->route('superadmin.finance.index', ['period' => $period->id])
             ->with('success', __('Fiscal period reopened.'));
+    }
+
+    /**
+     * Does [$start, $end] overlap any existing period (optionally ignoring one,
+     * for the edit case)? Two ranges overlap when each starts on or before the
+     * other ends.
+     */
+    private function overlapsAnotherPeriod(string $start, string $end, ?int $ignoreId = null): bool
+    {
+        return PlatformFiscalPeriod::query()
+            ->where('start_date', '<=', $end)
+            ->where('end_date', '>=', $start)
+            ->when($ignoreId, fn ($q) => $q->where('id', '!=', $ignoreId))
+            ->exists();
     }
 
     /** Default to the period covering today, else the most recent one. */

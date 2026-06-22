@@ -36,16 +36,34 @@ class FiscalPeriodController extends Controller
             ->orderBy('opening_date', 'desc')
             ->paginate(15);
 
-        return view('admin.fiscalperiod.index', compact('fiscalPeriods'));
+        $hasOpenPeriod = $this->hasOpenPeriod();
+
+        return view('admin.fiscalperiod.index', compact('fiscalPeriods', 'hasOpenPeriod'));
     }
 
     public function create()
     {
+        // Only one fiscal period may be open at a time — the current one must be
+        // closed before a new one is opened (getActiveFiscalPeriod() and the
+        // fiscal.period middleware both assume a single open period).
+        if ($this->hasOpenPeriod()) {
+            return redirect()
+                ->route('admin.fiscalperiod.index')
+                ->with('warning', __('messages.flash_fp_close_current_first'));
+        }
+
         return view('admin.fiscalperiod.open_close_periods');
     }
 
     public function store(StoreFiscalPeriodRequest $request)
     {
+        // Authoritative guard: refuse a second open period even if the UI is bypassed.
+        if ($this->hasOpenPeriod()) {
+            return redirect()
+                ->route('admin.fiscalperiod.index')
+                ->with('warning', __('messages.flash_fp_close_current_first'));
+        }
+
         $data = $request->validated();
 
         $fiscalPeriod = FiscalPeriods::create([
@@ -436,5 +454,16 @@ class FiscalPeriodController extends Controller
         if ($fiscalperiod->user_id !== Auth::id()) {
             abort(403, 'Unauthorized access');
         }
+    }
+
+    /**
+     * Does this admin already have an open fiscal period? A new period can't be
+     * opened while one is still open — the current one must be closed first.
+     */
+    private function hasOpenPeriod(): bool
+    {
+        return FiscalPeriods::where('user_id', Auth::id())
+            ->where('status', 'open')
+            ->exists();
     }
 }

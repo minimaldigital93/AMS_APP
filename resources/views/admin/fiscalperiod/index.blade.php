@@ -4,10 +4,23 @@
 <div class="container mx-auto py-8 max-w-4xl">
     <div class="flex items-center justify-between mb-6">
         <h1 class="text-2xl font-semibold text-slate-800 tracking-tight">{{ __('messages.fiscal_periods') }}</h1>
-        <a href="{{ route('admin.fiscalperiod.create') }}" class="bg-slate-800 text-white px-4 py-2 rounded-lg hover:bg-slate-700 text-sm font-semibold">
-            + New Period
-        </a>
+        @if($hasOpenPeriod)
+            <span title="{{ __('messages.flash_fp_close_current_first') }}"
+                class="bg-gray-200 text-gray-400 px-4 py-2 rounded-lg text-sm font-semibold cursor-not-allowed select-none">
+                + New Period
+            </span>
+        @else
+            <a href="{{ route('admin.fiscalperiod.create') }}" class="bg-slate-800 text-white px-4 py-2 rounded-lg hover:bg-slate-700 text-sm font-semibold">
+                + New Period
+            </a>
+        @endif
     </div>
+
+    @if($hasOpenPeriod)
+        <div class="bg-amber-50 border border-amber-200 text-amber-800 text-sm rounded-lg px-4 py-3 mb-6">
+            {{ __('messages.flash_fp_close_current_first') }}
+        </div>
+    @endif
 
     @if($fiscalPeriods->count())
         <div class="space-y-4">

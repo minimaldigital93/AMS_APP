@@ -49,10 +49,17 @@
                     <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/></svg>
                 </button>
             @endif
-            <button type="button" @click="periodCreateOpen = true" title="{{ __('New period') }}"
-                    class="inline-flex items-center justify-center rounded-lg border border-gray-300 bg-white p-2 text-gray-700 shadow-sm hover:bg-gray-50">
-                <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/></svg>
-            </button>
+            @if ($hasOpenPeriod)
+                <button type="button" disabled title="{{ __('messages.flash_fp_close_current_first') }}"
+                        class="inline-flex cursor-not-allowed items-center justify-center rounded-lg border border-gray-200 bg-gray-50 p-2 text-gray-300 shadow-sm">
+                    <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/></svg>
+                </button>
+            @else
+                <button type="button" @click="periodCreateOpen = true" title="{{ __('New period') }}"
+                        class="inline-flex items-center justify-center rounded-lg border border-gray-300 bg-white p-2 text-gray-700 shadow-sm hover:bg-gray-50">
+                    <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/></svg>
+                </button>
+            @endif
         </div>
     </div>
 
@@ -163,9 +170,10 @@
                           data-confirm="{{ __('Close this period? Its months lock and the carried balance moves into the next period. You can reopen later.') }}">
                         @csrf
                         <button type="submit" @disabled(! $pnl['period_closeable']) title="{{ __('Close period') }}"
-                                class="inline-flex items-center justify-center rounded-lg p-2 text-white shadow-sm
+                                class="inline-flex items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-sm font-semibold text-white shadow-sm
                                        {{ $pnl['period_closeable'] ? 'bg-indigo-600 hover:bg-indigo-500' : 'cursor-not-allowed bg-gray-300' }}">
                             <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
+                            {{ __('Close period') }}
                         </button>
                     </form>
                 @endif
@@ -337,17 +345,9 @@
         <div class="mt-4">{{ $expenses->links() }}</div>
     </div>
 
-    {{-- Owner withdrawals --}}
+    {{-- Owner withdrawals — the Withdraw button lives in the period status card above. --}}
     <div class="mt-6 rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
-        <div class="flex items-center justify-between">
-            <h2 class="text-lg font-semibold text-gray-900">{{ __('Owner withdrawals') }} · {{ $period->name }}</h2>
-            @unless ($pnl['period_closed'])
-                <button type="button" @click="withdrawOpen = true; cashOut = ''" title="{{ __('Withdraw') }}"
-                        class="inline-flex items-center justify-center rounded-lg border border-purple-200 bg-purple-50 p-2 text-purple-700 hover:bg-purple-100 print:hidden">
-                    <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/></svg>
-                </button>
-            @endunless
-        </div>
+        <h2 class="text-lg font-semibold text-gray-900">{{ __('Owner withdrawals') }} · {{ $period->name }}</h2>
         <p class="mt-0.5 text-sm text-gray-500">{{ __('Cash taken out of the period — available now: :amount.', ['amount' => $money($pnl['available_to_withdraw'])]) }}</p>
         <div class="mt-4 space-y-2">
             @forelse ($period->withdrawals as $withdrawal)
