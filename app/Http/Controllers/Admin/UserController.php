@@ -22,6 +22,9 @@ class UserController extends Controller
      */
     private const ASSIGNABLE_ROLES = ['supervisor', 'tenant'];
 
+    /** Default password applied when an admin resets a login. */
+    private const RESET_PASSWORD = '12345678';
+
     public function index(Request $request): View
     {
         // Isolate to the current account (admins only see their own team).
@@ -118,6 +121,8 @@ class UserController extends Controller
             'phone' => ['required', 'string', 'max:255', Rule::unique('users')->ignore($user)],
             'role' => ['required', Rule::in(self::ASSIGNABLE_ROLES)],
             'status' => 'nullable|in:active,inactive,suspended',
+            // Optional: set a new login password. Left blank keeps the current one.
+            'password' => ['nullable', Password::defaults()],
         ]);
 
         // Block promoting a non-supervisor into a supervisor past the staff cap.
@@ -137,11 +142,48 @@ class UserController extends Controller
             $updateData['status'] = $validated['status'];
         }
 
+        if (! empty($validated['password'])) {
+            $updateData['password'] = Hash::make($validated['password']);
+        }
+
         $user->update($updateData);
 
         $user->syncRoles([$validated['role']]);
 
         return redirect()->route('admin.users.index')->with('success', __('messages.flash_user_updated'));
+    }
+
+    /**
+     * Reset a team member's (or the admin's own) login password to the fixed
+     * default. The phone number — their login identifier — is left untouched.
+     */
+    public function resetPassword(User $user)
+    {
+        $this->authorizePasswordManagement($user);
+
+        $user->forceFill(['password' => Hash::make(self::RESET_PASSWORD)])->save();
+
+        return back()->with('success', __('messages.flash_account_password_reset', [
+            'name' => $user->name,
+            'password' => self::RESET_PASSWORD,
+        ]));
+    }
+
+    /**
+     * Admins may manage passwords for their own account and for the
+     * supervisors/tenants on their team — never another admin or superadmin.
+     */
+    private function authorizePasswordManagement(User $user): void
+    {
+        // Always allowed to manage your own password.
+        if ($user->id === auth()->id()) {
+            return;
+        }
+
+        // Otherwise the target must be a supervisor/tenant on the admin's team —
+        // never another admin or a superadmin.
+        abort_unless($user->account_id === current_account_id(), 404);
+        abort_if($user->hasAnyRole(['admin', 'superadmin']), 403);
     }
 
     public function destroy(User $user)
@@ -153,6 +195,11 @@ class UserController extends Controller
 
     public function updateRole(Request $request, User $user)
     {
+        // Never allow switching/demoting an admin or superadmin via the role picker.
+        if ($user->hasAnyRole(['admin', 'superadmin'])) {
+            return back()->with('error', __('messages.flash_cannot_change_admin_role'));
+        }
+
         $validated = $request->validate([
             'role' => [
                 'required',

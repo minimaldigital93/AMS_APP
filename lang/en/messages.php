@@ -27,7 +27,10 @@ return [
     'confirm_delete_ok' => 'Delete account',
     'confirm_reset_password' => 'Reset the password for ":name" to :password? Their phone number stays the same.',
     'confirm_reset_password_ok' => 'Reset password',
+    'reset_password' => 'Reset password',
     'reset_password_help' => 'Resets this account\'s login password to :password. The phone number stays the same.',
+    'new_password' => 'New Password',
+    'leave_blank_keep_password' => 'Leave blank to keep the current password.',
     'close' => 'Close',
     'status' => 'Status',
     'name' => 'Name',
@@ -1031,6 +1034,7 @@ return [
     'no_properties_desc' => 'Create your first property to start adding floors and rooms.',
     'select_property' => 'Select a property',
     'back_to_properties' => 'Back to Properties',
+    'back_to_users' => 'Back to Users',
     'assign_supervisor' => 'Assign Supervisor',
     'unassigned' => 'Unassigned',
     'eg_property_name' => 'e.g. Sunrise Building',
@@ -1055,6 +1059,7 @@ return [
     'flash_user_updated' => 'User updated.',
     'flash_user_deleted' => 'User deleted.',
     'flash_user_role_updated' => 'Role updated.',
+    'flash_cannot_change_admin_role' => 'The role of an admin account cannot be changed.',
     'flash_permissions_updated' => 'Permissions updated.',
 
     // Revenue & expense

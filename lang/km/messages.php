@@ -27,7 +27,10 @@ return [
     'confirm_delete_ok' => 'លុបគណនី',
     'confirm_reset_password' => 'កំណត់ពាក្យសម្ងាត់ឡើងវិញសម្រាប់ ":name" ទៅ :password មែនទេ? លេខទូរស័ព្ទរបស់ពួកគេនៅដដែល។',
     'confirm_reset_password_ok' => 'កំណត់ពាក្យសម្ងាត់ឡើងវិញ',
+    'reset_password' => 'កំណត់ពាក្យសម្ងាត់ឡើងវិញ',
     'reset_password_help' => 'កំណត់ពាក្យសម្ងាត់ចូលគណនីនេះឡើងវិញទៅ :password។ លេខទូរស័ព្ទនៅដដែល។',
+    'new_password' => 'ពាក្យសម្ងាត់ថ្មី',
+    'leave_blank_keep_password' => 'ទុកឱ្យនៅទទេ ដើម្បីរក្សាពាក្យសម្ងាត់បច្ចុប្បន្ន។',
     'close' => 'បិទ',
     'status' => 'ស្ថានភាព',
     'name' => 'ឈ្មោះ',
@@ -1031,6 +1034,7 @@ return [
     'no_properties_desc' => 'បង្កើតអចលនទ្រព្យដំបូងរបស់អ្នក ដើម្បីចាប់ផ្តើមបន្ថែមជាន់ និងបន្ទប់។',
     'select_property' => 'ជ្រើសរើសអចលនទ្រព្យ',
     'back_to_properties' => 'ត្រឡប់ទៅអចលនទ្រព្យ',
+    'back_to_users' => 'ត្រឡប់ទៅអ្នកប្រើប្រាស់',
     'assign_supervisor' => 'ចាត់តាំងអ្នកគ្រប់គ្រង',
     'unassigned' => 'មិនទាន់ចាត់តាំង',
     'eg_property_name' => 'ឧ. អគារ Sunrise',
@@ -1055,6 +1059,7 @@ return [
     'flash_user_updated' => 'អ្នកប្រើប្រាស់ត្រូវបានធ្វើបច្ចុប្បន្នភាព។',
     'flash_user_deleted' => 'អ្នកប្រើប្រាស់ត្រូវបានលុប។',
     'flash_user_role_updated' => 'តួនាទីត្រូវបានធ្វើបច្ចុប្បន្នភាព។',
+    'flash_cannot_change_admin_role' => 'មិនអាចផ្លាស់ប្តូរតួនាទីរបស់គណនីអ្នកគ្រប់គ្រងបានទេ។',
     'flash_permissions_updated' => 'សិទ្ធិត្រូវបានធ្វើបច្ចុប្បន្នភាព។',
 
     // Revenue & expense
