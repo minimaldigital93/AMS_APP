@@ -11,9 +11,8 @@
             @php($max = $usage['properties_max'])
             <p class="mt-1 text-sm text-slate-500">{{ __('messages.properties') }}: {{ $usage['properties_used'] }} / {{ $max ?? '∞' }}</p>
         </div>
-        <a href="{{ route('admin.properties.create') }}" class="inline-flex items-center gap-2 bg-slate-800 hover:bg-slate-700 text-white text-sm font-medium py-2.5 px-4 rounded-lg transition">
+        <a href="{{ route('admin.properties.create') }}" class="inline-flex items-center gap-2 bg-slate-800 hover:bg-slate-700 text-white text-sm font-medium py-2.5 px-5 rounded-lg transition" title="{{ __('messages.add_property') }}">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/></svg>
-            {{ __('messages.add_property') }}
         </a>
     </div>
 

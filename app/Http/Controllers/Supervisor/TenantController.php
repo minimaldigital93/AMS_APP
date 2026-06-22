@@ -45,6 +45,26 @@ class TenantController extends Controller
     }
 
     /**
+     * Base query for archived tenants the current actor may see. Archived tenants
+     * have apartment_id cleared, so property scoping matches on the apartment
+     * recorded in their leave history (admins/superadmins see the whole account).
+     */
+    private function scopedArchivedTenants(): Builder
+    {
+        $query = Tenants::onlyTrashed();
+
+        if (! $this->seesWholeAccount()) {
+            $propertyIds = $this->supervisorPropertyIds();
+            $query->where(function (Builder $q) use ($propertyIds) {
+                $q->whereHas('apartment.floor', fn (Builder $sub) => $sub->whereIn('property_id', $propertyIds))
+                    ->orWhereHas('leaves.apartment.floor', fn (Builder $sub) => $sub->whereIn('property_id', $propertyIds));
+            });
+        }
+
+        return $query;
+    }
+
+    /**
      * Display active tenants for supervisor's assigned apartments.
      */
     public function index(Request $request): View
@@ -119,9 +139,13 @@ class TenantController extends Controller
         // Floor data
         $floors = $this->supervisorVisibleFloors()->whereHas('apartments')->orderBy('floor_name')->get();
 
-        $activeTenantCount = Tenants::whereIn('status', ['active', 'pending'])->count();
-        $archivedTenantCount = Tenants::onlyTrashed()->count();
-        $totalDeposits = Tenants::whereIn('status', ['active', 'pending'])->sum('deposit');
+        // Summary cards are scoped to the supervisor's assigned properties, same
+        // as the list above — don't leak account-wide totals across properties.
+        $activeTenantCount = Tenants::whereIn('status', ['active', 'pending'])
+            ->whereIn('apartment_id', $apartmentIds)->count();
+        $archivedTenantCount = $this->scopedArchivedTenants()->count();
+        $totalDeposits = Tenants::whereIn('status', ['active', 'pending'])
+            ->whereIn('apartment_id', $apartmentIds)->sum('deposit');
 
         return view('supervisor.tenants.index', compact(
             'tenants', 'apartments', 'rentProgressMap', 'activePeriod', 'incomeStats', 'floors',
@@ -134,18 +158,9 @@ class TenantController extends Controller
      */
     public function archived(Request $request): View
     {
-        $query = Tenants::onlyTrashed()
+        // Property-scoped to the supervisor's assigned properties (admins see all).
+        $query = $this->scopedArchivedTenants()
             ->with(['apartment.floor', 'leaves.apartment.floor']);
-
-        // Property-scoped supervisors only see tenants from their properties (matched
-        // on the current apartment or the apartment recorded in leave history).
-        if (! $this->seesWholeAccount()) {
-            $propertyIds = $this->supervisorPropertyIds();
-            $query->where(function (Builder $q) use ($propertyIds) {
-                $q->whereHas('apartment.floor', fn (Builder $sub) => $sub->whereIn('property_id', $propertyIds))
-                    ->orWhereHas('leaves.apartment.floor', fn (Builder $sub) => $sub->whereIn('property_id', $propertyIds));
-            });
-        }
 
         if ($search = $request->input('search')) {
             $query->where(function (Builder $q) use ($search) {
@@ -169,9 +184,9 @@ class TenantController extends Controller
         $tenants = $query->orderBy('deleted_at', 'desc')->paginate(7)->withQueryString();
         $floors = $this->supervisorVisibleFloors()->orderBy('floor_name')->get();
 
-        $archivedTenantCount = Tenants::onlyTrashed()->count();
-        $recentlyArchivedCount = Tenants::onlyTrashed()->where('deleted_at', '>=', now()->subDays(30))->count();
-        $totalDeposits = Tenants::onlyTrashed()->sum('deposit');
+        $archivedTenantCount = $this->scopedArchivedTenants()->count();
+        $recentlyArchivedCount = $this->scopedArchivedTenants()->where('deleted_at', '>=', now()->subDays(30))->count();
+        $totalDeposits = $this->scopedArchivedTenants()->sum('deposit');
 
         return view('supervisor.tenants.archived', compact(
             'tenants',
