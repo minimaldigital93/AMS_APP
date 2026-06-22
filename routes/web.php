@@ -91,6 +91,9 @@ Route::middleware(['auth', 'role:superadmin'])->prefix('superadmin')->name('supe
     Route::post('/accounts/{account}/suspend', [SuperAdminAccountsController::class, 'toggleSuspend'])->name('accounts.suspend');
     Route::post('/accounts/{account}/activate', [SuperAdminAccountsController::class, 'activate'])->name('accounts.activate');
     Route::post('/accounts/{account}/plan', [SuperAdminAccountsController::class, 'changePlan'])->name('accounts.plan');
+    Route::delete('/accounts/{account}', [SuperAdminAccountsController::class, 'destroy'])->name('accounts.destroy');
+    Route::get('/accounts/{account}', [SuperAdminAccountsController::class, 'show'])->name('accounts.show');
+    Route::post('/accounts/{account}/reset-password', [SuperAdminAccountsController::class, 'resetPassword'])->name('accounts.reset-password');
 
     // Platform payment settings (bank + KHQRPay credentials for subscription payments)
     Route::get('/settings/payment', [\App\Http\Controllers\SuperAdmin\PlatformPaymentSettingsController::class, 'edit'])->name('settings.payment');

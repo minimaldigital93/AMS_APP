@@ -4,13 +4,17 @@ namespace App\Http\Controllers\SuperAdmin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Apartments;
+use App\Models\FiscalPeriods;
 use App\Models\Floors;
 use App\Models\Plan;
+use App\Models\Settings;
 use App\Models\Subscription;
+use App\Models\Tenants;
 use App\Models\User;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rules\Password;
 
@@ -19,6 +23,9 @@ use Illuminate\Validation\Rules\Password;
  */
 class AccountsController extends Controller
 {
+    /** Fixed default a customer account's password is reset to from the detail screen. */
+    private const RESET_PASSWORD = '12345678';
+
     public function index(): View
     {
         // Every customer account owner (admins + pending/unpaid signups). Owners
@@ -143,6 +150,88 @@ class AccountsController extends Controller
         }
 
         return back()->with('success', $suspending ? __('messages.flash_account_suspended') : __('messages.flash_account_reactivated'));
+    }
+
+    /**
+     * Permanently delete a customer account and everything it owns.
+     *
+     * Cross-account operation (superadmin panel), so account-owned models are
+     * queried with withoutAccountScope(). Deleting the account-owned roots
+     * (floors → apartments → rentals → payments…, tenants, fiscal periods)
+     * lets the DB onDelete('cascade') chains clean up their children; the owner
+     * User delete cascades the subscription + merchant payment settings. The
+     * whole thing runs in one transaction so a failure leaves nothing orphaned.
+     */
+    public function destroy(User $account): RedirectResponse
+    {
+        // Only customer account owners are deletable here. Never let a superadmin
+        // delete themselves or another platform admin through this screen.
+        if ($account->id === auth()->id() || $account->hasRole('superadmin')) {
+            return back()->with('error', __('messages.flash_account_delete_forbidden'));
+        }
+
+        DB::transaction(function () use ($account) {
+            $id = $account->id;
+
+            // Roots whose DB cascades fan out to apartments, rentals, payments,
+            // utilities, fiscal-period financials, etc.
+            Floors::withoutAccountScope()->where('account_id', $id)->delete();
+            Tenants::withoutAccountScope()->where('account_id', $id)->delete();
+            FiscalPeriods::withoutAccountScope()->where('account_id', $id)->delete();
+            Settings::withoutAccountScope()->where('account_id', $id)->delete();
+
+            // Member users (supervisors/tenant logins) that point at this account.
+            User::where('account_id', $id)->where('id', '!=', $id)->delete();
+
+            // Owner last — cascades subscription + merchant_payment_settings.
+            $account->delete();
+        });
+
+        return redirect()->route('superadmin.accounts.index')
+            ->with('success', __('messages.flash_account_deleted'));
+    }
+
+    /**
+     * Customer account detail screen: read-only profile + admin actions.
+     * Cross-account read (superadmin panel), so owned models are counted with
+     * withoutAccountScope().
+     */
+    public function show(User $account): View
+    {
+        // Only real customer account owners are viewable here — never a member
+        // user (supervisor/tenant login) or another platform superadmin.
+        abort_if($account->account_id !== $account->id || $account->hasRole('superadmin'), 404);
+
+        $account->load(['subscription.plan']);
+        $id = $account->id;
+
+        $stats = [
+            'floors' => Floors::withoutAccountScope()->where('account_id', $id)->count(),
+            'apartments' => Apartments::withoutAccountScope()->where('account_id', $id)->count(),
+            'tenants' => Tenants::withoutAccountScope()->where('account_id', $id)->count(),
+            'members' => User::where('account_id', $id)->where('id', '!=', $id)->count(),
+        ];
+
+        return view('superadmin.accounts.show', [
+            'account' => $account,
+            'stats' => $stats,
+        ]);
+    }
+
+    /**
+     * Reset a customer account's login password to a fixed default. The phone
+     * number — their login identifier — is left untouched on purpose.
+     */
+    public function resetPassword(User $account): RedirectResponse
+    {
+        abort_if($account->hasRole('superadmin'), 404);
+
+        $account->forceFill(['password' => Hash::make(self::RESET_PASSWORD)])->save();
+
+        return back()->with('success', __('messages.flash_account_password_reset', [
+            'name' => $account->name,
+            'password' => self::RESET_PASSWORD,
+        ]));
     }
 
     /** Change the account's plan (no payment — superadmin override). */

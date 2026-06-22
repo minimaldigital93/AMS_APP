@@ -24,6 +24,7 @@ class PaymentsController extends Controller
     {
         $payments = KhqrPayment::where('settlement_target', 'platform')
             ->with(['subscription.plan', 'subscription.account'])
+            ->orderByRaw("status = 'paid' desc")
             ->latest('id')
             ->paginate(30);
 
