@@ -38,6 +38,18 @@
             <div class="p-6 space-y-5">
                 <h3 class="text-sm font-medium text-slate-500 uppercase tracking-wide">{{ __('messages.floor_details') }}</h3>
                 <div>
+                    <label class="block text-xs font-medium text-slate-500 mb-1.5 uppercase tracking-wide">{{ __('messages.properties') }} <span class="text-red-400">*</span></label>
+                    <select name="property_id" required
+                            class="w-full px-3.5 py-2 text-sm border border-slate-200 rounded-lg bg-slate-50/50 focus:outline-none focus:ring-2 focus:ring-slate-300 transition @error('property_id') border-red-300 ring-1 ring-red-200 @enderror">
+                        @foreach ($properties as $property)
+                            <option value="{{ $property->id }}" @selected(old('property_id', $floor->property_id) == $property->id)>{{ $property->name }}</option>
+                        @endforeach
+                    </select>
+                    @error('property_id')
+                    <p class="text-red-500 text-xs mt-1">{{ $message }}</p>
+                    @enderror
+                </div>
+                <div>
                     <label class="block text-xs font-medium text-slate-500 mb-1.5 uppercase tracking-wide">{{ __('messages.floor_name') }} <span class="text-red-400">*</span></label>
                     <input type="text" name="floor_name" required value="{{ old('floor_name', $floor->floor_name) }}" placeholder="{{ __('messages.eg_floor_1') }}"
                            class="w-full px-3.5 py-2 text-sm border border-slate-200 rounded-lg bg-slate-50/50 placeholder-slate-300 focus:outline-none focus:ring-2 focus:ring-slate-300 transition @error('floor_name') border-red-300 ring-1 ring-red-200 @enderror">

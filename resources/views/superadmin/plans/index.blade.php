@@ -34,12 +34,24 @@
                 <input name="price_usd" type="number" step="0.01" min="0" value="{{ old('price_usd') }}" class="mt-1 w-full rounded-lg border-gray-300 text-sm" required>
             </div>
             <div>
+                <label class="block text-xs font-medium text-gray-500">{{ __('Price (USD / year)') }}</label>
+                <input name="price_yearly_usd" type="number" step="0.01" min="0" value="{{ old('price_yearly_usd') }}" placeholder="—" class="mt-1 w-full rounded-lg border-gray-300 text-sm">
+            </div>
+            <div>
+                <label class="block text-xs font-medium text-gray-500">{{ __('Max properties') }}</label>
+                <input name="max_properties" type="number" min="0" value="{{ old('max_properties') }}" placeholder="∞" class="mt-1 w-full rounded-lg border-gray-300 text-sm">
+            </div>
+            <div>
                 <label class="block text-xs font-medium text-gray-500">{{ __('Max floors') }}</label>
                 <input name="max_floors" type="number" min="0" value="{{ old('max_floors') }}" placeholder="∞" class="mt-1 w-full rounded-lg border-gray-300 text-sm">
             </div>
             <div>
-                <label class="block text-xs font-medium text-gray-500">{{ __('Max apartments') }}</label>
-                <input name="max_apartments" type="number" min="0" value="{{ old('max_apartments') }}" placeholder="∞" class="mt-1 w-full rounded-lg border-gray-300 text-sm">
+                <label class="block text-xs font-medium text-gray-500">{{ __('Max rooms') }}</label>
+                <input name="max_rooms" type="number" min="0" value="{{ old('max_rooms') }}" placeholder="∞" class="mt-1 w-full rounded-lg border-gray-300 text-sm">
+            </div>
+            <div>
+                <label class="block text-xs font-medium text-gray-500">{{ __('Max staff') }}</label>
+                <input name="max_staff" type="number" min="0" value="{{ old('max_staff') }}" placeholder="∞" class="mt-1 w-full rounded-lg border-gray-300 text-sm">
             </div>
             <div>
                 <label class="block text-xs font-medium text-gray-500">{{ __('Billing period (days)') }}</label>
@@ -74,8 +86,11 @@
                 {{-- Read-only summary --}}
                 <div x-show="!editing" class="mt-4 space-y-2 text-sm text-gray-600">
                     <div class="flex justify-between"><span>{{ __('Price (USD / month)') }}</span><span class="font-medium text-gray-900">${{ number_format($plan->price_usd, 2) }}</span></div>
+                    <div class="flex justify-between"><span>{{ __('Price (USD / year)') }}</span><span class="font-medium text-gray-900">{{ $plan->price_yearly_usd !== null ? '$'.number_format($plan->price_yearly_usd, 2) : '—' }}</span></div>
+                    <div class="flex justify-between"><span>{{ __('Max properties') }}</span><span class="font-medium text-gray-900">{{ $plan->max_properties ?? '∞' }}</span></div>
                     <div class="flex justify-between"><span>{{ __('Max floors') }}</span><span class="font-medium text-gray-900">{{ $plan->max_floors ?? '∞' }}</span></div>
-                    <div class="flex justify-between"><span>{{ __('Max apartments') }}</span><span class="font-medium text-gray-900">{{ $plan->max_apartments ?? '∞' }}</span></div>
+                    <div class="flex justify-between"><span>{{ __('Max rooms') }}</span><span class="font-medium text-gray-900">{{ $plan->max_rooms ?? '∞' }}</span></div>
+                    <div class="flex justify-between"><span>{{ __('Max staff') }}</span><span class="font-medium text-gray-900">{{ $plan->max_staff ?? '∞' }}</span></div>
                     <div class="flex justify-between"><span>{{ __('Billing period (days)') }}</span><span class="font-medium text-gray-900">{{ $plan->billing_period_days }}</span></div>
                     <div class="flex justify-between"><span>{{ __('Trial days') }}</span><span class="font-medium text-gray-900">{{ $plan->trial_days ?: '—' }}</span></div>
                     <div class="flex justify-between"><span>{{ __('Active') }}</span>
@@ -103,17 +118,33 @@
                     <label class="mt-4 block text-xs font-medium text-gray-500">{{ __('Display name') }}</label>
                     <input name="name" value="{{ old('name', $plan->name) }}" class="mt-1 w-full rounded-lg border-gray-300 text-sm" required>
 
-                    <label class="mt-3 block text-xs font-medium text-gray-500">{{ __('Price (USD / month)') }}</label>
-                    <input name="price_usd" type="number" step="0.01" min="0" value="{{ old('price_usd', $plan->price_usd) }}" class="mt-1 w-full rounded-lg border-gray-300 text-sm" required>
+                    <div class="mt-3 grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="block text-xs font-medium text-gray-500">{{ __('Price (USD / month)') }}</label>
+                            <input name="price_usd" type="number" step="0.01" min="0" value="{{ old('price_usd', $plan->price_usd) }}" class="mt-1 w-full rounded-lg border-gray-300 text-sm" required>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium text-gray-500">{{ __('Price (USD / year)') }}</label>
+                            <input name="price_yearly_usd" type="number" step="0.01" min="0" value="{{ old('price_yearly_usd', $plan->price_yearly_usd) }}" placeholder="—" class="mt-1 w-full rounded-lg border-gray-300 text-sm">
+                        </div>
+                    </div>
 
                     <div class="mt-3 grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="block text-xs font-medium text-gray-500">{{ __('Max properties') }}</label>
+                            <input name="max_properties" type="number" min="0" value="{{ old('max_properties', $plan->max_properties) }}" placeholder="∞" class="mt-1 w-full rounded-lg border-gray-300 text-sm">
+                        </div>
                         <div>
                             <label class="block text-xs font-medium text-gray-500">{{ __('Max floors') }}</label>
                             <input name="max_floors" type="number" min="0" value="{{ old('max_floors', $plan->max_floors) }}" placeholder="∞" class="mt-1 w-full rounded-lg border-gray-300 text-sm">
                         </div>
                         <div>
-                            <label class="block text-xs font-medium text-gray-500">{{ __('Max apartments') }}</label>
-                            <input name="max_apartments" type="number" min="0" value="{{ old('max_apartments', $plan->max_apartments) }}" placeholder="∞" class="mt-1 w-full rounded-lg border-gray-300 text-sm">
+                            <label class="block text-xs font-medium text-gray-500">{{ __('Max rooms') }}</label>
+                            <input name="max_rooms" type="number" min="0" value="{{ old('max_rooms', $plan->max_rooms) }}" placeholder="∞" class="mt-1 w-full rounded-lg border-gray-300 text-sm">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium text-gray-500">{{ __('Max staff') }}</label>
+                            <input name="max_staff" type="number" min="0" value="{{ old('max_staff', $plan->max_staff) }}" placeholder="∞" class="mt-1 w-full rounded-lg border-gray-300 text-sm">
                         </div>
                     </div>
 

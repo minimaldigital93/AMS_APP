@@ -32,8 +32,9 @@ class SubscriptionController extends Controller
     {
         $plans = Plan::where('is_active', true)->orderBy('price_usd')->get();
         $selected = $plans->firstWhere('slug', $request->query('plan')) ?? $plans->first();
+        $cycle = $request->query('billing_cycle') === 'yearly' ? 'yearly' : 'monthly';
 
-        return view('subscribe.register', compact('plans', 'selected'));
+        return view('subscribe.register', compact('plans', 'selected', 'cycle'));
     }
 
     /**
@@ -75,12 +76,14 @@ class SubscriptionController extends Controller
             ],
             'password' => ['required', 'confirmed', Password::defaults()],
             'plan' => ['required', 'exists:plans,slug'],
+            'billing_cycle' => ['nullable', 'in:monthly,yearly'],
             'start_trial' => ['nullable', 'boolean'],
         ], [
             'phone.unique' => __('messages.validation_phone_taken'),
         ]);
 
         $plan = Plan::where('slug', $validated['plan'])->firstOrFail();
+        $cycle = ($validated['billing_cycle'] ?? 'monthly') === 'yearly' && $plan->hasYearly() ? 'yearly' : 'monthly';
         $wantsTrial = $request->boolean('start_trial') && $plan->hasTrial();
 
         if ($wantsTrial) {
@@ -96,17 +99,17 @@ class SubscriptionController extends Controller
         }
 
         try {
-            $row = DB::transaction(function () use ($validated, $plan, $khqr) {
+            $row = DB::transaction(function () use ($validated, $plan, $khqr, $cycle) {
                 $user = $this->provisionOwner($validated, 'inactive');
 
                 // Reuse the account's pending subscription if it already has one
                 // (an earlier abandoned attempt) instead of creating a second row.
                 $subscription = Subscription::updateOrCreate(
                     ['account_id' => $user->id],
-                    ['plan_id' => $plan->id, 'status' => 'pending'],
+                    ['plan_id' => $plan->id, 'status' => 'pending', 'billing_cycle' => $cycle],
                 );
 
-                return $khqr->createSubscriptionQr($subscription, (float) $plan->price_usd);
+                return $khqr->createSubscriptionQr($subscription, $plan->priceFor($cycle));
             });
         } catch (KhqrPlatformCredentialsMissingException $e) {
             report($e);

@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Services\Subscription\SubscriptionService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rule;
@@ -13,6 +14,8 @@ use Spatie\Permission\Models\Role;
 
 class UserController extends Controller
 {
+    public function __construct(private SubscriptionService $subscriptions) {}
+
     /**
      * Roles an admin is allowed to assign when creating/editing team members.
      * Admins cannot create superadmins or other admins.
@@ -85,6 +88,16 @@ class UserController extends Controller
             'role' => ['required', Rule::in(self::ASSIGNABLE_ROLES)],
         ]);
 
+        // Enforce the account's subscription plan staff (supervisor) cap.
+        if ($validated['role'] === 'supervisor') {
+            $accountId = current_account_id();
+            if (! $this->subscriptions->canAddStaff($accountId)) {
+                $plan = $this->subscriptions->activePlan($accountId);
+
+                return back()->withInput()->with('error', __('messages.flash_plan_limit_staff', ['plan' => $plan?->name, 'max' => $plan?->max_staff]));
+            }
+        }
+
         $user = User::create([
             'name' => $validated['name'],
             'phone' => $validated['phone'],
@@ -106,6 +119,14 @@ class UserController extends Controller
             'role' => ['required', Rule::in(self::ASSIGNABLE_ROLES)],
             'status' => 'nullable|in:active,inactive,suspended',
         ]);
+
+        // Block promoting a non-supervisor into a supervisor past the staff cap.
+        if ($validated['role'] === 'supervisor' && ! $user->hasRole('supervisor')
+            && ! $this->subscriptions->canAddStaff(current_account_id())) {
+            $plan = $this->subscriptions->activePlan(current_account_id());
+
+            return back()->withInput()->with('error', __('messages.flash_plan_limit_staff', ['plan' => $plan?->name, 'max' => $plan?->max_staff]));
+        }
 
         $updateData = [
             'name' => $validated['name'],
@@ -140,6 +161,15 @@ class UserController extends Controller
         ]);
 
         $role = Role::findById($validated['role']);
+
+        // Block promoting a non-supervisor into a supervisor past the staff cap.
+        if ($role->name === 'supervisor' && ! $user->hasRole('supervisor')
+            && ! $this->subscriptions->canAddStaff(current_account_id())) {
+            $plan = $this->subscriptions->activePlan(current_account_id());
+
+            return back()->with('error', __('messages.flash_plan_limit_staff', ['plan' => $plan?->name, 'max' => $plan?->max_staff]));
+        }
+
         $user->syncRoles([$role]);
 
         return redirect()->route('admin.users.index')->with('success', __('messages.flash_user_role_updated'));

@@ -125,7 +125,7 @@ class AccountsController extends Controller
     public function activate(User $account): RedirectResponse
     {
         if ($sub = $account->subscription) {
-            $days = $sub->plan?->billing_period_days ?? 30;
+            $days = $sub->billing_cycle === 'yearly' ? 365 : ($sub->plan?->billing_period_days ?? 30);
             $sub->update([
                 'status' => 'active',
                 'started_at' => $sub->started_at ?? now(),
@@ -241,16 +241,21 @@ class AccountsController extends Controller
     /** Change the account's plan (no payment — superadmin override). */
     public function changePlan(Request $request, User $account): RedirectResponse
     {
-        $validated = $request->validate(['plan' => ['required', 'exists:plans,slug']]);
+        $validated = $request->validate([
+            'plan' => ['required', 'exists:plans,slug'],
+            'billing_cycle' => ['nullable', 'in:monthly,yearly'],
+        ]);
         $plan = Plan::where('slug', $validated['plan'])->firstOrFail();
+        $cycle = ($validated['billing_cycle'] ?? 'monthly') === 'yearly' ? 'yearly' : 'monthly';
 
         Subscription::updateOrCreate(
             ['account_id' => $account->id],
             [
                 'plan_id' => $plan->id,
+                'billing_cycle' => $cycle,
                 'status' => 'active',
                 'started_at' => now(),
-                'expires_at' => now()->addDays($plan->billing_period_days),
+                'expires_at' => now()->addDays($cycle === 'yearly' ? 365 : $plan->billing_period_days),
             ]
         );
 

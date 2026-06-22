@@ -659,7 +659,9 @@ class KhqrPaymentService
                 return;
             }
 
-            $days = $subscription->plan?->billing_period_days ?? 30;
+            $days = $subscription->billing_cycle === 'yearly'
+                ? 365
+                : ($subscription->plan?->billing_period_days ?? 30);
 
             // Early renewals EXTEND the remaining time instead of resetting it.
             $base = ($subscription->expires_at !== null && $subscription->expires_at->isFuture() && $subscription->status !== 'trialing')

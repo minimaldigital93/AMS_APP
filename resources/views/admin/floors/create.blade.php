@@ -35,6 +35,25 @@
             <div class="p-6 space-y-5">
                 <h3 class="text-sm font-medium text-slate-500 uppercase tracking-wide">{{ __('messages.floor_information') }}</h3>
                 <div>
+                    <label class="block text-xs font-medium text-slate-500 mb-1.5 uppercase tracking-wide">{{ __('messages.properties') }} <span class="text-red-400">*</span></label>
+                    @if ($properties->isEmpty())
+                        <p class="text-sm text-amber-600">{{ __('messages.no_properties_yet') }}
+                            <a href="{{ route('admin.properties.create') }}" class="font-medium underline">{{ __('messages.add_property') }}</a>
+                        </p>
+                    @else
+                        <select name="property_id" required
+                                class="w-full px-3.5 py-2 text-sm border border-slate-200 rounded-lg bg-slate-50/50 focus:outline-none focus:ring-2 focus:ring-slate-300 focus:border-slate-300 transition @error('property_id') border-red-300 ring-1 ring-red-200 @enderror">
+                            <option value="">{{ __('messages.select_property') }}</option>
+                            @foreach ($properties as $property)
+                                <option value="{{ $property->id }}" @selected(old('property_id') == $property->id)>{{ $property->name }}</option>
+                            @endforeach
+                        </select>
+                    @endif
+                    @error('property_id')
+                        <p class="text-red-500 text-xs mt-1">{{ $message }}</p>
+                    @enderror
+                </div>
+                <div>
                     <label class="block text-xs font-medium text-slate-500 mb-1.5 uppercase tracking-wide">{{ __('messages.floor_name') }} <span class="text-red-400">*</span></label>
                     <input type="text" name="floor_name" id="floor_name" required
                            value="{{ old('floor_name') }}"

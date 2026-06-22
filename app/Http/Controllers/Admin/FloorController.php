@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Floors;
+use App\Models\Property;
 use App\Models\Tenants;
 use App\Services\Subscription\SubscriptionService;
 use Illuminate\Http\Request;
@@ -35,7 +36,9 @@ class FloorController extends Controller
 
     public function create(): View
     {
-        return view('admin.floors.create');
+        $properties = Property::orderBy('name')->get();
+
+        return view('admin.floors.create', compact('properties'));
     }
 
     /**
@@ -92,8 +95,9 @@ class FloorController extends Controller
     public function edit(Floors $floor): View
     {
         $floor->load('apartments');
+        $properties = Property::orderBy('name')->get();
 
-        return view('admin.floors.edit', compact('floor'));
+        return view('admin.floors.edit', compact('floor', 'properties'));
     }
 
     public function getApartments(Floors $floor): View
@@ -106,6 +110,10 @@ class FloorController extends Controller
     public function store(Request $request)
     {
         $validated = $request->validate([
+            'property_id' => [
+                'required',
+                Rule::exists('properties', 'id')->where('account_id', current_account_id()),
+            ],
             'floor_name' => 'required|string|max:255',
             'description' => 'nullable|string',
             'apartments' => 'nullable|array',
@@ -123,23 +131,18 @@ class FloorController extends Controller
             'apartments.*.apartment_number.unique' => __('messages.validation_apartment_number_taken_generic'),
         ]);
 
-        // Enforce the account's subscription plan limits.
+        // Floors are unlimited on every plan; only the room cap applies here.
         $accountId = current_account_id();
-        $newApartments = count($validated['apartments'] ?? []);
+        $newRooms = count($validated['apartments'] ?? []);
 
-        if (! $this->subscriptions->canAddFloors($accountId)) {
+        if ($newRooms > 0 && ! $this->subscriptions->canAddRooms($accountId, $newRooms)) {
             $plan = $this->subscriptions->activePlan($accountId);
 
-            return back()->withInput()->with('error', __('messages.flash_plan_limit_floors', ['plan' => $plan?->name, 'max' => $plan?->max_floors]));
-        }
-
-        if ($newApartments > 0 && ! $this->subscriptions->canAddApartments($accountId, $newApartments)) {
-            $plan = $this->subscriptions->activePlan($accountId);
-
-            return back()->withInput()->with('error', __('messages.flash_plan_limit_apartments_floor', ['plan' => $plan?->name, 'max' => $plan?->max_apartments]));
+            return back()->withInput()->with('error', __('messages.flash_plan_limit_apartments_floor', ['plan' => $plan?->name, 'max' => $plan?->max_rooms]));
         }
 
         $floor = Floors::create([
+            'property_id' => $validated['property_id'],
             'floor_name' => $validated['floor_name'],
             'description' => $validated['description'] ?? null,
         ]);
@@ -185,6 +188,15 @@ class FloorController extends Controller
                 'apartment_number.unique' => __('messages.validation_apartment_number_taken', ['number' => $request->input('apartment_number')]),
             ]);
 
+            // Enforce the account's subscription plan room cap.
+            $accountId = current_account_id();
+            if (! $this->subscriptions->canAddRooms($accountId)) {
+                $plan = $this->subscriptions->activePlan($accountId);
+
+                return redirect()->route('admin.floors.edit', $floor)
+                    ->with('error', __('messages.flash_plan_limit_rooms', ['plan' => $plan?->name, 'max' => $plan?->max_rooms]));
+            }
+
             // Create the apartment
             try {
                 $floor->apartments()->create([
@@ -205,12 +217,17 @@ class FloorController extends Controller
 
         // ACTION: Update Floor Information
         $validated = $request->validate([
+            'property_id' => [
+                'required',
+                Rule::exists('properties', 'id')->where('account_id', current_account_id()),
+            ],
             'floor_name' => 'required|string|max:255',
             'description' => 'nullable|string',
         ]);
 
         try {
             $floor->update([
+                'property_id' => $validated['property_id'],
                 'floor_name' => $validated['floor_name'],
                 'description' => $validated['description'] ?? null,
             ]);

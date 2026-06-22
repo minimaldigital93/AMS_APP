@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Supervisor;
 
 use App\Http\Controllers\Concerns\HandlesKhqrCheckout;
 use App\Http\Controllers\Concerns\HasFiscalPeriodScope;
+use App\Http\Controllers\Concerns\ScopesToSupervisorProperties;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\RevenueExpense\AddTenantChargeRequest;
 use App\Http\Requests\RevenueExpense\CheckoutTenantRequest;
@@ -38,6 +39,7 @@ class RevenueExpenseController extends Controller
 {
     use HandlesKhqrCheckout;
     use HasFiscalPeriodScope;
+    use ScopesToSupervisorProperties;
 
     /**
      * Supervisors read from the admin's fiscal periods (not their own).
@@ -45,6 +47,15 @@ class RevenueExpenseController extends Controller
     protected function fiscalPeriodsQuery(): Builder
     {
         return FiscalPeriods::whereHas('user', fn ($q) => $q->role('admin'));
+    }
+
+    /**
+     * Restrict the revenue/expense apartment scope to the supervisor's assigned
+     * properties (overrides the all-apartments default in HasFiscalPeriodScope).
+     */
+    protected function scopeApartments(): Builder
+    {
+        return $this->supervisorVisibleApartments();
     }
 
     protected function khqrRoutePrefix(): string
@@ -606,7 +617,7 @@ class RevenueExpenseController extends Controller
             ->get();
 
         // Floors for the sort/filter dropdown (only floors that have apartments)
-        $floors = Floors::whereHas('apartments')->orderBy('id', 'asc')->get();
+        $floors = $this->supervisorVisibleFloors()->whereHas('apartments')->orderBy('id', 'asc')->get();
 
         // Build tenant billing data
         $tenantBills = [];

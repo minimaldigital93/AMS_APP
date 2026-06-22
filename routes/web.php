@@ -140,6 +140,14 @@ Route::middleware(['auth', 'role:admin|superadmin', 'subscription.active'])->gro
     Route::get('/admin/billing/checkout/{token}', [\App\Http\Controllers\Admin\BillingController::class, 'checkout'])->name('admin.billing.checkout');
     Route::get('/admin/billing/checkout/{token}/status', [\App\Http\Controllers\Admin\BillingController::class, 'status'])->name('admin.billing.status');
 
+    // Property Management Routes
+    Route::get('/admin/properties', [\App\Http\Controllers\Admin\PropertyController::class, 'index'])->name('admin.properties.index');
+    Route::get('/admin/properties/create', [\App\Http\Controllers\Admin\PropertyController::class, 'create'])->name('admin.properties.create');
+    Route::get('/admin/properties/{property}/edit', [\App\Http\Controllers\Admin\PropertyController::class, 'edit'])->name('admin.properties.edit');
+    Route::post('/admin/properties', [\App\Http\Controllers\Admin\PropertyController::class, 'store'])->name('admin.properties.store');
+    Route::put('/admin/properties/{property}', [\App\Http\Controllers\Admin\PropertyController::class, 'update'])->name('admin.properties.update');
+    Route::delete('/admin/properties/{property}', [\App\Http\Controllers\Admin\PropertyController::class, 'destroy'])->name('admin.properties.destroy');
+
     // Floor Management Routes
     Route::get('/admin/floors', [FloorController::class, 'index'])->name('admin.floors.index');
     Route::get('/admin/floors-3d', [FloorController::class, 'plan3d'])->name('admin.floors.plan3d');

@@ -47,7 +47,7 @@ function giveActiveSubscription(User $account, ?Plan $plan = null): Subscription
 {
     $plan ??= Plan::firstOrCreate(
         ['slug' => 'test-unlimited'],
-        ['name' => 'Test Unlimited', 'price_usd' => 0, 'max_floors' => null, 'max_apartments' => null, 'billing_period_days' => 30, 'is_active' => true]
+        ['name' => 'Test Unlimited', 'price_usd' => 0, 'max_properties' => null, 'max_floors' => null, 'max_rooms' => null, 'max_staff' => null, 'billing_period_days' => 30, 'is_active' => true]
     );
 
     return Subscription::updateOrCreate(

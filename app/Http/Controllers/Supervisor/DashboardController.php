@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Supervisor;
 
 use App\Http\Controllers\Concerns\HasDashboardMonthNavigation;
 use App\Http\Controllers\Concerns\HasFiscalPeriodScope;
+use App\Http\Controllers\Concerns\ScopesToSupervisorProperties;
 use App\Http\Controllers\Controller;
 use App\Models\Accounts;
 use App\Models\Apartments;
@@ -20,6 +21,7 @@ class DashboardController extends Controller
 {
     use HasDashboardMonthNavigation;
     use HasFiscalPeriodScope;
+    use ScopesToSupervisorProperties;
 
     /**
      * Supervisors read from the admin's fiscal periods (not their own).
@@ -40,7 +42,7 @@ class DashboardController extends Controller
 
     public function index(Request $request): View
     {
-        $apartmentIds = Apartments::pluck('id')->toArray();
+        $apartmentIds = $this->supervisorApartmentIds();
 
         $activePeriod = $this->getActiveFiscalPeriod();
         $periodMonths = $activePeriod ? $this->buildPeriodMonths($activePeriod) : [];

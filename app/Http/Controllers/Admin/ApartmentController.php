@@ -116,12 +116,12 @@ class ApartmentController extends Controller
             'apartment_number.unique' => __('messages.validation_apartment_number_taken', ['number' => $request->input('apartment_number')]),
         ]);
 
-        // Enforce the account's subscription plan apartment cap.
+        // Enforce the account's subscription plan room cap.
         $accountId = current_account_id();
-        if (! $this->subscriptions->canAddApartments($accountId)) {
+        if (! $this->subscriptions->canAddRooms($accountId)) {
             $plan = $this->subscriptions->activePlan($accountId);
 
-            return back()->withInput()->with('error', __('messages.flash_plan_limit_apartments', ['plan' => $plan?->name, 'max' => $plan?->max_apartments]));
+            return back()->withInput()->with('error', __('messages.flash_plan_limit_rooms', ['plan' => $plan?->name, 'max' => $plan?->max_rooms]));
         }
 
         Apartments::create($validated);

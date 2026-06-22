@@ -59,6 +59,12 @@ class Apartments extends Model
         return $this->belongsTo(Floors::class, 'floor_id');
     }
 
+    /** The owning property, derived through the floor. */
+    public function getPropertyAttribute(): ?Property
+    {
+        return $this->floor?->property;
+    }
+
     public function supervisor(): BelongsTo
     {
         return $this->belongsTo(User::class, 'supervisor_id');

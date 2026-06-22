@@ -1,7 +1,7 @@
 {{-- Mobile bottom navigation (replaces the off-canvas sidebar on phones). --}}
 @php
     $isHome     = request()->routeIs('admin.dashboard');
-    $isProperty = request()->routeIs('admin.floors.*', 'admin.apartments.*');
+    $isProperty = request()->routeIs('admin.properties.*', 'admin.floors.*', 'admin.apartments.*');
     $isTenant   = request()->routeIs('admin.tenants.*');
     $isRevenue  = request()->routeIs('admin.revenue_expense.*');
     $isMore     = request()->routeIs('admin.users.*', 'admin.fiscalperiod.*', 'admin.billing.*', 'admin.settings.*');
@@ -93,6 +93,12 @@
                 <div x-show="sheet === 'property'" class="p-2">
                     <h3 class="px-3 pt-1 pb-2 text-xs font-bold uppercase tracking-wide text-gray-400">{{ __('messages.property_management') }}</h3>
                     <div class="space-y-1">
+                        <a href="{{ route('admin.properties.index') }}" class="bn-sheet-link {{ request()->routeIs('admin.properties.*') ? 'active' : '' }}">
+                            <span class="bn-sheet-icon">
+                                <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V7a2 2 0 00-2-2h-3V3H6v18m13 0H5m14 0h2M5 21H3m6-14h.01M9 11h.01M9 15h.01M13 11h.01M13 15h.01"/></svg>
+                            </span>
+                            <span>{{ __('messages.properties') }}</span>
+                        </a>
                         <a href="{{ route('admin.floors.index') }}" class="bn-sheet-link {{ request()->routeIs('admin.floors.*') ? 'active' : '' }}">
                             <span class="bn-sheet-icon">
                                 <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/></svg>
@@ -103,7 +109,7 @@
                             <span class="bn-sheet-icon">
                                 <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 6l3-3h12l3 3M3 6v12a3 3 0 003 3h12a3 3 0 003-3V6M9 9h6m-6 4h6"/></svg>
                             </span>
-                            <span>{{ __('messages.apartments') }}</span>
+                            <span>{{ __('messages.rooms') }}</span>
                         </a>
                     </div>
                 </div>

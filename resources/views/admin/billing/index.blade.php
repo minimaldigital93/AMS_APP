@@ -51,55 +51,66 @@
         </div>
 
         <!-- Usage -->
-        <div class="mt-6 grid gap-4 sm:grid-cols-2">
-            @php($floorsMax = $usage['floors_max'])
-            @php($aptsMax = $usage['apartments_max'])
-            <div class="rounded-xl bg-gray-50 p-4">
-                <div class="flex justify-between text-sm">
-                    <span class="text-gray-600">{{ __('Floors') }}</span>
-                    <span class="font-semibold text-gray-900">{{ $usage['floors_used'] }} / {{ $floorsMax ?? '∞' }}</span>
-                </div>
-                @if ($floorsMax)
-                    <div class="mt-2 h-2 w-full rounded-full bg-gray-200">
-                        <div class="h-2 rounded-full bg-indigo-500" style="width: {{ min(100, $floorsMax ? round($usage['floors_used'] / $floorsMax * 100) : 0) }}%"></div>
+        <div class="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            @php($cards = [
+                ['label' => __('messages.properties'), 'used' => $usage['properties_used'], 'max' => $usage['properties_max']],
+                ['label' => __('messages.rooms'), 'used' => $usage['rooms_used'], 'max' => $usage['rooms_max']],
+                ['label' => __('messages.staff'), 'used' => $usage['staff_used'], 'max' => $usage['staff_max']],
+                ['label' => __('messages.floors'), 'used' => $usage['floors_used'], 'max' => null],
+            ])
+            @foreach ($cards as $card)
+                <div class="rounded-xl bg-gray-50 p-4">
+                    <div class="flex justify-between text-sm">
+                        <span class="text-gray-600">{{ $card['label'] }}</span>
+                        <span class="font-semibold text-gray-900">{{ $card['used'] }} / {{ $card['max'] ?? '∞' }}</span>
                     </div>
-                @endif
-            </div>
-            <div class="rounded-xl bg-gray-50 p-4">
-                <div class="flex justify-between text-sm">
-                    <span class="text-gray-600">{{ __('Apartments') }}</span>
-                    <span class="font-semibold text-gray-900">{{ $usage['apartments_used'] }} / {{ $aptsMax ?? '∞' }}</span>
+                    @if ($card['max'])
+                        <div class="mt-2 h-2 w-full rounded-full bg-gray-200">
+                            <div class="h-2 rounded-full bg-indigo-500" style="width: {{ min(100, round($card['used'] / max($card['max'], 1) * 100)) }}%"></div>
+                        </div>
+                    @endif
                 </div>
-                @if ($aptsMax)
-                    <div class="mt-2 h-2 w-full rounded-full bg-gray-200">
-                        <div class="h-2 rounded-full bg-indigo-500" style="width: {{ min(100, $aptsMax ? round($usage['apartments_used'] / $aptsMax * 100) : 0) }}%"></div>
-                    </div>
-                @endif
-            </div>
+            @endforeach
         </div>
     </div>
 
     <!-- Plans / renew -->
-    <h2 class="mt-8 text-lg font-semibold text-gray-900">{{ __('Renew or change plan') }}</h2>
-    <div class="mt-4 grid gap-5 sm:grid-cols-3">
-        @foreach ($plans as $p)
-            @php($current = $plan && $plan->id === $p->id)
-            <div class="flex flex-col rounded-2xl border p-6 {{ $current ? 'border-indigo-500 ring-1 ring-indigo-500' : 'border-gray-200' }} bg-white shadow-sm">
-                <h3 class="text-base font-semibold text-gray-900">{{ $p->name }}</h3>
-                <p class="mt-2"><span class="text-3xl font-extrabold text-gray-900">${{ rtrim(rtrim(number_format($p->price_usd, 2), '0'), '.') }}</span><span class="text-sm text-gray-500">/{{ __('mo') }}</span></p>
-                <ul class="mt-4 space-y-2 text-sm text-gray-600">
-                    <li>{{ $p->max_floors === null ? __('Unlimited floors') : $p->max_floors.' '.__('floors') }}</li>
-                    <li>{{ $p->max_apartments === null ? __('Unlimited apartments') : $p->max_apartments.' '.__('apartments') }}</li>
-                </ul>
-                <form method="POST" action="{{ route('admin.billing.renew') }}" class="mt-5">
-                    @csrf
-                    <input type="hidden" name="plan" value="{{ $p->slug }}">
-                    <button type="submit" class="w-full rounded-xl px-4 py-2.5 text-sm font-semibold {{ $current ? 'bg-indigo-600 text-white hover:bg-indigo-500' : 'bg-gray-900 text-white hover:bg-gray-700' }}">
-                        {{ $current ? __('Renew via KHQR') : __('Switch via KHQR') }}
-                    </button>
-                </form>
+    <div x-data="{ cycle: 'monthly' }">
+        <div class="mt-8 flex flex-wrap items-center justify-between gap-3">
+            <h2 class="text-lg font-semibold text-gray-900">{{ __('Renew or change plan') }}</h2>
+            <div class="inline-flex rounded-full bg-gray-100 p-1 text-sm font-medium">
+                <button type="button" @click="cycle = 'monthly'" :class="cycle === 'monthly' ? 'bg-white text-gray-900 shadow' : 'text-gray-500'" class="rounded-full px-4 py-1.5">{{ __('messages.monthly') }}</button>
+                <button type="button" @click="cycle = 'yearly'" :class="cycle === 'yearly' ? 'bg-white text-gray-900 shadow' : 'text-gray-500'" class="rounded-full px-4 py-1.5">{{ __('messages.yearly') }}</button>
             </div>
-        @endforeach
+        </div>
+        <div class="mt-4 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+            @foreach ($plans as $p)
+                @php($current = $plan && $plan->id === $p->id)
+                <div class="flex flex-col rounded-2xl border p-6 {{ $current ? 'border-indigo-500 ring-1 ring-indigo-500' : 'border-gray-200' }} bg-white shadow-sm">
+                    <h3 class="text-base font-semibold text-gray-900">{{ $p->name }}</h3>
+                    <p class="mt-2">
+                        <span class="text-3xl font-extrabold text-gray-900" x-show="cycle === 'monthly'">${{ rtrim(rtrim(number_format($p->price_usd, 2), '0'), '.') }}</span>
+                        <span class="text-sm text-gray-500" x-show="cycle === 'monthly'">/{{ __('mo') }}</span>
+                        <span class="text-3xl font-extrabold text-gray-900" x-show="cycle === 'yearly'" x-cloak>${{ rtrim(rtrim(number_format($p->hasYearly() ? $p->price_yearly_usd : $p->price_usd, 2), '0'), '.') }}</span>
+                        <span class="text-sm text-gray-500" x-show="cycle === 'yearly'" x-cloak>/{{ __('messages.year') }}</span>
+                    </p>
+                    <ul class="mt-4 space-y-2 text-sm text-gray-600">
+                        <li>{{ $p->max_properties === null ? __('messages.unlimited_properties') : $p->max_properties.' '.__('messages.properties') }}</li>
+                        <li>{{ $p->max_rooms === null ? __('messages.unlimited_rooms') : $p->max_rooms.' '.__('messages.rooms') }}</li>
+                        <li>{{ __('messages.unlimited_floors') }}</li>
+                        <li>{{ $p->max_staff === null ? __('messages.unlimited_staff') : $p->max_staff.' '.__('messages.staff') }}</li>
+                    </ul>
+                    <form method="POST" action="{{ route('admin.billing.renew') }}" class="mt-5">
+                        @csrf
+                        <input type="hidden" name="plan" value="{{ $p->slug }}">
+                        <input type="hidden" name="billing_cycle" x-model="cycle">
+                        <button type="submit" class="w-full rounded-xl px-4 py-2.5 text-sm font-semibold {{ $current ? 'bg-indigo-600 text-white hover:bg-indigo-500' : 'bg-gray-900 text-white hover:bg-gray-700' }}">
+                            {{ $current ? __('Renew via KHQR') : __('Switch via KHQR') }}
+                        </button>
+                    </form>
+                </div>
+            @endforeach
+        </div>
     </div>
 </div>
 @endsection

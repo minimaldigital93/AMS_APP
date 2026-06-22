@@ -421,6 +421,16 @@
              x-transition:leave-end="opacity-0 -translate-y-2"
              class="submenu-container mt-2 space-y-1">
             
+            {{-- Properties --}}
+            <a href="{{ route('admin.properties.index') }}" class="submenu-item nav-link flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm text-gray-700 hover:text-blue-700 transition-all sidebar-transition">
+                <span class="nav-icon sidebar-transition">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V7a2 2 0 00-2-2h-3V3H6v18m13 0H5m14 0h2M5 21H3m6-14h.01M9 11h.01M9 15h.01M13 11h.01M13 15h.01" />
+                    </svg>
+                </span>
+                <span class="nav-text truncate sidebar-label">{{ __('messages.properties') }}</span>
+            </a>
+
             {{-- Floors --}}
             <a href="{{ route('admin.floors.index') }}" class="submenu-item nav-link flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm text-gray-700 hover:text-blue-700 transition-all sidebar-transition">
                 <span class="nav-icon sidebar-transition">
@@ -431,14 +441,14 @@
                 <span class="nav-text truncate sidebar-label">{{ __('messages.floors') }}</span>
             </a>
 
-            {{-- Apartments --}}
+            {{-- Rooms --}}
             <a href="{{ route('admin.apartments.index') }}" class="submenu-item nav-link flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm text-gray-700 hover:text-blue-700 transition-all sidebar-transition">
                 <span class="nav-icon sidebar-transition">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 6l3-3h12l3 3M3 6v12a3 3 0 003 3h12a3 3 0 003-3V6M9 9h6m-6 4h6" />
                     </svg>
                 </span>
-                <span class="nav-text truncate sidebar-label">{{ __('messages.apartments') }}</span>
+                <span class="nav-text truncate sidebar-label">{{ __('messages.rooms') }}</span>
             </a>
         </div>
     </div>

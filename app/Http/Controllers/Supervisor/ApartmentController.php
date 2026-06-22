@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Supervisor;
 
+use App\Http\Controllers\Concerns\ScopesToSupervisorProperties;
 use App\Http\Controllers\Controller;
 use App\Models\Accounts;
 use App\Models\Apartments;
@@ -21,12 +22,14 @@ use Illuminate\View\View;
 
 class ApartmentController extends Controller
 {
+    use ScopesToSupervisorProperties;
+
     /**
      * Display all apartments grouped by floor.
      */
     public function index(Request $request): View
     {
-        $query = Apartments::with(['floor', 'tenants', 'supervisor']);
+        $query = $this->supervisorVisibleApartments()->with(['floor', 'tenants', 'supervisor']);
 
         if ($request->filled('search')) {
             $query->where('apartment_number', 'like', '%'.$request->search.'%');
@@ -42,7 +45,8 @@ class ApartmentController extends Controller
             ->groupBy(fn ($apt) => $apt->floor->id)
             ->sortBy(fn ($group) => $group->first()->floor->id);
 
-        $floors = Floors::whereHas('apartments')
+        $floors = $this->supervisorVisibleFloors()
+            ->whereHas('apartments')
             ->orderBy('id', 'asc')->get();
 
         $statuses = Apartments::getStatuses();
@@ -58,7 +62,7 @@ class ApartmentController extends Controller
      */
     public function plan3d(): View
     {
-        $floors = Floors::with(['apartments' => function ($query) {
+        $floors = $this->supervisorVisibleFloors()->with(['apartments' => function ($query) {
             $query->orderBy('apartment_number')
                 ->with([
                     'tenants' => fn ($q) => $q->whereNull('archived_at'),
@@ -307,10 +311,11 @@ class ApartmentController extends Controller
     }
 
     /**
-     * Supervisors can manage all apartments.
+     * Supervisors may only manage rooms in their assigned properties (403 otherwise).
+     * Admins/superadmins reaching this route are not property-scoped.
      */
     private function authorizeApartment(Apartments $apartment): void
     {
-        // Supervisors have access to all apartments
+        $this->authorizeSupervisorApartment($apartment);
     }
 }

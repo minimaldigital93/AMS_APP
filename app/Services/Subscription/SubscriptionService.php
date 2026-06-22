@@ -6,7 +6,9 @@ use App\Enums\SubscriptionStatus;
 use App\Models\Apartments;
 use App\Models\Floors;
 use App\Models\Plan;
+use App\Models\Property;
 use App\Models\Subscription;
+use App\Models\User;
 use App\Services\Audit\AuditLogger;
 use Carbon\Carbon;
 use Illuminate\Contracts\Auth\Authenticatable;
@@ -100,18 +102,44 @@ class SubscriptionService
         return $subscription;
     }
 
+    public function propertyCount(int $accountId): int
+    {
+        return Property::withoutAccountScope()->where('account_id', $accountId)->count();
+    }
+
     public function floorCount(int $accountId): int
     {
         return Floors::withoutAccountScope()->where('account_id', $accountId)->count();
     }
 
-    public function apartmentCount(int $accountId): int
+    public function roomCount(int $accountId): int
     {
         return Apartments::withoutAccountScope()->where('account_id', $accountId)->count();
     }
 
+    /** Staff = supervisor users on the account. */
+    public function staffCount(int $accountId): int
+    {
+        return User::where('account_id', $accountId)->role('supervisor')->count();
+    }
+
+    /**
+     * Can this account add $count more properties under its current plan?
+     */
+    public function canAddProperties(int $accountId, int $count = 1): bool
+    {
+        $plan = $this->activePlan($accountId);
+
+        if ($plan === null || $plan->hasUnlimitedProperties()) {
+            return true;
+        }
+
+        return $this->propertyCount($accountId) + $count <= $plan->max_properties;
+    }
+
     /**
      * Can this account add $count more floors under its current plan?
+     * (All current tiers are unlimited floors, so this is effectively always true.)
      */
     public function canAddFloors(int $accountId, int $count = 1): bool
     {
@@ -125,23 +153,37 @@ class SubscriptionService
     }
 
     /**
-     * Can this account add $count more apartments under its current plan?
+     * Can this account add $count more rooms under its current plan?
      */
-    public function canAddApartments(int $accountId, int $count = 1): bool
+    public function canAddRooms(int $accountId, int $count = 1): bool
     {
         $plan = $this->activePlan($accountId);
 
-        if ($plan === null || $plan->hasUnlimitedApartments()) {
+        if ($plan === null || $plan->hasUnlimitedRooms()) {
             return true;
         }
 
-        return $this->apartmentCount($accountId) + $count <= $plan->max_apartments;
+        return $this->roomCount($accountId) + $count <= $plan->max_rooms;
+    }
+
+    /**
+     * Can this account add $count more staff (supervisors) under its current plan?
+     */
+    public function canAddStaff(int $accountId, int $count = 1): bool
+    {
+        $plan = $this->activePlan($accountId);
+
+        if ($plan === null || $plan->hasUnlimitedStaff()) {
+            return true;
+        }
+
+        return $this->staffCount($accountId) + $count <= $plan->max_staff;
     }
 
     /**
      * Usage snapshot for billing/dashboard UI.
      *
-     * @return array{plan: ?Plan, floors_used: int, floors_max: ?int, apartments_used: int, apartments_max: ?int}
+     * @return array{plan: ?Plan, properties_used: int, properties_max: ?int, rooms_used: int, rooms_max: ?int, staff_used: int, staff_max: ?int, floors_used: int}
      */
     public function usage(int $accountId): array
     {
@@ -149,10 +191,13 @@ class SubscriptionService
 
         return [
             'plan' => $plan,
+            'properties_used' => $this->propertyCount($accountId),
+            'properties_max' => $plan?->max_properties,
+            'rooms_used' => $this->roomCount($accountId),
+            'rooms_max' => $plan?->max_rooms,
+            'staff_used' => $this->staffCount($accountId),
+            'staff_max' => $plan?->max_staff,
             'floors_used' => $this->floorCount($accountId),
-            'floors_max' => $plan?->max_floors,
-            'apartments_used' => $this->apartmentCount($accountId),
-            'apartments_max' => $plan?->max_apartments,
         ];
     }
 }

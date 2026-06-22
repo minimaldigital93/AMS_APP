@@ -2,12 +2,12 @@
 
 namespace App\Http\Controllers\Supervisor;
 
+use App\Http\Controllers\Concerns\ScopesToSupervisorProperties;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Tenants\ProcessTenantLeaveRequest;
 use App\Models\Accounts;
 use App\Models\Apartments;
 use App\Models\FiscalPeriods;
-use App\Models\Floors;
 use App\Models\Payments;
 use App\Models\Rentals;
 use App\Models\Tenants;
@@ -28,6 +28,8 @@ use Illuminate\View\View;
 
 class TenantController extends Controller
 {
+    use ScopesToSupervisorProperties;
+
     public function __construct(
         protected TenantLeaveProcessor $leaveProcessor,
         protected TenantPendingChargesQuery $pendingChargesQuery,
@@ -35,11 +37,11 @@ class TenantController extends Controller
     ) {}
 
     /**
-     * Get all apartment IDs (supervisor sees same data as admin).
+     * Apartment IDs the supervisor may see (their assigned properties' rooms).
      */
     private function allApartmentIds(): array
     {
-        return Apartments::pluck('id')->toArray();
+        return $this->supervisorApartmentIds();
     }
 
     /**
@@ -58,6 +60,7 @@ class TenantController extends Controller
             ->first();
 
         $query = Tenants::whereIn('status', ['active', 'pending'])
+            ->whereIn('apartment_id', $apartmentIds)
             ->with(['apartment.floor']);
 
         if ($request->filled('search')) {
@@ -84,7 +87,7 @@ class TenantController extends Controller
         }
 
         $tenants = $query->orderBy('id', 'desc')->paginate(15);
-        $apartments = Apartments::with('floor')->get();
+        $apartments = $this->supervisorVisibleApartments()->with('floor')->get();
 
         $rentProgressMap = $this->rentProgressCalculator->map($tenants, $activePeriod);
 
@@ -114,7 +117,7 @@ class TenantController extends Controller
         }
 
         // Floor data
-        $floors = Floors::whereHas('apartments')->orderBy('floor_name')->get();
+        $floors = $this->supervisorVisibleFloors()->whereHas('apartments')->orderBy('floor_name')->get();
 
         $activeTenantCount = Tenants::whereIn('status', ['active', 'pending'])->count();
         $archivedTenantCount = Tenants::onlyTrashed()->count();
@@ -133,6 +136,16 @@ class TenantController extends Controller
     {
         $query = Tenants::onlyTrashed()
             ->with(['apartment.floor', 'leaves.apartment.floor']);
+
+        // Property-scoped supervisors only see tenants from their properties (matched
+        // on the current apartment or the apartment recorded in leave history).
+        if (! $this->seesWholeAccount()) {
+            $propertyIds = $this->supervisorPropertyIds();
+            $query->where(function (Builder $q) use ($propertyIds) {
+                $q->whereHas('apartment.floor', fn (Builder $sub) => $sub->whereIn('property_id', $propertyIds))
+                    ->orWhereHas('leaves.apartment.floor', fn (Builder $sub) => $sub->whereIn('property_id', $propertyIds));
+            });
+        }
 
         if ($search = $request->input('search')) {
             $query->where(function (Builder $q) use ($search) {
@@ -154,7 +167,7 @@ class TenantController extends Controller
         }
 
         $tenants = $query->orderBy('deleted_at', 'desc')->paginate(7)->withQueryString();
-        $floors = Floors::orderBy('floor_name')->get();
+        $floors = $this->supervisorVisibleFloors()->orderBy('floor_name')->get();
 
         $archivedTenantCount = Tenants::onlyTrashed()->count();
         $recentlyArchivedCount = Tenants::onlyTrashed()->where('deleted_at', '>=', now()->subDays(30))->count();
@@ -185,7 +198,8 @@ class TenantController extends Controller
      */
     public function create(): View
     {
-        $apartments = Apartments::where('status', 'available')
+        $apartments = $this->supervisorVisibleApartments()
+            ->where('status', 'available')
             ->with('floor')
             ->get();
 
@@ -552,7 +566,16 @@ class TenantController extends Controller
      */
     private function authorizeTenant(Tenants $tenant): void
     {
-        // Supervisors can manage tenants across all apartments
+        // Property-scoped supervisors may only manage tenants whose room is in one
+        // of their assigned properties. Admins/superadmins are not scoped.
+        if ($this->seesWholeAccount()) {
+            return;
+        }
+
+        $propertyId = $tenant->apartment?->floor?->property_id;
+        if ($propertyId === null || ! $this->supervisorPropertyIds()->contains($propertyId)) {
+            throw new \Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException('This tenant is not in one of your assigned properties.');
+        }
     }
 
     /**

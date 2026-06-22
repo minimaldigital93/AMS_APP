@@ -37,18 +37,22 @@ class BillingController extends Controller
 
     public function renew(Request $request, KhqrPaymentService $khqr): RedirectResponse
     {
-        $validated = $request->validate(['plan' => ['required', 'exists:plans,slug']]);
+        $validated = $request->validate([
+            'plan' => ['required', 'exists:plans,slug'],
+            'billing_cycle' => ['nullable', 'in:monthly,yearly'],
+        ]);
         $plan = Plan::where('slug', $validated['plan'])->firstOrFail();
+        $cycle = ($validated['billing_cycle'] ?? 'monthly') === 'yearly' && $plan->hasYearly() ? 'yearly' : 'monthly';
         $accountId = current_account_id();
 
         // One subscription row per account — reuse it for renewals/upgrades.
         $subscription = Subscription::updateOrCreate(
             ['account_id' => $accountId],
-            ['plan_id' => $plan->id]
+            ['plan_id' => $plan->id, 'billing_cycle' => $cycle]
         );
 
         try {
-            $row = $khqr->createSubscriptionQr($subscription, (float) $plan->price_usd);
+            $row = $khqr->createSubscriptionQr($subscription, $plan->priceFor($cycle));
         } catch (KhqrPlatformCredentialsMissingException $e) {
             report($e);
 
