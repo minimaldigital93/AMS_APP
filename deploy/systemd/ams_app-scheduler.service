@@ -1,0 +1,13 @@
+# AMS_APP Laravel scheduler — runs `schedule:run` once, fired every minute
+# by ams_app-scheduler.timer. (Alternative to a www-data crontab line.)
+# Install at: /etc/systemd/system/ams_app-scheduler.service
+[Unit]
+Description=AMS_APP Laravel scheduler (schedule:run)
+After=network.target mysql.service
+
+[Service]
+Type=oneshot
+User=www-data
+Group=www-data
+WorkingDirectory=/var/www/AMS_APP
+ExecStart=/usr/bin/php /var/www/AMS_APP/artisan schedule:run

@@ -1,0 +1,19 @@
+# AMS_APP Laravel queue worker (QUEUE_CONNECTION=database).
+# Install at: /etc/systemd/system/ams_app-queue.service
+# Enable:     sudo systemctl enable --now ams_app-queue
+[Unit]
+Description=AMS_APP Laravel queue worker
+After=network.target mysql.service redis-server.service
+
+[Service]
+User=www-data
+Group=www-data
+Restart=always
+RestartSec=3
+WorkingDirectory=/var/www/AMS_APP
+ExecStart=/usr/bin/php /var/www/AMS_APP/artisan queue:work --sleep=3 --tries=3 --max-time=3600
+StandardOutput=append:/var/www/AMS_APP/storage/logs/queue.log
+StandardError=append:/var/www/AMS_APP/storage/logs/queue.log
+
+[Install]
+WantedBy=multi-user.target

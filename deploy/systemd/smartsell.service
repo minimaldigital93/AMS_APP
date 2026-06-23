@@ -1,0 +1,22 @@
+# Smart_sell (Next.js, basePath=/smart_sell) — internal only on 127.0.0.1:3000.
+# Production replacement for the Mac launchd plist.
+# Install at: /etc/systemd/system/smartsell.service
+# Enable:     sudo systemctl enable --now smartsell
+[Unit]
+Description=Smart_sell Next.js production server
+After=network.target
+
+[Service]
+User=www-data
+Group=www-data
+Environment=NODE_ENV=production
+Environment=PORT=3000
+WorkingDirectory=/var/www/Smart_sell
+ExecStart=/usr/bin/node node_modules/next/dist/bin/next start -H 127.0.0.1 -p 3000
+Restart=always
+RestartSec=3
+StandardOutput=append:/var/log/smartsell.log
+StandardError=append:/var/log/smartsell.log
+
+[Install]
+WantedBy=multi-user.target

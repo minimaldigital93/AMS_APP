@@ -1,0 +1,13 @@
+# Fires ams_app-scheduler.service every minute (Laravel scheduler tick).
+# Install at: /etc/systemd/system/ams_app-scheduler.timer
+# Enable:     sudo systemctl enable --now ams_app-scheduler.timer
+[Unit]
+Description=Run AMS_APP Laravel scheduler every minute
+
+[Timer]
+OnCalendar=*-*-* *:*:00
+AccuracySec=1s
+Persistent=false
+
+[Install]
+WantedBy=timers.target
