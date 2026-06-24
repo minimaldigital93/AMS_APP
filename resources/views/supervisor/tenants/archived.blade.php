@@ -322,7 +322,7 @@ function viewTenantSettlement(tenantId, tenantName) {
                         <h3 class="text-sm font-medium text-gray-600 mb-4">{{ __('messages.personal_information') }}</h3>
                         <div class="space-y-3">
                             <div class="flex items-center gap-4">
-                                ${t.photo_path ? `<img src="${t.photo_path.startsWith('/') ? t.photo_path : ('/storage/' + t.photo_path)}" alt="${t.name}" class="h-20 w-20 rounded-lg object-cover border border-gray-300">` : `<div class="h-20 w-20 rounded-lg bg-red-50 flex items-center justify-center text-xl font-semibold text-red-600">${t.name.charAt(0).toUpperCase()}</div>`}
+                                ${t.photo_path ? `<img src="${t.photo_path.startsWith('/') ? t.photo_path : ('{{ asset('storage') }}/' + t.photo_path)}" alt="${t.name}" class="h-20 w-20 rounded-lg object-cover border border-gray-300">` : `<div class="h-20 w-20 rounded-lg bg-red-50 flex items-center justify-center text-xl font-semibold text-red-600">${t.name.charAt(0).toUpperCase()}</div>`}
                                 <div>
                                     <p class="text-xs text-gray-500">{{ __('messages.full_name') }}</p>
                                     <p class="text-sm font-medium text-gray-900">${t.name}</p>
@@ -401,7 +401,7 @@ function viewTenantDocument(tenantId, tenantName) {
     const tenant = allArchivedTenants.find(t => t.id == tenantId);
     if (!tenant || !tenant.document_path) { alert('{{ __('messages.no_document_attached') }}'); return; }
 
-    const url = tenant.document_path.startsWith('/') ? tenant.document_path : ('/storage/' + tenant.document_path);
+    const url = tenant.document_path.startsWith('/') ? tenant.document_path : ('{{ asset('storage') }}/' + tenant.document_path);
     const ext = (tenant.document_path.split('.').pop() || '').toLowerCase();
     const body = document.getElementById('documentViewerBody');
 

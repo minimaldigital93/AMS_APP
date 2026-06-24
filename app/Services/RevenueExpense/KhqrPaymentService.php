@@ -272,7 +272,9 @@ class KhqrPaymentService
         }
 
         if (filled($settings->khqr_image_path)) {
-            return Storage::disk('public')->url($settings->khqr_image_path);
+            // asset() keeps the /ams_app sub-path prefix on the live server;
+            // Storage::url() would emit a bare /storage/... that 404s there.
+            return asset('storage/'.$settings->khqr_image_path);
         }
 
         return null;
