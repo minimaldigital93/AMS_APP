@@ -174,9 +174,10 @@
                 <thead class="bg-gray-50">
                     <tr>
                         <th class="w-12 px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">{{ __('messages.no_col') }}</th>
-                        <th class="w-1/3 px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">{{ __('messages.apartment') }} / {{ __('messages.tenant') }}</th>
-                        <th class="w-1/3 px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">{{ __('messages.total') }} / {{ __('messages.status') }}</th>
-                        <th class="w-1/3 px-4 py-3 text-right text-xs font-medium text-slate-500 uppercase tracking-wider">{{ __('messages.actions') }}</th>
+                        <th class="w-1/3 px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">{{ __('messages.tenant') }}</th>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">{{ __('messages.total') }}</th>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">{{ __('messages.status') }}</th>
+                        <th class="px-4 py-3 text-right text-xs font-medium text-slate-500 uppercase tracking-wider">{{ __('messages.actions') }}</th>
                     </tr>
                 </thead>
                 <tbody class="bg-white divide-y divide-gray-200">
@@ -198,22 +199,22 @@
                                     <svg class="w-5 h-5 text-sky-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/></svg>
                                 </div>
                                 <div class="ml-4 min-w-0">
-                                    <p class="font-semibold text-slate-800 truncate">{{ $bill['apartment']->apartment_number }}</p>
-                                    <p class="text-xs text-slate-400 truncate">{{ __('messages.floor') }} {{ $bill['apartment']->floor->floor_number ?? 'N/A' }}</p>
-                                    <p class="font-medium text-gray-900 text-sm truncate">{{ $bill['tenant']->name ?? 'N/A' }}</p>
-                                    <p class="text-xs text-gray-500 truncate">{{ $bill['tenant']->phone ?? '' }}</p>
+                                    <p class="font-semibold text-slate-800 truncate">{{ $bill['tenant']->name ?? 'N/A' }}</p>
+                                    <p class="text-xs text-gray-500 truncate">{{ $bill['tenant']->phone ?? '—' }}</p>
                                 </div>
                             </div>
                         </td>
                         <td class="px-4 py-4 whitespace-nowrap">
                             <p class="text-sm font-bold {{ $bill['status'] === 'paid' ? 'text-emerald-600' : 'text-slate-800' }}">${{ number_format($bill['total_bill'], 2) }}</p>
                             <p class="text-xs text-slate-400">{{ __('messages.rent') }} ${{ number_format($bill['monthly_rent'], 2) }}</p>
+                        </td>
+                        <td class="px-4 py-4 whitespace-nowrap">
                             @if($bill['status'] === 'paid')
-                                <span class="mt-1 inline-block px-2 py-1 text-xs font-semibold rounded-md bg-emerald-100 text-emerald-700">{{ __('messages.paid') }}</span>
+                                <span class="inline-block px-2 py-1 text-xs font-semibold rounded-md bg-emerald-100 text-emerald-700">{{ __('messages.paid') }}</span>
                             @elseif($bill['status'] === 'overdue')
-                                <span class="mt-1 inline-block px-2 py-1 text-xs font-semibold rounded-md bg-red-100 text-red-700">{{ __('messages.overdue') }}</span>
+                                <span class="inline-block px-2 py-1 text-xs font-semibold rounded-md bg-red-100 text-red-700">{{ __('messages.overdue') }}</span>
                             @else
-                                <span class="mt-1 inline-block px-2 py-1 text-xs font-semibold rounded-md bg-amber-100 text-amber-700">{{ $isFutureMonth ? __('messages.upcoming') : __('messages.pending') }}</span>
+                                <span class="inline-block px-2 py-1 text-xs font-semibold rounded-md bg-amber-100 text-amber-700">{{ $isFutureMonth ? __('messages.upcoming') : __('messages.pending') }}</span>
                             @endif
                         </td>
                         <td class="px-4 py-4 whitespace-nowrap text-sm font-medium">
