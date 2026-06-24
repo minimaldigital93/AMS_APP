@@ -83,7 +83,16 @@
                 <button type="button" @click="cycle = 'yearly'" :class="cycle === 'yearly' ? 'bg-white text-gray-900 shadow' : 'text-gray-500'" class="rounded-full px-4 py-1.5">{{ __('messages.yearly') }}</button>
             </div>
         </div>
-        <div class="mt-4 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+        @php($planGridCols = match(true) {
+            $plans->count() <= 1 => 'max-w-sm',
+            $plans->count() === 2 => 'sm:grid-cols-2 max-w-2xl',
+            $plans->count() === 3 => 'sm:grid-cols-2 lg:grid-cols-3 max-w-4xl',
+            $plans->count() === 4 => 'sm:grid-cols-2 lg:grid-cols-4 max-w-5xl',
+            default => 'sm:grid-cols-2 lg:grid-cols-5',
+        })
+        {{-- Columns track the number of active plans so the layout fits whatever
+             plan set the superadmin has created. --}}
+        <div class="mt-4 grid gap-5 mx-auto {{ $planGridCols }}">
             @foreach ($plans as $p)
                 @php($current = $plan && $plan->id === $p->id)
                 <div class="flex flex-col rounded-2xl border p-6 {{ $current ? 'border-indigo-500 ring-1 ring-indigo-500' : 'border-gray-200' }} bg-white shadow-sm">

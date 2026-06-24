@@ -1,6 +1,17 @@
 <x-guest-layout>
     @php($plans = $plans ?? \App\Models\Plan::where('is_active', true)->orderBy('price_usd')->get())
 
+    {{-- Plan grid adapts to however many plans the superadmin has active, so the
+         layout always fits (no stretched/empty columns when < 5, no awkward wrap
+         when > 5). Only classes already present in the compiled CSS are used. --}}
+    @php($planGridCols = match(true) {
+        $plans->count() <= 1 => 'max-w-sm',
+        $plans->count() === 2 => 'sm:grid-cols-2 max-w-2xl',
+        $plans->count() === 3 => 'sm:grid-cols-2 lg:grid-cols-3 max-w-4xl',
+        $plans->count() === 4 => 'sm:grid-cols-2 lg:grid-cols-4 max-w-5xl',
+        default => 'sm:grid-cols-2 lg:grid-cols-5',
+    })
+
     {{-- Subscribe button + pricing modal — pushed to the layout's overlays stack so
          they sit on top of the whole page, not inside the login card. --}}
     @push('overlays')
@@ -33,7 +44,7 @@
                         </div>
                     </div>
 
-                    <div class="mt-8 grid gap-6 sm:grid-cols-2 lg:grid-cols-5">
+                    <div class="mt-8 grid gap-6 mx-auto {{ $planGridCols }}">
                         @foreach($plans as $plan)
                             @php($popular = $plan->slug === 'basic')
                             <div class="relative flex flex-col rounded-2xl border p-6 {{ $popular ? 'border-indigo-500 ring-2 ring-indigo-500 shadow-lg' : 'border-gray-200' }}">

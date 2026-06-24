@@ -21,24 +21,20 @@
             </div>
         </div>
 
-        <!-- Plan picker -->
+        <!-- Selected plan (already chosen on the pricing page — confirm only that
+             one here instead of re-listing every plan). -->
+        <input type="hidden" name="plan" value="{{ $selected->slug }}">
         <div class="mt-4">
             <x-input-label :value="__('Selected plan')" class="form-label" />
-            <div class="mt-2 grid grid-cols-3 gap-2 sm:grid-cols-5">
-                @foreach($plans as $p)
-                    <label class="cursor-pointer rounded-xl border p-3 text-center text-white/90 transition"
-                           :class="plan === '{{ $p->slug }}' ? 'border-indigo-400 bg-indigo-500/30' : 'border-white/20 bg-white/5'">
-                        <input type="radio" name="plan" value="{{ $p->slug }}" class="sr-only" x-model="plan">
-                        <div class="text-sm font-semibold">{{ $p->name }}</div>
-                        <div class="text-lg font-bold" x-show="cycle === 'monthly'">${{ rtrim(rtrim(number_format($p->price_usd, 2), '0'), '.') }}<span class="text-xs font-normal">/{{ __('mo') }}</span></div>
-                        <div class="text-lg font-bold" x-show="cycle === 'yearly'" x-cloak>${{ rtrim(rtrim(number_format($p->hasYearly() ? $p->price_yearly_usd : $p->price_usd, 2), '0'), '.') }}<span class="text-xs font-normal">/{{ __('messages.year') }}</span></div>
-                        <div class="mt-1 text-[11px] leading-tight opacity-80">
-                            {{ $p->max_properties === null ? '∞' : $p->max_properties }} {{ __('messages.properties') }}<br>
-                            {{ $p->max_rooms === null ? '∞' : $p->max_rooms }} {{ __('messages.rooms') }}<br>
-                            {{ $p->max_staff === null ? '∞' : $p->max_staff }} {{ __('messages.staff') }}
-                        </div>
-                    </label>
-                @endforeach
+            <div class="mt-2 rounded-xl border border-indigo-400 bg-indigo-500/30 p-4 text-center text-white/90">
+                <div class="text-base font-semibold">{{ $selected->name }}</div>
+                <div class="text-2xl font-bold" x-show="cycle === 'monthly'">${{ rtrim(rtrim(number_format($selected->price_usd, 2), '0'), '.') }}<span class="text-xs font-normal">/{{ __('mo') }}</span></div>
+                <div class="text-2xl font-bold" x-show="cycle === 'yearly'" x-cloak>${{ rtrim(rtrim(number_format($selected->hasYearly() ? $selected->price_yearly_usd : $selected->price_usd, 2), '0'), '.') }}<span class="text-xs font-normal">/{{ __('messages.year') }}</span></div>
+                <div class="mt-1 text-xs leading-tight opacity-80">
+                    {{ $selected->max_properties === null ? '∞' : $selected->max_properties }} {{ __('messages.properties') }} ·
+                    {{ $selected->max_rooms === null ? '∞' : $selected->max_rooms }} {{ __('messages.rooms') }} ·
+                    {{ $selected->max_staff === null ? '∞' : $selected->max_staff }} {{ __('messages.staff') }}
+                </div>
             </div>
             <x-input-error :messages="$errors->get('plan')" class="mt-2" />
         </div>
