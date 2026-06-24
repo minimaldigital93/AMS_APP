@@ -29,7 +29,7 @@ class UserController extends Controller
     {
         // Isolate to the current account (admins only see their own team).
         $query = User::where('account_id', current_account_id())
-            ->with('roles', 'permissions', 'tenants.apartment');
+            ->with('roles', 'permissions', 'tenants.apartment.floor');
 
         // Filter by role
         if ($request->filled('role')) {

@@ -39,47 +39,47 @@
 
     <!-- Users Table (styled like apartment/floor layout) -->
     <div class="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
-        <div class="hidden md:block overflow-x-auto">
+        <div class="hidden lg:block overflow-x-auto">
             <table class="w-full text-sm">
                 <thead class="bg-gray-50 border-b border-gray-200">
                     <tr>
-                        <th class="px-6 py-3 text-left text-sm font-semibold text-gray-900">No</th>
-                        <th class="px-6 py-3 text-left text-sm font-semibold text-gray-900">{{ __('messages.name') }}</th>
-                        <th class="px-6 py-3 text-left text-sm font-semibold text-gray-900">{{ __('messages.phone') }}</th>
-                        <th class="px-6 py-3 text-left text-sm font-semibold text-gray-900">{{ __('messages.role') }}</th>
-                        <th class="px-6 py-3 text-left text-sm font-semibold text-gray-900">{{ __('messages.apartment') }}</th>
-                        <th class="px-6 py-3 text-left text-sm font-semibold text-gray-900">{{ __('messages.status') }}</th>
-                        <th class="px-6 py-3 text-left text-sm font-semibold text-gray-900">{{ __('messages.assigned_roles') }}</th>
-                        <th class="px-6 py-3 text-left text-sm font-semibold text-gray-900">{{ __('messages.actions') }}</th>
+                        <th class="px-4 py-3 text-left text-sm font-semibold text-gray-900 whitespace-nowrap">No</th>
+                        <th class="px-4 py-3 text-left text-sm font-semibold text-gray-900 whitespace-nowrap">{{ __('messages.name') }}</th>
+                        <th class="px-4 py-3 text-left text-sm font-semibold text-gray-900 whitespace-nowrap">{{ __('messages.phone') }}</th>
+                        <th class="px-4 py-3 text-left text-sm font-semibold text-gray-900 whitespace-nowrap">{{ __('messages.role') }}</th>
+                        <th class="px-4 py-3 text-left text-sm font-semibold text-gray-900 whitespace-nowrap">{{ __('messages.apartment') }}</th>
+                        <th class="px-4 py-3 text-left text-sm font-semibold text-gray-900 whitespace-nowrap">{{ __('messages.status') }}</th>
+                        <th class="px-4 py-3 text-left text-sm font-semibold text-gray-900 whitespace-nowrap">{{ __('messages.assigned_roles') }}</th>
+                        <th class="px-4 py-3 text-left text-sm font-semibold text-gray-900 whitespace-nowrap">{{ __('messages.actions') }}</th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-gray-100">
                     @forelse($users as $user)
                     <tr class="hover:bg-gray-50 transition">
-                        <td class="px-6 py-4 text-gray-600">{{ ($users->currentPage()-1) * $users->perPage() + $loop->iteration }}</td>
-                        <td class="px-6 py-4 font-medium text-gray-900">{{ $user->name }}</td>
-                        <td class="px-6 py-4 text-gray-600">{{ $user->phone }}</td>
-                        <td class="px-6 py-4">
+                        <td class="px-4 py-3 text-gray-600">{{ ($users->currentPage()-1) * $users->perPage() + $loop->iteration }}</td>
+                        <td class="px-4 py-3 font-medium text-gray-900">{{ $user->name }}</td>
+                        <td class="px-4 py-3 text-gray-600">{{ $user->phone }}</td>
+                        <td class="px-4 py-3">
                             <span class="px-3 py-1 text-sm font-semibold rounded-full bg-sky-100 text-sky-700">{{ ucfirst($user->roles->first()?->name ?? 'N/A') }}</span>
                         </td>
-                        <td class="px-6 py-4">
+                        <td class="px-4 py-3">
                             @php
                                 $tenantRecord = $user->roles->first()?->name === 'tenant'
                                     ? $user->tenants->whereIn('status', ['active', 'pending'])->first()
                                     : null;
                             @endphp
                             @if($tenantRecord?->apartment)
-                                <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-sky-50 text-sky-700">
-                                    {{ $tenantRecord->apartment->apartment_number }}
+                                <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-sky-50 text-sky-700 whitespace-nowrap">
+                                    @if($tenantRecord->apartment->floor){{ $tenantRecord->apartment->floor->floor_name }} / @endif{{ $tenantRecord->apartment->apartment_number }}
                                 </span>
                             @else
                                 <span class="text-gray-400 text-xs">—</span>
                             @endif
                         </td>
-                        <td class="px-6 py-4">
+                        <td class="px-4 py-3">
                             <span class="px-3 py-1 text-sm font-semibold rounded-full {{ $user->status === 'active' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-700' }}">{{ ucfirst($user->status ?? 'unknown') }}</span>
                         </td>
-                        <td class="px-6 py-4">
+                        <td class="px-4 py-3">
                             @if($user->hasAnyRole(['admin', 'superadmin']))
                                 <span class="inline-flex items-center gap-1.5 text-xs font-medium text-gray-400">
                                     <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
@@ -91,7 +91,7 @@
                                 <form action="{{ route('admin.users.updateRole', $user) }}" method="POST">
                                     @csrf
                                     @method('PATCH')
-                                    <select name="role" onchange="this.form.submit()" class="w-56 px-2 py-1 text-xs font-medium rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-slate-400">
+                                    <select name="role" onchange="this.form.submit()" class="w-40 xl:w-52 px-2 py-1 text-xs font-medium rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-slate-400">
                                         <option value="">{{ __('messages.assign_role') }}</option>
                                         @foreach($roles->whereIn('name', ['supervisor', 'tenant']) as $role)
                                             <option value="{{ $role->id }}" {{ $user->roles->contains($role->id) ? 'selected' : '' }}>{{ ucfirst($role->name) }}</option>
@@ -100,7 +100,7 @@
                                 </form>
                             @endif
                         </td>
-                        <td class="px-6 py-4 flex items-center gap-3">
+                        <td class="px-4 py-3 flex items-center gap-3">
                             <a href="{{ route('admin.users.edit', $user) }}"
                                class="text-sky-600 hover:text-sky-700 p-2 rounded-lg bg-sky-50/20 hover:bg-sky-50/40 transition" title="{{ __('messages.edit_user') }}">
                                 <svg class="w-[18px] h-[18px]" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
@@ -120,15 +120,15 @@
                     </tr>
                     @empty
                     <tr>
-                        <td colspan="8" class="px-6 py-4 text-center text-gray-500">{{ __('messages.no_users_found') }}</td>
+                        <td colspan="8" class="px-4 py-3 text-center text-gray-500">{{ __('messages.no_users_found') }}</td>
                     </tr>
                     @endforelse
                 </tbody>
             </table>
         </div>
 
-        <!-- Mobile card list -->
-        <div id="userCards" class="md:hidden divide-y divide-gray-100">
+        <!-- Mobile / tablet card list -->
+        <div id="userCards" class="lg:hidden divide-y divide-gray-100">
             @forelse($users as $user)
                 @php
                     $cardRole = $user->roles->first()?->name ?? '';
@@ -141,7 +141,7 @@
                     <div class="min-w-0 flex-1">
                         <p class="text-sm font-medium text-gray-900 truncate">{{ $user->name }}</p>
                         @if($tenantRecord?->apartment)
-                            <p class="text-xs text-sky-600 truncate">{{ $tenantRecord->apartment->apartment_number }}</p>
+                            <p class="text-xs text-sky-600 truncate">@if($tenantRecord->apartment->floor){{ $tenantRecord->apartment->floor->floor_name }} / @endif{{ $tenantRecord->apartment->apartment_number }}</p>
                         @endif
                     </div>
                     @if($user->hasAnyRole(['admin', 'superadmin']))
