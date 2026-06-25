@@ -7,13 +7,21 @@
         #assignTenantModal select,
         #assignTenantModal textarea { font-size: 16px; }
     }
+    /* Momentum scrolling inside the sheet, and stop scroll from chaining to the page
+       behind it (the chaining is what makes the sheet feel "stuck" on iOS). */
+    #assignTenantModal .modal-scroll {
+        -webkit-overflow-scrolling: touch;
+        overscroll-behavior: contain;
+    }
+    /* Capped height for the centered dialog. JS narrows it further while the
+       on-screen keyboard is open so the action buttons stay reachable on iPhone. */
+    #assignTenantModal .modal-card {
+        max-height: 90vh;
+        max-height: 90dvh;
+    }
 </style>
-<div id="assignTenantModal" class="hidden fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center sm:px-4 sm:py-10" data-assign-base="{{ $assignBase }}">
-    <div class="bg-white rounded-t-2xl sm:rounded-2xl shadow-xl w-full sm:max-w-lg flex flex-col overflow-hidden" style="max-height: 92vh; max-height: 92dvh;">
-        <!-- Grab handle (mobile sheet affordance) -->
-        <div class="sm:hidden flex justify-center pt-2.5 pb-1 flex-shrink-0">
-            <div class="w-9 h-1 rounded-full bg-slate-300"></div>
-        </div>
+<div id="assignTenantModal" class="hidden fixed inset-0 bg-slate-900/50 sm:backdrop-blur-sm z-[70] flex items-center justify-center px-4 py-4 sm:py-10" data-assign-base="{{ $assignBase }}">
+    <div class="modal-card bg-white rounded-2xl shadow-xl w-full sm:max-w-lg flex flex-col overflow-hidden">
         <div class="px-5 sm:px-6 py-4 border-b border-slate-100 flex justify-between items-center rounded-t-2xl flex-shrink-0">
             <div>
                 <h3 id="modalTitle" class="text-base font-semibold text-slate-800">{{ __('messages.assign_tenant_to') }} <span id="apartmentNumberDisplay"></span></h3>
@@ -43,7 +51,7 @@
             <input type="hidden" id="apartmentId" name="apartment_id" value="{{ old('apartment_id') }}">
             <input type="hidden" id="tenantOption" name="tenant_option" value="{{ old('tenant_option', 'existing') }}">
 
-            <div class="flex-1 overflow-y-auto p-5 sm:p-6 space-y-4">
+            <div class="modal-scroll flex-1 min-h-0 overflow-y-auto p-5 sm:p-6 space-y-4">
             @if($errors->any())
                 <div class="bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg px-4 py-3">
                     <ul class="list-disc list-inside space-y-0.5">
@@ -136,7 +144,7 @@
 
             </div>
 
-            <div class="flex gap-3 px-5 sm:px-6 pt-4 border-t border-slate-100 flex-shrink-0" style="padding-bottom: max(1.25rem, env(safe-area-inset-bottom));">
+            <div class="flex gap-3 px-5 sm:px-6 pt-4 pb-5 border-t border-slate-100 flex-shrink-0">
                 <button type="button" class="close-modal flex-1 text-slate-500 hover:text-slate-700 bg-slate-50 hover:bg-slate-100 text-sm font-medium py-2.5 px-4 rounded-lg transition">
                     Cancel
                 </button>
@@ -152,6 +160,53 @@
 document.addEventListener('DOMContentLoaded', function() {
     const modal = document.getElementById('assignTenantModal');
     if (!modal) return;
+
+    // iOS-safe scroll lock. `body{overflow:hidden}` is unreliable on iOS Safari —
+    // the page keeps catching touch scroll and the sheet feels stuck. Pinning the
+    // body with position:fixed actually freezes it; we restore the scroll on close.
+    let lockedScrollY = 0;
+    function lockScroll() {
+        lockedScrollY = window.scrollY || window.pageYOffset || 0;
+        document.body.style.position = 'fixed';
+        document.body.style.top = `-${lockedScrollY}px`;
+        document.body.style.left = '0';
+        document.body.style.right = '0';
+        document.body.style.width = '100%';
+    }
+    function unlockScroll() {
+        document.body.style.position = '';
+        document.body.style.top = '';
+        document.body.style.left = '';
+        document.body.style.right = '';
+        document.body.style.width = '';
+        window.scrollTo(0, lockedScrollY);
+    }
+
+    // Pin the dialog to the *visible* viewport (not the taller layout viewport) and
+    // cap the card to it whenever the modal is open. On a short iPhone — or while the
+    // on-screen keyboard is open — this guarantees the header and footer always fit and
+    // the long form scrolls inside instead of pushing the buttons off-screen. Reverts
+    // to the CSS-centered dialog on close.
+    const modalCard = modal.querySelector('.modal-card');
+    function syncModalToViewport() {
+        const vv = window.visualViewport;
+        if (!vv || !modalCard) return;
+        if (modal.classList.contains('hidden')) {
+            modal.style.height = '';
+            modal.style.top = '';
+            modal.style.bottom = '';
+            modalCard.style.maxHeight = '';
+            return;
+        }
+        modal.style.height = vv.height + 'px';
+        modal.style.top = vv.offsetTop + 'px';
+        modal.style.bottom = 'auto';
+        modalCard.style.maxHeight = (vv.height - 32) + 'px';
+    }
+    if (window.visualViewport) {
+        window.visualViewport.addEventListener('resize', syncModalToViewport);
+        window.visualViewport.addEventListener('scroll', syncModalToViewport);
+    }
 
     const assignBase = modal.dataset.assignBase || '/supervisor/apartments';
     const form = document.getElementById('assignTenantForm');
@@ -263,28 +318,29 @@ document.addEventListener('DOMContentLoaded', function() {
             tenantOptionInput.value = 'new';
             form.reset();
             modal.classList.remove('hidden');
-            document.body.style.overflow = 'hidden';
+            lockScroll();
+            syncModalToViewport();
         });
     });
 
     document.querySelectorAll('.close-modal').forEach(btn => {
         btn.addEventListener('click', function() {
             modal.classList.add('hidden');
-            document.body.style.overflow = '';
+            unlockScroll();
         });
     });
 
     modal.addEventListener('click', function(e) {
         if (e.target === modal) {
             modal.classList.add('hidden');
-            document.body.style.overflow = '';
+            unlockScroll();
         }
     });
 
     document.addEventListener('keydown', function(e) {
         if (e.key === 'Escape' && !modal.classList.contains('hidden')) {
             modal.classList.add('hidden');
-            document.body.style.overflow = '';
+            unlockScroll();
         }
     });
 
@@ -301,7 +357,8 @@ document.addEventListener('DOMContentLoaded', function() {
         }
         tabNavigation.classList.remove('hidden');
         modal.classList.remove('hidden');
-        document.body.style.overflow = 'hidden';
+        lockScroll();
+        syncModalToViewport();
     })();
     @endif
 });
