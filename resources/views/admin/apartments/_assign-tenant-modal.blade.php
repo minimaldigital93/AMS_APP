@@ -1,7 +1,7 @@
 @php $assignBase = $assignBase ?? url('/admin/apartments'); @endphp
 <!-- Assign Tenant Modal (shared by apartments index & 3D view) -->
-<div id="assignTenantModal" class="hidden fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4" data-assign-base="{{ $assignBase }}">
-    <div class="bg-white rounded-2xl shadow-xl max-w-lg w-full max-h-[90vh] flex flex-col overflow-hidden">
+<div id="assignTenantModal" class="hidden fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center px-4 py-8 sm:py-10" data-assign-base="{{ $assignBase }}">
+    <div class="bg-white rounded-2xl shadow-xl max-w-lg w-full max-h-[85vh] flex flex-col overflow-hidden">
         <div class="px-6 py-4 border-b border-slate-100 flex justify-between items-center rounded-t-2xl flex-shrink-0">
             <div>
                 <h3 id="modalTitle" class="text-base font-semibold text-slate-800">{{ __('messages.assign_tenant_to') }} <span id="apartmentNumberDisplay"></span></h3>

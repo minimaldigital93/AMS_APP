@@ -100,7 +100,9 @@ class ApartmentController extends Controller
             'occupied' => $floors->sum(fn ($f) => $f->apartments->where('status', 'occupied')->count()),
         ];
 
-        return view('supervisor.apartments.plan3d', compact('floorsData', 'summary'));
+        $availableTenants = Tenants::where('status', 'active')->whereNull('apartment_id')->get();
+
+        return view('supervisor.apartments.plan3d', compact('floorsData', 'summary', 'availableTenants'));
     }
 
     /**

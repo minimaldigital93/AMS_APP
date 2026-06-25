@@ -141,11 +141,13 @@
                                         {{-- Assign button (centered) --}}
                                         @if($isAvailable)
                                             <div class="flex-1 flex items-center justify-center">
-                                                <a href="{{ route('supervisor.tenants.create', ['apartment_id' => $apt['id']]) }}"
-                                                   title="{{ __('messages.assign_tenant_unit', ['number' => $apt['number']]) }}"
-                                                   class="inline-flex items-center justify-center w-11 h-11 rounded-full text-emerald-700 bg-emerald-50 hover:bg-emerald-100 transition">
+                                                <button type="button"
+                                                        data-apartment-id="{{ $apt['id'] }}"
+                                                        data-apartment-number="{{ $apt['number'] }}"
+                                                        title="{{ __('messages.assign_tenant_unit', ['number' => $apt['number']]) }}"
+                                                        class="assign-tenant-btn inline-flex items-center justify-center w-11 h-11 rounded-full text-emerald-700 bg-emerald-50 hover:bg-emerald-100 transition">
                                                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
-                                                </a>
+                                                </button>
                                             </div>
                                         @endif
                                     </div>
@@ -158,4 +160,6 @@
         </div>
     @endif
 </div>
+
+@include('supervisor.apartments._assign-tenant-modal')
 @endsection
