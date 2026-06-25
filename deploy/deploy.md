@@ -1,10 +1,83 @@
 # Deploy & Hosting Runbook — AMS_APP
 
-This app is **self-hosted on this Mac**. There is no cloud server: the Mac runs
-the Laravel app, and a Cloudflare Tunnel pipes public traffic from
-**minimaldigital.dev** down to it.
+> ⚠️ **UPDATED — AMS_APP now runs on a DigitalOcean droplet.**
+> AMS_APP is deployed to a DO server via **SSH + `git pull`** (see the
+> "DigitalOcean deployment (CURRENT)" section directly below). The
+> Cloudflare-Tunnel-on-a-Mac setup described in the *rest* of this file is
+> **historical for AMS_APP**. It may still apply to the marketing site
+> (`minimaldigital.dev` root) and **Smart_sell** if those remain on the Mac —
+> verify before relying on it.
 
-## Development vs. host: who does what
+## DigitalOcean deployment (CURRENT)
+
+AMS_APP is hosted on a DigitalOcean droplet and deployed by pulling from the same
+GitHub remote (`minimaldigital93/AMS_APP`, branch `main`).
+
+> **Fill in these placeholders for your droplet** (then this section is exact):
+> - `<DROPLET_IP>` — droplet IP or hostname
+> - `<DEPLOY_USER>` — SSH user (e.g. `root` or a deploy user)
+> - `<APP_PATH>` — where the repo lives on the droplet (e.g. `/var/www/AMS_APP`)
+> - **Web server** — nginx + php-fpm (production) or `php artisan serve` (simple)
+
+### Develop & push (on your Mac, in your working checkout)
+
+```bash
+git pull
+# ...edit code...
+git add -A && git commit -m "..."
+git push origin main
+```
+
+### Deploy (SSH into the droplet)
+
+```bash
+ssh <DEPLOY_USER>@<DROPLET_IP>
+cd <APP_PATH>
+
+git pull origin main
+composer install --no-dev --optimize-autoloader   # only if composer.json changed
+php artisan migrate --force                         # only if new migrations
+php artisan optimize:clear
+php artisan config:cache && php artisan route:cache && php artisan view:cache
+npm run build                                       # only if CSS/JS changed
+php artisan queue:restart                           # only if you run queue workers
+```
+
+`composer deploy` (defined in `composer.json`) bundles down → migrate → re-cache →
+`npm run build` → up, and also works on the droplet.
+
+- **nginx + php-fpm:** no app restart needed for code changes; if you edited `.env`
+  run `php artisan config:cache` so the cached config reloads.
+- **`php artisan serve`:** restart the serve process (or its service unit) after a
+  pull so the new code is picked up.
+
+### The banner / accounts / payments live in the droplet's database
+
+The subscription "expires in N days" banner is **data in the droplet's MySQL**,
+computed live (`app/Services/NotificationService.php`). It is **independent of your
+Mac's database**, and **no `git push`/deploy ever changes it.** To inspect or fix on
+the droplet:
+
+```bash
+cd <APP_PATH>
+# list active subscriptions nearing expiry — find the one to fix:
+php artisan tinker --execute="foreach(\DB::table('subscriptions')->where('status','active')->whereNotNull('expires_at')->orderBy('expires_at')->limit(20)->get() as \$s){ echo \$s->id.'  acct='.\$s->account_id.'  expires='.\$s->expires_at.PHP_EOL; }"
+# restore the real expiry on the test row (replace <ID> and the date):
+php artisan tinker --execute="\DB::table('subscriptions')->where('id', <ID>)->update(['expires_at' => '2026-07-22 07:34:29', 'updated_at' => now()]); echo 'done';"
+```
+
+---
+
+## Historical: Mac + Cloudflare Tunnel hosting
+
+The sections below describe the original setup where AMS_APP was self-hosted on
+this Mac and a Cloudflare Tunnel piped public traffic from **minimaldigital.dev**
+down to it. Kept for the marketing site / Smart_sell and for disaster recovery.
+
+## Development vs. host: who does what  (HISTORICAL — Mac-hosted)
+
+> Superseded for AMS_APP — it now deploys to DigitalOcean (see "DigitalOcean
+> deployment (CURRENT)" above). This describes the old Mac dev→Mac live flow.
 
 There are two checkouts of this repo and one shared GitHub remote:
 
