@@ -19,6 +19,11 @@
         max-height: 90vh;
         max-height: 90dvh;
     }
+    /* Footer is sticky inside the scrolling form so the action buttons stay
+       pinned and reachable. Pad past the iPhone home indicator (safe area). */
+    #assignTenantModal .modal-footer {
+        padding-bottom: calc(1.25rem + env(safe-area-inset-bottom));
+    }
 </style>
 <div id="assignTenantModal" class="hidden fixed inset-0 bg-slate-900/50 sm:backdrop-blur-sm z-[70] flex items-center justify-center px-4 py-4 sm:py-10" data-assign-base="{{ $assignBase }}">
     <div class="modal-card bg-white rounded-2xl shadow-xl w-full sm:max-w-lg flex flex-col overflow-hidden">
@@ -46,12 +51,12 @@
             </div>
         </div>
 
-        <form id="assignTenantForm" method="POST" enctype="multipart/form-data" class="flex-1 flex flex-col min-h-0">
+        <form id="assignTenantForm" method="POST" enctype="multipart/form-data" class="modal-scroll flex-1 min-h-0 overflow-y-auto flex flex-col">
             @csrf
             <input type="hidden" id="apartmentId" name="apartment_id" value="{{ old('apartment_id') }}">
             <input type="hidden" id="tenantOption" name="tenant_option" value="{{ old('tenant_option', 'existing') }}">
 
-            <div class="modal-scroll flex-1 min-h-0 overflow-y-auto p-5 sm:p-6 space-y-4">
+            <div class="flex-1 p-5 sm:p-6 space-y-4">
             @if($errors->any())
                 <div class="bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg px-4 py-3">
                     <ul class="list-disc list-inside space-y-0.5">
@@ -144,7 +149,7 @@
 
             </div>
 
-            <div class="flex gap-3 px-5 sm:px-6 pt-4 pb-5 border-t border-slate-100 flex-shrink-0">
+            <div class="modal-footer sticky bottom-0 z-10 bg-white flex gap-3 px-5 sm:px-6 pt-4 pb-5 border-t border-slate-100">
                 <button type="button" class="close-modal flex-1 text-slate-500 hover:text-slate-700 bg-slate-50 hover:bg-slate-100 text-sm font-medium py-2.5 px-4 rounded-lg transition">
                     Cancel
                 </button>
