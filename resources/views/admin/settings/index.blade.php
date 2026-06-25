@@ -59,9 +59,48 @@
         </div>
 
         <!-- Settings Form -->
-        <form method="POST" action="{{ route('admin.settings.updateBatch') }}" class="space-y-8">
+        <form method="POST" action="{{ route('admin.settings.updateBatch') }}" class="space-y-8" enctype="multipart/form-data" x-data="logoUploader()">
             @csrf
             @method('PUT')
+
+            <!-- Company Logo -->
+            @php $companyLogo = settings('company_logo'); @endphp
+            <div>
+                <p class="px-4 mb-2 text-[13px] font-medium uppercase tracking-wide text-gray-500">{{ __('messages.company_logo') }}</p>
+                <div class="bg-white rounded-xl shadow-sm overflow-hidden">
+                    <div class="flex items-center gap-4 px-4 py-4">
+                        <!-- Preview -->
+                        <div class="flex-shrink-0">
+                            <div x-show="hasLogo" class="w-16 h-16 rounded-xl border border-gray-200 bg-gray-50 overflow-hidden flex items-center justify-center">
+                                <img :src="previewUrl" alt="{{ __('messages.company_logo') }}" class="w-full h-full object-contain">
+                            </div>
+                            <div x-show="!hasLogo" class="w-16 h-16 rounded-xl border border-dashed border-gray-300 bg-gray-50 flex items-center justify-center text-gray-300">
+                                <svg class="w-7 h-7" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                                </svg>
+                            </div>
+                        </div>
+                        <!-- Controls -->
+                        <div class="flex-1 min-w-0">
+                            <div class="flex flex-wrap items-center gap-2">
+                                <button type="button" @click="$refs.logoInput.click()"
+                                    class="inline-flex items-center gap-1.5 px-3 py-1.5 text-[13px] font-medium text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-lg transition">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" /></svg>
+                                    <span x-text="hasLogo ? '{{ __('messages.change_logo') }}' : '{{ __('messages.upload_logo') }}'"></span>
+                                </button>
+                                <button type="button" x-show="hasLogo" @click="removeLogo()"
+                                    class="inline-flex items-center gap-1.5 px-3 py-1.5 text-[13px] font-medium text-red-600 bg-red-50 hover:bg-red-100 rounded-lg transition">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                                    {{ __('messages.remove_logo') }}
+                                </button>
+                            </div>
+                            <p class="mt-2 text-[13px] text-gray-500">{{ __('messages.logo_hint') }}</p>
+                        </div>
+                    </div>
+                    <input type="file" name="company_logo" x-ref="logoInput" accept="image/png,image/jpeg,image/webp" class="hidden" @change="onSelect($event)">
+                    <input type="hidden" name="remove_company_logo" :value="removeFlag ? '1' : '0'">
+                </div>
+            </div>
 
             @foreach($defaultSettings as $category => $categorySettings)
             <div>
@@ -139,6 +178,27 @@ function confirmReset() {
     window.confirmAction({ message: '{{ __('messages.reset_confirm') }}' }).then(function (ok) {
         if (ok) document.getElementById('resetForm').submit();
     });
+}
+
+function logoUploader() {
+    return {
+        hasLogo: @json((bool) $companyLogo),
+        previewUrl: '{{ $companyLogo ? asset('storage/' . $companyLogo) : '' }}',
+        removeFlag: false,
+        onSelect(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+            this.removeFlag = false;
+            this.previewUrl = URL.createObjectURL(file);
+            this.hasLogo = true;
+        },
+        removeLogo() {
+            this.removeFlag = true;
+            this.hasLogo = false;
+            this.previewUrl = '';
+            this.$refs.logoInput.value = '';
+        },
+    };
 }
 </script>
 @endsection

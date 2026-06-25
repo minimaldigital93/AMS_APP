@@ -995,6 +995,69 @@ class RevenueExpenseController extends Controller
         return view('admin.revenue_expense.tenant_bill_print', $billData);
     }
 
+    /**
+     * Render a printable payment receipt for a rental's bill in a given month.
+     *
+     * Company details (name, address, logo, …) are pulled from Settings; tenant
+     * and payment details come from the rental's payments for the selected month.
+     * Works for paid bills (shows payment method/amount) and unpaid ones (shows
+     * the balance still due).
+     */
+    public function printReceipt(Request $request, $rentalId)
+    {
+        $month = (int) $request->input('month', now()->month);
+        $year = (int) $request->input('year', now()->year);
+
+        $rental = Rentals::with(['apartment.floor.property', 'apartment.activeFixedExpenses', 'tenant'])
+            ->findOrFail($rentalId);
+
+        $utilities = Utilities::where('rental_id', $rental->id)
+            ->where('billing_month', $month)
+            ->where('billing_year', $year)
+            ->get();
+
+        $payments = Payments::where('rental_id', $rental->id)
+            ->where('payment_status', 'paid')
+            ->whereMonth('paid_at', $month)
+            ->whereYear('paid_at', $year)
+            ->orderBy('paid_at')
+            ->get();
+
+        $fixedExpenses = $rental->apartment->activeFixedExpenses ?? collect();
+
+        $totalUtilities = $utilities->sum('charge_amount');
+        $totalFixed = $fixedExpenses->sum('amount');
+        $totalBill = $rental->rent_amount + $totalUtilities + $totalFixed;
+
+        $amountPaid = $payments->sum('amount') + $payments->sum('late_fee');
+        $latestPayment = $payments->last();
+        $isPaid = $payments->where('payment_type', 'rent')->isNotEmpty();
+        $paymentDate = $latestPayment?->paid_at ?? now();
+
+        return view('admin.revenue_expense.payment_receipt', [
+            'rental' => $rental,
+            'apartment' => $rental->apartment,
+            'tenant' => $rental->tenant,
+            'property' => $rental->apartment->property,
+            'monthYear' => Carbon::create($year, $month, 1)->format('F Y'),
+            'rentAmount' => $rental->rent_amount,
+            'utilities' => $utilities,
+            'fixedExpenses' => $fixedExpenses,
+            'totalBill' => $totalBill,
+            'amountPaid' => $amountPaid,
+            'balance' => max($totalBill - $amountPaid, 0),
+            'isPaid' => $isPaid,
+            'paymentDate' => $paymentDate,
+            'paymentMethod' => $latestPayment?->payment_method,
+            'note' => $payments->pluck('note')->filter()->implode(' · '),
+            'reference' => $latestPayment?->transaction_reference,
+            'receiptNumber' => 'RCPT-'.$rental->id.'-'.Carbon::parse($paymentDate)->format('Ymd').($latestPayment ? '-'.$latestPayment->id : ''),
+            'billReference' => 'BILL-'.$rental->id.'-'.sprintf('%04d%02d', $year, $month),
+            'generatedBy' => Auth::user()?->name ?? '—',
+            'generatedAt' => now(),
+        ]);
+    }
+
     public function storeIncome(RecordIncomeRequest $request)
     {
         $activePeriod = $this->getActiveFiscalPeriod();
