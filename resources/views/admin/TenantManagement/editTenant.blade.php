@@ -47,6 +47,7 @@
                                     </svg>
                                     <p class="text-sm text-gray-700"><span class="font-semibold">{{ __('messages.click_to_upload') }}</span> {{ __('messages.or_drag_drop') }}</p>
                                     <p class="text-xs text-gray-500">{{ __('messages.png_jpg_gif') }}</p>
+                                    <p class="text-[11px] text-gray-400 mt-0.5">{{ __('messages.photo_max_hint', ['max' => '10 MB']) }}</p>
                                 </div>
                                 <input id="photo" type="file" name="photo" class="hidden" accept="image/*" onchange="previewPhoto(event)">
                             </label>
@@ -80,6 +81,29 @@
                         <label for="name" class="block text-sm font-medium text-slate-500 mb-2">{{ __('messages.tenant_name') }} *</label>
                         <input type="text" id="name" name="name" required placeholder="{{ __('messages.full_name') }}" value="{{ old('name', $tenant->name) }}" class="w-full px-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-slate-200 focus:border-transparent text-slate-600 {{ $errors->has('name') ? 'border-red-500' : '' }}">
                         @error('name')
+                            <p class="text-red-500 text-sm mt-1">{{ $message }}</p>
+                        @enderror
+                    </div>
+
+                    <!-- Sex -->
+                    <div>
+                        <label for="gender" class="block text-sm font-medium text-slate-500 mb-2">{{ __('messages.gender') }}</label>
+                        <select id="gender" name="gender" class="w-full px-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-slate-200 focus:border-transparent text-slate-600 {{ $errors->has('gender') ? 'border-red-500' : '' }}">
+                            <option value="">{{ __('messages.select_gender') }}</option>
+                            <option value="male" {{ old('gender', $tenant->gender) === 'male' ? 'selected' : '' }}>{{ __('messages.male') }}</option>
+                            <option value="female" {{ old('gender', $tenant->gender) === 'female' ? 'selected' : '' }}>{{ __('messages.female') }}</option>
+                            <option value="other" {{ old('gender', $tenant->gender) === 'other' ? 'selected' : '' }}>{{ __('messages.other') }}</option>
+                        </select>
+                        @error('gender')
+                            <p class="text-red-500 text-sm mt-1">{{ $message }}</p>
+                        @enderror
+                    </div>
+
+                    <!-- ID Card Number -->
+                    <div>
+                        <label for="id_card_number" class="block text-sm font-medium text-slate-500 mb-2">{{ __('messages.id_card_number') }}</label>
+                        <input type="text" id="id_card_number" name="id_card_number" placeholder="{{ __('messages.id_card_number') }}" value="{{ old('id_card_number', $tenant->id_card_number) }}" class="w-full px-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-slate-200 focus:border-transparent text-slate-600 {{ $errors->has('id_card_number') ? 'border-red-500' : '' }}">
+                        @error('id_card_number')
                             <p class="text-red-500 text-sm mt-1">{{ $message }}</p>
                         @enderror
                     </div>
@@ -177,26 +201,45 @@
 </div>
 
 <script>
+// Keep in sync with the server-side rule: 'photo' => ...|max:10240 (KB) = 10 MB.
+const MAX_PHOTO_MB = 10;
+const MAX_PHOTO_BYTES = MAX_PHOTO_MB * 1024 * 1024;
+
+function formatFileSize(bytes) {
+    if (bytes >= 1024 * 1024) return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+    return Math.max(1, Math.round(bytes / 1024)) + ' KB';
+}
+
 function previewPhoto(event) {
-    const file = event.target.files[0];
+    const input = event.target;
+    const file = input.files[0];
     const preview = document.getElementById('photoPreview');
-    
-    if (file) {
-        const reader = new FileReader();
-        reader.onload = function(e) {
-            preview.innerHTML = `
-                <div class="relative inline-block">
-                    <img src="${e.target.result}" alt="Preview" class="max-w-xs h-auto rounded-lg shadow-md">
-                    <button type="button" onclick="clearPhoto()" class="absolute top-0 right-0 bg-red-500 text-white rounded-full p-2 hover:bg-red-600 transition">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-                        </svg>
-                    </button>
-                </div>
-            `;
-        };
-        reader.readAsDataURL(file);
+    if (!file) return;
+
+    // Phone photos are often 10–20 MB — reject oversized files before uploading.
+    if (file.size > MAX_PHOTO_BYTES) {
+        alert(@json(__('messages.photo_too_large'))
+            .replace(':size', formatFileSize(file.size))
+            .replace(':max', MAX_PHOTO_MB + ' MB'));
+        input.value = '';
+        preview.innerHTML = '';
+        return;
     }
+
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        preview.innerHTML = `
+            <div class="relative inline-block">
+                <img src="${e.target.result}" alt="Preview" class="max-w-xs h-auto rounded-lg shadow-md">
+                <button type="button" onclick="clearPhoto()" class="absolute top-0 right-0 bg-red-500 text-white rounded-full p-2 hover:bg-red-600 transition">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                </button>
+            </div>
+        `;
+    };
+    reader.readAsDataURL(file);
 }
 
 function clearPhoto() {

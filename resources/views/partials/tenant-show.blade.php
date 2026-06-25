@@ -76,8 +76,12 @@
                         <p class="text-sm font-medium text-slate-800 mt-0.5">{{ $tenant->phone ?: '—' }}</p>
                     </div>
                     <div>
-                        <p class="text-xs text-slate-400 uppercase tracking-wide">{{ __('messages.email') }}</p>
-                        <p class="text-sm font-medium text-slate-800 mt-0.5">{{ $tenant->email ?: '—' }}</p>
+                        <p class="text-xs text-slate-400 uppercase tracking-wide">{{ __('messages.id_card_number') }}</p>
+                        <p class="text-sm font-medium text-slate-800 mt-0.5">{{ $tenant->id_card_number ?: '—' }}</p>
+                    </div>
+                    <div>
+                        <p class="text-xs text-slate-400 uppercase tracking-wide">{{ __('messages.gender') }}</p>
+                        <p class="text-sm font-medium text-slate-800 mt-0.5">{{ $tenant->gender ? __('messages.'.$tenant->gender) : '—' }}</p>
                     </div>
                     <div>
                         <p class="text-xs text-slate-400 uppercase tracking-wide">{{ __('messages.date_of_birth') }}</p>

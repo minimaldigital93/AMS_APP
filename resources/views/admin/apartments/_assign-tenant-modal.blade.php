@@ -68,12 +68,21 @@
                             <input type="text" id="name" name="name" required class="w-full px-3.5 py-2 text-sm border border-slate-200 rounded-lg bg-slate-50/50 placeholder-slate-300 focus:outline-none focus:ring-2 focus:ring-slate-300 focus:border-slate-300 transition">
                         </div>
                         <div>
-                            <label for="email" class="block text-xs font-medium text-slate-500 mb-1 uppercase tracking-wide">{{ __('messages.email') }}</label>
-                            <input type="email" id="email" name="email" class="w-full px-3.5 py-2 text-sm border border-slate-200 rounded-lg bg-slate-50/50 placeholder-slate-300 focus:outline-none focus:ring-2 focus:ring-slate-300 focus:border-slate-300 transition">
+                            <label for="gender" class="block text-xs font-medium text-slate-500 mb-1 uppercase tracking-wide">{{ __('messages.gender') }}</label>
+                            <select id="gender" name="gender" class="w-full px-3.5 py-2 text-sm border border-slate-200 rounded-lg bg-slate-50/50 text-slate-600 focus:outline-none focus:ring-2 focus:ring-slate-300 focus:border-slate-300 transition h-10">
+                                <option value="">{{ __('messages.select_gender') }}</option>
+                                <option value="male" {{ old('gender') === 'male' ? 'selected' : '' }}>{{ __('messages.male') }}</option>
+                                <option value="female" {{ old('gender') === 'female' ? 'selected' : '' }}>{{ __('messages.female') }}</option>
+                                <option value="other" {{ old('gender') === 'other' ? 'selected' : '' }}>{{ __('messages.other') }}</option>
+                            </select>
                         </div>
                         <div>
                             <label for="phone" class="block text-xs font-medium text-slate-500 mb-1 uppercase tracking-wide">{{ __('messages.phone') }} <span class="text-red-400">*</span></label>
                             <input type="tel" id="phone" name="phone" required class="w-full px-3.5 py-2 text-sm border border-slate-200 rounded-lg bg-slate-50/50 placeholder-slate-300 focus:outline-none focus:ring-2 focus:ring-slate-300 focus:border-slate-300 transition">
+                        </div>
+                        <div class="col-span-2">
+                            <label for="id_card_number" class="block text-xs font-medium text-slate-500 mb-1 uppercase tracking-wide">{{ __('messages.id_card_number') }}</label>
+                            <input type="text" id="id_card_number" name="id_card_number" value="{{ old('id_card_number') }}" class="w-full px-3.5 py-2 text-sm border border-slate-200 rounded-lg bg-slate-50/50 placeholder-slate-300 focus:outline-none focus:ring-2 focus:ring-slate-300 focus:border-slate-300 transition">
                         </div>
                         <div class="col-span-2">
                             <label for="address" class="block text-xs font-medium text-slate-500 mb-1 uppercase tracking-wide">{{ __('messages.address') }}</label>
@@ -86,12 +95,12 @@
                         <div class="col-span-2">
                             <label for="attached_photo" class="block text-xs font-medium text-slate-500 mb-1 uppercase tracking-wide">{{ __('messages.attached_photo') }}</label>
                             <input type="file" id="attached_photo" name="attached_photo" accept="image/*" class="w-full px-3.5 py-2 text-sm border border-slate-200 rounded-lg bg-slate-50/50 text-slate-600 focus:outline-none focus:ring-2 focus:ring-slate-300 transition file:mr-3 file:py-1 file:px-3 file:rounded-md file:border-0 file:text-xs file:font-medium file:bg-slate-100 file:text-slate-600">
-                            <p class="text-[11px] text-slate-400 mt-1">{{ __('messages.file_types_1') }}</p>
+                            <p class="text-[11px] text-slate-400 mt-1">{{ __('messages.file_types_1') }} · {{ __('messages.photo_max_hint', ['max' => '10 MB']) }}</p>
                         </div>
                         <div class="col-span-2">
                             <label for="id_pdf" class="block text-xs font-medium text-slate-500 mb-1 uppercase tracking-wide">{{ __('messages.attached_id_pdf') }}</label>
                             <input type="file" id="id_pdf" name="id_pdf" accept=".pdf,image/*" class="w-full px-3.5 py-2 text-sm border border-slate-200 rounded-lg bg-slate-50/50 text-slate-600 focus:outline-none focus:ring-2 focus:ring-slate-300 transition file:mr-3 file:py-1 file:px-3 file:rounded-md file:border-0 file:text-xs file:font-medium file:bg-slate-100 file:text-slate-600">
-                            <p class="text-[11px] text-slate-400 mt-1">{{ __('messages.file_types_2') }}</p>
+                            <p class="text-[11px] text-slate-400 mt-1">{{ __('messages.file_types_2') }} · {{ __('messages.photo_max_hint', ['max' => '10 MB']) }}</p>
                         </div>
                     </div>
                 </div>
@@ -165,9 +174,40 @@ document.addEventListener('DOMContentLoaded', function() {
     // Client-side validation for the "Create New Tenant" flow.
     const KHMER_RE = /[ក-៿᧠-᧿]/;
     const ALLOWED_PHONE_RE = /^[0-9+\-\s()]+$/;
+
+    // Reject oversized attachments before upload (server cap: max:10240 KB = 10 MB).
+    const MAX_FILE_MB = 10;
+    const MAX_FILE_BYTES = MAX_FILE_MB * 1024 * 1024;
+    function formatFileSize(bytes) {
+        if (bytes >= 1024 * 1024) return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+        return Math.max(1, Math.round(bytes / 1024)) + ' KB';
+    }
+    function fileTooLarge(input) {
+        const file = input && input.files && input.files[0];
+        if (file && file.size > MAX_FILE_BYTES) {
+            alert(@json(__('messages.photo_too_large'))
+                .replace(':size', formatFileSize(file.size))
+                .replace(':max', MAX_FILE_MB + ' MB'));
+            input.value = '';
+            return true;
+        }
+        return false;
+    }
+    ['attached_photo', 'id_pdf'].forEach(function(id) {
+        const el = document.getElementById(id);
+        if (el) el.addEventListener('change', function() { fileTooLarge(el); });
+    });
+
     form.addEventListener('submit', function(e) {
         // Only validate the new-tenant fields when creating a new tenant.
         if (tenantOptionInput.value !== 'new') return;
+
+        // Block submission if an attachment is still over the size limit.
+        if (fileTooLarge(document.getElementById('attached_photo')) ||
+            fileTooLarge(document.getElementById('id_pdf'))) {
+            e.preventDefault();
+            return;
+        }
 
         const phone = document.getElementById('phone');
         if (phone.value !== '' && (KHMER_RE.test(phone.value) || !ALLOWED_PHONE_RE.test(phone.value))) {

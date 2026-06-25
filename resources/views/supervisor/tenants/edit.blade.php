@@ -51,6 +51,7 @@
                                 <svg class="w-8 h-8 text-gray-400 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
                                 <p class="text-sm text-gray-700"><span class="font-semibold">{{ __('messages.click_to_upload') }}</span> {{ __('messages.or_drag_drop') }}</p>
                                 <p class="text-xs text-gray-500">{{ __('messages.png_jpg_gif') }}</p>
+                                <p class="text-[11px] text-gray-400 mt-0.5">{{ __('messages.photo_max_hint', ['max' => '10 MB']) }}</p>
                             </div>
                             <input id="photo" type="file" name="photo" class="hidden" accept="image/*" onchange="previewPhoto(event)">
                         </label>
@@ -183,22 +184,42 @@
 </div>
 
 <script>
+// Keep in sync with the server-side rule: 'photo' => ...|max:10240 (KB) = 10 MB.
+const MAX_PHOTO_MB = 10;
+const MAX_PHOTO_BYTES = MAX_PHOTO_MB * 1024 * 1024;
+
+function formatFileSize(bytes) {
+    if (bytes >= 1024 * 1024) return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+    return Math.max(1, Math.round(bytes / 1024)) + ' KB';
+}
+
 function previewPhoto(event) {
-    const file = event.target.files[0];
+    const input = event.target;
+    const file = input.files[0];
     const preview = document.getElementById('photoPreview');
-    if (file) {
-        const reader = new FileReader();
-        reader.onload = function(e) {
-            preview.innerHTML = `
-                <div class="relative inline-block">
-                    <img src="${e.target.result}" alt="Preview" class="max-w-xs h-auto rounded-lg shadow-md">
-                    <button type="button" onclick="clearPhoto()" class="absolute top-0 right-0 bg-red-500 text-white rounded-full p-2 hover:bg-red-600 transition">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
-                    </button>
-                </div>`;
-        };
-        reader.readAsDataURL(file);
+    if (!file) return;
+
+    // Phone photos are often 10–20 MB — reject oversized files before uploading.
+    if (file.size > MAX_PHOTO_BYTES) {
+        alert(@json(__('messages.photo_too_large'))
+            .replace(':size', formatFileSize(file.size))
+            .replace(':max', MAX_PHOTO_MB + ' MB'));
+        input.value = '';
+        preview.innerHTML = '';
+        return;
     }
+
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        preview.innerHTML = `
+            <div class="relative inline-block">
+                <img src="${e.target.result}" alt="Preview" class="max-w-xs h-auto rounded-lg shadow-md">
+                <button type="button" onclick="clearPhoto()" class="absolute top-0 right-0 bg-red-500 text-white rounded-full p-2 hover:bg-red-600 transition">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                </button>
+            </div>`;
+    };
+    reader.readAsDataURL(file);
 }
 function clearPhoto() {
     document.getElementById('photo').value = '';

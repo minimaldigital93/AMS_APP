@@ -394,13 +394,14 @@ class TenantController extends Controller
         $validated = $request->validate([
             'apartment_id' => 'required|exists:apartments,id',
             'name' => 'required|string|max:255',
+            'gender' => 'nullable|in:male,female,other',
             'phone' => [
                 'required', 'string', 'max:20', 'regex:/^[0-9+\-\s()]+$/',
                 // Per-account uniqueness so each admin's tenants are independent.
                 Rule::unique('tenants', 'phone')->where('account_id', current_account_id())->whereNull('deleted_at'),
                 Rule::unique('users', 'phone')->where('account_id', current_account_id()),
             ],
-            'email' => 'nullable|email|max:255',
+            'id_card_number' => 'nullable|string|max:50',
             'address' => 'nullable|string',
             'date_of_birth' => 'nullable|date|before_or_equal:'.$minBirthDate,
             'move_in_date' => 'required|date|after_or_equal:'.$minMoveInDate,
@@ -519,10 +520,12 @@ class TenantController extends Controller
         $validated = $request->validate([
             'apartment_id' => 'required|exists:apartments,id',
             'name' => 'required|string|max:255',
+            'gender' => 'nullable|in:male,female,other',
             'phone' => [
                 'required', 'string', 'max:20',
                 Rule::unique('tenants', 'phone')->ignore($tenant->id)->where('account_id', current_account_id())->whereNull('deleted_at'),
             ],
+            'id_card_number' => 'nullable|string|max:50',
             'address' => 'nullable|string',
             'date_of_birth' => 'nullable|date',
             'move_in_date' => 'required|date',

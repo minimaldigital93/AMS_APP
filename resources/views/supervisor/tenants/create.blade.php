@@ -32,6 +32,7 @@
                     <span class="text-sm text-slate-500">{{ __('messages.click_to_upload_photo') }}</span>
                     <input id="photo" type="file" name="photo" class="hidden" accept="image/*" onchange="previewPhoto(event)">
                 </label>
+                <p class="text-[11px] text-slate-400 mt-1">{{ __('messages.photo_max_hint', ['max' => '10 MB']) }}</p>
                 <div id="photoPreview" class="mt-2"></div>
                 @error('photo')<p class="text-red-500 text-xs mt-1">{{ $message }}</p>@enderror
             </div>
@@ -157,19 +158,39 @@
 </div>
 
 <script>
+// Keep in sync with the server-side rule: 'photo' => ...|max:10240 (KB) = 10 MB.
+const MAX_PHOTO_MB = 10;
+const MAX_PHOTO_BYTES = MAX_PHOTO_MB * 1024 * 1024;
+
+function formatFileSize(bytes) {
+    if (bytes >= 1024 * 1024) return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+    return Math.max(1, Math.round(bytes / 1024)) + ' KB';
+}
+
 function previewPhoto(event) {
-    const file = event.target.files[0];
+    const input = event.target;
+    const file = input.files[0];
     const preview = document.getElementById('photoPreview');
-    if (file) {
-        const reader = new FileReader();
-        reader.onload = function(e) {
-            preview.innerHTML = `<div class="relative inline-block">
-                <img src="${e.target.result}" alt="Preview" class="h-20 w-20 object-cover rounded-lg border border-slate-200">
-                <button type="button" onclick="clearPhoto()" class="absolute -top-1 -right-1 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs hover:bg-red-600 transition">&times;</button>
-            </div>`;
-        };
-        reader.readAsDataURL(file);
+    if (!file) return;
+
+    // Phone photos are often 10–20 MB — reject oversized files before uploading.
+    if (file.size > MAX_PHOTO_BYTES) {
+        alert(@json(__('messages.photo_too_large'))
+            .replace(':size', formatFileSize(file.size))
+            .replace(':max', MAX_PHOTO_MB + ' MB'));
+        input.value = '';
+        preview.innerHTML = '';
+        return;
     }
+
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        preview.innerHTML = `<div class="relative inline-block">
+            <img src="${e.target.result}" alt="Preview" class="h-20 w-20 object-cover rounded-lg border border-slate-200">
+            <button type="button" onclick="clearPhoto()" class="absolute -top-1 -right-1 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs hover:bg-red-600 transition">&times;</button>
+        </div>`;
+    };
+    reader.readAsDataURL(file);
 }
 function clearPhoto() {
     document.getElementById('photo').value = '';

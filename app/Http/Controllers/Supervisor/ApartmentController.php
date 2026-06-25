@@ -159,7 +159,8 @@ class ApartmentController extends Controller
                     ->whereNull('deleted_at')
                     ->where(fn () => $request->input('tenant_option') === 'new'),
             ],
-            'email' => 'nullable|email|max:255',
+            'gender' => 'nullable|in:male,female,other',
+            'id_card_number' => 'nullable|string|max:50',
             'address' => 'nullable|string',
             'date_of_birth' => 'nullable|date|before_or_equal:'.$minBirthDate,
             'attached_photo' => 'nullable|file|mimes:jpeg,jpg,png,gif,webp,heic,heif,pdf|max:10240',
@@ -232,7 +233,8 @@ class ApartmentController extends Controller
                 $tenant = Tenants::create([
                     'name' => $validated['name'],
                     'phone' => $validated['phone'],
-                    'email' => $validated['email'] ?? null,
+                    'gender' => $validated['gender'] ?? null,
+                    'id_card_number' => $validated['id_card_number'] ?? null,
                     'address' => $validated['address'] ?? null,
                     'date_of_birth' => $validated['date_of_birth'] ?? null,
                     'photo_path' => $photoPath,
