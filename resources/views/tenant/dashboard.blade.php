@@ -46,7 +46,7 @@
                     <p class="text-xs text-gray-400 uppercase">{{ __('messages.status') }}</p>
                     <span class="mt-0.5 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium
                         {{ $tenant->status === 'active' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700' }}">
-                        {{ ucfirst($tenant->status) }}
+                        {{ status_label($tenant->status) }}
                     </span>
                 </div>
                 @if($rental)
@@ -79,7 +79,7 @@
                 <p class="text-base lg:text-sm font-semibold lg:font-medium text-gray-900 lg:text-gray-400 truncate">{{ $tenant->name }}</p>
                 <span class="lg:hidden mt-1 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium
                     {{ $tenant->status === 'active' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700' }}">
-                    {{ ucfirst($tenant->status) }}
+                    {{ status_label($tenant->status) }}
                 </span>
             </div>
         </div>

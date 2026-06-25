@@ -42,7 +42,7 @@
                 @if ($sub)
                     @php($active = $sub->isActive())
                     <span class="inline-flex rounded-full px-3 py-1 text-xs font-semibold {{ $active ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700' }}">
-                        {{ ucfirst($sub->status) }}{{ $active && $sub->expires_at ? ' · '.__('renews').' '.$sub->expires_at->format('M j, Y') : '' }}
+                        {{ status_label($sub->status) }}{{ $active && $sub->expires_at ? ' · '.__('renews').' '.$sub->expires_at->format('M j, Y') : '' }}
                     </span>
                 @else
                     <span class="inline-flex rounded-full bg-gray-100 px-3 py-1 text-xs font-semibold text-gray-600">{{ __('None') }}</span>

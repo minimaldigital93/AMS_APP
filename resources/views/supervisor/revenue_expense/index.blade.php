@@ -679,7 +679,7 @@
                             @endif
                         </div>
                         <span class="px-2 py-0.5 rounded-full text-xs font-medium {{ $fa->status === 'occupied' ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-400' }}">
-                            {{ ucfirst($fa->status) }}
+                            {{ status_label($fa->status) }}
                         </span>
                     </div>
 

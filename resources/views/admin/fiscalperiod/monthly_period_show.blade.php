@@ -9,7 +9,7 @@
             <div class="flex items-center gap-3">
                 <h1 class="text-2xl font-semibold text-slate-800 tracking-tight">{{ $monthlyPeriod->name }}</h1>
                 <span class="px-2.5 py-1 rounded-full text-xs font-semibold {{ $monthlyPeriod->status === 'open' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600' }}">
-                    {{ ucfirst($monthlyPeriod->status) }}
+                    {{ status_label($monthlyPeriod->status) }}
                 </span>
             </div>
             <p class="text-sm text-gray-500 mt-1">
@@ -64,7 +64,7 @@
             <div class="px-4 py-2 min-w-[200px] text-center">
                 <span class="text-lg font-bold text-slate-800">{{ $monthlyPeriod->name }}</span>
                 <span class="ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium {{ $monthlyPeriod->status === 'open' ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-600' }}">
-                    {{ ucfirst($monthlyPeriod->status) }}
+                    {{ status_label($monthlyPeriod->status) }}
                 </span>
             </div>
 

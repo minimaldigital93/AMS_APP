@@ -13,4 +13,4 @@
     ];
     $cls = $map[$status] ?? 'bg-gray-100 text-gray-600';
 @endphp
-<span {{ $attributes->merge(['class' => "inline-block text-xs px-2 py-0.5 rounded $cls"]) }}>{{ str_replace('_', ' ', $status) }}</span>
+<span {{ $attributes->merge(['class' => "inline-block text-xs px-2 py-0.5 rounded $cls"]) }}>{{ status_label($status) }}</span>

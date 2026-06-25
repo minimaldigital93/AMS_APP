@@ -77,7 +77,7 @@
                             @endif
                         </td>
                         <td class="px-4 py-3">
-                            <span class="px-3 py-1 text-sm font-semibold rounded-full {{ $user->status === 'active' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-700' }}">{{ ucfirst($user->status ?? 'unknown') }}</span>
+                            <span class="px-3 py-1 text-sm font-semibold rounded-full {{ $user->status === 'active' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-700' }}">{{ status_label($user->status ?? 'unknown') }}</span>
                         </td>
                         <td class="px-4 py-3">
                             @if($user->hasAnyRole(['admin', 'superadmin']))

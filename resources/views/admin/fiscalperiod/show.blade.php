@@ -9,7 +9,7 @@
             <div class="flex items-center gap-3">
                 <h1 class="text-2xl font-semibold text-slate-800 tracking-tight">{{ $fiscalperiod->name }}</h1>
                 <span class="px-2.5 py-1 rounded-full text-xs font-semibold {{ $fiscalperiod->status === 'open' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600' }}">
-                    {{ ucfirst($fiscalperiod->status) }}
+                    {{ status_label($fiscalperiod->status) }}
                 </span>
             </div>
           
@@ -131,7 +131,7 @@
                             <div class="flex items-center gap-2">
                                 <span class="font-medium text-sm">{{ $month->name }}</span>
                                 <span class="px-2 py-0.5 rounded-full text-[10px] font-semibold {{ $month->status === 'open' ? 'bg-green-100 text-green-700' : ($month->status === 'closed' ? 'bg-red-100 text-red-700' : 'bg-gray-200 text-gray-700') }}">
-                                    {{ ucfirst($month->status) }}
+                                    {{ status_label($month->status) }}
                                 </span>
                             </div>
                             <p class="text-xs text-gray-500 mt-0.5">
@@ -206,7 +206,7 @@
                                 </td>
                                 <td class="px-4 py-2.5 text-center">
                                     <span class="px-2 py-0.5 rounded-full text-xs font-semibold {{ $month->status === 'open' ? 'bg-green-100 text-green-700' : ($month->status === 'closed' ? 'bg-red-100 text-red-700' : 'bg-gray-200 text-gray-700') }}">
-                                        {{ ucfirst($month->status) }}
+                                        {{ status_label($month->status) }}
                                     </span>
                                 </td>
                                 <td class="px-4 py-2.5">

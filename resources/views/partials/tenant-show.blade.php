@@ -23,8 +23,8 @@
     $unpaid = $history->where('paid', false);
     $totalDue = $unpaid->sum('rent_amount');
     $hasPhoto = $tenant->photo_path && ! \Illuminate\Support\Str::endsWith($tenant->photo_path, '.pdf');
-    $statusLabel = method_exists($tenant, 'trashed') && $tenant->trashed() ? 'Departed' : ucfirst($tenant->status);
-    $statusDisplay = __('messages.' . strtolower($statusLabel));
+    $rawStatus = method_exists($tenant, 'trashed') && $tenant->trashed() ? 'departed' : $tenant->status;
+    $statusDisplay = status_label($rawStatus);
 @endphp
 
 <div class="max-w-4xl mx-auto space-y-6">
@@ -64,7 +64,7 @@
             <div class="flex-1 w-full">
                 <div class="flex items-center justify-between mb-4">
                     <h2 class="text-lg font-semibold text-slate-800">{{ $tenant->name }}</h2>
-                    <span class="px-3 py-1 inline-flex text-xs font-semibold rounded-full {{ $statusLabel === 'Active' ? 'bg-emerald-50 text-emerald-600' : ($statusLabel === 'Pending' ? 'bg-amber-50 text-amber-600' : 'bg-slate-100 text-slate-600') }}">
+                    <span class="px-3 py-1 inline-flex text-xs font-semibold rounded-full {{ $rawStatus === 'active' ? 'bg-emerald-50 text-emerald-600' : ($rawStatus === 'pending' ? 'bg-amber-50 text-amber-600' : 'bg-slate-100 text-slate-600') }}">
                         {{ $statusDisplay }}
                     </span>
                 </div>

@@ -467,7 +467,7 @@
                             <div class="flex items-center gap-3">
                                 <h3 class="font-semibold">{{ $mp->name }}</h3>
                                 <span class="px-2 py-0.5 rounded-full text-xs font-semibold {{ $mp->status === 'open' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800' }}">
-                                    {{ ucfirst($mp->status) }}
+                                    {{ status_label($mp->status) }}
                                 </span>
                             </div>
                             <span class="text-sm text-gray-600">{{ $mp->start_date->format('M d') }} – {{ $mp->end_date->format('M d') }}</span>

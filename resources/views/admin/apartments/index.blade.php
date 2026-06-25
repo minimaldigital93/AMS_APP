@@ -128,7 +128,7 @@
                                 @endphp
                                 <span class="inline-flex items-center gap-1.5 text-xs font-medium {{ $statusTextClass }}">
                                     <span class="w-1.5 h-1.5 rounded-full {{ $statusBgClass }}"></span>
-                                    {{ ucfirst($apartment->status) }}
+                                    {{ status_label($apartment->status) }}
                                 </span>
                             </td>
                             <td class="px-4 py-3">
@@ -300,7 +300,7 @@
                                 <div class="flex items-center gap-2 min-w-0">
                                     <span class="w-1.5 h-1.5 rounded-full {{ $mStatusBg }} flex-shrink-0"></span>
                                     <span class="text-base font-semibold text-slate-800">{{ $apartment->apartment_number }}</span>
-                                    <span class="inline-flex items-center gap-1.5 text-[11px] font-medium {{ $mStatusText }}">{{ ucfirst($apartment->status) }}</span>
+                                    <span class="inline-flex items-center gap-1.5 text-[11px] font-medium {{ $mStatusText }}">{{ status_label($apartment->status) }}</span>
                                 </div>
                                 <span class="text-sm font-semibold text-slate-700 flex-shrink-0">${{ number_format($mRent, 2) }}</span>
                             </div>

@@ -46,7 +46,7 @@
     <p style="color:#555;margin-top:4px;font-size:13px;">{{ __('messages.annual_financial_summary') }}</p>
     <p style="color:#9ca3af;font-size:11px;margin-top:3px;">
         {{ $fiscalperiod->opening_date->format('M d, Y') }} – {{ $fiscalperiod->closing_date->format('M d, Y') }}
-        &nbsp;|&nbsp; Status: {{ ucfirst($fiscalperiod->status) }}
+        &nbsp;|&nbsp; Status: {{ status_label($fiscalperiod->status) }}
         &nbsp;|&nbsp; Generated {{ now()->format('F d, Y') }}
     </p>
 </div>

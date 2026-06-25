@@ -71,7 +71,7 @@
         <div class="label">{{ __('messages.status') }}</div>
         <div class="value">
             <span class="status-badge {{ $monthlyPeriod->status === 'open' ? 'status-open' : 'status-closed' }}">
-                {{ ucfirst($monthlyPeriod->status) }}
+                {{ status_label($monthlyPeriod->status) }}
             </span>
         </div>
     </div>

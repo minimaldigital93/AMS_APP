@@ -1183,4 +1183,33 @@ return [
     // Trials
     'flash_trial_started' => 'ការសាកល្បងឥតគិតថ្លៃ :days ថ្ងៃរបស់អ្នកបានចាប់ផ្តើម — សូមចូលគណនី។',
     'trial_already_used' => 'គណនីនេះបានប្រើការសាកល្បងឥតគិតថ្លៃរួចហើយ។',
+
+    // Status labels — localized, human-readable status values rendered via status_label().
+    'status_labels' => [
+        'available' => 'ទំនេរ',
+        'occupied' => 'កំពុងជួល',
+        'maintenance' => 'កំពុងថែទាំ',
+        'vacant' => 'ទំនេរ',
+        'open' => 'បើក',
+        'closed' => 'បានបិទ',
+        'completed' => 'បានបញ្ចប់',
+        'active' => 'សកម្ម',
+        'inactive' => 'អសកម្ម',
+        'departed' => 'បានចាកចេញ',
+        'suspended' => 'បានផ្អាក',
+        'trialing' => 'កំពុងសាកល្បង',
+        'expired' => 'ផុតកំណត់',
+        'pending' => 'កំពុងរង់ចាំ',
+        'paid' => 'បានទូទាត់',
+        'unpaid' => 'មិនទាន់ទូទាត់',
+        'partial' => 'ទូទាត់ផ្នែកខ្លះ',
+        'overdue' => 'ហួសកាលកំណត់',
+        'qr_generated' => 'បានបង្កើត QR',
+        'waiting_payment' => 'កំពុងរង់ចាំការទូទាត់',
+        'failed' => 'បរាជ័យ',
+        'cancelled' => 'បានបោះបង់',
+        'rejected' => 'បានបដិសេធ',
+        'refunded' => 'បានសងប្រាក់វិញ',
+        'unknown' => 'មិនស្គាល់',
+    ],
 ];

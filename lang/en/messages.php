@@ -1183,4 +1183,33 @@ return [
     // Trials
     'flash_trial_started' => 'Your :days-day free trial has started — please sign in.',
     'trial_already_used' => 'This account has already used its free trial.',
+
+    // Status labels — localized, human-readable status values rendered via status_label().
+    'status_labels' => [
+        'available' => 'Available',
+        'occupied' => 'Occupied',
+        'maintenance' => 'Maintenance',
+        'vacant' => 'Vacant',
+        'open' => 'Open',
+        'closed' => 'Closed',
+        'completed' => 'Completed',
+        'active' => 'Active',
+        'inactive' => 'Inactive',
+        'departed' => 'Departed',
+        'suspended' => 'Suspended',
+        'trialing' => 'Trialing',
+        'expired' => 'Expired',
+        'pending' => 'Pending',
+        'paid' => 'Paid',
+        'unpaid' => 'Unpaid',
+        'partial' => 'Partial',
+        'overdue' => 'Overdue',
+        'qr_generated' => 'QR Generated',
+        'waiting_payment' => 'Waiting for Payment',
+        'failed' => 'Failed',
+        'cancelled' => 'Cancelled',
+        'rejected' => 'Rejected',
+        'refunded' => 'Refunded',
+        'unknown' => 'Unknown',
+    ],
 ];

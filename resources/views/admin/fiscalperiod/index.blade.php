@@ -31,7 +31,7 @@
                             <div class="flex items-center gap-3 mb-1">
                                 <h2 class="text-lg font-semibold">{{ $period->name }}</h2>
                                 <span class="px-2 py-0.5 rounded-full text-xs font-semibold {{ $period->status === 'open' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600' }}">
-                                    {{ ucfirst($period->status) }}
+                                    {{ status_label($period->status) }}
                                 </span>
                             </div>
                             <p class="text-sm text-gray-500">

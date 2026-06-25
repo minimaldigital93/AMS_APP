@@ -46,6 +46,34 @@ if (! function_exists('currency_symbol')) {
     }
 }
 
+if (! function_exists('status_label')) {
+    /**
+     * Translate a model status value (e.g. 'occupied', 'qr_generated') into a
+     * localized, human-readable label for the current locale.
+     *
+     * Looks the value up under the `messages.status_labels.*` group so it follows
+     * the active locale. Unknown values fall back to a humanized version of the
+     * raw value (underscores → spaces, first letter capitalized) so nothing ever
+     * renders blank. This is the drop-in replacement for `ucfirst($x->status)`.
+     */
+    function status_label(?string $status): string
+    {
+        if ($status === null || $status === '') {
+            return '';
+        }
+
+        $key = strtolower($status);
+        $translation = __('messages.status_labels.'.$key);
+
+        // __() returns the key path unchanged when no translation exists.
+        if ($translation === 'messages.status_labels.'.$key) {
+            return ucfirst(str_replace('_', ' ', $status));
+        }
+
+        return $translation;
+    }
+}
+
 if (! function_exists('current_account_id')) {
     /**
      * The id of the account (owning admin user) the current request acts within.

@@ -362,7 +362,7 @@
                             {{ $change >= 0 ? '+' : '' }}${{ number_format($change, 2) }}
                         </td>
                         <td class="py-2.5 text-right">
-                            <span class="text-slate-400 text-xs">{{ $period->status === 'closed' ? 'Closed' : ucfirst($period->status) }}</span>
+                            <span class="text-slate-400 text-xs">{{ status_label($period->status) }}</span>
                         </td>
                     </tr>
                     @endforeach

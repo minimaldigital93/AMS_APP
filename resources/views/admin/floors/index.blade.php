@@ -175,7 +175,7 @@
                                             @elseif($apartment->status === 'occupied') bg-sky-400
                                             @else bg-slate-300
                                             @endif"></span>
-                                        {{ ucfirst($apartment->status) }}
+                                        {{ status_label($apartment->status) }}
                                     </span>
                                 </td>
                                 <td class="px-4 py-3">
@@ -205,7 +205,7 @@
                                     @elseif($apartment->status === 'occupied') bg-sky-400
                                     @else bg-slate-300
                                     @endif"></span>
-                                {{ ucfirst($apartment->status) }}
+                                {{ status_label($apartment->status) }}
                             </span>
                         </div>
                         <div class="mt-2 flex items-center justify-between text-sm">
