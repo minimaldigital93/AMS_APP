@@ -21,6 +21,7 @@ use App\Models\BusinessExpense;
 use App\Models\FiscalPeriods;
 use App\Models\Floors;
 use App\Models\Payments;
+use App\Models\Property;
 use App\Models\Rentals;
 use App\Models\TenantLeave;
 use App\Models\Utilities;
@@ -55,12 +56,71 @@ class RevenueExpenseController extends Controller
         return Auth::id();
     }
 
+    /**
+     * Memoized active property for this request. `false` means "not yet
+     * resolved"; `null` is a valid resolved result (account has no properties).
+     */
+    private Property|null|false $activePropertyCache = false;
+
+    /**
+     * The property whose books the admin is currently viewing. Resolved from
+     * ?property=ID (validated against this account via the global scope, then
+     * remembered in the session), falling back to the remembered choice, then
+     * the account's first property. Null when the account has no properties yet
+     * — in which case the books stay unscoped (legacy single-building behaviour).
+     */
+    protected function activeProperty(): ?Property
+    {
+        if ($this->activePropertyCache !== false) {
+            return $this->activePropertyCache;
+        }
+
+        $requested = request('property') ? (int) request('property') : null;
+        if ($requested && ($property = Property::find($requested))) {
+            session(['revenue_expense.property_id' => $property->id]);
+
+            return $this->activePropertyCache = $property;
+        }
+
+        $sessionId = session('revenue_expense.property_id');
+        if ($sessionId && ($property = Property::find($sessionId))) {
+            return $this->activePropertyCache = $property;
+        }
+        session()->forget('revenue_expense.property_id');
+
+        return $this->activePropertyCache = Property::orderBy('name')->first();
+    }
+
+    protected function activePropertyId(): ?int
+    {
+        return $this->activeProperty()?->id;
+    }
+
+    /**
+     * Admin views one property's rooms at a time (the active property selected
+     * on the Revenue/Expense page). Overrides the all-rooms default in
+     * HasFiscalPeriodScope; falls back to all rooms when the account has no
+     * properties yet.
+     */
+    protected function scopeApartments(): Builder
+    {
+        $propertyId = $this->activePropertyId();
+
+        if ($propertyId === null) {
+            return Apartments::query();
+        }
+
+        return Apartments::query()
+            ->whereHas('floor', fn (Builder $q) => $q->where('property_id', $propertyId));
+    }
+
     private function queryService(): RevenueExpenseQueryService
     {
         return new RevenueExpenseQueryService(
             userId: $this->ledgerUserId(),
             period: $this->getActiveFiscalPeriod(),
             apartmentsScope: $this->scopeApartments(),
+            propertyId: $this->activePropertyId(),
         );
     }
 
@@ -84,6 +144,7 @@ class RevenueExpenseController extends Controller
         return new ExpenseRecordingService(
             userId: $this->ledgerUserId(),
             period: $period ?? $this->getActiveFiscalPeriod(),
+            propertyId: $this->activePropertyId(),
         );
     }
 
@@ -96,6 +157,7 @@ class RevenueExpenseController extends Controller
         return new IncomeRecordingService(
             userId: $this->ledgerUserId(),
             period: $period,
+            propertyId: $this->activePropertyId(),
         );
     }
 
@@ -104,6 +166,7 @@ class RevenueExpenseController extends Controller
         return new MonthlyBillingService(
             userId: $this->ledgerUserId(),
             period: $period,
+            propertyId: $this->activePropertyId(),
         );
     }
 
@@ -136,6 +199,12 @@ class RevenueExpenseController extends Controller
         $revenueExpenseData['periodMonths'] = $periodMonths;
 
         $revenueExpenseData['fiscalPeriods'] = $this->getAllFiscalPeriods();
+
+        // Per-property books: the dropdown lets the admin switch which property's
+        // income/expense they're viewing (scopeApartments + the ledger queries
+        // are both filtered to activeProperty()).
+        $revenueExpenseData['properties'] = Property::orderBy('name')->get();
+        $revenueExpenseData['activeProperty'] = $this->activeProperty();
 
         // Month/year used by billing + utilities queries (respect filter if provided).
         $currentMonth = $filterMonth ?? now()->month;
@@ -326,6 +395,7 @@ class RevenueExpenseController extends Controller
         // Recent income (no pagination)
         $recentIncome = Accounts::income()
             ->forUser(Auth::id())
+            ->forProperty($this->activePropertyId())
             ->forPeriod($activePeriod->id)
             ->orderBy('transaction_date', 'desc')
             ->take(10)
@@ -370,6 +440,7 @@ class RevenueExpenseController extends Controller
 
         $recentExpenses = Accounts::expense()
             ->forUser(Auth::id())
+            ->forProperty($this->activePropertyId())
             ->forPeriod($activePeriod->id)
             ->orderBy('transaction_date', 'desc')
             ->take(10)
@@ -741,6 +812,7 @@ class RevenueExpenseController extends Controller
         // Recent income records for this fiscal period
         $recentIncome = Accounts::income()
             ->forUser(Auth::id())
+            ->forProperty($this->activePropertyId())
             ->forPeriod($activePeriod->id)
             ->orderBy('transaction_date', 'desc')
             ->take(10)
@@ -1066,6 +1138,7 @@ class RevenueExpenseController extends Controller
         // Recent expense records from Accounts for the selected month
         $recentExpenses = Accounts::expense()
             ->forUser(Auth::id())
+            ->forProperty($this->activePropertyId())
             ->forPeriod($activePeriod->id)
             ->betweenDates($startDate, $endDate)
             ->orderBy('transaction_date', 'desc')
@@ -1103,6 +1176,7 @@ class RevenueExpenseController extends Controller
         // Other (non-utility) expenses for the selected month
         $otherExpenses = Accounts::expense()
             ->forUser(Auth::id())
+            ->forProperty($this->activePropertyId())
             ->forPeriod($activePeriod->id)
             ->whereNotIn('category', [
                 Accounts::CAT_UTILITIES_EXPENSE,
@@ -1519,6 +1593,7 @@ class RevenueExpenseController extends Controller
         // Fetch daily expenses from accounts (single source of truth)
         $dailyAccountExpenses = Accounts::expense()
             ->forUser(Auth::id())
+            ->forProperty($this->activePropertyId())
             ->betweenDates($startOfMonth, $endOfMonth)
             ->selectRaw('DATE(transaction_date) as day, SUM(amount) as total_expense, COUNT(*) as tx_count')
             ->groupByRaw('DATE(transaction_date)')
@@ -1528,6 +1603,7 @@ class RevenueExpenseController extends Controller
         // Fetch daily income from accounts (single source of truth)
         $dailyAccountIncome = Accounts::income()
             ->forUser(Auth::id())
+            ->forProperty($this->activePropertyId())
             ->betweenDates($startOfMonth, $endOfMonth)
             ->selectRaw('DATE(transaction_date) as day, SUM(amount) as total_income, COUNT(*) as tx_count')
             ->groupByRaw('DATE(transaction_date)')
@@ -1708,6 +1784,7 @@ class RevenueExpenseController extends Controller
         // (These are created when recording utility expenses via storeExpense())
         $utilityAccountExpenses = Accounts::expense()
             ->forUser(Auth::id())
+            ->forProperty($this->activePropertyId())
             ->forPeriod($activePeriod->id)
             ->category(Accounts::CAT_UTILITIES_EXPENSE)
             ->betweenDates($startDate, $endDate)
@@ -1743,6 +1820,7 @@ class RevenueExpenseController extends Controller
             $businessExpenses->filter(fn ($e) => in_array($e->category, ['property_tax', 'tax']))->sum('amount')
             + Accounts::expense()
                 ->forUser(Auth::id())
+                ->forProperty($this->activePropertyId())
                 ->forPeriod($activePeriod->id)
                 ->whereIn('category', [Accounts::CAT_PROPERTY_TAX, 'taxes'])
                 ->betweenDates($startDate, $endDate)
@@ -1766,6 +1844,7 @@ class RevenueExpenseController extends Controller
         $otherAccountExpense = round(
             Accounts::expense()
                 ->forUser(Auth::id())
+                ->forProperty($this->activePropertyId())
                 ->forPeriod($activePeriod->id)
                 ->whereNotIn('category', [
                     Accounts::CAT_UTILITIES_EXPENSE,

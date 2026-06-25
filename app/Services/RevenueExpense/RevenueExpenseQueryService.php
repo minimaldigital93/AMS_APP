@@ -22,6 +22,7 @@ class RevenueExpenseQueryService
         private ?int $userId,
         private ?FiscalPeriods $period,
         private Builder $apartmentsScope,
+        private ?int $propertyId = null,
     ) {}
 
     /**
@@ -53,7 +54,7 @@ class RevenueExpenseQueryService
      */
     public function calculateIncome($startDate = null, $endDate = null): array
     {
-        $query = Accounts::income()->forUser($this->userId);
+        $query = Accounts::income()->forUser($this->userId)->forProperty($this->propertyId);
 
         if ($this->period) {
             $query->forPeriod($this->period->id);
@@ -122,7 +123,7 @@ class RevenueExpenseQueryService
      */
     public function calculateExpenses($startDate = null, $endDate = null): array
     {
-        $query = Accounts::expense()->forUser($this->userId);
+        $query = Accounts::expense()->forUser($this->userId)->forProperty($this->propertyId);
 
         if ($this->period) {
             $query->forPeriod($this->period->id);
@@ -379,6 +380,7 @@ class RevenueExpenseQueryService
     {
         $query = Accounts::where('account_type', Accounts::TYPE_INCOME)
             ->where('category', Accounts::CAT_OTHER_INCOME)
+            ->forProperty($this->propertyId)
             ->where('reference_number', 'LIKE', 'tenant_charge:rental:%');
 
         if ($this->period) {

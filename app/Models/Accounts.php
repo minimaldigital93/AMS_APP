@@ -61,6 +61,7 @@ class Accounts extends Model
 
     protected $fillable = [
         'fiscal_period_id',
+        'property_id',
         'payment_id',
         'user_id',
         'account_type',
@@ -85,6 +86,11 @@ class Accounts extends Model
     public function fiscalPeriod(): BelongsTo
     {
         return $this->belongsTo(FiscalPeriods::class, 'fiscal_period_id');
+    }
+
+    public function property(): BelongsTo
+    {
+        return $this->belongsTo(Property::class, 'property_id');
     }
 
     public function payment(): BelongsTo
@@ -117,6 +123,22 @@ class Accounts extends Model
     public function scopeForPeriod($query, int $periodId)
     {
         return $query->where('fiscal_period_id', $periodId);
+    }
+
+    /**
+     * Limit to one property's books. Rows with a null property_id (legacy /
+     * account-wide entries recorded without an active property) stay visible
+     * under every property — mirroring the BelongsToAccount null convention.
+     */
+    public function scopeForProperty($query, ?int $propertyId)
+    {
+        if ($propertyId === null) {
+            return $query;
+        }
+
+        return $query->where(function ($q) use ($propertyId) {
+            $q->where('property_id', $propertyId)->orWhereNull('property_id');
+        });
     }
 
     public function scopeBetweenDates($query, $start, $end)

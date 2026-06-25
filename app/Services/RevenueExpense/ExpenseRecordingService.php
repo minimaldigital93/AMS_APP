@@ -23,6 +23,7 @@ class ExpenseRecordingService
     public function __construct(
         private int $userId,
         private ?FiscalPeriods $period,
+        private ?int $propertyId = null,
     ) {}
 
     /**
@@ -48,6 +49,7 @@ class ExpenseRecordingService
 
         return Accounts::create([
             'fiscal_period_id' => $this->period->id,
+            'property_id' => $rental->apartment?->floor?->property_id ?? $this->propertyId,
             'payment_id' => null,
             'user_id' => $this->userId,
             'account_type' => Accounts::TYPE_EXPENSE,
@@ -66,6 +68,7 @@ class ExpenseRecordingService
     {
         return Accounts::create([
             'fiscal_period_id' => $this->period->id,
+            'property_id' => $this->propertyId,
             'payment_id' => null,
             'user_id' => $this->userId,
             'account_type' => Accounts::TYPE_EXPENSE,
@@ -113,6 +116,7 @@ class ExpenseRecordingService
 
         Accounts::create([
             'fiscal_period_id' => $this->period->id,
+            'property_id' => $this->propertyId,
             'payment_id' => null,
             'user_id' => $this->userId,
             'account_type' => Accounts::TYPE_EXPENSE,

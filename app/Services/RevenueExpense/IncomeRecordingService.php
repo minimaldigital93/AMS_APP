@@ -28,7 +28,18 @@ class IncomeRecordingService
     public function __construct(
         private int $userId,
         private FiscalPeriods $period,
+        private ?int $propertyId = null,
     ) {}
+
+    /**
+     * The property a ledger row belongs to: derived from the rental's room
+     * (income always belongs to the room's property), falling back to the
+     * active property the controller is scoped to.
+     */
+    private function propertyIdFor(Rentals $rental): ?int
+    {
+        return $rental->apartment?->floor?->property_id ?? $this->propertyId;
+    }
 
     /**
      * Record a single income payment (rent, utilities, deposit, or other).
@@ -55,6 +66,7 @@ class IncomeRecordingService
 
             Accounts::create([
                 'fiscal_period_id' => $this->period->id,
+                'property_id' => $this->propertyIdFor($rental),
                 'payment_id' => $payment->id,
                 'user_id' => $this->userId,
                 'account_type' => Accounts::TYPE_INCOME,
@@ -122,6 +134,7 @@ class IncomeRecordingService
 
                 Accounts::create([
                     'fiscal_period_id' => $this->period->id,
+                    'property_id' => $this->propertyIdFor($rental),
                     'payment_id' => $payment->id,
                     'user_id' => $this->userId,
                     'account_type' => Accounts::TYPE_INCOME,
@@ -271,6 +284,7 @@ class IncomeRecordingService
 
                 Accounts::create([
                     'fiscal_period_id' => $this->period->id,
+                    'property_id' => $this->propertyIdFor($rental),
                     'payment_id' => $payment->id,
                     'user_id' => $this->userId,
                     'account_type' => Accounts::TYPE_INCOME,
@@ -386,6 +400,7 @@ class IncomeRecordingService
     {
         Accounts::create([
             'fiscal_period_id' => $this->period->id,
+            'property_id' => $this->propertyIdFor($rental),
             'payment_id' => $paymentId,
             'user_id' => $this->userId,
             'account_type' => Accounts::TYPE_INCOME,
@@ -402,6 +417,7 @@ class IncomeRecordingService
     {
         Accounts::create([
             'fiscal_period_id' => $this->period->id,
+            'property_id' => $this->propertyIdFor($rental),
             'payment_id' => $paymentId,
             'user_id' => $this->userId,
             'account_type' => Accounts::TYPE_INCOME,
