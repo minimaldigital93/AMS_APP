@@ -1,8 +1,20 @@
 @php $assignBase = $assignBase ?? url('/admin/apartments'); @endphp
 <!-- Assign Tenant Modal (shared by apartments index & 3D view) -->
-<div id="assignTenantModal" class="hidden fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center px-4 py-8 sm:py-10" data-assign-base="{{ $assignBase }}">
-    <div class="bg-white rounded-2xl shadow-xl max-w-lg w-full max-h-[85vh] flex flex-col overflow-hidden">
-        <div class="px-6 py-4 border-b border-slate-100 flex justify-between items-center rounded-t-2xl flex-shrink-0">
+<style>
+    /* iOS zooms the whole page when a focused field is <16px — keep inputs at 16px on phones. */
+    @media (max-width: 639px) {
+        #assignTenantModal input,
+        #assignTenantModal select,
+        #assignTenantModal textarea { font-size: 16px; }
+    }
+</style>
+<div id="assignTenantModal" class="hidden fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center sm:px-4 sm:py-10" data-assign-base="{{ $assignBase }}">
+    <div class="bg-white rounded-t-2xl sm:rounded-2xl shadow-xl w-full sm:max-w-lg flex flex-col overflow-hidden" style="max-height: 92vh; max-height: 92dvh;">
+        <!-- Grab handle (mobile sheet affordance) -->
+        <div class="sm:hidden flex justify-center pt-2.5 pb-1 flex-shrink-0">
+            <div class="w-9 h-1 rounded-full bg-slate-300"></div>
+        </div>
+        <div class="px-5 sm:px-6 py-4 border-b border-slate-100 flex justify-between items-center rounded-t-2xl flex-shrink-0">
             <div>
                 <h3 id="modalTitle" class="text-base font-semibold text-slate-800">{{ __('messages.assign_tenant_to') }} <span id="apartmentNumberDisplay"></span></h3>
                 <p class="text-slate-400 text-xs mt-0.5">{{ __('messages.fill_tenant_details') }}</p>
@@ -15,7 +27,7 @@
         </div>
 
         <!-- Tab Navigation -->
-        <div id="tabNavigation" class="px-6 pt-3 border-b border-slate-100 flex-shrink-0 hidden">
+        <div id="tabNavigation" class="px-5 sm:px-6 pt-3 border-b border-slate-100 flex-shrink-0 hidden">
             <div class="flex gap-4">
                 <button type="button" id="existingTenantTab" class="tab-button active px-3 py-2 text-sm font-medium text-slate-800 border-b-2 border-slate-800 hover:text-slate-900">
                     Existing Tenant
@@ -31,7 +43,7 @@
             <input type="hidden" id="apartmentId" name="apartment_id" value="{{ old('apartment_id') }}">
             <input type="hidden" id="tenantOption" name="tenant_option" value="{{ old('tenant_option', 'existing') }}">
 
-            <div class="flex-1 overflow-y-auto p-6 space-y-4">
+            <div class="flex-1 overflow-y-auto p-5 sm:p-6 space-y-4">
             @if($errors->any())
                 <div class="bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg px-4 py-3">
                     <ul class="list-disc list-inside space-y-0.5">
@@ -124,7 +136,7 @@
 
             </div>
 
-            <div class="flex gap-3 p-6 pt-4 border-t border-slate-100 flex-shrink-0">
+            <div class="flex gap-3 px-5 sm:px-6 pt-4 border-t border-slate-100 flex-shrink-0" style="padding-bottom: max(1.25rem, env(safe-area-inset-bottom));">
                 <button type="button" class="close-modal flex-1 text-slate-500 hover:text-slate-700 bg-slate-50 hover:bg-slate-100 text-sm font-medium py-2.5 px-4 rounded-lg transition">
                     Cancel
                 </button>
