@@ -663,9 +663,22 @@ class RevenueExpenseController extends Controller
                     $sq->whereNull('end_date')->orWhere('end_date', '>=', now());
                 })
                     ->orderBy('start_date', 'desc')
-                    ->with(['tenant', 'payments' => function ($pq) use ($activePeriod) {
+                    ->with(['tenant', 'payments' => function ($pq) use ($activePeriod, $currentMonth, $currentYear) {
+                        // Count a payment as "this month's" if it lands inside the
+                        // active fiscal period window OR within the month being
+                        // viewed. The month fallback guards against an active period
+                        // whose window doesn't cover the selected month (e.g. a stale
+                        // or short closing_date): without it a confirmed payment is
+                        // saved but never marked paid, so the bill can be "confirmed"
+                        // again and again. The receipt (printTenantBill) already uses
+                        // a plain month/year match — this keeps the list consistent.
+                        $selMonthStart = Carbon::create($currentYear, $currentMonth, 1)->startOfMonth();
+                        $selMonthEnd = $selMonthStart->copy()->endOfMonth();
                         $pq->where('payment_status', 'paid')
-                            ->whereBetween('paid_at', [$activePeriod->opening_date, $activePeriod->closing_date]);
+                            ->where(function ($w) use ($activePeriod, $selMonthStart, $selMonthEnd) {
+                                $w->whereBetween('paid_at', [$activePeriod->opening_date, $activePeriod->closing_date])
+                                    ->orWhereBetween('paid_at', [$selMonthStart, $selMonthEnd]);
+                            });
                     }, 'utilities' => function ($uq) use ($currentMonth, $currentYear) {
                         $uq->where('billing_month', $currentMonth)
                             ->where('billing_year', $currentYear);
