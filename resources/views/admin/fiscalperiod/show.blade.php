@@ -278,9 +278,9 @@
     {{-- Close-period modal: confirm closing balance --}}
     @if($fiscalperiod->status === 'open')
         <div x-show="closePeriodOpen" x-cloak
-             class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+             class="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/40 p-4 sm:items-center"
              @keydown.escape.window="closePeriodOpen = false">
-            <div class="bg-white rounded-xl shadow-xl w-full max-w-md" @click.outside="closePeriodOpen = false">
+            <div class="bg-white rounded-xl shadow-xl w-full max-w-md my-auto" @click.outside="closePeriodOpen = false">
                 <form method="POST" action="{{ route('admin.fiscalperiod.closeperiod', $fiscalperiod->id) }}" data-confirm="Close this fiscal period? This cannot be undone.">
                     @csrf
                     <div class="px-6 py-4 border-b">
@@ -313,9 +313,9 @@
 
     {{-- Close-month modal: capture owner profit withdrawal --}}
     <div x-show="closeModal.open" x-cloak
-         class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+         class="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/40 p-4 sm:items-center"
          @keydown.escape.window="closeModal.open = false">
-        <div class="bg-white rounded-xl shadow-xl w-full max-w-md" @click.outside="closeModal.open = false">
+        <div class="bg-white rounded-xl shadow-xl w-full max-w-md my-auto" @click.outside="closeModal.open = false">
             <form method="POST" :action="closeModal.action">
                 @csrf
                 <div class="px-6 py-4 border-b">

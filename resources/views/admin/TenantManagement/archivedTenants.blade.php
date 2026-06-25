@@ -201,7 +201,7 @@
 
 <!-- View Tenant Details Modal -->
 <div id="viewTenantModal" class="hidden fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
-    <div class="bg-white rounded-lg shadow-lg max-w-3xl w-full max-h-screen overflow-y-auto">
+    <div class="bg-white rounded-lg shadow-lg max-w-3xl w-full max-h-[90vh] overflow-y-auto">
         <div class="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex justify-between items-center">
             <h2 class="text-lg font-semibold text-gray-900">{{ __('messages.archived_tenant_details') }}</h2>
             <button onclick="closeViewTenantModal()" class="text-gray-400 hover:text-gray-600">

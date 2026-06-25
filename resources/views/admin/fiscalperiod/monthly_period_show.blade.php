@@ -192,9 +192,9 @@
     {{-- Close-month modal: capture owner profit withdrawal --}}
     @if($monthlyPeriod->canClose())
     <div x-show="closeOpen" x-cloak
-         class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+         class="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/40 p-4 sm:items-center"
          @keydown.escape.window="closeOpen = false">
-        <div class="bg-white rounded-xl shadow-xl w-full max-w-md" @click.outside="closeOpen = false">
+        <div class="bg-white rounded-xl shadow-xl w-full max-w-md my-auto" @click.outside="closeOpen = false">
             <form method="POST" action="{{ route('admin.fiscalperiod.monthly-period.close', [$fiscalperiod->id, $monthlyPeriod->id]) }}">
                 @csrf
                 <div class="px-6 py-4 border-b">

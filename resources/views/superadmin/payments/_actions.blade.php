@@ -23,9 +23,9 @@
 
     {{-- View details modal --}}
     <template x-teleport="body">
-        <div x-show="showView" x-cloak class="fixed inset-0 z-50 flex items-center justify-center p-4">
-            <div class="absolute inset-0 bg-black/40" @click="showView = false"></div>
-            <div class="relative bg-white rounded-xl shadow-xl border border-gray-100 w-full max-w-md"
+        <div x-show="showView" x-cloak class="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto p-4 sm:items-center">
+            <div class="fixed inset-0 bg-black/40" @click="showView = false"></div>
+            <div class="relative bg-white rounded-xl shadow-xl border border-gray-100 w-full max-w-md my-auto"
                  @keydown.escape.window="showView = false">
                 <div class="flex items-center justify-between px-5 py-4 border-b border-gray-100">
                     <h3 class="font-semibold text-gray-800">{{ __('Payment details') }}</h3>
@@ -90,9 +90,9 @@
     {{-- Refund modal --}}
     @if ($payment->isPaid())
         <template x-teleport="body">
-            <div x-show="showRefund" x-cloak class="fixed inset-0 z-50 flex items-center justify-center p-4">
-                <div class="absolute inset-0 bg-black/40" @click="showRefund = false"></div>
-                <div class="relative bg-white rounded-xl shadow-xl border border-gray-100 w-full max-w-sm"
+            <div x-show="showRefund" x-cloak class="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto p-4 sm:items-center">
+                <div class="fixed inset-0 bg-black/40" @click="showRefund = false"></div>
+                <div class="relative bg-white rounded-xl shadow-xl border border-gray-100 w-full max-w-sm my-auto"
                      @keydown.escape.window="showRefund = false">
                     <div class="flex items-center justify-between px-5 py-4 border-b border-gray-100">
                         <h3 class="font-semibold text-gray-800">{{ __('Record refund') }}</h3>

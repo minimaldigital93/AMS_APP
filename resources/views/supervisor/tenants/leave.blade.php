@@ -205,7 +205,7 @@
 
     <!-- Settlement Summary Modal -->
     <div x-show="showModal" x-cloak
-        class="fixed inset-0 z-50 flex items-center justify-center p-4"
+        class="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto p-4 sm:items-center"
         x-transition:enter="transition ease-out duration-200"
         x-transition:enter-start="opacity-0"
         x-transition:enter-end="opacity-100"
@@ -214,10 +214,10 @@
         x-transition:leave-end="opacity-0">
 
         <!-- Backdrop -->
-        <div class="absolute inset-0 bg-black/50" @click="showModal = false"></div>
+        <div class="fixed inset-0 bg-black/50" @click="showModal = false"></div>
 
         <!-- Modal Panel -->
-        <div class="relative bg-white rounded-2xl shadow-2xl w-full max-w-md"
+        <div class="relative bg-white rounded-2xl shadow-2xl w-full max-w-md my-auto"
             x-transition:enter="transition ease-out duration-200"
             x-transition:enter-start="opacity-0 scale-95"
             x-transition:enter-end="opacity-100 scale-100"

@@ -99,9 +99,9 @@
     </div>
     @endif
     {{-- Add Expense modal — opens via header Add button --}}
-    <div x-show="showForm" x-cloak x-transition class="fixed inset-0 z-50 flex items-center justify-center">
+    <div x-show="showForm" x-cloak x-transition class="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto p-4 sm:items-center">
         <div class="fixed inset-0 bg-black/50" @click="showForm = false"></div>
-        <div class="relative bg-white rounded-xl border border-slate-100 w-full max-w-4xl mx-4 overflow-hidden" @click.away="showForm = false">
+        <div class="relative bg-white rounded-xl border border-slate-100 w-full max-w-2xl my-auto overflow-hidden" @click.away="showForm = false">
             <div class="flex items-center justify-between px-6 py-4 border-b border-slate-100">
                 <h2 class="text-lg font-semibold text-slate-800">{{ __('messages.add_new_expense') }}</h2>
                 <button @click="showForm = false" class="inline-flex items-center justify-center w-9 h-9 rounded-lg text-slate-500 hover:bg-slate-50">

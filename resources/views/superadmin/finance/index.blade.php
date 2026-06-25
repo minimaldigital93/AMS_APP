@@ -378,7 +378,7 @@
     {{-- ===== Withdraw cash modal ===== --}}
     <div x-show="withdrawOpen" x-cloak class="fixed inset-0 z-[70] flex items-start justify-center overflow-y-auto bg-gray-900/50 p-4 sm:items-center"
          x-transition.opacity @click.self="withdrawOpen = false" @keydown.escape.window="withdrawOpen = false">
-        <div class="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl">
+        <div class="w-full max-w-md my-auto rounded-2xl bg-white p-6 shadow-xl">
             <div class="flex items-start justify-between">
                 <div>
                     <h2 class="text-lg font-semibold text-gray-900">{{ __('Withdraw cash') }}</h2>
@@ -420,7 +420,7 @@
     {{-- ===== Add expense modal ===== --}}
     <div x-show="expenseOpen" x-cloak class="fixed inset-0 z-[70] flex items-start justify-center overflow-y-auto bg-gray-900/50 p-4 sm:items-center"
          x-transition.opacity @click.self="expenseOpen = false" @keydown.escape.window="expenseOpen = false">
-        <div class="w-full max-w-lg rounded-2xl bg-white p-6 shadow-xl">
+        <div class="w-full max-w-lg my-auto rounded-2xl bg-white p-6 shadow-xl">
             <div class="flex items-start justify-between">
                 <div>
                     <h2 class="text-lg font-semibold text-gray-900">{{ __('Record platform expense') }}</h2>
@@ -480,7 +480,7 @@
     {{-- ===== Close month modal ===== --}}
     <div x-show="close" x-cloak class="fixed inset-0 z-[70] flex items-start justify-center overflow-y-auto bg-gray-900/50 p-4 sm:items-center"
          x-transition.opacity @click.self="close = null" @keydown.escape.window="close = null">
-        <div class="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl">
+        <div class="w-full max-w-md my-auto rounded-2xl bg-white p-6 shadow-xl">
             <div class="flex items-start justify-between">
                 <div>
                     <h2 class="text-lg font-semibold text-gray-900">{{ __('Close') }} <span x-text="close?.label"></span></h2>
@@ -553,7 +553,7 @@
     {{-- ===== Create fiscal period modal ===== --}}
     <div x-show="periodCreateOpen" x-cloak class="fixed inset-0 z-[70] flex items-start justify-center overflow-y-auto bg-gray-900/50 p-4 sm:items-center"
          x-transition.opacity @click.self="periodCreateOpen = false" @keydown.escape.window="periodCreateOpen = false">
-        <div class="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl">
+        <div class="w-full max-w-md my-auto rounded-2xl bg-white p-6 shadow-xl">
             <div class="flex items-start justify-between">
                 <div>
                     <h2 class="text-lg font-semibold text-gray-900">{{ __('New fiscal period') }}</h2>
@@ -603,7 +603,7 @@
     {{-- ===== Edit fiscal period modal ===== --}}
     <div x-show="periodEdit" x-cloak class="fixed inset-0 z-[70] flex items-start justify-center overflow-y-auto bg-gray-900/50 p-4 sm:items-center"
          x-transition.opacity @click.self="periodEdit = null" @keydown.escape.window="periodEdit = null">
-        <div class="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl">
+        <div class="w-full max-w-md my-auto rounded-2xl bg-white p-6 shadow-xl">
             <div class="flex items-start justify-between">
                 <div>
                     <h2 class="text-lg font-semibold text-gray-900">{{ __('Edit fiscal period') }}</h2>

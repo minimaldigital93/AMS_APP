@@ -5,11 +5,11 @@
 @if (! empty($subscriptionBlocked))
     @php($plan = $subscriptionRenewPlan ?? null)
     <div x-data="{ open: true }" x-show="open" x-cloak
-         class="fixed inset-0 z-[120] flex items-center justify-center p-4"
+         class="fixed inset-0 z-[120] flex items-start justify-center overflow-y-auto p-4 sm:items-center"
          role="dialog" aria-modal="true">
-        <div class="absolute inset-0 bg-slate-900/75 backdrop-blur-sm"></div>
+        <div class="fixed inset-0 bg-slate-900/75 backdrop-blur-sm"></div>
 
-        <div class="relative w-full max-w-md rounded-2xl border border-red-100 bg-white p-6 text-center shadow-2xl">
+        <div class="relative w-full max-w-md my-auto rounded-2xl border border-red-100 bg-white p-6 text-center shadow-2xl">
             <div class="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-red-100 text-red-600">
                 <svg class="h-6 w-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
