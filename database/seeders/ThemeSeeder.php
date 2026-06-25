@@ -17,9 +17,16 @@ class ThemeSeeder extends Seeder
 {
     public function run(): void
     {
-        foreach ($this->themes() as $theme) {
+        $themes = $this->themes();
+
+        foreach ($themes as $theme) {
             Theme::updateOrCreate(['slug' => $theme['slug']], $theme);
         }
+
+        // Prune themes that are no longer offered (e.g. the retired dark themes).
+        // Users still pointing at a removed slug fall back to the default at
+        // resolve()-time, so no user record needs touching here.
+        Theme::whereNotIn('slug', array_column($themes, 'slug'))->delete();
 
         Theme::clearCache();
     }
@@ -39,26 +46,6 @@ class ThemeSeeder extends Seeder
     {
         return [
             $this->theme(
-                slug: 'executive-black',
-                name: 'Executive Black',
-                description: 'Ultra-premium matte black. Mercedes dashboard meets Apple Pro.',
-                mode: 'dark',
-                background: '#0F1115',
-                sidebar: '#161A20',
-                topbar: '#161A20',
-                card: '#1D232B',
-                textPrimary: '#E5E7EB',
-                textSecondary: '#A3A3A3',
-                accent: '#E5E7EB',
-                accentContrast: '#0F1115',
-                border: 'rgba(255,255,255,0.06)',
-                hover: 'rgba(255,255,255,0.04)',
-                active: 'rgba(255,255,255,0.08)',
-                ring: 'rgba(229,231,235,0.25)',
-                shadow: '0 10px 30px rgba(0,0,0,0.45)',
-                sortOrder: 10,
-            ),
-            $this->theme(
                 slug: 'carbon-gray',
                 name: 'Carbon Gray',
                 description: 'Clean corporate light theme in the spirit of Notion, Stripe & Linear.',
@@ -76,27 +63,7 @@ class ThemeSeeder extends Seeder
                 active: 'rgba(17,24,39,0.06)',
                 ring: 'rgba(17,24,39,0.16)',
                 shadow: '0 6px 24px rgba(17,24,39,0.08)',
-                sortOrder: 20,
-            ),
-            $this->theme(
-                slug: 'midnight-slate',
-                name: 'Midnight Slate',
-                description: 'Modern startup dark theme — Vercel, Linear Dark & Raycast.',
-                mode: 'dark',
-                background: '#0B1220',
-                sidebar: '#121A29',
-                topbar: '#121A29',
-                card: '#182233',
-                textPrimary: '#FFFFFF',
-                textSecondary: '#94A3B8',
-                accent: '#FFFFFF',
-                accentContrast: '#0B1220',
-                border: 'rgba(148,163,184,0.14)',
-                hover: 'rgba(148,163,184,0.08)',
-                active: 'rgba(148,163,184,0.16)',
-                ring: 'rgba(148,163,184,0.30)',
-                shadow: '0 12px 34px rgba(0,0,0,0.50)',
-                sortOrder: 30,
+                sortOrder: 10,
             ),
             $this->theme(
                 slug: 'platinum-silver',
@@ -116,27 +83,47 @@ class ThemeSeeder extends Seeder
                 active: 'rgba(43,43,43,0.06)',
                 ring: 'rgba(43,43,43,0.16)',
                 shadow: '0 6px 24px rgba(43,43,43,0.07)',
-                sortOrder: 40,
+                sortOrder: 20,
             ),
             $this->theme(
-                slug: 'obsidian-black',
-                name: 'Obsidian Black',
-                description: 'Ultra-dark cinema UI. Lamborghini-grade luxury operating system.',
-                mode: 'dark',
-                background: '#050505',
-                sidebar: '#0D0D0D',
-                topbar: '#0D0D0D',
-                card: '#151515',
-                textPrimary: '#FFFFFF',
-                textSecondary: '#8A8A8A',
-                accent: '#FFFFFF',
-                accentContrast: '#050505',
-                border: 'rgba(255,255,255,0.07)',
-                hover: 'rgba(255,255,255,0.04)',
-                active: 'rgba(255,255,255,0.09)',
-                ring: 'rgba(255,255,255,0.18)',
-                shadow: '0 12px 34px rgba(0,0,0,0.65)',
-                sortOrder: 50,
+                slug: 'light-blue',
+                name: 'Light Blue',
+                description: 'Calm, airy light theme with a soft blue accent.',
+                mode: 'light',
+                background: '#EFF4FF',
+                sidebar: '#FFFFFF',
+                topbar: '#FFFFFF',
+                card: '#FFFFFF',
+                textPrimary: '#0F1B2D',
+                textSecondary: '#5B6B82',
+                accent: '#2563EB',
+                accentContrast: '#FFFFFF',
+                border: 'rgba(37,99,235,0.12)',
+                hover: 'rgba(37,99,235,0.06)',
+                active: 'rgba(37,99,235,0.10)',
+                ring: 'rgba(37,99,235,0.25)',
+                shadow: '0 6px 24px rgba(37,99,235,0.10)',
+                sortOrder: 30,
+            ),
+            $this->theme(
+                slug: 'light-green',
+                name: 'Light Green',
+                description: 'Fresh, natural light theme with a soft green accent.',
+                mode: 'light',
+                background: '#EFFBF3',
+                sidebar: '#FFFFFF',
+                topbar: '#FFFFFF',
+                card: '#FFFFFF',
+                textPrimary: '#0F241A',
+                textSecondary: '#5C7468',
+                accent: '#16A34A',
+                accentContrast: '#FFFFFF',
+                border: 'rgba(22,163,74,0.12)',
+                hover: 'rgba(22,163,74,0.06)',
+                active: 'rgba(22,163,74,0.10)',
+                ring: 'rgba(22,163,74,0.25)',
+                shadow: '0 6px 24px rgba(22,163,74,0.10)',
+                sortOrder: 40,
             ),
         ];
     }

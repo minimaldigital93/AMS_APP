@@ -6,17 +6,20 @@
         .house-window { fill: rgba(255,255,255,0.5); }
         .house-chimney { fill: currentColor; }
         
-        /* Smoke animation */
+        /* Smoke animation — inherits the theme's text color (currentColor) so the
+           puffs stay visible on every theme's topbar. fill-opacity keeps the
+           smoky, translucent look; the keyframes fade it out as it rises. */
         .smoke {
-            fill: rgba(255,255,255,0.6);
+            fill: currentColor;
+            fill-opacity: 0.55;
             animation: smokeRise 2s ease-out infinite;
         }
-        .smoke:nth-child(2) { animation-delay: 0.5s; }
-        .smoke:nth-child(3) { animation-delay: 1s; }
-        
+        .smoke:nth-of-type(2) { animation-delay: 0.5s; }
+        .smoke:nth-of-type(3) { animation-delay: 1s; }
+
         @keyframes smokeRise {
             0% {
-                opacity: 0.8;
+                opacity: 0.85;
                 transform: translateY(0) scale(1);
             }
             100% {

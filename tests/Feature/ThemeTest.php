@@ -8,11 +8,24 @@ beforeEach(function () {
     $this->seed(ThemeSeeder::class);
 });
 
-it('seeds the five premium themes', function () {
-    expect(Theme::count())->toBe(5);
-    expect(Theme::pluck('slug')->all())->toContain(
-        'executive-black', 'carbon-gray', 'midnight-slate', 'platinum-silver', 'obsidian-black'
+it('seeds the available light themes', function () {
+    expect(Theme::count())->toBe(4);
+    expect(Theme::pluck('slug')->all())->toEqualCanonicalizing(
+        ['carbon-gray', 'platinum-silver', 'light-blue', 'light-green']
     );
+    // All offered themes are light.
+    expect(Theme::pluck('mode')->unique()->all())->toBe(['light']);
+});
+
+it('prunes themes that are no longer offered', function () {
+    Theme::create([
+        'slug' => 'obsidian-black', 'name' => 'Obsidian', 'mode' => 'dark',
+        'tokens' => [], 'preview' => [], 'sort_order' => 99,
+    ]);
+
+    $this->seed(ThemeSeeder::class);
+
+    expect(Theme::where('slug', 'obsidian-black')->exists())->toBeFalse();
 });
 
 it('shows the theme settings page to an admin', function () {
@@ -21,8 +34,9 @@ it('shows the theme settings page to an admin', function () {
     $this->actingAs($admin)
         ->get(route('admin.settings.theme'))
         ->assertOk()
-        ->assertSee('Executive Black')
-        ->assertSee('Obsidian Black');
+        ->assertSee('Carbon Gray')
+        ->assertSee('Light Blue')
+        ->assertSee('Light Green');
 });
 
 it('the theme route is not swallowed by the /admin/settings/{key} wildcard', function () {
@@ -40,12 +54,12 @@ it('persists a chosen theme to the user and returns json + cookie', function () 
     $admin = makeAdmin();
 
     $this->actingAs($admin)
-        ->putJson(route('admin.settings.theme.update'), ['theme' => 'obsidian-black'])
+        ->putJson(route('admin.settings.theme.update'), ['theme' => 'light-blue'])
         ->assertOk()
-        ->assertJson(['theme' => 'obsidian-black'])
-        ->assertCookie(ThemeService::COOKIE, 'obsidian-black');
+        ->assertJson(['theme' => 'light-blue'])
+        ->assertCookie(ThemeService::COOKIE, 'light-blue');
 
-    expect($admin->fresh()->theme)->toBe('obsidian-black');
+    expect($admin->fresh()->theme)->toBe('light-blue');
 });
 
 it('rejects an unknown theme slug', function () {
@@ -59,11 +73,11 @@ it('rejects an unknown theme slug', function () {
 });
 
 it('resolves the active slug from the authenticated user', function () {
-    $admin = makeAdmin(['theme' => 'midnight-slate']);
+    $admin = makeAdmin(['theme' => 'light-green']);
 
     $this->actingAs($admin);
 
-    expect(app(ThemeService::class)->currentSlug())->toBe('midnight-slate');
+    expect(app(ThemeService::class)->currentSlug())->toBe('light-green');
 });
 
 it('falls back to the default theme for guests', function () {
