@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="{{ app()->getLocale() }}">
+<html lang="{{ app()->getLocale() }}" data-theme="{{ active_theme_slug() }}">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
@@ -7,6 +7,7 @@
     <title>{{ __('messages.supervisor_dashboard_title') }}</title>
     <link rel="icon" type="image/svg+xml" href="{{ asset('favicon.svg') }}">
     @vite(['resources/css/app.css', 'resources/js/app.js'])
+    @include('partials.theme-provider')
     <style>
         /* Sidebar animations and styling */
         * {
@@ -187,7 +188,7 @@
     </style>
     @include('partials.pwa-head')
 </head>
-<body class="bg-gray-50 flex flex-col h-screen" x-data="sidebarState()" x-init="init()">
+<body class="ams-themed flex flex-col h-screen" x-data="sidebarState()" x-init="init()">
     <!-- Top Bar -->
     @php($useBottomNav = true)
     @php($topbarBrand = __('messages.ams') . ' ' . __('messages.supervisor'))

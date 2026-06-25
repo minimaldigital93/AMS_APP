@@ -15,6 +15,7 @@ class DatabaseSeeder extends Seeder
         $this->call([
             RolePermissionSeeder::class,
             PlanSeeder::class,
+            ThemeSeeder::class,
         ]);
 
         // Create superadmin user (SaaS owner / platform operator).

@@ -1,11 +1,13 @@
 <!DOCTYPE html>
-<html lang="{{ app()->getLocale() }}">
+<html lang="{{ app()->getLocale() }}" data-theme="{{ active_theme_slug() }}">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>{{ __('messages.tenant_portal_title') }}</title>
     <link rel="icon" type="image/svg+xml" href="{{ asset('favicon.svg') }}">
     @vite(['resources/css/app.css', 'resources/js/app.js'])
+    @include('partials.theme-provider')
     <style>
         * { scroll-behavior: smooth; }
         body { margin: 0; padding: 0; background: linear-gradient(135deg, #eff6ff 0%, #eef2ff 100%); }
@@ -59,7 +61,7 @@
     </style>
     @include('partials.pwa-head')
 </head>
-<body class="bg-gray-50 flex flex-col h-screen" x-data="sidebarState()" x-init="init()">
+<body class="ams-themed flex flex-col h-screen" x-data="sidebarState()" x-init="init()">
     <!-- Top Bar -->
     @include('layouts.topbar')
 

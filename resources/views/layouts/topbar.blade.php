@@ -1,11 +1,11 @@
-<div id="topbarNav" class="relative z-[60] w-full bg-gradient-to-r from-slate-900 to-slate-800 shadow-lg flex items-center justify-between px-3 sm:px-6 lg:px-8 py-2 sm:py-3 transition-transform duration-300 -translate-y-0" style="opacity:1;">
+<div id="topbarNav" class="relative z-[60] w-full shadow-sm flex items-center justify-between px-3 sm:px-6 lg:px-8 py-2 sm:py-3 transition-transform duration-300 -translate-y-0" style="opacity:1;">
     <!-- Left: Hamburger (mobile only) + Logo/Brand -->
     <div class="flex items-center space-x-2 sm:space-x-3 min-w-0">
         @unless($useBottomNav ?? false)
         <button
             type="button"
             @click="mobileOpen = !mobileOpen"
-            class="md:hidden inline-flex items-center justify-center p-2 rounded-lg text-white hover:bg-white/10 focus:outline-none focus:ring-2 focus:ring-white/30"
+            class="md:hidden inline-flex items-center justify-center p-2 rounded-lg text-token hover:bg-hover focus:outline-none focus:ring-2 focus:ring-token"
             :aria-expanded="mobileOpen.toString()"
             aria-label="Toggle navigation">
             <svg x-show="!mobileOpen" class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -16,8 +16,8 @@
             </svg>
         </button>
         @endunless
-        <x-application-logo class="w-8 h-8 sm:w-10 sm:h-10 lg:w-12 lg:h-12 fill-current text-white drop-shadow-lg flex-shrink-0" />
-        <span class="font-bold text-base sm:text-lg lg:text-xl text-white truncate">{{ $topbarBrand ?? __('messages.ams') }}</span>
+        <x-application-logo class="w-8 h-8 sm:w-10 sm:h-10 lg:w-12 lg:h-12 fill-current text-token flex-shrink-0" />
+        <span class="font-bold text-base sm:text-lg lg:text-xl text-token truncate">{{ $topbarBrand ?? __('messages.ams') }}</span>
     </div>
 
     <!-- Right Actions -->
@@ -78,7 +78,7 @@
             <button
                 type="button"
                 @click="toggle()"
-                class="relative inline-flex items-center justify-center p-2 rounded-full text-white hover:bg-white/10 focus:outline-none focus:ring-2 focus:ring-white/30 transition"
+                class="relative inline-flex items-center justify-center p-2 rounded-full text-token hover:bg-hover focus:outline-none focus:ring-2 focus:ring-token transition"
                 aria-label="{{ __('messages.notifications') }}">
                 <span class="material-icons text-xl sm:text-2xl">notifications</span>
                 <template x-if="unread() > 0">
@@ -157,9 +157,9 @@
         </div>
         @endauth
 
-        <div class="flex items-center space-x-2 text-gray-300">
+        <div class="flex items-center space-x-2 text-muted">
             <span class="material-icons text-lg">account_circle</span>
-            <span class="hidden sm:inline text-sm font-medium truncate max-w-[160px] lg:max-w-none">{{ auth()->user()->name ?? __('messages.admin') }}</span>
+            <span class="hidden sm:inline text-sm font-medium truncate max-w-[160px] lg:max-w-none text-token">{{ auth()->user()->name ?? __('messages.admin') }}</span>
         </div>
     </div>
 </div>

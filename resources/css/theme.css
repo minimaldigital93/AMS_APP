@@ -1,0 +1,536 @@
+/*
+ * ============================================================================
+ *  AMS THEME ENGINE — Design Tokens & Themed Component Library
+ * ============================================================================
+ *
+ *  Every color in this file comes from a CSS variable (a design token). The
+ *  per-theme values are injected into <head> from the `themes` DB table by the
+ *  ThemeProvider; this file supplies (a) the structural tokens that never
+ *  change between themes, (b) a Carbon-Gray fallback so the UI still renders if
+ *  the DB has not been seeded, and (c) the themed `.ams-*` component classes.
+ *
+ *  NO component below hardcodes a color — token only.
+ * ============================================================================
+ */
+
+/* NOTE: This file is intentionally UNLAYERED (no @layer). Tailwind tree-shakes
+   any custom CSS placed inside @layer base/components when the class isn't
+   referenced in a Blade file — which would purge unused library classes. Plain
+   unlayered CSS is always emitted, so the full .ams-* component library and the
+   design tokens ship regardless of where they're used. */
+:root {
+        /* ---- Fallback color tokens (Carbon Gray) — DB injection overrides ---- */
+        --background: #f5f6f8;
+        --sidebar-bg: #ffffff;
+        --topbar-bg: #ffffff;
+        --card-bg: #ffffff;
+        --text-primary: #111827;
+        --text-secondary: #6b7280;
+        --accent-color: #111827;
+        --accent-contrast: #ffffff;
+        --border-color: rgba(17, 24, 39, 0.08);
+        --hover-bg: rgba(17, 24, 39, 0.04);
+        --active-bg: rgba(17, 24, 39, 0.06);
+        --ring-color: rgba(17, 24, 39, 0.16);
+        --success-color: #059669;
+        --warning-color: #d97706;
+        --danger-color: #dc2626;
+        --shadow: 0 6px 24px rgba(17, 24, 39, 0.08);
+
+        /* ---- Structural tokens — constant across all themes ---- */
+        --radius: 16px;
+        --radius-sm: 10px;
+        --radius-lg: 22px;
+        --radius-pill: 9999px;
+        --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.06), 0 1px 3px rgba(0, 0, 0, 0.05);
+        --shadow-lg: 0 18px 50px -12px rgba(0, 0, 0, 0.30);
+        --transition: 300ms cubic-bezier(0.4, 0, 0.2, 1);
+        --sidebar-width: 280px;
+        --sidebar-width-collapsed: 80px;
+    }
+
+    /* Themed scrollbars (WebKit + Firefox).
+       (Body background lives in the unlayered bridge below so it can out-rank
+       the layouts' unlayered inline <style> rules.) */
+    .ams-themed * {
+        scrollbar-color: var(--border-color) transparent;
+    }
+    .ams-themed *::-webkit-scrollbar { width: 10px; height: 10px; }
+    .ams-themed *::-webkit-scrollbar-track { background: transparent; }
+    .ams-themed *::-webkit-scrollbar-thumb {
+        background: var(--border-color);
+        border-radius: var(--radius-pill);
+        border: 2px solid transparent;
+        background-clip: content-box;
+    }
+    .ams-themed *::-webkit-scrollbar-thumb:hover {
+        background: var(--text-secondary);
+        background-clip: content-box;
+    }
+
+    .ams-themed ::selection {
+        background: color-mix(in srgb, var(--accent-color) 24%, transparent);
+        color: var(--text-primary);
+    }
+
+    /* =========================================================================
+       SURFACES & CARDS
+       ========================================================================= */
+    .ams-surface {
+        background: var(--card-bg);
+        color: var(--text-primary);
+        border: 1px solid var(--border-color);
+        border-radius: var(--radius);
+    }
+
+    .ams-card {
+        position: relative;
+        background: var(--card-bg);
+        color: var(--text-primary);
+        border: 1px solid var(--border-color);
+        border-radius: var(--radius);
+        box-shadow: var(--shadow);
+        padding: 1.5rem;
+        transition: transform var(--transition), box-shadow var(--transition),
+            border-color var(--transition), background-color var(--transition);
+        /* Subtle glass-like premium finish. */
+        backdrop-filter: saturate(1.05);
+    }
+
+    .ams-card-hover:hover,
+    a.ams-card:hover,
+    button.ams-card:hover {
+        transform: translateY(-4px);
+        box-shadow: var(--shadow-lg);
+        border-color: color-mix(in srgb, var(--accent-color) 22%, var(--border-color));
+    }
+
+    .ams-card-muted { background: color-mix(in srgb, var(--card-bg) 92%, var(--background)); }
+
+    /* =========================================================================
+       TYPOGRAPHY HELPERS
+       ========================================================================= */
+    .ams-title { color: var(--text-primary); font-weight: 700; letter-spacing: -0.01em; }
+    .ams-text { color: var(--text-primary); }
+    .ams-muted { color: var(--text-secondary); }
+
+    /* =========================================================================
+       BUTTONS
+       ========================================================================= */
+    .ams-btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5rem;
+        padding: 0.625rem 1.1rem;
+        border-radius: var(--radius-sm);
+        font-weight: 600;
+        font-size: 0.875rem;
+        line-height: 1;
+        border: 1px solid transparent;
+        cursor: pointer;
+        transition: transform var(--transition), box-shadow var(--transition),
+            background-color var(--transition), border-color var(--transition),
+            opacity var(--transition);
+        user-select: none;
+    }
+    .ams-btn:active { transform: translateY(1px) scale(0.99); }
+    .ams-btn:focus-visible { outline: none; box-shadow: 0 0 0 3px var(--ring-color); }
+    .ams-btn:disabled { opacity: 0.55; cursor: not-allowed; }
+
+    .ams-btn-primary {
+        background: var(--accent-color);
+        color: var(--accent-contrast);
+        box-shadow: var(--shadow-sm);
+    }
+    .ams-btn-primary:hover { box-shadow: var(--shadow); transform: translateY(-1px); }
+
+    .ams-btn-ghost {
+        background: transparent;
+        color: var(--text-primary);
+        border-color: var(--border-color);
+    }
+    .ams-btn-ghost:hover { background: var(--hover-bg); }
+
+    .ams-btn-soft {
+        background: var(--hover-bg);
+        color: var(--text-primary);
+    }
+    .ams-btn-soft:hover { background: var(--active-bg); }
+
+    .ams-btn-danger { background: var(--danger-color); color: #fff; }
+    .ams-btn-danger:hover { filter: brightness(1.05); transform: translateY(-1px); }
+
+    /* =========================================================================
+       FORMS / INPUTS
+       ========================================================================= */
+    .ams-input,
+    .ams-select,
+    .ams-textarea {
+        width: 100%;
+        background: color-mix(in srgb, var(--card-bg) 88%, var(--background));
+        color: var(--text-primary);
+        border: 1px solid var(--border-color);
+        border-radius: var(--radius-sm);
+        padding: 0.625rem 0.85rem;
+        font-size: 0.9rem;
+        transition: border-color var(--transition), box-shadow var(--transition),
+            background-color var(--transition);
+    }
+    .ams-input::placeholder,
+    .ams-textarea::placeholder { color: var(--text-secondary); opacity: 0.8; }
+    .ams-input:focus,
+    .ams-select:focus,
+    .ams-textarea:focus {
+        outline: none;
+        border-color: color-mix(in srgb, var(--accent-color) 45%, var(--border-color));
+        box-shadow: 0 0 0 3px var(--ring-color);
+        background: var(--card-bg);
+    }
+    .ams-label {
+        display: block;
+        font-size: 0.8rem;
+        font-weight: 600;
+        color: var(--text-secondary);
+        margin-bottom: 0.4rem;
+    }
+
+    /* =========================================================================
+       TABLES
+       ========================================================================= */
+    .ams-table { width: 100%; border-collapse: separate; border-spacing: 0; color: var(--text-primary); }
+    .ams-table thead th {
+        text-align: left;
+        font-size: 0.72rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        color: var(--text-secondary);
+        padding: 0.85rem 1rem;
+        background: color-mix(in srgb, var(--card-bg) 90%, var(--background));
+        border-bottom: 1px solid var(--border-color);
+    }
+    .ams-table tbody td {
+        padding: 0.9rem 1rem;
+        border-bottom: 1px solid var(--border-color);
+        font-size: 0.9rem;
+    }
+    .ams-table tbody tr { transition: background-color var(--transition); }
+    .ams-table tbody tr:hover { background: var(--hover-bg); }
+    .ams-table tbody tr:last-child td { border-bottom: 0; }
+
+    /* =========================================================================
+       BADGES
+       ========================================================================= */
+    .ams-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35rem;
+        padding: 0.2rem 0.6rem;
+        font-size: 0.72rem;
+        font-weight: 600;
+        border-radius: var(--radius-pill);
+        border: 1px solid var(--border-color);
+        background: var(--hover-bg);
+        color: var(--text-secondary);
+        line-height: 1.4;
+    }
+    .ams-badge-success {
+        color: var(--success-color);
+        background: color-mix(in srgb, var(--success-color) 14%, transparent);
+        border-color: color-mix(in srgb, var(--success-color) 30%, transparent);
+    }
+    .ams-badge-warning {
+        color: var(--warning-color);
+        background: color-mix(in srgb, var(--warning-color) 14%, transparent);
+        border-color: color-mix(in srgb, var(--warning-color) 30%, transparent);
+    }
+    .ams-badge-danger {
+        color: var(--danger-color);
+        background: color-mix(in srgb, var(--danger-color) 14%, transparent);
+        border-color: color-mix(in srgb, var(--danger-color) 30%, transparent);
+    }
+    .ams-badge-accent {
+        color: var(--accent-contrast);
+        background: var(--accent-color);
+        border-color: transparent;
+    }
+
+    /* =========================================================================
+       DROPDOWNS & MODALS
+       ========================================================================= */
+    .ams-dropdown {
+        background: var(--card-bg);
+        color: var(--text-primary);
+        border: 1px solid var(--border-color);
+        border-radius: var(--radius);
+        box-shadow: var(--shadow-lg);
+        overflow: hidden;
+    }
+    .ams-dropdown-item {
+        display: flex;
+        align-items: center;
+        gap: 0.6rem;
+        padding: 0.6rem 0.9rem;
+        font-size: 0.875rem;
+        color: var(--text-primary);
+        transition: background-color var(--transition);
+    }
+    .ams-dropdown-item:hover { background: var(--hover-bg); }
+
+    .ams-modal-backdrop {
+        background: color-mix(in srgb, #000 55%, transparent);
+        backdrop-filter: blur(4px);
+    }
+    .ams-modal {
+        background: var(--card-bg);
+        color: var(--text-primary);
+        border: 1px solid var(--border-color);
+        border-radius: var(--radius-lg);
+        box-shadow: var(--shadow-lg);
+    }
+
+    /* =========================================================================
+       TOP BAR  (glass, sticky)
+       ========================================================================= */
+    .ams-topbar {
+        position: sticky;
+        top: 0;
+        background: color-mix(in srgb, var(--topbar-bg) 80%, transparent);
+        backdrop-filter: saturate(1.4) blur(14px);
+        -webkit-backdrop-filter: saturate(1.4) blur(14px);
+        color: var(--text-primary);
+        border-bottom: 1px solid var(--border-color);
+        transition: background-color var(--transition), border-color var(--transition);
+    }
+    .ams-topbar-title { color: var(--text-primary); }
+    .ams-topbar-icon {
+        color: var(--text-secondary);
+        transition: background-color var(--transition), color var(--transition);
+    }
+    .ams-topbar-icon:hover { background: var(--hover-bg); color: var(--text-primary); }
+
+    /* =========================================================================
+       SIDEBAR  (premium, collapsible, active indicator)
+       ========================================================================= */
+    .ams-sidebar {
+        background: var(--sidebar-bg);
+        color: var(--text-primary);
+        border-right: 1px solid var(--border-color);
+        transition: width var(--transition), transform var(--transition),
+            background-color var(--transition);
+    }
+    .ams-sidebar-heading {
+        font-size: 0.7rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        color: var(--text-secondary);
+    }
+    .ams-nav-item {
+        position: relative;
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        padding: 0.65rem 0.85rem;
+        margin: 0.15rem 0;
+        border-radius: var(--radius-sm);
+        color: var(--text-secondary);
+        font-weight: 500;
+        font-size: 0.9rem;
+        transition: background-color var(--transition), color var(--transition),
+            box-shadow var(--transition);
+    }
+    .ams-nav-item:hover {
+        background: var(--hover-bg);
+        color: var(--text-primary);
+        box-shadow: inset 0 0 0 1px var(--border-color);
+    }
+    .ams-nav-item .ams-nav-icon { flex-shrink: 0; width: 1.25rem; text-align: center; }
+
+    .ams-nav-item.is-active {
+        background: var(--active-bg);
+        color: var(--text-primary);
+        font-weight: 700;
+    }
+    /* Left accent bar on the active item. */
+    .ams-nav-item.is-active::before {
+        content: '';
+        position: absolute;
+        left: -0.15rem;
+        top: 50%;
+        transform: translateY(-50%);
+        width: 3px;
+        height: 60%;
+        border-radius: var(--radius-pill);
+        background: var(--accent-color);
+    }
+
+    /* =========================================================================
+       DASHBOARD WIDGETS / STAT CARDS
+       ========================================================================= */
+    .ams-stat-card {
+        position: relative;
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+        padding: 1.4rem 1.5rem;
+        background: var(--card-bg);
+        border: 1px solid var(--border-color);
+        border-radius: var(--radius);
+        box-shadow: var(--shadow);
+        overflow: hidden;
+        transition: transform var(--transition), box-shadow var(--transition),
+            border-color var(--transition);
+    }
+    .ams-stat-card:hover {
+        transform: translateY(-4px);
+        box-shadow: var(--shadow-lg);
+        border-color: color-mix(in srgb, var(--accent-color) 22%, var(--border-color));
+    }
+    .ams-stat-label {
+        font-size: 0.78rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        color: var(--text-secondary);
+    }
+    .ams-stat-value { font-size: 1.9rem; font-weight: 800; line-height: 1.1; color: var(--text-primary); letter-spacing: -0.02em; }
+    .ams-stat-icon {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 2.6rem;
+        height: 2.6rem;
+        border-radius: var(--radius-sm);
+        background: var(--hover-bg);
+        color: var(--text-primary);
+        border: 1px solid var(--border-color);
+    }
+
+    /* =========================================================================
+       DOMAIN CARDS  (property / tenant / invoice / receipt)
+       ========================================================================= */
+    .ams-tenant-card,
+    .ams-property-card,
+    .ams-invoice-card,
+    .ams-receipt-card {
+        background: var(--card-bg);
+        color: var(--text-primary);
+        border: 1px solid var(--border-color);
+        border-radius: var(--radius);
+        box-shadow: var(--shadow);
+        transition: transform var(--transition), box-shadow var(--transition),
+            border-color var(--transition);
+    }
+    .ams-tenant-card:hover,
+    .ams-property-card:hover,
+    .ams-invoice-card:hover,
+    .ams-receipt-card:hover {
+        transform: translateY(-4px);
+        box-shadow: var(--shadow-lg);
+        border-color: color-mix(in srgb, var(--accent-color) 22%, var(--border-color));
+    }
+    .ams-avatar {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: var(--radius-pill);
+        background: var(--accent-color);
+        color: var(--accent-contrast);
+        font-weight: 700;
+    }
+    /* Dashed paper edge for invoice/receipt tops. */
+    .ams-invoice-divider,
+    .ams-receipt-divider {
+        border-top: 1px dashed var(--border-color);
+    }
+
+    /* =========================================================================
+       UTILITY: dividers, links, accent ring
+       ========================================================================= */
+    .ams-divider { height: 1px; background: var(--border-color); border: 0; }
+    .ams-link { color: var(--accent-color); font-weight: 600; transition: opacity var(--transition); }
+    .ams-link:hover { opacity: 0.75; text-decoration: underline; }
+    .ams-ring-accent { box-shadow: 0 0 0 3px var(--ring-color); }
+
+/*
+ * ============================================================================
+ *  LEGACY CHROME BRIDGE  (UNLAYERED — important!)
+ * ----------------------------------------------------------------------------
+ *  The existing admin/supervisor/tenant layouts paint their chrome with inline
+ *  <style> blocks (`.sidebar-container`, `.nav-link`, …). Those are *unlayered*
+ *  CSS, which always beats @layer'd CSS regardless of specificity. So this
+ *  bridge — which re-skins that chrome with theme tokens — must also be
+ *  unlayered and simply out-specify the originals. This lets the whole app
+ *  follow the active theme without rewriting the 650-line sidebar partials.
+ * ============================================================================
+ */
+
+/* App background + base text follow the theme on any layout tagged .ams-themed. */
+body.ams-themed {
+    background: var(--background);
+    color: var(--text-primary);
+    transition: background-color var(--transition), color var(--transition);
+}
+
+/* Sidebar shell + inner panel. */
+.ams-themed .sidebar-container { background: var(--sidebar-bg); }
+.ams-themed .sidebar-container > div { background: var(--sidebar-bg); color: var(--text-primary); }
+.ams-themed .sidebar-container .border-t,
+.ams-themed .sidebar-container .border-b { border-color: var(--border-color); }
+.ams-themed .sidebar-container h2 { color: var(--text-primary); }
+.ams-themed .sidebar-container .logout-button { color: var(--text-secondary); }
+
+/* Nav links — inactive text, hover, and the icon chip. */
+.ams-themed .nav-link.text-gray-700,
+.ams-themed .submenu-item.text-gray-700,
+.ams-themed .section-header { color: var(--text-secondary); }
+.ams-themed .nav-link.text-gray-700:hover,
+.ams-themed .submenu-item.text-gray-700:hover,
+.ams-themed .section-header:hover { color: var(--text-primary); }
+.ams-themed .nav-link .nav-icon {
+    background: var(--hover-bg);
+    box-shadow: inset 0 0 0 1px var(--border-color);
+}
+.ams-themed .nav-link::before {
+    background: var(--hover-bg);
+    box-shadow: inset 0 0 0 1px var(--border-color);
+}
+.ams-themed .nav-link:hover .nav-icon {
+    background: var(--active-bg);
+    box-shadow: inset 0 0 0 1px var(--border-color);
+}
+
+/* Active nav item — token surface + accent text + left accent bar. */
+.ams-themed .nav-link.active {
+    background: var(--active-bg);
+    color: var(--accent-color);
+    box-shadow: inset 0 0 0 1px var(--border-color);
+}
+.ams-themed .nav-link.active::before {
+    background: var(--accent-color);
+    opacity: 1;
+    left: 0;
+    width: 3px;
+    border-radius: 0 var(--radius-pill) var(--radius-pill) 0;
+    box-shadow: none;
+}
+.ams-themed .nav-link.active .nav-icon {
+    background: color-mix(in srgb, var(--accent-color) 16%, transparent);
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent-color) 30%, transparent);
+}
+
+/* Section-header accent bar/glow. */
+.ams-themed .section-header::before { background: var(--accent-color); }
+.ams-themed .section-header::after { background: var(--hover-bg); }
+.ams-themed .section-header:hover { color: var(--text-primary); }
+
+/* Shared top bar (partials/topbar.blade.php). */
+.ams-themed #topbarNav {
+    background: color-mix(in srgb, var(--topbar-bg) 88%, transparent);
+    backdrop-filter: saturate(1.4) blur(14px);
+    -webkit-backdrop-filter: saturate(1.4) blur(14px);
+    border-bottom: 1px solid var(--border-color);
+    color: var(--text-primary);
+}

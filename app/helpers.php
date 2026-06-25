@@ -97,3 +97,24 @@ if (! function_exists('current_account_id')) {
         return $user->account_id ?? $user->getKey();
     }
 }
+
+if (! function_exists('theme_service')) {
+    /**
+     * The shared ThemeService instance (resolved from the container).
+     */
+    function theme_service(): \App\Services\Theme\ThemeService
+    {
+        return app(\App\Services\Theme\ThemeService::class);
+    }
+}
+
+if (! function_exists('active_theme_slug')) {
+    /**
+     * The slug of the theme active for the current request. Drop straight into
+     * a layout's <html> tag: <html data-theme="{{ active_theme_slug() }}">.
+     */
+    function active_theme_slug(): string
+    {
+        return theme_service()->currentSlug();
+    }
+}

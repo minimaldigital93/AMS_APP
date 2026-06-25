@@ -2,6 +2,11 @@
 @import 'auth/3d-background.css';
 @import 'auth/login.css';
 
+/* AMS Theme Engine — design tokens + themed .ams-* component library.
+   Per-theme token values are injected at runtime from the `themes` table
+   (see partials/theme-provider.blade.php). */
+@import 'theme.css';
+
 /* Self-hosted Material Icons (replaces the Google Fonts CDN so icons work
    offline / in the installed PWA and survive Safari content blockers).
    Placed before @tailwind utilities so text-* size utilities still win. */

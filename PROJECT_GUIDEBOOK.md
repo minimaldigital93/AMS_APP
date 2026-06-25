@@ -2,6 +2,8 @@
 
 A brief overview of the **Apartment Management System (AMS_APP)** — prepared for academic / school purposes.
 
+> **For contributors / Claude Code:** `CLAUDE.md` at the root is the authoritative technical reference. Where this guidebook and `CLAUDE.md` disagree, trust `CLAUDE.md`.
+
 ---
 
 ## 1. What the Project Does
@@ -16,7 +18,7 @@ AMS_APP is a web-based **Apartment Management System** that helps property owner
 - Fiscal periods and monthly reports
 - PDF receipts and financial documents
 
-It is built as a multi-role platform with three distinct user areas: **Admin**, **Supervisor**, and **Tenant**.
+It is built as a multi-tenant SaaS platform with four distinct user roles: **SuperAdmin**, **Admin**, **Supervisor**, and **Tenant**.
 
 ---
 
@@ -37,15 +39,18 @@ It is built as a multi-role platform with three distinct user areas: **Admin**, 
 
 ## 3. User Roles
 
-The system has three role areas, each with its own controllers and views.
+The system has four role areas, each with its own controllers and views.
 
-### 3.1 Admin
-Full system access — manages apartments, users, fiscal periods, settings, and revenue/expenses.
+### 3.1 SuperAdmin
+Platform-level access across all customer accounts — manages subscriptions, plans, platform finances, and cross-account data. Uses `App\Http\Controllers\SuperAdmin` and is not subscription-gated.
 
-### 3.2 Supervisor
-A manager-level user who sees **all admin-wide data**. Apartments may carry an `apartments.supervisor_id` tag to indicate "assigned by," but it does **not** restrict access.
+### 3.2 Admin
+Full access within their own account — manages apartments, users, fiscal periods, settings, and revenue/expenses. Requires an active subscription (`subscription.active` middleware).
 
-### 3.3 Tenant
+### 3.3 Supervisor
+A manager-level user **scoped to the properties assigned to them** (`properties.supervisor_id`). They can only see floors, rooms, and tenants that belong to their assigned properties. Admins and superadmins can also access supervisor routes (for preview) and are not property-scoped. Routes use `role:supervisor|admin|superadmin`.
+
+### 3.4 Tenant
 A resident user who can view their own dashboard, payments, and leave requests.
 
 ---
@@ -56,23 +61,30 @@ A resident user who can view their own dashboard, payments, and leave requests.
 AMS_APP/
 ├── app/
 │   ├── Http/Controllers/
-│   │   ├── Admin/        ← Admin-only logic
-│   │   ├── Supervisor/   ← Supervisor logic
-│   │   └── Tenant/       ← Tenant logic
-│   ├── Models/           ← Eloquent models
-│   └── helpers.php       ← Global helper functions
+│   │   ├── Admin/          ← Admin-only logic
+│   │   ├── SuperAdmin/     ← SuperAdmin (platform) logic
+│   │   ├── Supervisor/     ← Supervisor logic
+│   │   ├── Tenant/         ← Tenant logic
+│   │   └── Concerns/       ← Shared controller traits
+│   ├── Models/             ← Eloquent models
+│   │   └── Concerns/       ← BelongsToAccount (multi-tenant scope)
+│   ├── Services/           ← Domain logic (Payment, Subscription, etc.)
+│   ├── Enums/              ← PaymentStatus, SubscriptionStatus
+│   ├── Contracts/          ← PaymentGateway interface
+│   └── helpers.php         ← Global helper functions
 ├── resources/views/
 │   ├── admin/
+│   ├── superadmin/
 │   ├── supervisor/
 │   ├── tenant/
-│   └── layouts/          ← Shared Blade layouts
+│   └── layouts/            ← Shared Blade layouts
 ├── routes/
-│   ├── web.php           ← Main app routes
-│   └── auth.php          ← Auth (Breeze) routes
+│   ├── web.php             ← Main app routes
+│   └── auth.php            ← Auth (Breeze) routes
 ├── database/
 │   ├── migrations/
 │   └── seeders/
-└── docs/                 ← Feature documentation
+└── docs/                   ← Feature documentation
 ```
 
 ---
@@ -85,6 +97,7 @@ Located in `app/Models/`:
 |-------|---------|
 | `Apartments` | An apartment building |
 | `Floors` | Floors inside an apartment |
+| `Property` | A property grouping apartments, carries `supervisor_id` |
 | `Tenants` | People renting a unit |
 | `Rentals` | Lease/rental contracts |
 | `Payments` | Rent and other payments |
@@ -96,8 +109,22 @@ Located in `app/Models/`:
 | `FiscalPeriods` | Yearly fiscal periods |
 | `MonthlyPeriod` | Monthly accounting periods |
 | `TenantLeave` | Tenant move-out requests |
-| `Settings` | System configuration |
+| `Settings` | System configuration (per account) |
 | `User` | Authenticated user |
+| `Subscription` | SaaS subscription (plan, status, expiry) |
+| `Plan` | SaaS plan definition |
+| `MerchantPaymentSetting` | Per-merchant KHQR/payment config |
+| `PlatformPaymentSetting` | Platform-level KHQR signing credentials |
+| `KhqrPayment` | KHQR payment record |
+| `PaymentWebhook` | Raw KHQR webhook log |
+| `Refund` | Payment refund record |
+| `PlatformExpense` | Platform-level expense (superadmin) |
+| `PlatformFiscalPeriod` | Platform-level fiscal period |
+| `PlatformMonthlyClose` | Platform monthly close |
+| `PlatformWithdrawal` | Platform withdrawal record |
+| `AuditLog` | System audit trail |
+
+Most customer-owned models use the `BelongsToAccount` trait for automatic per-account scoping.
 
 ---
 
@@ -110,9 +137,9 @@ Located in `app/Models/`:
 - Generate PDF reports
 
 ### Supervisor
-- Dashboard with overall stats
-- Manage apartments and tenants assigned to them
-- Record revenue and expenses
+- Dashboard scoped to assigned properties only
+- Manage apartments and tenants under their assigned properties (`properties.supervisor_id`)
+- Record revenue and expenses for their properties
 - Adjust supervisor-level settings
 
 ### Tenant

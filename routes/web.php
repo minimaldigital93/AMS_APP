@@ -223,6 +223,11 @@ Route::middleware(['auth', 'role:admin|superadmin', 'subscription.active'])->gro
     Route::get('/admin/settings/payment', [\App\Http\Controllers\Admin\PaymentSettingsController::class, 'edit'])->name('admin.settings.payment');
     Route::put('/admin/settings/payment', [\App\Http\Controllers\Admin\PaymentSettingsController::class, 'update'])->name('admin.settings.payment.update');
 
+    // Theme Settings (per-user theme picker). MUST be declared before the
+    // '/admin/settings/{key}' wildcard below or it gets swallowed by it.
+    Route::get('/admin/settings/theme', [\App\Http\Controllers\Admin\ThemeController::class, 'index'])->name('admin.settings.theme');
+    Route::put('/admin/settings/theme', [\App\Http\Controllers\Admin\ThemeController::class, 'update'])->name('admin.settings.theme.update');
+
     // System Settings Routes
     Route::get('/admin/settings', [SettingsController::class, 'index'])->name('admin.settings.index');
     Route::put('/admin/settings/batch', [SettingsController::class, 'updateBatch'])->name('admin.settings.updateBatch');
