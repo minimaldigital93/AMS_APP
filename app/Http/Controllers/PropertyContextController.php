@@ -18,8 +18,20 @@ class PropertyContextController extends Controller
     public function switch(Request $request, PropertyContext $context): RedirectResponse|JsonResponse
     {
         $validated = $request->validate([
-            'property_id' => ['required', 'integer'],
+            'property_id' => ['required', 'integer', 'min:0'],
         ]);
+
+        // 0 (ALL_PROPERTIES) selects the consolidated "All properties" view.
+        if ((int) $validated['property_id'] === PropertyContext::ALL_PROPERTIES) {
+            $context->setAllProperties();
+            $name = __('messages.all_properties');
+
+            if ($request->expectsJson()) {
+                return response()->json(['id' => PropertyContext::ALL_PROPERTIES, 'name' => $name, 'all' => true]);
+            }
+
+            return redirect()->back()->with('success', __('messages.property_switched', ['name' => $name]));
+        }
 
         $property = $context->setActiveProperty((int) $validated['property_id']);
 

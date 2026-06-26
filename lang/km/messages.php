@@ -1063,6 +1063,7 @@ return [
     'search_properties' => 'ស្វែងរកអចលនទ្រព្យ…',
     'no_properties' => 'មិនមានអចលនទ្រព្យ',
     'property_switched' => 'កំពុងមើល :name',
+    'all_properties' => 'អចលនទ្រព្យទាំងអស់',
     'all_properties_consolidated' => 'អចលនទ្រព្យទាំងអស់ (រួមបញ្ចូល)',
     'filter_by_property' => 'ត្រងតាមអចលនទ្រព្យ',
     'account_wide_note' => 'តារាងតុល្យការ និងតារាងសាកល្បងតុល្យភាព តែងតែឆ្លុះបញ្ចាំងគណនីទាំងមូល — មិនត្រងតាមអចលនទ្រព្យទេ។',

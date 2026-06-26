@@ -27,9 +27,19 @@ class PropertyContext
     /** Session key holding the user's current selection. */
     public const SESSION_KEY = 'active_property_id';
 
+    /**
+     * Sentinel selection meaning "All properties" — a consolidated view across
+     * every accessible property rather than one building. It resolves to a null
+     * active property id, which the FiltersByProperty scope and the dashboard
+     * services already treat as "don't narrow to a single property".
+     */
+    public const ALL_PROPERTIES = 0;
+
     private ?Collection $accessibleCache = null;
 
     private Property|null|false $activeCache = false;
+
+    private ?bool $showingAllCache = null;
 
     private ?array $apartmentIdsCache = null;
 
@@ -84,42 +94,85 @@ class PropertyContext
     }
 
     /**
-     * The active property for the current request, or null when the user has
-     * none. Resolution order: validated session selection → the user's last
-     * remembered property → the first accessible property. The resolved id is
-     * written back to the session so it survives subsequent requests.
+     * The active property for the current request, or null when the user is
+     * viewing "All properties" (the consolidated view) or has none accessible.
+     * Use showingAllProperties() to tell those two null cases apart.
      */
     public function activeProperty(): ?Property
     {
+        $this->resolve();
+
+        return $this->activeCache === false ? null : $this->activeCache;
+    }
+
+    /**
+     * Whether the user is viewing the consolidated "All properties" view (an
+     * explicit choice, not the absence of any property). Only ever true when
+     * there are 2+ accessible properties to combine.
+     */
+    public function showingAllProperties(): bool
+    {
+        $this->resolve();
+
+        return $this->showingAllCache ?? false;
+    }
+
+    /**
+     * Resolve (once per request) both the active property and whether we're in
+     * the consolidated "All properties" view, memoizing the result.
+     *
+     * Resolution order: explicit session/remembered selection → first accessible
+     * property. Either the session or the remembered value may be the
+     * ALL_PROPERTIES sentinel, which selects the consolidated view (provided
+     * there are 2+ properties to combine). The resolved choice is written back to
+     * the session so it survives subsequent requests.
+     */
+    private function resolve(): void
+    {
         if ($this->activeCache !== false) {
-            return $this->activeCache;
+            return;
         }
 
         $accessible = $this->accessibleProperties();
 
         if ($accessible->isEmpty()) {
-            return $this->activeCache = null;
+            $this->activeCache = null;
+            $this->showingAllCache = false;
+
+            return;
         }
 
-        // 1) An explicit, still-valid session selection.
-        $sessionId = session(self::SESSION_KEY);
-        if ($sessionId && ($match = $accessible->firstWhere('id', (int) $sessionId))) {
-            return $this->activeCache = $match;
+        // The current selection: the session first, then the value remembered on
+        // the user row (restores after a fresh login). Either may be ALL_PROPERTIES.
+        $selection = session(self::SESSION_KEY);
+        if ($selection === null) {
+            $selection = Auth::user()?->last_property_id;
+        }
+        $selection = $selection === null ? null : (int) $selection;
+
+        // "All properties" — only meaningful when there are 2+ to consolidate.
+        if ($selection === self::ALL_PROPERTIES && $accessible->count() > 1) {
+            session([self::SESSION_KEY => self::ALL_PROPERTIES]);
+            $this->activeCache = null;
+            $this->showingAllCache = true;
+
+            return;
         }
 
-        // 2) The user's last remembered property (restores after a fresh login).
-        $lastId = Auth::user()?->last_property_id;
-        if ($lastId && ($match = $accessible->firstWhere('id', (int) $lastId))) {
+        // A still-valid single-property selection.
+        if ($selection && ($match = $accessible->firstWhere('id', $selection))) {
             session([self::SESSION_KEY => $match->id]);
+            $this->activeCache = $match;
+            $this->showingAllCache = false;
 
-            return $this->activeCache = $match;
+            return;
         }
 
-        // 3) Default to the first accessible property.
+        // Default to the first accessible property.
         $first = $accessible->first();
         session([self::SESSION_KEY => $first->id]);
-
-        return $this->activeCache = $first;
+        $this->activeCache = $first;
+        $this->showingAllCache = false;
     }
 
     public function activePropertyId(): ?int
@@ -145,9 +198,30 @@ class PropertyContext
 
         // Invalidate per-request caches so the rest of this request sees the switch.
         $this->activeCache = $property;
+        $this->showingAllCache = false;
         $this->apartmentIdsCache = null;
 
         return $property;
+    }
+
+    /**
+     * Switch to the consolidated "All properties" view. No-ops when there are
+     * fewer than 2 accessible properties (with a single property "all" is
+     * identical to that property, so there is nothing to consolidate).
+     */
+    public function setAllProperties(): void
+    {
+        if ($this->accessibleProperties()->count() < 2) {
+            return;
+        }
+
+        session([self::SESSION_KEY => self::ALL_PROPERTIES]);
+        $this->rememberForUser(self::ALL_PROPERTIES);
+
+        // Invalidate per-request caches so the rest of this request sees the switch.
+        $this->activeCache = null;
+        $this->showingAllCache = true;
+        $this->apartmentIdsCache = null;
     }
 
     /** Apartment IDs under the active property — feeds dashboards and chain filters. */

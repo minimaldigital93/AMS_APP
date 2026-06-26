@@ -315,6 +315,7 @@ class ApartmentController extends Controller
                 ['reference_number' => $reference],
                 [
                     'fiscal_period_id' => $activePeriod?->id,
+                    'property_id' => $apartment->property_id ?? $apartment->floor?->property_id,
                     'payment_id' => null,
                     'user_id' => Auth::id(),
                     'account_type' => Accounts::TYPE_INCOME,

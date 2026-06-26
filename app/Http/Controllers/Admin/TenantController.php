@@ -253,6 +253,10 @@ class TenantController extends Controller
         }
 
         $apartmentNumber = $tenant->apartment->apartment_number ?? 'N/A';
+        // Attribute every settlement entry to the apartment's property so it
+        // lands in the right building's books (payment-linked rows self-derive
+        // via Accounts' creating hook; the payment-less rows below need it set).
+        $propertyId = $tenant->apartment?->floor?->property_id ?? $tenant->apartment?->property_id;
 
         // 1) Pro-rata rent payment + income entry
         if ($settlement['total_amount_due'] > 0 && $settlement['pro_rata_rent'] > 0) {
@@ -321,6 +325,7 @@ class TenantController extends Controller
 
             Accounts::create([
                 'fiscal_period_id' => $activePeriod->id,
+                'property_id' => $propertyId,
                 'payment_id' => null,
                 'user_id' => Auth::id(),
                 'account_type' => Accounts::TYPE_INCOME,
@@ -336,6 +341,7 @@ class TenantController extends Controller
         foreach ($extraCharges as $extra) {
             Accounts::create([
                 'fiscal_period_id' => $activePeriod->id,
+                'property_id' => $propertyId,
                 'payment_id' => null,
                 'user_id' => Auth::id(),
                 'account_type' => Accounts::TYPE_INCOME,
@@ -381,6 +387,7 @@ class TenantController extends Controller
             if ($refundAmount > 0) {
                 Accounts::create([
                     'fiscal_period_id' => $activePeriod->id,
+                    'property_id' => $propertyId,
                     'payment_id' => null,
                     'user_id' => Auth::id(),
                     'account_type' => Accounts::TYPE_EXPENSE,
@@ -493,6 +500,7 @@ class TenantController extends Controller
                     ['reference_number' => $reference],
                     [
                         'fiscal_period_id' => $activePeriod->id,
+                        'property_id' => $apartment->property_id ?? $apartment->floor?->property_id,
                         'payment_id' => null,
                         'user_id' => Auth::id(),
                         'account_type' => Accounts::TYPE_INCOME,

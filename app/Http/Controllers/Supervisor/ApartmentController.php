@@ -288,6 +288,7 @@ class ApartmentController extends Controller
                     ['reference_number' => $reference],
                     [
                         'fiscal_period_id' => $activePeriod?->id,
+                        'property_id' => $apartment->property_id ?? $apartment->floor?->property_id,
                         'payment_id' => null,
                         // Ledger rows carry the admin's user_id (one-ledger invariant).
                         'user_id' => $activePeriod?->user_id ?? Auth::id(),

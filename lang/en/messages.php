@@ -1063,6 +1063,7 @@ return [
     'search_properties' => 'Search properties…',
     'no_properties' => 'No properties available',
     'property_switched' => 'Now viewing :name',
+    'all_properties' => 'All Properties',
     'all_properties_consolidated' => 'All Properties (consolidated)',
     'filter_by_property' => 'Filter by property',
     'account_wide_note' => 'The balance sheet and trial balance always reflect the whole account — they are not filtered by property.',

@@ -3,6 +3,7 @@
     $properties = $topbarProperties ?? collect();
     $activeProp = $topbarActiveProperty ?? null;
     $selectorEnabled = $topbarPropertySelectorEnabled ?? false;
+    $showingAll = $topbarShowingAllProperties ?? false;
 @endphp
 
 @if($properties->isNotEmpty())
@@ -22,8 +23,8 @@
                 :aria-expanded="open.toString()"
                 aria-label="{{ __('messages.switch_property') }}"
                 title="{{ __('messages.switch_property') }}">
-                <span class="material-icons text-base sm:text-lg flex-shrink-0">apartment</span>
-                <span class="text-sm font-medium truncate">{{ $activeProp?->name ?? __('messages.select_property') }}</span>
+                <span class="material-icons text-base sm:text-lg flex-shrink-0">{{ $showingAll ? 'apps' : 'apartment' }}</span>
+                <span class="text-sm font-medium truncate">{{ $showingAll ? __('messages.all_properties') : ($activeProp?->name ?? __('messages.select_property')) }}</span>
                 <svg x-show="!loading" class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
                 </svg>
@@ -69,6 +70,18 @@
                 </div>
 
                 <div class="max-h-72 overflow-y-auto py-1">
+                    {{-- Consolidated view across every accessible property --}}
+                    <button
+                        type="button"
+                        x-show="q === ''"
+                        @click="loading = true; $refs.pid.value = 0; $refs.form.submit()"
+                        class="w-full flex items-center gap-2.5 px-3 py-2.5 text-left text-sm transition hover:bg-slate-50 border-b border-gray-100 {{ $showingAll ? 'bg-sky-50 text-sky-700 font-semibold' : 'text-slate-700' }}">
+                        <span class="material-icons text-base flex-shrink-0 {{ $showingAll ? 'text-sky-600' : 'text-slate-400' }}">apps</span>
+                        <span class="truncate flex-1">{{ __('messages.all_properties') }}</span>
+                        @if($showingAll)
+                            <span class="material-icons text-base text-sky-600 flex-shrink-0">check</span>
+                        @endif
+                    </button>
                     @foreach($properties as $prop)
                         @php($isActive = $activeProp && $activeProp->id === $prop->id)
                         <button

@@ -41,6 +41,7 @@ class AppServiceProvider extends ServiceProvider
             $properties = collect();
             $activeProperty = null;
             $propertySelectorEnabled = false;
+            $showingAllProperties = false;
 
             if (Auth::check()) {
                 try {
@@ -54,6 +55,7 @@ class AppServiceProvider extends ServiceProvider
                     $properties = $context->accessibleProperties();
                     $activeProperty = $context->activeProperty();
                     $propertySelectorEnabled = $context->selectorEnabled();
+                    $showingAllProperties = $context->showingAllProperties();
                 } catch (\Throwable $e) {
                     // Never let the selector break a page render.
                     $properties = collect();
@@ -64,6 +66,7 @@ class AppServiceProvider extends ServiceProvider
             $view->with('topbarProperties', $properties);
             $view->with('topbarActiveProperty', $activeProperty);
             $view->with('topbarPropertySelectorEnabled', $propertySelectorEnabled);
+            $view->with('topbarShowingAllProperties', $showingAllProperties);
         });
 
         // The subscription-expired blocking modal: mirrors EnsureSubscriptionActive

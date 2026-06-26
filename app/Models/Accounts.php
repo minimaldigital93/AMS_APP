@@ -81,6 +81,22 @@ class Accounts extends Model
         ];
     }
 
+    /**
+     * Safety net: when a ledger row is written without an explicit property_id
+     * but is tied to a payment, derive the property from that payment's
+     * apartment so the entry lands in the right building's books. Rows with no
+     * derivable property stay null (genuinely account-wide entries), which
+     * scopeForProperty still surfaces under every property.
+     */
+    protected static function booted(): void
+    {
+        static::creating(function (self $account) {
+            if ($account->property_id === null && $account->payment_id !== null) {
+                $account->property_id = $account->payment?->rental?->apartment?->floor?->property_id;
+            }
+        });
+    }
+
     // ── Relationships ────────────────────────────────────────────
 
     public function fiscalPeriod(): BelongsTo

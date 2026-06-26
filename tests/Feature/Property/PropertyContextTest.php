@@ -96,6 +96,66 @@ it('restores the remembered property after the session is cleared (re-login)', f
     expect(freshContext()->activePropertyId())->toBe($b['property']->id);
 });
 
+it('consolidates every accessible property when "All properties" is selected', function () {
+    $admin = makeAdmin();
+    $a = makePropertyTree($admin, 'Alpha');
+    $b = makePropertyTree($admin, 'Bravo');
+
+    $this->actingAs($admin);
+
+    $context = freshContext();
+    $context->setAllProperties();
+
+    // No single active property, but the consolidated view is an explicit choice.
+    expect($context->activePropertyId())->toBeNull()
+        ->and($context->showingAllProperties())->toBeTrue();
+
+    // forActiveProperty() no longer narrows to one building — both show through.
+    expect(Floors::forActiveProperty()->pluck('id')->all())
+        ->toEqualCanonicalizing([$a['floor']->id, $b['floor']->id])
+        ->and(Tenants::forActiveProperty()->pluck('id')->all())
+        ->toEqualCanonicalizing([$a['tenant']->id, $b['tenant']->id]);
+});
+
+it('switches to the consolidated view via the route and persists it', function () {
+    $admin = makeAdmin();
+    makePropertyTree($admin, 'Alpha');
+    makePropertyTree($admin, 'Bravo');
+
+    $this->actingAs($admin)
+        ->post(route('property.switch'), ['property_id' => PropertyContext::ALL_PROPERTIES])
+        ->assertRedirect();
+
+    expect((int) session(PropertyContext::SESSION_KEY))->toBe(PropertyContext::ALL_PROPERTIES)
+        ->and((int) $admin->fresh()->last_property_id)->toBe(PropertyContext::ALL_PROPERTIES);
+});
+
+it('restores the consolidated view after the session is cleared (re-login)', function () {
+    $admin = makeAdmin();
+    makePropertyTree($admin, 'Alpha');
+    makePropertyTree($admin, 'Bravo');
+    $admin->forceFill(['last_property_id' => PropertyContext::ALL_PROPERTIES])->save();
+
+    $this->actingAs($admin);
+
+    $context = freshContext();
+    expect($context->activePropertyId())->toBeNull()
+        ->and($context->showingAllProperties())->toBeTrue();
+});
+
+it('does not offer the consolidated view when only one property exists', function () {
+    $admin = makeAdmin();
+    $only = makePropertyTree($admin, 'Solo');
+
+    $this->actingAs($admin);
+
+    $context = freshContext();
+    $context->setAllProperties(); // no-op: nothing to consolidate
+
+    expect($context->showingAllProperties())->toBeFalse()
+        ->and($context->activePropertyId())->toBe($only['property']->id);
+});
+
 it('rejects switching to a property from another account', function () {
     $admin = makeAdmin();
     makePropertyTree($admin, 'Mine');
