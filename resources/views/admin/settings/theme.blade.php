@@ -7,18 +7,22 @@
     <div class="max-w-5xl mx-auto px-4 sm:px-6 space-y-8">
 
         {{-- Header --}}
-        <div class="flex items-start justify-between gap-4 flex-wrap">
-            <div>
-                <a href="{{ route('admin.settings.index') }}" class="ams-muted text-sm inline-flex items-center gap-1 hover:opacity-75">
-                    <span class="material-icons" style="font-size:1.1rem">arrow_back</span>
-                    {{ __('messages.settings_title') }}
-                </a>
-                <h1 class="ams-title text-3xl mt-2">{{ __('messages.theme_settings_title') }}</h1>
-                <p class="ams-muted mt-1 max-w-xl">{{ __('messages.theme_settings_subtitle') }}</p>
+        <div class="flex items-start justify-between gap-4">
+            <div class="flex items-start gap-3 min-w-0">
+                <span class="ams-stat-icon flex-shrink-0">
+                    <span class="material-icons">palette</span>
+                </span>
+                <div class="min-w-0">
+                    <h1 class="ams-title text-2xl sm:text-3xl">{{ __('messages.theme_settings_title') }}</h1>
+                    <p class="ams-muted mt-1 text-sm max-w-xl">{{ __('messages.theme_settings_subtitle') }}</p>
+                </div>
             </div>
-            <span class="ams-stat-icon">
-                <span class="material-icons">palette</span>
-            </span>
+            <a href="{{ route('admin.settings.index') }}"
+               title="{{ __('messages.settings_title') }}"
+               aria-label="{{ __('messages.settings_title') }}"
+               class="inline-flex items-center justify-center p-2 rounded-token-sm border border-line text-muted hover:bg-hover hover:text-token transition flex-shrink-0">
+                <span class="material-icons" style="font-size:1.4rem">arrow_back</span>
+            </a>
         </div>
 
         {{-- Live preview strip: a tiny slice of real UI that re-skins as you preview --}}

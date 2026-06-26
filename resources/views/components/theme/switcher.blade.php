@@ -19,22 +19,28 @@
         url: @js($updateUrl),
     })"
     x-init="init()"
-    class="space-y-4"
+    class="space-y-5"
 >
-    {{-- Toolbar: active indicator + reset-preview --}}
-    <div class="flex flex-wrap items-center justify-between gap-3">
-        <p class="ams-muted text-sm">
-            {{ __('messages.theme_active_label') }}
-            <span class="ams-text font-semibold" x-text="appliedName()"></span>
-        </p>
-        <button type="button"
-            class="ams-btn ams-btn-ghost text-xs"
-            x-show="preview !== applied"
-            x-cloak
-            @click="revert()">
-            <span class="material-icons" style="font-size:1rem">restart_alt</span>
-            {{ __('messages.theme_reset_preview') }}
-        </button>
+    {{-- Section header + toolbar --}}
+    <div class="flex flex-wrap items-end justify-between gap-3">
+        <div class="min-w-0">
+            <h3 class="ams-title text-lg">{{ __('messages.theme_choose') }}</h3>
+            <p class="ams-muted text-sm mt-0.5">{{ __('messages.theme_choose_hint') }}</p>
+        </div>
+        <div class="flex items-center gap-3 flex-wrap">
+            <p class="ams-muted text-sm">
+                {{ __('messages.theme_active_label') }}
+                <span class="ams-text font-semibold" x-text="appliedName()"></span>
+            </p>
+            <button type="button"
+                class="ams-btn ams-btn-ghost text-xs"
+                x-show="preview !== applied"
+                x-cloak
+                @click="revert()">
+                <span class="material-icons" style="font-size:1rem">restart_alt</span>
+                {{ __('messages.theme_reset_preview') }}
+            </button>
+        </div>
     </div>
 
     {{-- Theme list --}}
@@ -46,7 +52,7 @@
                 @click="setPreview(@js($theme->slug))"
                 @keydown.enter="setPreview(@js($theme->slug))"
                 @keydown.space.prevent="setPreview(@js($theme->slug))"
-                class="relative flex items-center gap-4 p-4 cursor-pointer transition"
+                class="relative flex items-center gap-4 p-4 cursor-pointer transition focus:outline-none"
                 :class="preview === @js($theme->slug) ? 'bg-active' : 'hover:bg-hover'"
                 @if(!$loop->first) style="border-top: 1px solid var(--border-color)" @endif
             >
@@ -56,26 +62,29 @@
                       style="background: {{ $theme->tokens['--accent-color'] }}"></span>
 
                 {{-- Thumbnail: miniature dashboard in the theme's own colors --}}
-                <div class="flex-shrink-0 w-24 h-16 rounded-xl overflow-hidden p-1.5 flex gap-1.5"
+                <div class="relative flex-shrink-0 w-28 h-16 rounded-token-sm overflow-hidden p-1.5 flex gap-1.5"
                      style="background: {{ $p['background'] }}; border: 1px solid {{ $theme->tokens['--border-color'] }}">
-                    <div class="w-1/3 rounded-md flex flex-col gap-1 p-1"
+                    {{-- sidebar --}}
+                    <div class="w-1/4 rounded-md flex flex-col gap-1 p-1"
                          style="background: {{ $p['sidebar'] }}; border: 1px solid {{ $theme->tokens['--border-color'] }}">
-                        <span class="h-1 rounded-full" style="background: {{ $p['accent'] }}; width: 80%"></span>
-                        <span class="h-1 rounded-full" style="background: {{ $p['accent'] }}; width: 60%"></span>
+                        <span class="h-1 rounded-full" style="background: {{ $theme->tokens['--accent-color'] }}; width: 90%"></span>
+                        <span class="h-0.5 rounded-full" style="background: {{ $p['accent'] }}; width: 70%; opacity: .55"></span>
+                        <span class="h-0.5 rounded-full" style="background: {{ $p['accent'] }}; width: 80%; opacity: .55"></span>
                     </div>
+                    {{-- main panel --}}
                     <div class="flex-1 rounded-md flex flex-col justify-between p-1"
                          style="background: {{ $p['card'] }}; border: 1px solid {{ $theme->tokens['--border-color'] }}">
-                        <span class="h-1.5 rounded-full" style="background: {{ $p['primary'] }}; width: 70%"></span>
-                        <span class="h-2.5 rounded" style="background: {{ $theme->tokens['--accent-color'] }}; width: 45%"></span>
+                        <span class="h-1 rounded-full" style="background: {{ $p['primary'] }}; width: 60%"></span>
+                        <span class="h-2 rounded" style="background: {{ $theme->tokens['--accent-color'] }}; width: 45%"></span>
                     </div>
                 </div>
 
                 {{-- Meta --}}
                 <div class="min-w-0 flex-1">
                     <div class="flex items-center gap-2">
-                        <h4 class="ams-title text-base">{{ $theme->name }}</h4>
+                        <h4 class="ams-title text-base truncate">{{ $theme->name }}</h4>
                         <span x-show="applied === @js($theme->slug)" x-cloak
-                              class="ams-badge ams-badge-accent">
+                              class="ams-badge ams-badge-accent flex-shrink-0">
                             <span class="material-icons" style="font-size:0.9rem">check</span>
                             {{ __('messages.theme_demo_active') }}
                         </span>
