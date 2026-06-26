@@ -22,7 +22,7 @@ class FiscalPeriodReportsService
      *
      * @param  \Illuminate\Support\Collection|iterable  $monthlyPeriods
      */
-    public function incomeStatement(FiscalPeriods $fiscalPeriod, iterable $monthlyPeriods): array
+    public function incomeStatement(FiscalPeriods $fiscalPeriod, iterable $monthlyPeriods, ?int $propertyId = null): array
     {
         $months = [];
         $totals = [
@@ -35,7 +35,7 @@ class FiscalPeriodReportsService
         ];
 
         foreach ($monthlyPeriods as $month) {
-            $data = $this->financials->forMonth($fiscalPeriod, $month);
+            $data = $this->financials->forMonth($fiscalPeriod, $month, $propertyId);
 
             $months[] = [
                 'name' => $month->name,
@@ -59,18 +59,23 @@ class FiscalPeriodReportsService
      *
      * @param  \Illuminate\Support\Collection|iterable  $monthlyPeriods
      */
-    public function cashFlow(FiscalPeriods $fiscalPeriod, iterable $monthlyPeriods): array
+    public function cashFlow(FiscalPeriods $fiscalPeriod, iterable $monthlyPeriods, ?int $propertyId = null): array
     {
+        // Opening balance and owner draws are entered at the account level, not
+        // per property — so a single-property cash flow shows only the operating
+        // cash it generated, starting from zero with no draws.
+        $isConsolidated = $propertyId === null;
+
         $months = [];
-        $runningBalance = (float) $fiscalPeriod->opening_balance;
+        $runningBalance = $isConsolidated ? (float) $fiscalPeriod->opening_balance : 0.0;
 
         foreach ($monthlyPeriods as $month) {
-            $data = $this->financials->forMonth($fiscalPeriod, $month);
+            $data = $this->financials->forMonth($fiscalPeriod, $month, $propertyId);
 
             // An owner draw is not an expense (net income is untouched), but it
             // is cash leaving the business, so the cash flow must subtract it
             // from the running balance carried into the next month.
-            $withdrawal = (float) $month->owner_withdrawal;
+            $withdrawal = $isConsolidated ? (float) $month->owner_withdrawal : 0.0;
 
             $openBal = $runningBalance;
             $closeBal = $openBal + $data['net_income'] - $withdrawal;
@@ -89,14 +94,17 @@ class FiscalPeriodReportsService
             $runningBalance = $closeBal;
         }
 
+        $openingBalance = $isConsolidated ? (float) $fiscalPeriod->opening_balance : 0.0;
+
         return [
             'months' => $months,
-            'opening_balance' => $fiscalPeriod->opening_balance,
+            'opening_balance' => $openingBalance,
             'closing_balance' => $runningBalance,
             'total_cash_in' => array_sum(array_column($months, 'cash_in')),
             'total_cash_out' => array_sum(array_column($months, 'cash_out')),
             'total_withdrawals' => array_sum(array_column($months, 'owner_withdrawal')),
-            'net_change' => $runningBalance - $fiscalPeriod->opening_balance,
+            'net_change' => $runningBalance - $openingBalance,
+            'is_consolidated' => $isConsolidated,
         ];
     }
 

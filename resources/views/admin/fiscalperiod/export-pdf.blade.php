@@ -49,6 +49,9 @@
         &nbsp;|&nbsp; Status: {{ status_label($fiscalperiod->status) }}
         &nbsp;|&nbsp; Generated {{ now()->format('F d, Y') }}
     </p>
+    <p style="color:#374151;font-size:12px;margin-top:4px;font-weight:600;">
+        {{ __('messages.viewing_property', ['name' => ($selectedProperty->name ?? __('messages.all_properties_consolidated'))]) }}
+    </p>
 </div>
 
 {{-- Period Details --}}
@@ -69,7 +72,7 @@
 {{-- Income & Expense Summary --}}
 @if(isset($periodFinancials))
 <div class="section">
-    <h2>{{ __('messages.income_expense_summary') }}</h2>
+    <h2>{{ __('messages.income_expense_summary') }}@if(!empty($selectedProperty)) — {{ $selectedProperty->name }}@endif</h2>
     <div class="two-col">
         <div class="box">
             <div class="box-title">{{ __('messages.income') }}</div>
@@ -105,6 +108,9 @@
 {{-- Balance Sheet Items --}}
 <div class="section">
     <h2>{{ __('messages.balance_sheet_items') }}</h2>
+    @if(!empty($selectedProperty))
+        <p style="font-size:11px;color:#92400e;background:#fffbeb;border:1px solid #fde68a;border-radius:4px;padding:6px 10px;margin-bottom:10px;">{{ __('messages.account_wide_note') }}</p>
+    @endif
     <table>
         <thead>
             <tr>

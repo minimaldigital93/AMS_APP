@@ -11,10 +11,13 @@ use App\Http\Requests\FiscalPeriod\UpdateFiscalPeriodRequest;
 use App\Models\BalanceSheet;
 use App\Models\FiscalPeriods;
 use App\Models\MonthlyPeriod;
+use App\Models\Property;
 use App\Services\FiscalPeriod\BalanceSheetService;
 use App\Services\FiscalPeriod\FiscalPeriodFinancialsService;
 use App\Services\FiscalPeriod\FiscalPeriodReportsService;
 use App\Services\FiscalPeriod\MonthlyPeriodManager;
+use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
 
 class FiscalPeriodController extends Controller
@@ -314,10 +317,16 @@ class FiscalPeriodController extends Controller
     // REPORTS + EXPORTS
     // ============================================================
 
-    public function reports(FiscalPeriods $fiscalperiod)
+    public function reports(FiscalPeriods $fiscalperiod, Request $request)
     {
         $this->authorizeUser($fiscalperiod);
 
+        $properties = $this->reportProperties();
+        $selectedPropertyId = $this->resolveSelectedProperty($request, $properties);
+
+        // Balance sheet & trial balance use account-level opening figures and
+        // owner draws, so they always reflect the whole account — never a
+        // single property.
         $balanceSheetItems = $fiscalperiod->balanceSheets()->get();
         $summary = $this->balanceSheetService->summary($fiscalperiod);
         $monthlyPeriods = $fiscalperiod->monthlyPeriods()->orderBy('start_date')->get();
@@ -326,33 +335,38 @@ class FiscalPeriodController extends Controller
         foreach ($monthlyPeriods as $month) {
             $monthlyData[] = [
                 'period' => $month,
-                'financials' => $this->financials->forMonth($fiscalperiod, $month),
+                'financials' => $this->financials->forMonth($fiscalperiod, $month, $selectedPropertyId),
             ];
         }
 
-        $periodFinancials = $this->financials->forPeriod($fiscalperiod);
-        $incomeStatement = $this->reportsService->incomeStatement($fiscalperiod, $monthlyPeriods);
-        $cashFlow = $this->reportsService->cashFlow($fiscalperiod, $monthlyPeriods);
+        $periodFinancials = $this->financials->forPeriod($fiscalperiod, $selectedPropertyId);
+        $incomeStatement = $this->reportsService->incomeStatement($fiscalperiod, $monthlyPeriods, $selectedPropertyId);
+        $cashFlow = $this->reportsService->cashFlow($fiscalperiod, $monthlyPeriods, $selectedPropertyId);
         $trialBalance = $this->reportsService->trialBalance($fiscalperiod);
 
         return view('admin.fiscalperiod.period_reports_exports', compact(
             'fiscalperiod', 'balanceSheetItems', 'summary',
             'monthlyPeriods', 'monthlyData', 'periodFinancials',
-            'incomeStatement', 'cashFlow', 'trialBalance'
+            'incomeStatement', 'cashFlow', 'trialBalance',
+            'properties', 'selectedPropertyId'
         ));
     }
 
-    public function exportPDF(FiscalPeriods $fiscalperiod)
+    public function exportPDF(FiscalPeriods $fiscalperiod, Request $request)
     {
         $this->authorizeUser($fiscalperiod);
+
+        $properties = $this->reportProperties();
+        $selectedPropertyId = $this->resolveSelectedProperty($request, $properties);
+        $selectedProperty = $selectedPropertyId ? $properties->firstWhere('id', $selectedPropertyId) : null;
 
         $balanceSheetItems = $fiscalperiod->balanceSheets()->get();
         $summary = $this->balanceSheetService->summary($fiscalperiod);
         $html = $this->balanceSheetService->renderHtml($fiscalperiod, $balanceSheetItems);
-        $periodFinancials = $this->financials->forPeriod($fiscalperiod);
+        $periodFinancials = $this->financials->forPeriod($fiscalperiod, $selectedPropertyId);
 
         return view('admin.fiscalperiod.export-pdf', compact(
-            'fiscalperiod', 'balanceSheetItems', 'summary', 'html', 'periodFinancials'
+            'fiscalperiod', 'balanceSheetItems', 'summary', 'html', 'periodFinancials', 'selectedProperty'
         ));
     }
 
@@ -367,25 +381,46 @@ class FiscalPeriodController extends Controller
         return view('admin.fiscalperiod.monthly-period-pdf', compact('fiscalperiod', 'monthlyPeriod', 'financials', 'balanceSheet'));
     }
 
-    public function exportCSV(FiscalPeriods $fiscalperiod)
+    public function exportCSV(FiscalPeriods $fiscalperiod, Request $request)
     {
         $this->authorizeUser($fiscalperiod);
 
+        $properties = $this->reportProperties();
+        $selectedPropertyId = $this->resolveSelectedProperty($request, $properties);
+        $selectedProperty = $selectedPropertyId ? $properties->firstWhere('id', $selectedPropertyId) : null;
+
         $balanceSheetItems = $fiscalperiod->balanceSheets()->orderBy('item_type')->get();
         $summary = $this->balanceSheetService->summary($fiscalperiod);
+        $periodFinancials = $this->financials->forPeriod($fiscalperiod, $selectedPropertyId);
 
-        $fileName = "balance_sheet_{$fiscalperiod->id}_".now()->format('Y-m-d').'.csv';
+        $scopeLabel = $selectedProperty?->name ?? 'All Properties (consolidated)';
+        $scopeSlug = $selectedProperty ? str()->slug($selectedProperty->name) : 'all';
+        $fileName = "fiscal_report_{$fiscalperiod->id}_{$scopeSlug}_".now()->format('Y-m-d').'.csv';
 
         return response()->stream(
-            function () use ($fiscalperiod, $balanceSheetItems, $summary) {
+            function () use ($fiscalperiod, $balanceSheetItems, $summary, $periodFinancials, $scopeLabel) {
                 $file = fopen('php://output', 'w');
 
                 fputcsv($file, [
                     'Fiscal Period: '.$fiscalperiod->name,
                     'Period: '.$fiscalperiod->opening_date.' to '.$fiscalperiod->closing_date,
+                    'Property: '.$scopeLabel,
                     'Generated: '.now()->format('Y-m-d H:i:s'),
                 ]);
+
+                // Income / revenue summary — scoped to the selected property.
                 fputcsv($file, []);
+                fputcsv($file, ['INCOME STATEMENT (Property: '.$scopeLabel.')']);
+                fputcsv($file, ['Account', 'Amount']);
+                fputcsv($file, ['Rent Income',   number_format($periodFinancials['rent_income'], 2)]);
+                fputcsv($file, ['Late Fees',     number_format($periodFinancials['late_fees'], 2)]);
+                fputcsv($file, ['Other Income',  number_format($periodFinancials['other_income'], 2)]);
+                fputcsv($file, ['Total Revenue', number_format($periodFinancials['total_income'], 2)]);
+                fputcsv($file, ['Total Expenses', number_format($periodFinancials['total_expenses'], 2)]);
+                fputcsv($file, ['Net Income',    number_format($periodFinancials['net_income'], 2)]);
+
+                fputcsv($file, []);
+                fputcsv($file, ['BALANCE SHEET ITEMS (account-wide)']);
                 fputcsv($file, ['Item Type', 'Sub Type', 'Name', 'Amount', 'As Of Date', 'Reference Number', 'Notes']);
 
                 foreach ($balanceSheetItems as $item) {
@@ -401,7 +436,7 @@ class FiscalPeriodController extends Controller
                 }
 
                 fputcsv($file, []);
-                fputcsv($file, ['SUMMARY']);
+                fputcsv($file, ['BALANCE SHEET SUMMARY (account-wide)']);
                 fputcsv($file, ['Total Assets',     number_format($summary['total_assets'], 2)]);
                 fputcsv($file, ['Total Liabilities', number_format($summary['total_liabilities'], 2)]);
                 fputcsv($file, ['Total Equity',     number_format($summary['total_equity'], 2)]);
@@ -454,6 +489,34 @@ class FiscalPeriodController extends Controller
         if ($fiscalperiod->user_id !== Auth::id()) {
             abort(403, 'Unauthorized access');
         }
+    }
+
+    /**
+     * Properties available for the reports/exports property filter. Account
+     * isolation is handled by BelongsToAccount, so this is every property in
+     * the current admin's account.
+     */
+    private function reportProperties(): Collection
+    {
+        return Property::orderBy('name')->get();
+    }
+
+    /**
+     * The property id the reports/exports should be scoped to, taken from the
+     * ?property= query param. Returns null (consolidated, all properties) when
+     * absent, "all", or not a property the admin owns.
+     */
+    private function resolveSelectedProperty(Request $request, Collection $properties): ?int
+    {
+        $raw = $request->query('property');
+
+        if ($raw === null || $raw === '' || $raw === 'all') {
+            return null;
+        }
+
+        $id = (int) $raw;
+
+        return $properties->contains('id', $id) ? $id : null;
     }
 
     /**

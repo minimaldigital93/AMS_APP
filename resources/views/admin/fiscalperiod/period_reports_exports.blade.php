@@ -1,6 +1,10 @@
 @extends('layouts.admin')
 
 @section('content')
+@php
+    $selectedProperty = ($selectedPropertyId ?? null) ? $properties->firstWhere('id', $selectedPropertyId) : null;
+    $propertyScopeLabel = $selectedProperty?->name ?? __('messages.all_properties_consolidated');
+@endphp
 <div class="container mx-auto py-8" x-data="{ activeTab: 'overview' }">
     {{-- Print letterhead: business name & contact from Settings --}}
     <div class="print-only">
@@ -8,6 +12,7 @@
         <div style="text-align:center; margin-bottom:16px;">
             <div style="font-size:16px; font-weight:700; color:#111827;">{{ __('messages.reports_exports') }} &mdash; {{ $fiscalperiod->name }}</div>
             <div style="font-size:11px; color:#6b7280; margin-top:2px;">{{ $fiscalperiod->opening_date?->format('M j, Y') }} &mdash; {{ $fiscalperiod->closing_date?->format('M j, Y') ?? __('messages.current') }}</div>
+            <div style="font-size:11px; color:#374151; margin-top:2px; font-weight:600;">{{ __('messages.viewing_property', ['name' => $propertyScopeLabel]) }}</div>
         </div>
     </div>
 
@@ -15,10 +20,30 @@
     <div class="flex items-start justify-between mb-6 gap-4 no-print">
         <div>
             <h1 class="text-2xl font-semibold text-slate-800 tracking-tight">{{ __('messages.reports_exports') }}</h1>
+            <p class="text-sm text-gray-500 mt-1">{{ __('messages.viewing_property', ['name' => $propertyScopeLabel]) }}</p>
         </div>
-        <div class="flex flex-wrap gap-2 justify-end no-print">
-            <a href="{{ route('admin.fiscalperiod.exportCSV', $fiscalperiod->id) }}" class="text-sm bg-gray-100 text-gray-700 px-3 py-2 rounded-lg hover:bg-gray-200 flex items-center gap-1.5" title="{{ __('messages.export_csv') }}">
+        <div class="flex flex-wrap items-center gap-2 justify-end no-print">
+            @if($properties->isNotEmpty())
+                {{-- Property filter: scopes revenue, income statement, cash flow & monthly breakdown --}}
+                <select
+                    onchange="window.location.href = this.value"
+                    class="text-sm border border-gray-200 rounded-lg px-3 py-2 bg-white text-gray-700 focus:ring-2 focus:ring-slate-400 focus:border-slate-400"
+                    title="{{ __('messages.filter_by_property') }}"
+                    aria-label="{{ __('messages.filter_by_property') }}">
+                    <option value="{{ route('admin.fiscalperiod.reports', [$fiscalperiod->id, 'property' => 'all']) }}" @selected(! $selectedProperty)>
+                        {{ __('messages.all_properties_consolidated') }}
+                    </option>
+                    @foreach($properties as $prop)
+                        <option value="{{ route('admin.fiscalperiod.reports', [$fiscalperiod->id, 'property' => $prop->id]) }}" @selected($selectedProperty && $selectedProperty->id === $prop->id)>
+                            {{ $prop->name }}
+                        </option>
+                    @endforeach
+                </select>
+            @endif
+            <a href="{{ route('admin.fiscalperiod.exportCSV', [$fiscalperiod->id, 'property' => $selectedProperty?->id ?? 'all']) }}" class="text-sm bg-gray-100 text-gray-700 px-3 py-2 rounded-lg hover:bg-gray-200 flex items-center gap-1.5" title="{{ __('messages.export_csv') }}">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg></a>
+            <a href="{{ route('admin.fiscalperiod.exportPDF', [$fiscalperiod->id, 'property' => $selectedProperty?->id ?? 'all']) }}" target="_blank" class="text-sm bg-gray-100 text-gray-700 px-3 py-2 rounded-lg hover:bg-gray-200 flex items-center gap-1.5" title="{{ __('messages.print_annual_summary_pdf') }}">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 13h6M9 17h3"/></svg></a>
             <button onclick="window.print()" class="text-sm bg-gray-700 text-white px-3 py-2 rounded-lg hover:bg-gray-800 flex items-center gap-1.5" title="{{ __('messages.print') }}">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg></button>
             <a href="{{ route('admin.fiscalperiod.show', $fiscalperiod->id) }}" class="text-sm bg-gray-100 text-gray-700 px-3 py-2 rounded-lg hover:bg-gray-200">← Back</a>
@@ -197,6 +222,13 @@
         <h2 class="text-xl font-bold mb-1">{{ __('messages.balance_sheet') }}</h2>
         <p class="text-sm text-gray-500 mb-6">As of {{ $fiscalperiod->closing_date->format('M d, Y') }}</p>
 
+        @if($selectedProperty)
+            <div class="mb-6 px-4 py-2.5 bg-amber-50 border border-amber-200 rounded-lg text-sm text-amber-800 flex items-start gap-2">
+                <svg class="w-4 h-4 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                <span>{{ __('messages.account_wide_note') }}</span>
+            </div>
+        @endif
+
         <!-- Summary -->
         <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
             <div class="border border-gray-100 rounded-lg p-4">
@@ -278,6 +310,13 @@
     <div x-show="activeTab === 'cash_flow'" x-cloak class="bg-white rounded-b-lg shadow p-6">
         <h2 class="text-xl font-bold mb-1">{{ __('messages.cash_flow_statement') }}</h2>
         <p class="text-sm text-gray-500 mb-6">{{ $fiscalperiod->opening_date->format('M d, Y') }} – {{ $fiscalperiod->closing_date->format('M d, Y') }}</p>
+
+        @if($selectedProperty)
+            <div class="mb-6 px-4 py-2.5 bg-sky-50 border border-sky-200 rounded-lg text-sm text-sky-800 flex items-start gap-2">
+                <svg class="w-4 h-4 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                <span>{{ __('messages.cash_flow_property_note') }}</span>
+            </div>
+        @endif
 
         <!-- Cash Flow Summary -->
         <div class="grid grid-cols-2 md:grid-cols-5 gap-4 mb-8">
@@ -380,6 +419,13 @@
         <h2 class="text-xl font-bold mb-1">{{ __('messages.trial_balance') }}</h2>
         <p class="text-sm text-gray-500 mb-1">As of {{ $fiscalperiod->closing_date->format('M d, Y') }}</p>
         <p class="text-xs text-gray-400 mb-6">Post-closing: net income (retained earnings of ${{ number_format($trialBalance['retained_earnings'], 2) }}) is folded into equity, not listed as a separate account.</p>
+
+        @if($selectedProperty)
+            <div class="mb-6 px-4 py-2.5 bg-amber-50 border border-amber-200 rounded-lg text-sm text-amber-800 flex items-start gap-2">
+                <svg class="w-4 h-4 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                <span>{{ __('messages.account_wide_note') }}</span>
+            </div>
+        @endif
 
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
             <!-- Debits -->

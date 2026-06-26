@@ -19,44 +19,54 @@ use Carbon\Carbon;
 class FiscalPeriodFinancialsService
 {
     /**
-     * Totals for a single monthly period.
+     * Totals for a single monthly period. Pass $propertyId to scope the figures
+     * to one property's books (null = consolidated across all properties).
      */
-    public function forMonth(FiscalPeriods $fiscalPeriod, MonthlyPeriod $month): array
+    public function forMonth(FiscalPeriods $fiscalPeriod, MonthlyPeriod $month, ?int $propertyId = null): array
     {
         return $this->forRange(
             $fiscalPeriod,
             Carbon::parse($month->start_date),
-            Carbon::parse($month->end_date)
+            Carbon::parse($month->end_date),
+            $propertyId
         );
     }
 
     /**
-     * Totals for the whole fiscal period.
+     * Totals for the whole fiscal period. Pass $propertyId to scope the figures
+     * to one property's books (null = consolidated across all properties).
      */
-    public function forPeriod(FiscalPeriods $fiscalPeriod): array
+    public function forPeriod(FiscalPeriods $fiscalPeriod, ?int $propertyId = null): array
     {
         return $this->forRange(
             $fiscalPeriod,
             Carbon::parse($fiscalPeriod->opening_date),
-            Carbon::parse($fiscalPeriod->closing_date)
+            Carbon::parse($fiscalPeriod->closing_date),
+            $propertyId
         );
     }
 
     /**
      * Aggregate income + expense from the Accounts ledger for the given range.
+     *
+     * When $propertyId is given the ledger is scoped to that property (plus any
+     * account-wide rows with a null property_id, per the scopeForProperty
+     * convention); null aggregates every property.
      */
-    public function forRange(FiscalPeriods $fiscalPeriod, Carbon $start, Carbon $end): array
+    public function forRange(FiscalPeriods $fiscalPeriod, Carbon $start, Carbon $end, ?int $propertyId = null): array
     {
         $start = $start->copy()->startOfDay();
         $end = $end->copy()->endOfDay();
 
         $incomeRecords = $fiscalPeriod->accounts()
             ->where('account_type', Accounts::TYPE_INCOME)
+            ->forProperty($propertyId)
             ->whereBetween('transaction_date', [$start, $end])
             ->get();
 
         $expenseRecords = $fiscalPeriod->accounts()
             ->where('account_type', Accounts::TYPE_EXPENSE)
+            ->forProperty($propertyId)
             ->whereBetween('transaction_date', [$start, $end])
             ->get();
 
