@@ -18,7 +18,8 @@ class FloorController extends Controller
 
     public function index(Request $request): View
     {
-        $query = Floors::query();
+        // Scope to the globally selected property (top-bar selector).
+        $query = Floors::query()->forActiveProperty();
 
         // Search functionality
         if ($request->has('search')) {
@@ -47,7 +48,7 @@ class FloorController extends Controller
      */
     public function plan3d(): View
     {
-        $floors = Floors::with(['apartments' => function ($query) {
+        $floors = Floors::forActiveProperty()->with(['apartments' => function ($query) {
             $query->orderBy('apartment_number')
                 ->with([
                     'tenants' => fn ($q) => $q->whereNull('archived_at'),

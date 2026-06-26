@@ -54,7 +54,12 @@ class TenantController extends Controller
         $query = Tenants::onlyTrashed();
 
         if (! $this->seesWholeAccount()) {
-            $propertyIds = $this->supervisorPropertyIds();
+            // Narrow to the active property when one is selected, otherwise to all
+            // of the supervisor's assigned properties.
+            $activeId = current_property_id();
+            $propertyIds = $activeId !== null
+                ? collect([$activeId])
+                : $this->supervisorPropertyIds();
             $query->where(function (Builder $q) use ($propertyIds) {
                 $q->whereHas('apartment.floor', fn (Builder $sub) => $sub->whereIn('property_id', $propertyIds))
                     ->orWhereHas('leaves.apartment.floor', fn (Builder $sub) => $sub->whereIn('property_id', $propertyIds));
@@ -69,7 +74,8 @@ class TenantController extends Controller
      */
     public function index(Request $request): View
     {
-        $apartmentIds = $this->allApartmentIds();
+        // Narrow the supervisor's assigned rooms to the globally selected property.
+        $apartmentIds = $this->supervisorVisibleApartments()->forActiveProperty()->pluck('id')->all();
 
         // Get admin's active fiscal period
         $activePeriod = FiscalPeriods::where('status', 'open')
@@ -107,7 +113,7 @@ class TenantController extends Controller
         }
 
         $tenants = $query->orderBy('id', 'desc')->paginate(15);
-        $apartments = $this->supervisorVisibleApartments()->with('floor')->get();
+        $apartments = $this->supervisorVisibleApartments()->forActiveProperty()->with('floor')->get();
 
         $rentProgressMap = $this->rentProgressCalculator->map($tenants, $activePeriod);
 

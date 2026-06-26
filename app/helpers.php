@@ -98,6 +98,23 @@ if (! function_exists('current_account_id')) {
     }
 }
 
+if (! function_exists('current_property_id')) {
+    /**
+     * The id of the property the current request is scoped to (the global
+     * "active property" chosen in the top-bar selector), or null when the user
+     * has no accessible property.
+     *
+     * The FiltersByProperty model scope and the dashboard services key off this
+     * to show one building's data at a time. Like current_account_id(), it
+     * returns null when there is no active property so unscoped/global lookups
+     * (and the account-wide null-property convention) keep working.
+     */
+    function current_property_id(): ?int
+    {
+        return app(\App\Services\Property\PropertyContext::class)->activePropertyId();
+    }
+}
+
 if (! function_exists('theme_service')) {
     /**
      * The shared ThemeService instance (resolved from the container).

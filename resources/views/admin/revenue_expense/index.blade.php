@@ -10,21 +10,10 @@
             <h1 class="text-2xl font-semibold text-slate-800 tracking-tight">{{ __('messages.revenue_expense') }}</h1>
         </div>
         <div class="flex items-center gap-2">
-            @if(isset($properties) && $properties->count() > 1)
-            <form method="GET" action="{{ route('admin.revenue_expense.index') }}">
-                <input type="hidden" name="period" value="{{ $activePeriod->id }}">
-                <select name="property" onchange="this.form.submit()" class="text-sm border-slate-200 rounded-lg focus:ring-sky-500 focus:border-sky-500" title="{{ __('messages.select_property') }}">
-                    @foreach($properties as $prop)
-                    <option value="{{ $prop->id }}" {{ ($activeProperty && $prop->id === $activeProperty->id) ? 'selected' : '' }}>{{ $prop->name }}</option>
-                    @endforeach
-                </select>
-            </form>
-            @endif
+            {{-- Property is now chosen from the global top-bar selector; only the
+                 fiscal-period switcher remains here (period stays independent). --}}
             @if($fiscalPeriods->count() > 1)
             <form method="GET" action="{{ route('admin.revenue_expense.index') }}">
-                @if(isset($activeProperty) && $activeProperty)
-                <input type="hidden" name="property" value="{{ $activeProperty->id }}">
-                @endif
                 <select name="period" onchange="this.form.submit()" class="text-sm border-slate-200 rounded-lg focus:ring-sky-500 focus:border-sky-500">
                     @foreach($fiscalPeriods as $fp)
                     <option value="{{ $fp->id }}" {{ $fp->id === $activePeriod->id ? 'selected' : '' }}>{{ $fp->name }}</option>

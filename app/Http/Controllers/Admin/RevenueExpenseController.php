@@ -57,43 +57,19 @@ class RevenueExpenseController extends Controller
     }
 
     /**
-     * Memoized active property for this request. `false` means "not yet
-     * resolved"; `null` is a valid resolved result (account has no properties).
-     */
-    private Property|null|false $activePropertyCache = false;
-
-    /**
-     * The property whose books the admin is currently viewing. Resolved from
-     * ?property=ID (validated against this account via the global scope, then
-     * remembered in the session), falling back to the remembered choice, then
-     * the account's first property. Null when the account has no properties yet
-     * — in which case the books stay unscoped (legacy single-building behaviour).
+     * The property whose books the admin is currently viewing — now driven by the
+     * global top-bar property selector (PropertyContext) rather than a per-page
+     * ?property= param, so the choice is shared across every module. Null when the
+     * account has no properties yet (books stay unscoped — legacy single-building).
      */
     protected function activeProperty(): ?Property
     {
-        if ($this->activePropertyCache !== false) {
-            return $this->activePropertyCache;
-        }
-
-        $requested = request('property') ? (int) request('property') : null;
-        if ($requested && ($property = Property::find($requested))) {
-            session(['revenue_expense.property_id' => $property->id]);
-
-            return $this->activePropertyCache = $property;
-        }
-
-        $sessionId = session('revenue_expense.property_id');
-        if ($sessionId && ($property = Property::find($sessionId))) {
-            return $this->activePropertyCache = $property;
-        }
-        session()->forget('revenue_expense.property_id');
-
-        return $this->activePropertyCache = Property::orderBy('name')->first();
+        return app(\App\Services\Property\PropertyContext::class)->activeProperty();
     }
 
     protected function activePropertyId(): ?int
     {
-        return $this->activeProperty()?->id;
+        return current_property_id();
     }
 
     /**
@@ -200,11 +176,9 @@ class RevenueExpenseController extends Controller
 
         $revenueExpenseData['fiscalPeriods'] = $this->getAllFiscalPeriods();
 
-        // Per-property books: the dropdown lets the admin switch which property's
-        // income/expense they're viewing (scopeApartments + the ledger queries
-        // are both filtered to activeProperty()).
-        $revenueExpenseData['properties'] = Property::orderBy('name')->get();
-        $revenueExpenseData['activeProperty'] = $this->activeProperty();
+        // Property is now chosen globally (top-bar selector); scopeApartments()
+        // and the ledger queries below are filtered to activePropertyId() from
+        // the shared PropertyContext, so no per-page property list is needed.
 
         // Month/year used by billing + utilities queries (respect filter if provided).
         $currentMonth = $filterMonth ?? now()->month;

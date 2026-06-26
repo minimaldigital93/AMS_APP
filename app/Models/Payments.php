@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Models\Concerns\BelongsToAccount;
+use App\Models\Concerns\FiltersByProperty;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -10,7 +11,13 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Payments extends Model
 {
-    use BelongsToAccount, SoftDeletes;
+    use BelongsToAccount, FiltersByProperty, SoftDeletes;
+
+    /** Payments reach a property through rental → apartment → floor. */
+    protected function propertyPath(): ?string
+    {
+        return 'rental.apartment.floor';
+    }
 
     protected $fillable = [
         'rental_id',

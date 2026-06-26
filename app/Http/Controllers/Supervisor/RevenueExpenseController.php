@@ -55,7 +55,8 @@ class RevenueExpenseController extends Controller
      */
     protected function scopeApartments(): Builder
     {
-        return $this->supervisorVisibleApartments();
+        // Narrow the supervisor's assigned rooms to the globally selected property.
+        return $this->supervisorVisibleApartments()->forActiveProperty();
     }
 
     protected function khqrRoutePrefix(): string

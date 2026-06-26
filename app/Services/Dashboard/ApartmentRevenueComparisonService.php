@@ -15,7 +15,10 @@ use Carbon\Carbon;
  */
 class ApartmentRevenueComparisonService
 {
-    public function __construct(private ?array $apartmentIds = null) {}
+    public function __construct(
+        private ?array $apartmentIds = null,
+        private ?int $propertyId = null,
+    ) {}
 
     public function build(Carbon $selectedMonth): array
     {
@@ -23,7 +26,7 @@ class ApartmentRevenueComparisonService
         $currentYear = $selectedMonth->year;
         $apartmentIds = $this->apartmentIds;
 
-        $floorsQuery = Floors::with(['apartments' => function ($q) use ($apartmentIds) {
+        $floorsQuery = Floors::forProperty($this->propertyId)->with(['apartments' => function ($q) use ($apartmentIds) {
             $q->select('id', 'floor_id', 'apartment_number', 'monthly_rent', 'status')
                 ->orderBy('apartment_number');
             if ($apartmentIds !== null) {
@@ -34,8 +37,8 @@ class ApartmentRevenueComparisonService
         $result = [];
         foreach ($floorsQuery->get() as $floor) {
             if ($floor->apartments->isEmpty()) {
-                if ($this->apartmentIds !== null) {
-                    continue; // supervisor: hide empty floors
+                if ($this->apartmentIds !== null || $this->propertyId !== null) {
+                    continue; // scoped view: hide empty floors
                 }
             }
 

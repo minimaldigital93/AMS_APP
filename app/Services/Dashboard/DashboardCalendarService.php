@@ -19,6 +19,7 @@ class DashboardCalendarService
     public function __construct(
         private int $userId,
         private ?array $apartmentIds = null,
+        private ?int $propertyId = null,
     ) {}
 
     /**
@@ -106,7 +107,7 @@ class DashboardCalendarService
     private function applyScope(Builder $query, ?FiscalPeriods $activePeriod): void
     {
         if ($this->apartmentIds === null) {
-            $query->where('user_id', $this->userId);
+            $query->where('user_id', $this->userId)->forProperty($this->propertyId);
 
             return;
         }
@@ -121,6 +122,6 @@ class DashboardCalendarService
                 ->orWhere(function ($q2) {
                     $q2->where('account_type', Accounts::TYPE_EXPENSE)->whereNull('payment_id');
                 });
-        });
+        })->forProperty($this->propertyId);
     }
 }

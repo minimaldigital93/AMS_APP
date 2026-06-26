@@ -24,7 +24,8 @@ class ApartmentController extends Controller
 
     public function index(Request $request): View
     {
-        $query = Apartments::with(['floor', 'tenants', 'supervisor']);
+        // Scope to the globally selected property (top-bar selector).
+        $query = Apartments::with(['floor', 'tenants', 'supervisor'])->forActiveProperty();
 
         // Search functionality
         if ($request->has('search')) {
@@ -48,10 +49,12 @@ class ApartmentController extends Controller
             return $group->first()->floor->id;
         });
 
-        $floorsWithApartments = Floors::with('apartments')->orderBy('id', 'asc')->get();
-        $floors = Floors::orderBy('id', 'asc')->get();
+        $floorsWithApartments = Floors::forActiveProperty()->with('apartments')->orderBy('id', 'asc')->get();
+        $floors = Floors::forActiveProperty()->orderBy('id', 'asc')->get();
         $statuses = Apartments::getStatuses();
         $supervisors = User::role('supervisor')->get();
+        // Unassigned tenants are account-wide (no apartment yet) and stay assignable
+        // to any property, so they are intentionally not property-filtered here.
         $availableTenants = Tenants::where('status', 'active')->whereNull('apartment_id')->get();
 
         return view('admin.apartments.index', compact('apartmentsByFloor', 'floors', 'floorsWithApartments', 'statuses', 'supervisors', 'availableTenants'));

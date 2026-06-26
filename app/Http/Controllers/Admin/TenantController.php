@@ -34,10 +34,30 @@ class TenantController extends Controller
         protected TenantRentProgressCalculator $rentProgressCalculator,
     ) {}
 
+    /**
+     * Constrain archived (apartment_id-cleared) tenants to the active property.
+     * They keep their property linkage only through leave history, so match on
+     * either a still-set apartment or the apartment recorded on a leave row.
+     */
+    private function scopeArchivedToActiveProperty(Builder $query): Builder
+    {
+        $propertyId = current_property_id();
+
+        if ($propertyId === null) {
+            return $query;
+        }
+
+        return $query->where(function (Builder $q) use ($propertyId) {
+            $q->whereHas('apartment.floor', fn (Builder $s) => $s->where('property_id', $propertyId))
+                ->orWhereHas('leaves.apartment.floor', fn (Builder $s) => $s->where('property_id', $propertyId));
+        });
+    }
+
     public function index(Request $request): View
     {
         $query = Tenants::whereIn('status', ['active', 'pending'])
-            ->with(['apartment']);
+            ->with(['apartment'])
+            ->forActiveProperty();
 
         // Search filter
         if ($request->has('search') && ! empty($request->search)) {
@@ -67,15 +87,17 @@ class TenantController extends Controller
         }
 
         $tenants = $query->orderBy('id', 'desc')->paginate(15);
-        $apartments = Apartments::all();
-        $floors = Floors::whereHas('apartments')->orderBy('id', 'asc')->get();
+        $apartments = Apartments::forActiveProperty()->get();
+        $floors = Floors::forActiveProperty()->whereHas('apartments')->orderBy('id', 'asc')->get();
 
         $rentProgressMap = $this->rentProgressCalculator->map($tenants);
 
-        // Statistics counts (across all records, not just current page)
-        $activeTenantCount = Tenants::where('status', 'active')->count();
-        $archivedTenantCount = Tenants::onlyTrashed()->count();
-        $totalDeposits = Tenants::where('status', 'active')->sum('deposit');
+        // Statistics counts (across all records, not just current page), scoped to
+        // the active property. Archived tenants have apartment_id cleared, so they
+        // are matched through their leave history.
+        $activeTenantCount = Tenants::where('status', 'active')->forActiveProperty()->count();
+        $archivedTenantCount = $this->scopeArchivedToActiveProperty(Tenants::onlyTrashed())->count();
+        $totalDeposits = Tenants::where('status', 'active')->forActiveProperty()->sum('deposit');
 
         return view('admin.TenantManagement.activeTenants', compact('tenants', 'apartments', 'rentProgressMap', 'floors', 'activeTenantCount', 'archivedTenantCount', 'totalDeposits'));
     }
@@ -85,8 +107,9 @@ class TenantController extends Controller
      */
     public function archived(Request $request): View
     {
-        $query = Tenants::onlyTrashed()
-            ->with(['apartment.floor', 'leaves.apartment.floor']);
+        $query = $this->scopeArchivedToActiveProperty(
+            Tenants::onlyTrashed()->with(['apartment.floor', 'leaves.apartment.floor'])
+        );
 
         if ($search = $request->input('search')) {
             $query->where(function ($q) use ($search) {
@@ -108,11 +131,11 @@ class TenantController extends Controller
         }
 
         $tenants = $query->orderBy('deleted_at', 'desc')->paginate(7)->withQueryString();
-        $floors = Floors::orderBy('floor_name')->get();
+        $floors = Floors::forActiveProperty()->orderBy('floor_name')->get();
 
-        $archivedTenantCount = Tenants::onlyTrashed()->count();
-        $recentlyArchivedCount = Tenants::onlyTrashed()->where('deleted_at', '>=', now()->subDays(30))->count();
-        $totalDeposits = Tenants::onlyTrashed()->sum('deposit');
+        $archivedTenantCount = $this->scopeArchivedToActiveProperty(Tenants::onlyTrashed())->count();
+        $recentlyArchivedCount = $this->scopeArchivedToActiveProperty(Tenants::onlyTrashed()->where('deleted_at', '>=', now()->subDays(30)))->count();
+        $totalDeposits = $this->scopeArchivedToActiveProperty(Tenants::onlyTrashed())->sum('deposit');
 
         return view('admin.TenantManagement.archivedTenants', compact('tenants', 'floors', 'archivedTenantCount', 'recentlyArchivedCount', 'totalDeposits'));
     }

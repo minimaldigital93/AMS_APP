@@ -43,6 +43,10 @@ class DashboardController extends Controller
     public function index(Request $request): View
     {
         $apartmentIds = $this->supervisorApartmentIds();
+        // Narrow the supervisor's view to the globally selected property (one of
+        // their assigned properties). Layered on top of $apartmentIds, so it can
+        // only narrow, never widen, what they may already see.
+        $propertyId = current_property_id();
 
         $activePeriod = $this->getActiveFiscalPeriod();
         $periodMonths = $activePeriod ? $this->buildPeriodMonths($activePeriod) : [];
@@ -57,19 +61,19 @@ class DashboardController extends Controller
 
         $userId = $this->ledgerUserId() ?? 0; // ?? 0 keeps the type contract; period absent → no rows match anyway
 
-        $stats = (new DashboardStatsService($userId, $apartmentIds))
+        $stats = (new DashboardStatsService($userId, $apartmentIds, $propertyId))
             ->build($dateRange['start'], $dateRange['end'], $displayMonth);
-        $fiscalData = (new FiscalPeriodSummaryService($userId, $apartmentIds))
+        $fiscalData = (new FiscalPeriodSummaryService($userId, $apartmentIds, $propertyId))
             ->build($activePeriod);
         $calendarData = $isFullPeriod
             ? null
-            : (new DashboardCalendarService($userId, $apartmentIds))->build($activePeriod, $displayMonth);
+            : (new DashboardCalendarService($userId, $apartmentIds, $propertyId))->build($activePeriod, $displayMonth);
 
-        $recentTransactions = $this->loadRecentTransactions($activePeriod, $apartmentIds, $dateRange);
+        $recentTransactions = $this->loadRecentTransactions($activePeriod, $apartmentIds, $dateRange, $propertyId);
 
         $apartmentRevenues = $isFullPeriod
             ? []
-            : (new ApartmentRevenueComparisonService($apartmentIds))->build($displayMonth);
+            : (new ApartmentRevenueComparisonService($apartmentIds, $propertyId))->build($displayMonth);
 
         $monthNavigation = $this->getMonthNavigation($periodMonths, $displayMonth, $isFullPeriod);
 
@@ -88,13 +92,14 @@ class DashboardController extends Controller
      * (whereNull payment_id) which are admin-wide overhead and visible to
      * all supervisors.
      */
-    private function loadRecentTransactions(?FiscalPeriods $activePeriod, array $apartmentIds, array $dateRange)
+    private function loadRecentTransactions(?FiscalPeriods $activePeriod, array $apartmentIds, array $dateRange, ?int $propertyId = null)
     {
         if (! $activePeriod) {
             return collect();
         }
 
         return Accounts::where('fiscal_period_id', $activePeriod->id)
+            ->forProperty($propertyId)
             ->where(function ($q) use ($apartmentIds) {
                 $q->whereHas('payment', function ($pq) use ($apartmentIds) {
                     $pq->whereHas('rental', function ($rq) use ($apartmentIds) {

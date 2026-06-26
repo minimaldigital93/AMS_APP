@@ -31,6 +31,7 @@ class DashboardStatsService
     public function __construct(
         private int $userId,
         private ?array $apartmentIds = null,
+        private ?int $propertyId = null,
     ) {}
 
     /**
@@ -68,9 +69,7 @@ class DashboardStatsService
             $this->scopedApartmentQuery(),
             ['available', 'occupied']
         );
-        $apartmentCounts['total'] = $this->apartmentIds !== null
-            ? count($this->apartmentIds)
-            : Apartments::count();
+        $apartmentCounts['total'] = $this->scopedApartmentQuery()->count();
 
         $tenantCounts = $this->countByStatus(
             $this->scopedTenantQuery(),
@@ -213,7 +212,7 @@ class DashboardStatsService
      */
     private function utilityBreakdown(Carbon $startDate, Carbon $endDate): array
     {
-        $query = Utilities::query();
+        $query = Utilities::query()->forProperty($this->propertyId);
 
         if ($this->apartmentIds !== null) {
             $query->whereHas('rental', fn ($q) => $q->whereIn('apartment_id', $this->apartmentIds));
@@ -241,7 +240,7 @@ class DashboardStatsService
      */
     private function floorOccupancy(): array
     {
-        $floorsQuery = Floors::orderBy('id');
+        $floorsQuery = Floors::query()->forProperty($this->propertyId)->orderBy('id');
         if ($this->apartmentIds !== null) {
             $floorsQuery->with(['apartments' => fn ($q) => $q->whereIn('id', $this->apartmentIds)]);
         } else {
@@ -263,9 +262,11 @@ class DashboardStatsService
             $floorOccupancy[] = round(($occupied / $total) * 100, 1);
         }
 
-        // Admin reports total floors_count (matches legacy Floors::count());
-        // supervisor reports only floors that contain in-scope apartments.
-        $floorsCount = $this->apartmentIds === null ? Floors::count() : $floorsWithApartments;
+        // Unscoped admin reports total floors_count (legacy Floors::count());
+        // once narrowed to a property/supervisor scope, report only floors that
+        // contain in-scope apartments.
+        $scoped = $this->apartmentIds !== null || $this->propertyId !== null;
+        $floorsCount = $scoped ? $floorsWithApartments : Floors::count();
 
         return [$floorLabels, $floorOccupancy, $floorsCount];
     }
@@ -284,7 +285,8 @@ class DashboardStatsService
     private function collectedTotal(Carbon $startDate, Carbon $endDate): float
     {
         $query = Payments::where('payment_status', 'paid')
-            ->whereBetween('paid_at', [$startDate->copy()->startOfDay(), $endDate->copy()->endOfDay()]);
+            ->whereBetween('paid_at', [$startDate->copy()->startOfDay(), $endDate->copy()->endOfDay()])
+            ->forProperty($this->propertyId);
 
         if ($this->apartmentIds !== null) {
             $query->whereHas('rental', fn ($q) => $q->whereIn('apartment_id', $this->apartmentIds));
@@ -295,7 +297,7 @@ class DashboardStatsService
 
     private function tenantsOnLeaveCount(): int
     {
-        $query = TenantLeave::query();
+        $query = TenantLeave::query()->forProperty($this->propertyId);
         if ($this->apartmentIds !== null) {
             $query->whereIn('apartment_id', $this->apartmentIds);
         }
@@ -312,7 +314,8 @@ class DashboardStatsService
     private function scopedIncomeAccountsInRange(Carbon $startDate, Carbon $endDate): Builder
     {
         $query = Accounts::where('account_type', Accounts::TYPE_INCOME)
-            ->whereBetween('transaction_date', [$startDate->copy()->startOfDay(), $endDate->copy()->endOfDay()]);
+            ->whereBetween('transaction_date', [$startDate->copy()->startOfDay(), $endDate->copy()->endOfDay()])
+            ->forProperty($this->propertyId);
 
         if ($this->apartmentIds === null) {
             $query->where('user_id', $this->userId);
@@ -331,7 +334,8 @@ class DashboardStatsService
     private function scopedExpenseAccountsInRange(Carbon $startDate, Carbon $endDate): Builder
     {
         $query = Accounts::where('account_type', Accounts::TYPE_EXPENSE)
-            ->whereBetween('transaction_date', [$startDate->copy()->startOfDay(), $endDate->copy()->endOfDay()]);
+            ->whereBetween('transaction_date', [$startDate->copy()->startOfDay(), $endDate->copy()->endOfDay()])
+            ->forProperty($this->propertyId);
 
         if ($this->apartmentIds === null) {
             $query->where('user_id', $this->userId);
@@ -348,7 +352,7 @@ class DashboardStatsService
 
     private function scopedApartmentQuery(): Builder
     {
-        $query = Apartments::query();
+        $query = Apartments::query()->forProperty($this->propertyId);
         if ($this->apartmentIds !== null) {
             $query->whereIn('id', $this->apartmentIds);
         }
@@ -358,7 +362,7 @@ class DashboardStatsService
 
     private function scopedTenantQuery(): Builder
     {
-        $query = Tenants::query();
+        $query = Tenants::query()->forProperty($this->propertyId);
         if ($this->apartmentIds !== null) {
             $query->whereIn('apartment_id', $this->apartmentIds);
         }
@@ -368,7 +372,7 @@ class DashboardStatsService
 
     private function scopedRentalQuery(): Builder
     {
-        $query = Rentals::query();
+        $query = Rentals::query()->forProperty($this->propertyId);
         if ($this->apartmentIds !== null) {
             $query->whereIn('apartment_id', $this->apartmentIds);
         }

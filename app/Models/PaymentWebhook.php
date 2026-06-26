@@ -15,9 +15,13 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 class PaymentWebhook extends Model
 {
     public const STATUS_RECEIVED = 'received';
+
     public const STATUS_PROCESSED = 'processed';
+
     public const STATUS_DUPLICATE = 'duplicate';
+
     public const STATUS_INVALID = 'invalid';
+
     public const STATUS_IGNORED = 'ignored';
 
     protected $fillable = [

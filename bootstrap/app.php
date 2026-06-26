@@ -4,6 +4,7 @@ use App\Http\Middleware\EnsureFiscalPeriodExists;
 use App\Http\Middleware\EnsureSubscriptionActive;
 use App\Http\Middleware\RoleMiddleware;
 use App\Http\Middleware\SetLocale;
+use App\Http\Middleware\SetPropertyContext;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -31,6 +32,7 @@ return Application::configure(basePath: dirname(__DIR__))
 
         $middleware->web(append: [
             SetLocale::class,
+            SetPropertyContext::class,
         ]);
 
         $middleware->alias([

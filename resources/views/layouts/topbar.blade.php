@@ -22,6 +22,9 @@
 
     <!-- Right Actions -->
     <div class="flex items-center space-x-2 sm:space-x-4">
+        {{-- Global active-property context selector (before the user / fiscal period) --}}
+        @include('partials.property-selector')
+
         @auth
         @php
             $notifications = $topbarNotifications ?? collect();

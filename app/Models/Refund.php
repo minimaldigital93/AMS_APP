@@ -13,8 +13,11 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 class Refund extends Model
 {
     public const STATUS_REQUESTED = 'requested';
+
     public const STATUS_PROCESSING = 'processing';
+
     public const STATUS_COMPLETED = 'completed';
+
     public const STATUS_FAILED = 'failed';
 
     protected $fillable = [

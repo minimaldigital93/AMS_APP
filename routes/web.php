@@ -51,6 +51,12 @@ Route::post('/language/switch', function (\Illuminate\Http\Request $request) {
     return redirect()->back()->with('success', __('messages.language_changed'));
 })->name('language.switch')->middleware('auth');
 
+// Global active-property context switch (top-bar selector). Authorization is
+// enforced inside PropertyContext::setActiveProperty().
+Route::post('/property/switch', [\App\Http\Controllers\PropertyContextController::class, 'switch'])
+    ->name('property.switch')
+    ->middleware('auth');
+
 // Route for dashboard - redirects to role-appropriate dashboard
 Route::get('/dashboard', function () {
     /** @var \App\Models\User $user */

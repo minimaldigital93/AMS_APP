@@ -4,6 +4,4 @@ namespace App\Exceptions;
 
 use RuntimeException;
 
-class KhqrPlatformCredentialsMissingException extends RuntimeException
-{
-}
+class KhqrPlatformCredentialsMissingException extends RuntimeException {}

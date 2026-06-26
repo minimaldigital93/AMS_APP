@@ -45,15 +45,19 @@ class DashboardController extends Controller
         $dateRange = $this->resolveDateRange($activePeriod, $selectedMonth, $isFullPeriod);
         $displayMonth = $selectedMonth ?: $this->resolveDisplayMonth($activePeriod, $periodMonths);
 
-        $stats = (new DashboardStatsService($this->ledgerUserId()))
+        // Scope every dashboard widget to the globally selected property.
+        $propertyId = current_property_id();
+
+        $stats = (new DashboardStatsService($this->ledgerUserId(), null, $propertyId))
             ->build($dateRange['start'], $dateRange['end'], $displayMonth);
-        $fiscalData = (new FiscalPeriodSummaryService($this->ledgerUserId()))
+        $fiscalData = (new FiscalPeriodSummaryService($this->ledgerUserId(), null, $propertyId))
             ->build($activePeriod);
         $calendarData = $isFullPeriod
             ? null
-            : (new DashboardCalendarService($this->ledgerUserId()))->build($activePeriod, $displayMonth);
+            : (new DashboardCalendarService($this->ledgerUserId(), null, $propertyId))->build($activePeriod, $displayMonth);
 
         $recentTransactions = Accounts::where('user_id', Auth::id())
+            ->forProperty($propertyId)
             ->whereBetween('transaction_date', [
                 $dateRange['start']->copy()->startOfDay(),
                 $dateRange['end']->copy()->endOfDay(),
@@ -65,7 +69,7 @@ class DashboardController extends Controller
 
         $apartmentRevenues = $isFullPeriod
             ? []
-            : (new ApartmentRevenueComparisonService)->build($displayMonth);
+            : (new ApartmentRevenueComparisonService(null, $propertyId))->build($displayMonth);
 
         $monthNavigation = $this->getMonthNavigation($periodMonths, $displayMonth, $isFullPeriod);
 

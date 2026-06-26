@@ -3,12 +3,19 @@
 namespace App\Models;
 
 use App\Models\Concerns\BelongsToAccount;
+use App\Models\Concerns\FiltersByProperty;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class Utilities extends Model
 {
-    use BelongsToAccount;
+    use BelongsToAccount, FiltersByProperty;
+
+    /** Utilities reach a property through rental → apartment → floor. */
+    protected function propertyPath(): ?string
+    {
+        return 'rental.apartment.floor';
+    }
 
     protected $fillable = [
         'tenant_id',

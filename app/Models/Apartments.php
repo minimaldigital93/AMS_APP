@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Models\Concerns\BelongsToAccount;
+use App\Models\Concerns\FiltersByProperty;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -10,7 +11,13 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Apartments extends Model
 {
-    use BelongsToAccount, SoftDeletes;
+    use BelongsToAccount, FiltersByProperty, SoftDeletes;
+
+    /** Apartments reach a property through their floor. */
+    protected function propertyPath(): ?string
+    {
+        return 'floor';
+    }
 
     // Status constants
     public const STATUS_AVAILABLE = 'available';

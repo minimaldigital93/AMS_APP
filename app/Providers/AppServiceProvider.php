@@ -5,6 +5,7 @@ namespace App\Providers;
 use App\Models\Subscription;
 use App\Services\NotificationService;
 use App\Services\Payment\PaymentManager;
+use App\Services\Property\PropertyContext;
 use App\Services\Subscription\SubscriptionService;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\URL;
@@ -20,6 +21,9 @@ class AppServiceProvider extends ServiceProvider
     {
         $this->app->singleton(NotificationService::class, fn () => new NotificationService);
         $this->app->singleton(PaymentManager::class, fn () => new PaymentManager);
+
+        // The active-property context is resolved at most once per request.
+        $this->app->singleton(PropertyContext::class, fn () => new PropertyContext);
     }
 
     /**
@@ -34,14 +38,32 @@ class AppServiceProvider extends ServiceProvider
 
         View::composer('layouts.topbar', function ($view) {
             $items = collect();
+            $properties = collect();
+            $activeProperty = null;
+            $propertySelectorEnabled = false;
+
             if (Auth::check()) {
                 try {
                     $items = app(NotificationService::class)->for(Auth::user());
                 } catch (\Throwable $e) {
                     $items = collect();
                 }
+
+                try {
+                    $context = app(PropertyContext::class);
+                    $properties = $context->accessibleProperties();
+                    $activeProperty = $context->activeProperty();
+                    $propertySelectorEnabled = $context->selectorEnabled();
+                } catch (\Throwable $e) {
+                    // Never let the selector break a page render.
+                    $properties = collect();
+                }
             }
+
             $view->with('topbarNotifications', $items);
+            $view->with('topbarProperties', $properties);
+            $view->with('topbarActiveProperty', $activeProperty);
+            $view->with('topbarPropertySelectorEnabled', $propertySelectorEnabled);
         });
 
         // The subscription-expired blocking modal: mirrors EnsureSubscriptionActive

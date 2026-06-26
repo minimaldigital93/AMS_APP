@@ -29,7 +29,9 @@ class ApartmentController extends Controller
      */
     public function index(Request $request): View
     {
-        $query = $this->supervisorVisibleApartments()->with(['floor', 'tenants', 'supervisor']);
+        $query = $this->supervisorVisibleApartments()
+            ->forActiveProperty()
+            ->with(['floor', 'tenants', 'supervisor']);
 
         if ($request->filled('search')) {
             $query->where('apartment_number', 'like', '%'.$request->search.'%');
@@ -46,6 +48,7 @@ class ApartmentController extends Controller
             ->sortBy(fn ($group) => $group->first()->floor->id);
 
         $floors = $this->supervisorVisibleFloors()
+            ->forActiveProperty()
             ->whereHas('apartments')
             ->orderBy('id', 'asc')->get();
 
@@ -62,7 +65,7 @@ class ApartmentController extends Controller
      */
     public function plan3d(): View
     {
-        $floors = $this->supervisorVisibleFloors()->with(['apartments' => function ($query) {
+        $floors = $this->supervisorVisibleFloors()->forActiveProperty()->with(['apartments' => function ($query) {
             $query->orderBy('apartment_number')
                 ->with([
                     'tenants' => fn ($q) => $q->whereNull('archived_at'),

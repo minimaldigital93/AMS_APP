@@ -19,6 +19,7 @@ class FiscalPeriodSummaryService
     public function __construct(
         private int $userId,
         private ?array $apartmentIds = null,
+        private ?int $propertyId = null,
     ) {}
 
     public function build(?FiscalPeriods $activePeriod): array
@@ -113,20 +114,18 @@ class FiscalPeriodSummaryService
 
         if ($this->apartmentIds === null) {
             $query->where('user_id', $this->userId);
-
-            return $query;
+        } else {
+            $apartmentIds = $this->apartmentIds;
+            $query->where(function ($q) use ($apartmentIds) {
+                $q->whereHas('payment', function ($pq) use ($apartmentIds) {
+                    $pq->whereHas('rental', fn ($rq) => $rq->whereIn('apartment_id', $apartmentIds));
+                })->orWhere(function ($q2) {
+                    $q2->where('account_type', Accounts::TYPE_EXPENSE)->whereNull('payment_id');
+                });
+            });
         }
 
-        $apartmentIds = $this->apartmentIds;
-        $query->where(function ($q) use ($apartmentIds) {
-            $q->whereHas('payment', function ($pq) use ($apartmentIds) {
-                $pq->whereHas('rental', fn ($rq) => $rq->whereIn('apartment_id', $apartmentIds));
-            })->orWhere(function ($q2) {
-                $q2->where('account_type', Accounts::TYPE_EXPENSE)->whereNull('payment_id');
-            });
-        });
-
-        return $query;
+        return $query->forProperty($this->propertyId);
     }
 
     private function emptyShape(): array
