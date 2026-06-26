@@ -229,6 +229,10 @@
                                     class="inline-flex items-center justify-center h-8 w-8 rounded-md text-sky-600 bg-sky-50 hover:bg-sky-100 transition" title="{{ __('messages.view_charges') }}">
                                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
                                 </button>
+                                <button @click="openReceipt('{{ route('supervisor.revenue_expense.print_receipt', ['rental' => $bill['rental']->id, 'month' => $currentMonth, 'year' => $currentYear, 'embed' => 1]) }}')"
+                                    class="inline-flex items-center justify-center h-8 w-8 rounded-md text-indigo-600 bg-indigo-50 hover:bg-indigo-100 transition" title="{{ __('messages.view_receipt') }}">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 3h12v18l-2-1.5-2 1.5-2-1.5-2 1.5-2-1.5L6 21z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 8h6M9 11.5h6M9 15h3.5"/></svg>
+                                </button>
                                 @if($bill['status'] !== 'paid')
                                 <button @click="openCheckout({{ $bill['rental']->id }}, '{{ addslashes($bill['tenant']->name ?? __('messages.tenant')) }}', '{{ $bill['apartment']->apartment_number }}', {{ $bill['monthly_rent'] }}, {{ $bill['total_utility_only'] }}, {{ $bill['total_other_charges'] }}, {{ $bill['total_fixed'] }}, {{ $bill['total_bill'] }})"
                                     class="inline-flex items-center justify-center h-8 w-8 rounded-md text-emerald-600 bg-emerald-50 hover:bg-emerald-100 transition" title="{{ __('messages.checkout_pay') }}">
@@ -289,6 +293,10 @@
                         class="inline-flex items-center justify-center h-8 w-8 rounded-lg text-sky-700 bg-sky-50 active:bg-sky-100 transition" title="{{ __('messages.view_charges') }}">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
                     </button>
+                    <button @click="openReceipt('{{ route('supervisor.revenue_expense.print_receipt', ['rental' => $bill['rental']->id, 'month' => $currentMonth, 'year' => $currentYear, 'embed' => 1]) }}')"
+                        class="inline-flex items-center justify-center h-8 w-8 rounded-lg text-indigo-600 bg-indigo-50 active:bg-indigo-100 transition" title="{{ __('messages.view_receipt') }}">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 3h12v18l-2-1.5-2 1.5-2-1.5-2 1.5-2-1.5L6 21z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 8h6M9 11.5h6M9 15h3.5"/></svg>
+                    </button>
                     @if($bill['status'] !== 'paid')
                     <button @click="openCheckout({{ $bill['rental']->id }}, '{{ addslashes($bill['tenant']->name ?? __('messages.tenant')) }}', '{{ $bill['apartment']->apartment_number }}', {{ $bill['monthly_rent'] }}, {{ $bill['total_utility_only'] }}, {{ $bill['total_other_charges'] }}, {{ $bill['total_fixed'] }}, {{ $bill['total_bill'] }})"
                         class="inline-flex items-center justify-center h-8 w-8 rounded-lg text-emerald-600 bg-emerald-50 active:bg-emerald-100 transition" title="{{ __('messages.checkout_pay') }}">
@@ -311,6 +319,33 @@
         @if((isset($tenantBills) && method_exists($tenantBills, 'links')))
         <div class="px-6 py-4 border-t border-slate-100">{{ $tenantBills->appends(request()->query())->links() }}</div>
         @endif
+    </div>
+
+    <!-- ============================================ -->
+    <!-- RECEIPT MODAL (in-page preview via iframe)   -->
+    <!-- ============================================ -->
+    <div x-show="showReceipt" x-cloak class="fixed inset-0 z-50 overflow-y-auto" aria-modal="true">
+        <div class="flex items-center justify-center min-h-screen px-4 py-6">
+            <div class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm" @click="closeReceipt()"></div>
+            <div class="relative z-10 w-full max-w-sm bg-white rounded-xl shadow-2xl flex flex-col overflow-hidden" style="max-height:90vh;">
+                <div class="px-4 py-3 border-b border-slate-100 flex items-center justify-between flex-shrink-0">
+                    <h3 class="text-sm font-semibold text-slate-700">{{ __('messages.payment_receipt') }}</h3>
+                    <div class="flex items-center gap-2">
+                        <button @click="printReceiptFrame()"
+                            class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg transition">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>
+                            {{ __('messages.print_receipt') }}
+                        </button>
+                        <button @click="closeReceipt()" class="text-slate-400 hover:text-slate-600 w-7 h-7 flex items-center justify-center rounded-lg hover:bg-slate-100 transition text-lg">&times;</button>
+                    </div>
+                </div>
+                <div class="bg-slate-200 flex-1" style="height:68vh;">
+                    <template x-if="showReceipt">
+                        <iframe x-ref="receiptFrame" :src="receiptUrl" class="w-full h-full border-0" title="{{ __('messages.payment_receipt') }}"></iframe>
+                    </template>
+                </div>
+            </div>
+        </div>
     </div>
 
     <!-- ============================================ -->
@@ -651,6 +686,10 @@ function billingManager() {
             @endif
         },
 
+        // Receipt Modal (in-page iframe preview)
+        showReceipt: false,
+        receiptUrl: '',
+
         // Charges Receipt Modal
         showChargesReceipt: false,
         viewRentalId: null,
@@ -709,6 +748,22 @@ function billingManager() {
                 return tenantName.includes(query) || aptNumber.includes(query);
             }
             return true;
+        },
+
+        openReceipt(url) {
+            this.receiptUrl = url;
+            this.showReceipt = true;
+        },
+        closeReceipt() {
+            this.showReceipt = false;
+            this.receiptUrl = '';
+        },
+        printReceiptFrame() {
+            const frame = this.$refs.receiptFrame;
+            if (frame && frame.contentWindow) {
+                frame.contentWindow.focus();
+                frame.contentWindow.print();
+            }
         },
 
         openChargesReceipt(rentalId, tenant, apt, charges, rent, fixed) {

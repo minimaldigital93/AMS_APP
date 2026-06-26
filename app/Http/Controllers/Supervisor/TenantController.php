@@ -260,6 +260,10 @@ class TenantController extends Controller
             'move_in_date.after_or_equal' => __('messages.move_in_date_min'),
         ]);
 
+        // A supervisor may only place a tenant in one of their assigned properties.
+        $apartment = Apartments::with('floor')->findOrFail($validated['apartment_id']);
+        $this->authorizeSupervisorApartment($apartment);
+
         if ($request->hasFile('photo') && $request->file('photo')->isValid()) {
             try {
                 $photoPath = $request->file('photo')->store('tenants', 'public');
@@ -284,7 +288,6 @@ class TenantController extends Controller
         $tenant = Tenants::create($validated);
 
         // Update apartment status to occupied
-        $apartment = Apartments::findOrFail($validated['apartment_id']);
         $apartment->update(['status' => 'occupied']);
 
         // Auto-create Rental record
@@ -647,6 +650,10 @@ class TenantController extends Controller
         ], [
             'phone.unique' => __('messages.validation_phone_taken'),
         ]);
+
+        // A supervisor may only (re)assign a tenant to one of their properties.
+        $targetApartment = Apartments::with('floor')->findOrFail($validated['apartment_id']);
+        $this->authorizeSupervisorApartment($targetApartment);
 
         // Handle apartment change
         $oldApartmentId = $tenant->apartment_id;

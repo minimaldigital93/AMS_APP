@@ -100,6 +100,66 @@ class RevenueExpenseController extends Controller
     }
 
     /**
+     * Property-scope guard: a supervisor may only act on a rental that lives
+     * under one of their assigned properties. Admin/superadmin previewing the
+     * panel see the whole account (no-op via seesWholeAccount()).
+     */
+    private function authorizeRentalAccess(Rentals $rental): void
+    {
+        $rental->loadMissing('apartment.floor');
+        if ($rental->apartment) {
+            $this->authorizeSupervisorApartment($rental->apartment);
+        }
+    }
+
+    /** KHQR trait hook — route checkout through the supervisor property guard. */
+    protected function authorizeRentalForCheckout(Rentals $rental): void
+    {
+        $this->authorizeRentalAccess($rental);
+    }
+
+    /**
+     * Keep only the apartment ids the supervisor may act on. Admin/superadmin
+     * previewing the panel pass through unfiltered.
+     *
+     * @param  array<int|string>  $apartmentIds
+     * @return array<int>
+     */
+    private function filterToVisibleApartmentIds(array $apartmentIds): array
+    {
+        $ids = array_map('intval', $apartmentIds);
+
+        if ($this->seesWholeAccount()) {
+            return array_values($ids);
+        }
+
+        return array_values(array_intersect($ids, $this->supervisorApartmentIds()));
+    }
+
+    /**
+     * Keep only the bill rows whose rental lives under one of the supervisor's
+     * assigned properties. Admin/superadmin previewing the panel pass through.
+     *
+     * @param  array<int, array<string, mixed>>  $bills
+     * @return array<int, array<string, mixed>>
+     */
+    private function filterBillsToVisibleRentals(array $bills): array
+    {
+        if ($this->seesWholeAccount()) {
+            return $bills;
+        }
+
+        $visibleRentalIds = Rentals::whereIn('apartment_id', $this->supervisorApartmentIds())
+            ->pluck('id')
+            ->all();
+
+        return array_values(array_filter(
+            $bills,
+            fn ($bill) => in_array((int) ($bill['rental_id'] ?? 0), $visibleRentalIds, true),
+        ));
+    }
+
+    /**
      * Supervisors write/read ledger rows under the admin's user_id, resolved
      * from the active fiscal period.
      */
@@ -836,6 +896,7 @@ class RevenueExpenseController extends Controller
     {
         $validated = $request->validated();
         $rental = Rentals::with('tenant')->findOrFail($validated['rental_id']);
+        $this->authorizeRentalAccess($rental);
         $period = $this->getActiveFiscalPeriod();
         if ($period) {
             $this->incomeService($period)->addTenantCharge($rental, $validated);
@@ -856,7 +917,10 @@ class RevenueExpenseController extends Controller
 
     public function removeTenantCharge($chargeId)
     {
-        $charge = Utilities::findOrFail($chargeId);
+        $charge = Utilities::with('rental.apartment.floor')->findOrFail($chargeId);
+        if ($charge->rental) {
+            $this->authorizeRentalAccess($charge->rental);
+        }
         $period = $this->getActiveFiscalPeriod();
 
         $removed = $period
@@ -881,6 +945,7 @@ class RevenueExpenseController extends Controller
     public function clearTenantCharges($rentalId)
     {
         $rental = Rentals::findOrFail($rentalId);
+        $this->authorizeRentalAccess($rental);
         $period = $this->getActiveFiscalPeriod();
 
         if ($period) {
@@ -903,7 +968,8 @@ class RevenueExpenseController extends Controller
         }
 
         $validated = $request->validated();
-        $rental = Rentals::with(['apartment', 'tenant'])->findOrFail($validated['rental_id']);
+        $rental = Rentals::with(['apartment.floor', 'tenant'])->findOrFail($validated['rental_id']);
+        $this->authorizeRentalAccess($rental);
         $result = $this->incomeService($activePeriod)->checkout($rental, $validated);
 
         if ($result['total_paid'] === 0.0) {
@@ -937,6 +1003,7 @@ class RevenueExpenseController extends Controller
 
         $rental = Rentals::with(['apartment.floor', 'apartment.activeFixedExpenses', 'tenant'])
             ->findOrFail($rentalId);
+        $this->authorizeRentalAccess($rental);
 
         // Get utilities for current month
         $utilities = Utilities::where('rental_id', $rental->id)
@@ -992,6 +1059,62 @@ class RevenueExpenseController extends Controller
         return view('supervisor.revenue_expense.tenant_bill_print', $billData);
     }
 
+    public function printReceipt(Request $request, $rentalId)
+    {
+        $month = (int) $request->input('month', now()->month);
+        $year = (int) $request->input('year', now()->year);
+
+        $rental = Rentals::with(['apartment.floor.property', 'apartment.activeFixedExpenses', 'tenant'])
+            ->findOrFail($rentalId);
+        $this->authorizeRentalAccess($rental);
+
+        $utilities = Utilities::where('rental_id', $rental->id)
+            ->where('billing_month', $month)
+            ->where('billing_year', $year)
+            ->get();
+
+        $payments = Payments::where('rental_id', $rental->id)
+            ->where('payment_status', 'paid')
+            ->whereMonth('paid_at', $month)
+            ->whereYear('paid_at', $year)
+            ->orderBy('paid_at')
+            ->get();
+
+        $fixedExpenses = $rental->apartment->activeFixedExpenses ?? collect();
+
+        $totalUtilities = $utilities->sum('charge_amount');
+        $totalFixed = $fixedExpenses->sum('amount');
+        $totalBill = $rental->rent_amount + $totalUtilities + $totalFixed;
+
+        $amountPaid = $payments->sum('amount') + $payments->sum('late_fee');
+        $latestPayment = $payments->last();
+        $isPaid = $payments->where('payment_type', 'rent')->isNotEmpty();
+        $paymentDate = $latestPayment?->paid_at ?? now();
+
+        return view('supervisor.revenue_expense.payment_receipt', [
+            'rental' => $rental,
+            'apartment' => $rental->apartment,
+            'tenant' => $rental->tenant,
+            'property' => $rental->apartment->property,
+            'monthYear' => Carbon::create($year, $month, 1)->format('F Y'),
+            'rentAmount' => $rental->rent_amount,
+            'utilities' => $utilities,
+            'fixedExpenses' => $fixedExpenses,
+            'totalBill' => $totalBill,
+            'amountPaid' => $amountPaid,
+            'balance' => max($totalBill - $amountPaid, 0),
+            'isPaid' => $isPaid,
+            'paymentDate' => $paymentDate,
+            'paymentMethod' => $latestPayment?->payment_method,
+            'note' => $payments->pluck('note')->filter()->implode(' · '),
+            'reference' => $latestPayment?->transaction_reference,
+            'receiptNumber' => 'RCPT-'.$rental->id.'-'.Carbon::parse($paymentDate)->format('Ymd').($latestPayment ? '-'.$latestPayment->id : ''),
+            'billReference' => 'BILL-'.$rental->id.'-'.sprintf('%04d%02d', $year, $month),
+            'generatedBy' => auth()->user()?->name ?? '—',
+            'generatedAt' => now(),
+        ]);
+    }
+
     public function storeIncome(RecordIncomeRequest $request)
     {
         $activePeriod = $this->getActiveFiscalPeriod();
@@ -1001,7 +1124,8 @@ class RevenueExpenseController extends Controller
         }
 
         $validated = $request->validated();
-        $rental = Rentals::with('apartment')->findOrFail($validated['rental_id']);
+        $rental = Rentals::with('apartment.floor')->findOrFail($validated['rental_id']);
+        $this->authorizeRentalAccess($rental);
         $this->incomeService($activePeriod)->recordPayment($rental, $validated);
 
         return redirect()->back()->with(
@@ -1023,10 +1147,12 @@ class RevenueExpenseController extends Controller
         }
 
         $validated = $request->validated();
+        // Drop any apartment ids outside the supervisor's assigned properties.
+        $apartmentIds = $this->filterToVisibleApartmentIds($validated['apartments']);
         $result = $this->incomeService($activePeriod)->recordBulkRent(
             $validated['payment_date'],
             $validated['payment_method'],
-            $validated['apartments'],
+            $apartmentIds,
         );
 
         if ($result['count'] === 0) {
@@ -1247,7 +1373,8 @@ class RevenueExpenseController extends Controller
         }
 
         $validated = $request->validated();
-        $rental = Rentals::with('tenant', 'apartment')->findOrFail($validated['rental_id']);
+        $rental = Rentals::with('tenant', 'apartment.floor')->findOrFail($validated['rental_id']);
+        $this->authorizeRentalAccess($rental);
         $this->expenseService($activePeriod)->recordUtilityExpense($rental, $validated);
 
         return redirect()->back()->with(
@@ -1346,6 +1473,8 @@ class RevenueExpenseController extends Controller
     public function storeFixedExpense(StoreFixedExpenseRequest $request)
     {
         $validated = $request->validated();
+        $apartment = Apartments::with('floor')->findOrFail($validated['apartment_id']);
+        $this->authorizeSupervisorApartment($apartment);
         $this->expenseService()->recordFixedExpense($validated);
 
         return redirect()->back()->with(
@@ -1359,6 +1488,8 @@ class RevenueExpenseController extends Controller
 
     public function toggleFixedExpense(ApartmentFixedExpense $fixedExpense)
     {
+        $fixedExpense->loadMissing('apartment.floor');
+        $this->authorizeSupervisorApartment($fixedExpense->apartment);
         $isActive = $this->expenseService()->toggleFixedExpense($fixedExpense);
 
         return redirect()->back()->with(
@@ -1371,6 +1502,8 @@ class RevenueExpenseController extends Controller
 
     public function deleteFixedExpense(ApartmentFixedExpense $fixedExpense)
     {
+        $fixedExpense->loadMissing('apartment.floor');
+        $this->authorizeSupervisorApartment($fixedExpense->apartment);
         $name = $this->expenseService()->deleteFixedExpense($fixedExpense);
 
         return redirect()->back()->with('success', __('messages.flash_item_removed', ['name' => $name]));
@@ -1477,8 +1610,10 @@ class RevenueExpenseController extends Controller
         }
 
         $validated = $request->validated();
+        // Drop any bills for rentals outside the supervisor's assigned properties.
+        $bills = $this->filterBillsToVisibleRentals($validated['bills']);
         $result = $this->billingService($activePeriod)->processSelected(
-            $validated['bills'],
+            $bills,
             Carbon::parse($validated['billing_date']),
         );
 

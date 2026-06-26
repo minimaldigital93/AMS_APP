@@ -336,6 +336,7 @@ Route::middleware(['auth', 'role:supervisor|admin|superadmin', 'subscription.act
         Route::post('/revenue-expense/khqr/confirm/{transaction}', [SupervisorRevenueExpenseController::class, 'khqrConfirm'])->name('supervisor.revenue_expense.khqr_confirm');
         Route::post('/revenue-expense/khqr/reject/{transaction}', [SupervisorRevenueExpenseController::class, 'khqrReject'])->name('supervisor.revenue_expense.khqr_reject');
         Route::get('/revenue-expense/print-bill/{rental}', [SupervisorRevenueExpenseController::class, 'printTenantBill'])->name('supervisor.revenue_expense.print_bill');
+        Route::get('/revenue-expense/print-receipt/{rental}', [SupervisorRevenueExpenseController::class, 'printReceipt'])->name('supervisor.revenue_expense.print_receipt');
         Route::get('/revenue-expense/record-expense', [SupervisorRevenueExpenseController::class, 'recordExpense'])->name('supervisor.revenue_expense.record_expense');
         Route::post('/revenue-expense/record-expense', [SupervisorRevenueExpenseController::class, 'storeExpense'])->name('supervisor.revenue_expense.store_expense');
         Route::post('/revenue-expense/other-expense', [SupervisorRevenueExpenseController::class, 'storeOtherExpense'])->name('supervisor.revenue_expense.store_other_expense');

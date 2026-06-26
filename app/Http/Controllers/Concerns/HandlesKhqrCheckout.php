@@ -27,6 +27,13 @@ trait HandlesKhqrCheckout
     /** Route-name prefix, e.g. "admin.revenue_expense" / "supervisor.revenue_expense". */
     abstract protected function khqrRoutePrefix(): string;
 
+    /**
+     * Hook for hosts to restrict which rentals may be charged. No-op by default
+     * (admin sees the whole account); the supervisor host overrides this to
+     * enforce assigned-property scoping.
+     */
+    protected function authorizeRentalForCheckout(Rentals $rental): void {}
+
     public function khqrGenerate(Request $request, KhqrPaymentService $khqr): JsonResponse
     {
         $validated = $request->validate([
@@ -44,7 +51,8 @@ trait HandlesKhqrCheckout
             return response()->json(['message' => __('messages.no_fiscal_period') ?? 'No active fiscal period.'], 422);
         }
 
-        $rental = Rentals::with(['apartment', 'tenant'])->findOrFail($validated['rental_id']);
+        $rental = Rentals::with(['apartment.floor', 'tenant'])->findOrFail($validated['rental_id']);
+        $this->authorizeRentalForCheckout($rental);
 
         $payRent = ! empty($validated['pay_rent']);
         $payUtilities = ! empty($validated['pay_utilities']);
@@ -159,7 +167,8 @@ trait HandlesKhqrCheckout
             ->whereNotNull('rental_id')
             ->firstOrFail();
 
-        Rentals::findOrFail($row->rental_id);
+        $rental = Rentals::with('apartment.floor')->findOrFail($row->rental_id);
+        $this->authorizeRentalForCheckout($rental);
 
         return $row;
     }
