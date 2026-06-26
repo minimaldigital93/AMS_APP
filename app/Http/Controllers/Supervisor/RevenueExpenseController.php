@@ -59,6 +59,41 @@ class RevenueExpenseController extends Controller
         return $this->supervisorVisibleApartments()->forActiveProperty();
     }
 
+    /** The globally selected property, or null for the consolidated view. */
+    protected function activePropertyId(): ?int
+    {
+        return current_property_id();
+    }
+
+    /**
+     * Property ids that bound a supervisor's consolidated ("All properties")
+     * ledger view — their assigned buildings, so the ledger never spills past
+     * the properties they manage. Null for admins previewing the supervisor
+     * panel (the account scope already isolates them to the whole account).
+     *
+     * @return array<int>|null
+     */
+    protected function ledgerPropertyIds(): ?array
+    {
+        return $this->seesWholeAccount() ? null : $this->supervisorPropertyIds()->all();
+    }
+
+    /**
+     * Apply the supervisor's property isolation to an Accounts query: narrow to
+     * the active property when one is selected, otherwise to their assigned set.
+     */
+    private function scopeAccountsToProperty(Builder $query): Builder
+    {
+        $activeId = $this->activePropertyId();
+        if ($activeId !== null) {
+            return $query->forProperty($activeId);
+        }
+
+        $ids = $this->ledgerPropertyIds();
+
+        return $ids === null ? $query : $query->forProperties($ids);
+    }
+
     protected function khqrRoutePrefix(): string
     {
         return 'supervisor.revenue_expense';
@@ -87,6 +122,8 @@ class RevenueExpenseController extends Controller
             userId: $this->ledgerUserId(),
             period: $this->getActiveFiscalPeriod(),
             apartmentsScope: $this->scopeApartments(),
+            propertyId: $this->activePropertyId(),
+            propertyIds: $this->ledgerPropertyIds(),
         );
     }
 
@@ -97,6 +134,8 @@ class RevenueExpenseController extends Controller
             userId: $this->ledgerUserId(),
             period: $this->getActiveFiscalPeriod(),
             apartmentsScope: $this->scopeApartments(),
+            propertyId: $this->activePropertyId(),
+            propertyIds: $this->ledgerPropertyIds(),
         );
     }
 
@@ -105,6 +144,7 @@ class RevenueExpenseController extends Controller
         return new ExpenseRecordingService(
             userId: $this->ledgerUserId(),
             period: $period ?? $this->getActiveFiscalPeriod(),
+            propertyId: $this->activePropertyId(),
         );
     }
 
@@ -113,6 +153,7 @@ class RevenueExpenseController extends Controller
         return new IncomeRecordingService(
             userId: $this->ledgerUserId(),
             period: $period,
+            propertyId: $this->activePropertyId(),
         );
     }
 
@@ -121,6 +162,7 @@ class RevenueExpenseController extends Controller
         return new MonthlyBillingService(
             userId: $this->ledgerUserId(),
             period: $period,
+            propertyId: $this->activePropertyId(),
         );
     }
 
@@ -340,9 +382,10 @@ class RevenueExpenseController extends Controller
             'query' => request()->query(),
         ]);
 
-        // Recent income (no pagination)
-        $recentIncome = Accounts::income()
-            ->forUser($this->getAdminUserId())
+        // Recent income (no pagination) — scoped to the supervisor's properties.
+        $recentIncome = $this->scopeAccountsToProperty(
+            Accounts::income()->forUser($this->getAdminUserId())
+        )
             ->forPeriod($activePeriod->id)
             ->orderBy('transaction_date', 'desc')
             ->take(10)
@@ -386,8 +429,9 @@ class RevenueExpenseController extends Controller
             $apartmentExpenses[] = $aptExpense;
         }
 
-        $recentExpenses = Accounts::expense()
-            ->forUser($this->getAdminUserId())
+        $recentExpenses = $this->scopeAccountsToProperty(
+            Accounts::expense()->forUser($this->getAdminUserId())
+        )
             ->forPeriod($activePeriod->id)
             ->orderBy('transaction_date', 'desc')
             ->take(10)
@@ -766,9 +810,10 @@ class RevenueExpenseController extends Controller
             ]
         );
 
-        // Recent income records for this fiscal period
-        $recentIncome = Accounts::income()
-            ->forUser($this->getAdminUserId())
+        // Recent income records for this fiscal period — scoped to the supervisor's properties.
+        $recentIncome = $this->scopeAccountsToProperty(
+            Accounts::income()->forUser($this->getAdminUserId())
+        )
             ->forPeriod($activePeriod->id)
             ->orderBy('transaction_date', 'desc')
             ->take(10)
@@ -1091,9 +1136,10 @@ class RevenueExpenseController extends Controller
             ]
         );
 
-        // Recent expense records from Accounts for the selected month
-        $recentExpenses = Accounts::expense()
-            ->forUser($this->getAdminUserId())
+        // Recent expense records from Accounts for the selected month — scoped to the supervisor's properties.
+        $recentExpenses = $this->scopeAccountsToProperty(
+            Accounts::expense()->forUser($this->getAdminUserId())
+        )
             ->forPeriod($activePeriod->id)
             ->betweenDates($startDate, $endDate)
             ->orderBy('transaction_date', 'desc')
@@ -1128,9 +1174,10 @@ class RevenueExpenseController extends Controller
             'miscellaneous' => 'Miscellaneous',
         ];
 
-        // Other (non-utility) expenses for the selected month
-        $otherExpenses = Accounts::expense()
-            ->forUser($this->getAdminUserId())
+        // Other (non-utility) expenses for the selected month — scoped to the supervisor's properties.
+        $otherExpenses = $this->scopeAccountsToProperty(
+            Accounts::expense()->forUser($this->getAdminUserId())
+        )
             ->forPeriod($activePeriod->id)
             ->whereNotIn('category', [
                 Accounts::CAT_UTILITIES_EXPENSE,
@@ -1143,8 +1190,10 @@ class RevenueExpenseController extends Controller
 
         $totalOtherExpenses = $otherExpenses->sum('amount');
 
-        // Business expenses (fixed & variable) for the selected month
-        $businessExpenses = BusinessExpense::where('user_id', $this->getAdminUserId())
+        // Business expenses (fixed & variable) for the selected month — scoped to the supervisor's properties.
+        $businessExpenses = $this->scopeAccountsToProperty(
+            BusinessExpense::where('user_id', $this->getAdminUserId())
+        )
             ->where('fiscal_period_id', $activePeriod->id)
             ->where('billing_month', $filterMonth)
             ->where('billing_year', $filterYear)

@@ -29,7 +29,31 @@ class BreakEvenService
         private ?int $userId,
         private ?FiscalPeriods $period,
         private Builder $apartmentsScope,
+        private ?int $propertyId = null,
+        private ?array $propertyIds = null,
     ) {}
+
+    /**
+     * Narrow a property-owned query (BusinessExpense or Accounts) to the caller's
+     * property scope — the active property, else a bounded set (a supervisor's
+     * assigned properties), else no narrowing (admin consolidated). Keeps the
+     * overhead + variable-cost breakdowns aligned with the income/expense totals,
+     * which RevenueExpenseQueryService already scopes the same way.
+     *
+     * @param  \Illuminate\Database\Eloquent\Builder  $query
+     */
+    private function scopeToProperty($query)
+    {
+        if ($this->propertyId !== null) {
+            return $query->forProperty($this->propertyId);
+        }
+
+        if ($this->propertyIds !== null) {
+            return $query->forProperties($this->propertyIds);
+        }
+
+        return $query;
+    }
 
     /**
      * Full break-even snapshot for the given month. Falls back to now().
@@ -323,7 +347,7 @@ class BreakEvenService
         $month = $month ?: now()->month;
         $year = $year ?: now()->year;
 
-        $query = BusinessExpense::where('user_id', $this->userId)
+        $query = $this->scopeToProperty(BusinessExpense::where('user_id', $this->userId))
             ->where('billing_month', $month)
             ->where('billing_year', $year);
 
@@ -346,8 +370,7 @@ class BreakEvenService
         $month = $month ?: now()->month;
         $year = $year ?: now()->year;
 
-        $query = Accounts::expense()
-            ->forUser($this->userId)
+        $query = $this->scopeToProperty(Accounts::expense()->forUser($this->userId))
             ->whereNotIn('category', [
                 Accounts::CAT_BUSINESS_FIXED,
                 Accounts::CAT_BUSINESS_VARIABLE,
@@ -407,7 +430,7 @@ class BreakEvenService
         $month = $month ?: now()->month;
         $year = $year ?: now()->year;
 
-        $query = BusinessExpense::where('user_id', $this->userId)
+        $query = $this->scopeToProperty(BusinessExpense::where('user_id', $this->userId))
             ->where('billing_month', $month)
             ->where('billing_year', $year);
 
@@ -449,8 +472,7 @@ class BreakEvenService
             Accounts::CAT_OTHER_EXPENSE,
         ];
 
-        $query = Accounts::expense()
-            ->forUser($this->userId)
+        $query = $this->scopeToProperty(Accounts::expense()->forUser($this->userId))
             ->whereIn('category', $variableCategories)
             ->whereMonth('transaction_date', $month)
             ->whereYear('transaction_date', $year);

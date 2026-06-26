@@ -157,6 +157,25 @@ class Accounts extends Model
         });
     }
 
+    /**
+     * Limit to a set of properties' books — the consolidated view for an actor
+     * who only sees some of the account's properties (a supervisor across their
+     * assigned buildings). Account-wide rows (null property_id) stay visible,
+     * matching scopeForProperty. An empty set is a no-op (nothing to narrow to).
+     *
+     * @param  array<int>  $propertyIds
+     */
+    public function scopeForProperties($query, array $propertyIds)
+    {
+        if ($propertyIds === []) {
+            return $query;
+        }
+
+        return $query->where(function ($q) use ($propertyIds) {
+            $q->whereIn('property_id', $propertyIds)->orWhereNull('property_id');
+        });
+    }
+
     public function scopeBetweenDates($query, $start, $end)
     {
         return $query->whereBetween('transaction_date', [

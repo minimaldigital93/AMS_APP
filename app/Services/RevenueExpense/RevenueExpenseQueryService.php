@@ -23,7 +23,29 @@ class RevenueExpenseQueryService
         private ?FiscalPeriods $period,
         private Builder $apartmentsScope,
         private ?int $propertyId = null,
+        private ?array $propertyIds = null,
     ) {}
+
+    /**
+     * Narrow an Accounts query to the caller's property scope:
+     *  - a single active property → that property's books (forProperty);
+     *  - else a bounded set (a supervisor's assigned properties) → forProperties;
+     *  - else no narrowing (admin consolidated = the whole account).
+     *
+     * @param  \Illuminate\Database\Eloquent\Builder  $query
+     */
+    private function scopeToProperty($query)
+    {
+        if ($this->propertyId !== null) {
+            return $query->forProperty($this->propertyId);
+        }
+
+        if ($this->propertyIds !== null) {
+            return $query->forProperties($this->propertyIds);
+        }
+
+        return $query;
+    }
 
     /**
      * One-shot bundle used by the controllers' index() method.
@@ -54,7 +76,7 @@ class RevenueExpenseQueryService
      */
     public function calculateIncome($startDate = null, $endDate = null): array
     {
-        $query = Accounts::income()->forUser($this->userId)->forProperty($this->propertyId);
+        $query = $this->scopeToProperty(Accounts::income()->forUser($this->userId));
 
         if ($this->period) {
             $query->forPeriod($this->period->id);
@@ -123,7 +145,7 @@ class RevenueExpenseQueryService
      */
     public function calculateExpenses($startDate = null, $endDate = null): array
     {
-        $query = Accounts::expense()->forUser($this->userId)->forProperty($this->propertyId);
+        $query = $this->scopeToProperty(Accounts::expense()->forUser($this->userId));
 
         if ($this->period) {
             $query->forPeriod($this->period->id);
@@ -378,10 +400,11 @@ class RevenueExpenseQueryService
      */
     private function loadOtherTenantChargesByRental($startDate, $endDate): array
     {
-        $query = Accounts::where('account_type', Accounts::TYPE_INCOME)
-            ->where('category', Accounts::CAT_OTHER_INCOME)
-            ->forProperty($this->propertyId)
-            ->where('reference_number', 'LIKE', 'tenant_charge:rental:%');
+        $query = $this->scopeToProperty(
+            Accounts::where('account_type', Accounts::TYPE_INCOME)
+                ->where('category', Accounts::CAT_OTHER_INCOME)
+                ->where('reference_number', 'LIKE', 'tenant_charge:rental:%')
+        );
 
         if ($this->period) {
             $query->where('fiscal_period_id', $this->period->id);

@@ -107,6 +107,7 @@ class RevenueExpenseController extends Controller
             userId: $this->ledgerUserId(),
             period: $this->getActiveFiscalPeriod(),
             apartmentsScope: $this->scopeApartments(),
+            propertyId: $this->activePropertyId(),
         );
     }
 
@@ -1239,8 +1240,9 @@ class RevenueExpenseController extends Controller
 
         $totalOtherExpenses = $otherExpenses->sum('amount');
 
-        // Business expenses (fixed & variable) for the selected month
+        // Business expenses (fixed & variable) for the selected month — scoped to the active property.
         $businessExpenses = BusinessExpense::where('user_id', Auth::id())
+            ->forProperty($this->activePropertyId())
             ->where('fiscal_period_id', $activePeriod->id)
             ->where('billing_month', $filterMonth)
             ->where('billing_year', $filterYear)

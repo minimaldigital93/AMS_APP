@@ -103,6 +103,7 @@ class ExpenseRecordingService
         $expense = BusinessExpense::create([
             'user_id' => $this->userId,
             'fiscal_period_id' => $this->period->id,
+            'property_id' => $this->propertyId,
             'expense_name' => $data['expense_name'],
             'category' => $data['category'],
             'amount' => $data['amount'],

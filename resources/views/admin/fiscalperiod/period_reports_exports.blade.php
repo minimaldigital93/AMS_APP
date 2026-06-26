@@ -2,7 +2,9 @@
 
 @section('content')
 @php
-    $selectedProperty = ($selectedPropertyId ?? null) ? $properties->firstWhere('id', $selectedPropertyId) : null;
+    // Property scope follows the global top-bar selector (PropertyContext);
+    // $selectedProperty is null for the "All properties" consolidated view.
+    $selectedProperty = $selectedProperty ?? null;
     $propertyScopeLabel = $selectedProperty?->name ?? __('messages.all_properties_consolidated');
 @endphp
 <div class="container mx-auto py-8" x-data="{ activeTab: 'overview' }">
@@ -23,26 +25,12 @@
             <p class="text-sm text-gray-500 mt-1">{{ __('messages.viewing_property', ['name' => $propertyScopeLabel]) }}</p>
         </div>
         <div class="flex flex-wrap items-center gap-2 justify-end no-print">
-            @if($properties->isNotEmpty())
-                {{-- Property filter: scopes revenue, income statement, cash flow & monthly breakdown --}}
-                <select
-                    onchange="window.location.href = this.value"
-                    class="text-sm border border-gray-200 rounded-lg px-3 py-2 bg-white text-gray-700 focus:ring-2 focus:ring-slate-400 focus:border-slate-400"
-                    title="{{ __('messages.filter_by_property') }}"
-                    aria-label="{{ __('messages.filter_by_property') }}">
-                    <option value="{{ route('admin.fiscalperiod.reports', [$fiscalperiod->id, 'property' => 'all']) }}" @selected(! $selectedProperty)>
-                        {{ __('messages.all_properties_consolidated') }}
-                    </option>
-                    @foreach($properties as $prop)
-                        <option value="{{ route('admin.fiscalperiod.reports', [$fiscalperiod->id, 'property' => $prop->id]) }}" @selected($selectedProperty && $selectedProperty->id === $prop->id)>
-                            {{ $prop->name }}
-                        </option>
-                    @endforeach
-                </select>
-            @endif
-            <a href="{{ route('admin.fiscalperiod.exportCSV', [$fiscalperiod->id, 'property' => $selectedProperty?->id ?? 'all']) }}" class="text-sm bg-gray-100 text-gray-700 px-3 py-2 rounded-lg hover:bg-gray-200 flex items-center gap-1.5" title="{{ __('messages.export_csv') }}">
+            {{-- Property scope follows the global top-bar selector (PropertyContext);
+                 it drives revenue, the income statement, cash flow & the monthly
+                 breakdown. Exports inherit that same active-property context. --}}
+            <a href="{{ route('admin.fiscalperiod.exportCSV', $fiscalperiod->id) }}" class="text-sm bg-gray-100 text-gray-700 px-3 py-2 rounded-lg hover:bg-gray-200 flex items-center gap-1.5" title="{{ __('messages.export_csv') }}">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg></a>
-            <a href="{{ route('admin.fiscalperiod.exportPDF', [$fiscalperiod->id, 'property' => $selectedProperty?->id ?? 'all']) }}" target="_blank" class="text-sm bg-gray-100 text-gray-700 px-3 py-2 rounded-lg hover:bg-gray-200 flex items-center gap-1.5" title="{{ __('messages.print_annual_summary_pdf') }}">
+            <a href="{{ route('admin.fiscalperiod.exportPDF', $fiscalperiod->id) }}" target="_blank" class="text-sm bg-gray-100 text-gray-700 px-3 py-2 rounded-lg hover:bg-gray-200 flex items-center gap-1.5" title="{{ __('messages.print_annual_summary_pdf') }}">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 13h6M9 17h3"/></svg></a>
             <button onclick="window.print()" class="text-sm bg-gray-700 text-white px-3 py-2 rounded-lg hover:bg-gray-800 flex items-center gap-1.5" title="{{ __('messages.print') }}">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg></button>

@@ -11,13 +11,11 @@ use App\Http\Requests\FiscalPeriod\UpdateFiscalPeriodRequest;
 use App\Models\BalanceSheet;
 use App\Models\FiscalPeriods;
 use App\Models\MonthlyPeriod;
-use App\Models\Property;
 use App\Services\FiscalPeriod\BalanceSheetService;
 use App\Services\FiscalPeriod\FiscalPeriodFinancialsService;
 use App\Services\FiscalPeriod\FiscalPeriodReportsService;
 use App\Services\FiscalPeriod\MonthlyPeriodManager;
-use Illuminate\Http\Request;
-use Illuminate\Support\Collection;
+use App\Services\Property\PropertyContext;
 use Illuminate\Support\Facades\Auth;
 
 class FiscalPeriodController extends Controller
@@ -317,12 +315,15 @@ class FiscalPeriodController extends Controller
     // REPORTS + EXPORTS
     // ============================================================
 
-    public function reports(FiscalPeriods $fiscalperiod, Request $request)
+    public function reports(FiscalPeriods $fiscalperiod, PropertyContext $propertyContext)
     {
         $this->authorizeUser($fiscalperiod);
 
-        $properties = $this->reportProperties();
-        $selectedPropertyId = $this->resolveSelectedProperty($request, $properties);
+        // Reports follow the global top-bar property selector, so the whole app
+        // shares one active-property context (null = the "All properties"
+        // consolidated view).
+        $selectedProperty = $propertyContext->activeProperty();
+        $selectedPropertyId = $selectedProperty?->id;
 
         // Balance sheet & trial balance use account-level opening figures and
         // owner draws, so they always reflect the whole account — never a
@@ -348,17 +349,16 @@ class FiscalPeriodController extends Controller
             'fiscalperiod', 'balanceSheetItems', 'summary',
             'monthlyPeriods', 'monthlyData', 'periodFinancials',
             'incomeStatement', 'cashFlow', 'trialBalance',
-            'properties', 'selectedPropertyId'
+            'selectedProperty', 'selectedPropertyId'
         ));
     }
 
-    public function exportPDF(FiscalPeriods $fiscalperiod, Request $request)
+    public function exportPDF(FiscalPeriods $fiscalperiod, PropertyContext $propertyContext)
     {
         $this->authorizeUser($fiscalperiod);
 
-        $properties = $this->reportProperties();
-        $selectedPropertyId = $this->resolveSelectedProperty($request, $properties);
-        $selectedProperty = $selectedPropertyId ? $properties->firstWhere('id', $selectedPropertyId) : null;
+        $selectedProperty = $propertyContext->activeProperty();
+        $selectedPropertyId = $selectedProperty?->id;
 
         $balanceSheetItems = $fiscalperiod->balanceSheets()->get();
         $summary = $this->balanceSheetService->summary($fiscalperiod);
@@ -381,13 +381,12 @@ class FiscalPeriodController extends Controller
         return view('admin.fiscalperiod.monthly-period-pdf', compact('fiscalperiod', 'monthlyPeriod', 'financials', 'balanceSheet'));
     }
 
-    public function exportCSV(FiscalPeriods $fiscalperiod, Request $request)
+    public function exportCSV(FiscalPeriods $fiscalperiod, PropertyContext $propertyContext)
     {
         $this->authorizeUser($fiscalperiod);
 
-        $properties = $this->reportProperties();
-        $selectedPropertyId = $this->resolveSelectedProperty($request, $properties);
-        $selectedProperty = $selectedPropertyId ? $properties->firstWhere('id', $selectedPropertyId) : null;
+        $selectedProperty = $propertyContext->activeProperty();
+        $selectedPropertyId = $selectedProperty?->id;
 
         $balanceSheetItems = $fiscalperiod->balanceSheets()->orderBy('item_type')->get();
         $summary = $this->balanceSheetService->summary($fiscalperiod);
@@ -489,34 +488,6 @@ class FiscalPeriodController extends Controller
         if ($fiscalperiod->user_id !== Auth::id()) {
             abort(403, 'Unauthorized access');
         }
-    }
-
-    /**
-     * Properties available for the reports/exports property filter. Account
-     * isolation is handled by BelongsToAccount, so this is every property in
-     * the current admin's account.
-     */
-    private function reportProperties(): Collection
-    {
-        return Property::orderBy('name')->get();
-    }
-
-    /**
-     * The property id the reports/exports should be scoped to, taken from the
-     * ?property= query param. Returns null (consolidated, all properties) when
-     * absent, "all", or not a property the admin owns.
-     */
-    private function resolveSelectedProperty(Request $request, Collection $properties): ?int
-    {
-        $raw = $request->query('property');
-
-        if ($raw === null || $raw === '' || $raw === 'all') {
-            return null;
-        }
-
-        $id = (int) $raw;
-
-        return $properties->contains('id', $id) ? $id : null;
     }
 
     /**
