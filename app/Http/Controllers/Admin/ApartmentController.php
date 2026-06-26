@@ -102,12 +102,17 @@ class ApartmentController extends Controller
 
     public function store(Request $request)
     {
+        // The unit number is unique within the selected floor's property, so resolve
+        // that property from the chosen floor (account-scoped find) before validating.
+        $propertyId = Floors::find($request->input('floor_id'))?->property_id;
+
         $validated = $request->validate([
             'apartment_number' => [
                 'required', 'string', 'max:255',
-                // Per-account uniqueness: numbers are independent across admins.
+                // Per-property uniqueness: a unit "101" may exist in more than one
+                // property of the same account.
                 Rule::unique('apartments', 'apartment_number')
-                    ->where('account_id', current_account_id())
+                    ->where('property_id', $propertyId)
                     ->whereNull('deleted_at'),
             ],
             'floor_id' => 'required|exists:floors,id',
@@ -137,10 +142,12 @@ class ApartmentController extends Controller
         $validated = $request->validate([
             'apartment_number' => [
                 'required', 'string', 'max:255',
-                // Per-account uniqueness, ignoring this apartment's own row.
+                // Per-property uniqueness, ignoring this apartment's own row. The
+                // edit form can't move an apartment between floors, so the property
+                // is fixed to this apartment's existing property_id.
                 Rule::unique('apartments', 'apartment_number')
                     ->ignore($apartment->id)
-                    ->where('account_id', current_account_id())
+                    ->where('property_id', $apartment->property_id)
                     ->whereNull('deleted_at'),
             ],
             'monthly_rent' => 'required|numeric|min:0',

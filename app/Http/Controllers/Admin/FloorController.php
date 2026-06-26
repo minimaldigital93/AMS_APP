@@ -37,9 +37,11 @@ class FloorController extends Controller
 
     public function create(): View
     {
-        $properties = Property::orderBy('name')->get();
+        // Floors are always added to the globally selected property (top-bar
+        // selector) — there is no per-form property picker.
+        $activeProperty = app(\App\Services\Property\PropertyContext::class)->activeProperty();
 
-        return view('admin.floors.create', compact('properties'));
+        return view('admin.floors.create', compact('activeProperty'));
     }
 
     /**
@@ -110,26 +112,39 @@ class FloorController extends Controller
 
     public function store(Request $request)
     {
+        // The floor always belongs to the globally selected property; resolve it
+        // server-side rather than trusting a form field.
+        $propertyId = current_property_id();
+
+        if ($propertyId === null) {
+            return back()->withInput()->with('error', __('messages.no_properties_yet'));
+        }
+
         $validated = $request->validate([
-            'property_id' => [
-                'required',
-                Rule::exists('properties', 'id')->where('account_id', current_account_id()),
+            'floor_name' => [
+                'required', 'string', 'max:255',
+                // Floor names are unique within their property, not across the whole
+                // account — two properties may each have a "Floor 1".
+                Rule::unique('floors', 'floor_name')
+                    ->where('property_id', $propertyId)
+                    ->whereNull('deleted_at'),
             ],
-            'floor_name' => 'required|string|max:255',
             'description' => 'nullable|string',
             'apartments' => 'nullable|array',
             'apartments.*.apartment_number' => [
-                'required', 'string', 'max:255',
-                // Scope uniqueness to the current account so each admin's units are
-                // independent — number "101" in one account must not clash with another.
+                'required', 'string', 'max:255', 'distinct',
+                // Scope uniqueness to the property (resolved server-side above) so a
+                // unit "101" can exist in more than one property of the same account.
                 Rule::unique('apartments', 'apartment_number')
-                    ->where('account_id', current_account_id())
+                    ->where('property_id', $propertyId)
                     ->whereNull('deleted_at'),
             ],
             'apartments.*.monthly_rent' => 'nullable|numeric|min:0',
             'apartments.*.status' => 'nullable|in:available,occupied',
         ], [
+            'floor_name.unique' => __('messages.validation_floor_name_taken'),
             'apartments.*.apartment_number.unique' => __('messages.validation_apartment_number_taken_generic'),
+            'apartments.*.apartment_number.distinct' => __('messages.validation_apartment_number_taken_generic'),
         ]);
 
         // Floors are unlimited on every plan; only the room cap applies here.
@@ -143,7 +158,7 @@ class FloorController extends Controller
         }
 
         $floor = Floors::create([
-            'property_id' => $validated['property_id'],
+            'property_id' => $propertyId,
             'floor_name' => $validated['floor_name'],
             'description' => $validated['description'] ?? null,
         ]);
@@ -180,8 +195,9 @@ class FloorController extends Controller
                     'required',
                     'string',
                     'max:255',
+                    // Unique within this floor's property, not the whole account.
                     Rule::unique('apartments', 'apartment_number')
-                        ->where('account_id', current_account_id())
+                        ->where('property_id', $floor->property_id)
                         ->whereNull('deleted_at'),
                 ],
                 'monthly_rent' => 'nullable|numeric|min:0',
@@ -222,8 +238,17 @@ class FloorController extends Controller
                 'required',
                 Rule::exists('properties', 'id')->where('account_id', current_account_id()),
             ],
-            'floor_name' => 'required|string|max:255',
+            'floor_name' => [
+                'required', 'string', 'max:255',
+                // Unique within the (possibly newly chosen) property, ignoring itself.
+                Rule::unique('floors', 'floor_name')
+                    ->ignore($floor->id)
+                    ->where('property_id', $request->input('property_id'))
+                    ->whereNull('deleted_at'),
+            ],
             'description' => 'nullable|string',
+        ], [
+            'floor_name.unique' => __('messages.validation_floor_name_taken'),
         ]);
 
         try {

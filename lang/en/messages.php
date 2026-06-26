@@ -1081,6 +1081,7 @@ return [
     // Apartments
     'validation_apartment_number_taken' => 'The unit number ":number" already exists. Please use a different number.',
     'validation_apartment_number_taken_generic' => 'One of the unit numbers already exists. Please use a different number for each unit.',
+    'validation_floor_name_taken' => 'A floor with this name already exists in this property. Please use a different name.',
     'validation_phone_taken' => 'This phone number is already in use. Please use a different one.',
     'flash_plan_limit_apartments' => 'Plan limit reached (:max apartment(s)). Upgrade to add more.',
     'flash_apartment_created' => 'Apartment created.',

@@ -19,6 +19,20 @@ class Apartments extends Model
         return 'floor';
     }
 
+    /**
+     * Keep the denormalized property_id in sync: derive it from the floor on
+     * create so the per-property unique index (property_id, apartment_number,
+     * deleted_at) is always populated, regardless of which create path is used.
+     */
+    protected static function booted(): void
+    {
+        static::creating(function (Apartments $apartment) {
+            if ($apartment->property_id === null && $apartment->floor_id !== null) {
+                $apartment->property_id = $apartment->floor?->property_id;
+            }
+        });
+    }
+
     // Status constants
     public const STATUS_AVAILABLE = 'available';
 

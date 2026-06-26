@@ -1081,6 +1081,7 @@ return [
     // Apartments
     'validation_apartment_number_taken' => 'លេខបន្ទប់ ":number" មានរួចហើយ។ សូមប្រើលេខផ្សេង។',
     'validation_apartment_number_taken_generic' => 'លេខបន្ទប់ណាមួយមានរួចហើយ។ សូមប្រើលេខផ្សេងគ្នាសម្រាប់បន្ទប់នីមួយៗ។',
+    'validation_floor_name_taken' => 'ឈ្មោះជាន់នេះមានរួចហើយនៅក្នុងអចលនទ្រព្យនេះ។ សូមប្រើឈ្មោះផ្សេង។',
     'validation_phone_taken' => 'លេខទូរស័ព្ទនេះត្រូវបានប្រើរួចហើយ។ សូមប្រើលេខផ្សេង។',
     'flash_plan_limit_apartments' => 'ដល់កម្រិតគម្រោងហើយ (:max បន្ទប់)។ សូមដំឡើងដើម្បីបន្ថែម។',
     'flash_apartment_created' => 'បន្ទប់ត្រូវបានបង្កើត។',
