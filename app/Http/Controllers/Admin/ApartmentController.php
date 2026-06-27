@@ -22,10 +22,29 @@ class ApartmentController extends Controller
 {
     public function __construct(private SubscriptionService $subscriptions) {}
 
-    public function index(Request $request): View
+    public function index(Request $request, \App\Services\Property\PropertyContext $propertyContext): View
     {
-        // Scope to the globally selected property (top-bar selector).
-        $query = Apartments::with(['floor', 'tenants', 'supervisor'])->forActiveProperty();
+        // When the top-bar is on "All properties", offer a per-page property
+        // filter so the user can narrow to one building without changing the
+        // global selection. Otherwise everything stays scoped to the active one.
+        $showingAll = $propertyContext->showingAllProperties();
+        $properties = collect();
+        $selectedPropertyId = null;
+
+        if ($showingAll) {
+            $properties = $propertyContext->accessibleProperties();
+            $requested = $request->integer('property') ?: null;
+
+            if ($requested !== null && $properties->contains('id', $requested)) {
+                $selectedPropertyId = $requested;
+            }
+        }
+
+        // Effective property scope: the per-page filter in "all" mode (null = no
+        // narrowing), otherwise the globally active property.
+        $scopeId = $showingAll ? $selectedPropertyId : current_property_id();
+
+        $query = Apartments::with(['floor.property', 'tenants', 'supervisor'])->forProperty($scopeId);
 
         // Search functionality
         if ($request->has('search')) {
@@ -49,15 +68,15 @@ class ApartmentController extends Controller
             return $group->first()->floor->id;
         });
 
-        $floorsWithApartments = Floors::forActiveProperty()->with('apartments')->orderBy('id', 'asc')->get();
-        $floors = Floors::forActiveProperty()->orderBy('id', 'asc')->get();
+        $floorsWithApartments = Floors::forProperty($scopeId)->with('apartments')->orderBy('id', 'asc')->get();
+        $floors = Floors::forProperty($scopeId)->with('property')->orderBy('id', 'asc')->get();
         $statuses = Apartments::getStatuses();
         $supervisors = User::role('supervisor')->get();
         // Unassigned tenants are account-wide (no apartment yet) and stay assignable
         // to any property, so they are intentionally not property-filtered here.
         $availableTenants = Tenants::where('status', 'active')->whereNull('apartment_id')->get();
 
-        return view('admin.apartments.index', compact('apartmentsByFloor', 'floors', 'floorsWithApartments', 'statuses', 'supervisors', 'availableTenants'));
+        return view('admin.apartments.index', compact('apartmentsByFloor', 'floors', 'floorsWithApartments', 'statuses', 'supervisors', 'availableTenants', 'showingAll', 'properties', 'selectedPropertyId'));
     }
 
     public function create(): View

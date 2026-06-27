@@ -39,9 +39,13 @@ class TenantController extends Controller
      * They keep their property linkage only through leave history, so match on
      * either a still-set apartment or the apartment recorded on a leave row.
      */
-    private function scopeArchivedToActiveProperty(Builder $query): Builder
+    private function scopeArchivedToActiveProperty(Builder $query, int|null|false $propertyId = false): Builder
     {
-        $propertyId = current_property_id();
+        // `false` = caller didn't specify → fall back to the globally active
+        // property. An explicit null means "no narrowing" (the consolidated view).
+        if ($propertyId === false) {
+            $propertyId = current_property_id();
+        }
 
         if ($propertyId === null) {
             return $query;
@@ -53,11 +57,31 @@ class TenantController extends Controller
         });
     }
 
-    public function index(Request $request): View
+    public function index(Request $request, \App\Services\Property\PropertyContext $propertyContext): View
     {
+        // When the top-bar is on "All properties", offer a per-page property
+        // filter so the user can narrow to one building without changing the
+        // global selection. Otherwise everything stays scoped to the active one.
+        $showingAll = $propertyContext->showingAllProperties();
+        $properties = collect();
+        $selectedPropertyId = null;
+
+        if ($showingAll) {
+            $properties = $propertyContext->accessibleProperties();
+            $requested = $request->integer('property') ?: null;
+
+            if ($requested !== null && $properties->contains('id', $requested)) {
+                $selectedPropertyId = $requested;
+            }
+        }
+
+        // Effective property scope: the per-page filter in "all" mode (null = no
+        // narrowing), otherwise the globally active property.
+        $scopeId = $showingAll ? $selectedPropertyId : current_property_id();
+
         $query = Tenants::whereIn('status', ['active', 'pending'])
-            ->with(['apartment'])
-            ->forActiveProperty();
+            ->with(['apartment.floor.property'])
+            ->forProperty($scopeId);
 
         // Search filter
         if ($request->has('search') && ! empty($request->search)) {
@@ -86,20 +110,20 @@ class TenantController extends Controller
             });
         }
 
-        $tenants = $query->orderBy('id', 'desc')->paginate(15);
-        $apartments = Apartments::forActiveProperty()->get();
-        $floors = Floors::forActiveProperty()->whereHas('apartments')->orderBy('id', 'asc')->get();
+        $tenants = $query->orderBy('id', 'desc')->paginate(15)->withQueryString();
+        $apartments = Apartments::forProperty($scopeId)->get();
+        $floors = Floors::forProperty($scopeId)->whereHas('apartments')->orderBy('id', 'asc')->get();
 
         $rentProgressMap = $this->rentProgressCalculator->map($tenants);
 
         // Statistics counts (across all records, not just current page), scoped to
-        // the active property. Archived tenants have apartment_id cleared, so they
+        // the effective property. Archived tenants have apartment_id cleared, so they
         // are matched through their leave history.
-        $activeTenantCount = Tenants::where('status', 'active')->forActiveProperty()->count();
-        $archivedTenantCount = $this->scopeArchivedToActiveProperty(Tenants::onlyTrashed())->count();
-        $totalDeposits = Tenants::where('status', 'active')->forActiveProperty()->sum('deposit');
+        $activeTenantCount = Tenants::where('status', 'active')->forProperty($scopeId)->count();
+        $archivedTenantCount = $this->scopeArchivedToActiveProperty(Tenants::onlyTrashed(), $scopeId)->count();
+        $totalDeposits = Tenants::where('status', 'active')->forProperty($scopeId)->sum('deposit');
 
-        return view('admin.TenantManagement.activeTenants', compact('tenants', 'apartments', 'rentProgressMap', 'floors', 'activeTenantCount', 'archivedTenantCount', 'totalDeposits'));
+        return view('admin.TenantManagement.activeTenants', compact('tenants', 'apartments', 'rentProgressMap', 'floors', 'activeTenantCount', 'archivedTenantCount', 'totalDeposits', 'showingAll', 'properties', 'selectedPropertyId'));
     }
 
     /**

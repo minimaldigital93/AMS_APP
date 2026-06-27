@@ -5,14 +5,33 @@
 @section('content')
 <div class="max-w-6xl mx-auto space-y-8">
     <!-- Header -->
-    <div class="flex items-center justify-between">
+    <div class="flex items-center justify-between gap-3">
         <div>
             <h1 class="text-2xl font-semibold text-slate-800 tracking-tight">{{ __('messages.floor_management') }}</h1>
         </div>
-        <a href="{{ route('admin.floors.create') }}" class="inline-flex items-center gap-2 bg-slate-800 hover:bg-slate-700 text-white text-sm font-medium py-2.5 px-5 rounded-lg transition" title="Add Floor">
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" />
-            </svg></a>
+        <div class="flex items-center gap-2">
+            {{-- Per-page property filter: only when the top-bar is on "All properties". --}}
+            @if($showingAll && $properties->count() > 1)
+            <form method="GET" action="{{ route('admin.floors.index') }}" class="relative">
+                <span class="material-icons absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 text-base pointer-events-none">apartment</span>
+                <select name="property" onchange="this.form.submit()"
+                    class="appearance-none pl-9 pr-9 py-2.5 text-sm font-medium text-slate-700 bg-white border border-slate-200 rounded-lg hover:border-slate-300 focus:outline-none focus:ring-2 focus:ring-sky-500/40 focus:border-sky-400 transition cursor-pointer max-w-[200px]"
+                    aria-label="{{ __('messages.filter_by_property') }}" title="{{ __('messages.filter_by_property') }}">
+                    <option value="">{{ __('messages.all_properties') }}</option>
+                    @foreach($properties as $prop)
+                        <option value="{{ $prop->id }}" @selected($selectedPropertyId === $prop->id)>{{ $prop->name }}</option>
+                    @endforeach
+                </select>
+                <svg class="w-4 h-4 absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                </svg>
+            </form>
+            @endif
+            <a href="{{ route('admin.floors.create') }}" class="inline-flex items-center gap-2 bg-slate-800 hover:bg-slate-700 text-white text-sm font-medium py-2.5 px-5 rounded-lg transition" title="Add Floor">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" />
+                </svg></a>
+        </div>
     </div>
 
     <!-- Floors -->
@@ -30,6 +49,12 @@
                         </div>
                         <div>
                             <h3 class="text-lg font-semibold text-slate-800">{{ $floor->floor_name }}</h3>
+                            @if($showingAll && $floor->property)
+                            <span class="inline-flex items-center gap-1 mt-0.5 text-xs text-slate-400">
+                                <span class="material-icons text-[13px] leading-none">apartment</span>
+                                {{ $floor->property->name }}
+                            </span>
+                            @endif
                         </div>
                     </div>
                     @php

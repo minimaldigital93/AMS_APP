@@ -16,23 +16,44 @@ class FloorController extends Controller
 {
     public function __construct(private SubscriptionService $subscriptions) {}
 
-    public function index(Request $request): View
+    public function index(Request $request, \App\Services\Property\PropertyContext $propertyContext): View
     {
-        // Scope to the globally selected property (top-bar selector).
-        $query = Floors::query()->forActiveProperty();
+        $query = Floors::query();
 
-        // Search functionality
-        if ($request->has('search')) {
-            $search = $request->get('search');
-            $query->where('floor_name', 'like', "%{$search}%")
-                ->orWhere('description', 'like', "%{$search}%");
+        // When the top-bar is on a single property, that already scopes the list.
+        // When it's on "All properties", offer a per-page property filter so the
+        // user can narrow to one building without changing the global selection.
+        $showingAll = $propertyContext->showingAllProperties();
+        $properties = collect();
+        $selectedPropertyId = null;
+
+        if ($showingAll) {
+            $properties = $propertyContext->accessibleProperties();
+            $requested = $request->integer('property') ?: null;
+
+            if ($requested !== null && $properties->contains('id', $requested)) {
+                $selectedPropertyId = $requested;
+                $query->forProperty($requested);
+            }
+        } else {
+            $query->forActiveProperty();
         }
 
-        $floors = $query->with(['apartments' => function ($query) {
-            $query->with('supervisor')->orderBy('apartment_number');
-        }])->withCount('apartments')->paginate(10);
+        // Search functionality — keep the OR group nested so it can't escape the
+        // property scope above.
+        if ($request->filled('search')) {
+            $search = $request->get('search');
+            $query->where(function ($q) use ($search) {
+                $q->where('floor_name', 'like', "%{$search}%")
+                    ->orWhere('description', 'like', "%{$search}%");
+            });
+        }
 
-        return view('admin.floors.index', compact('floors'));
+        $floors = $query->with(['property', 'apartments' => function ($query) {
+            $query->with('supervisor')->orderBy('apartment_number');
+        }])->withCount('apartments')->paginate(10)->withQueryString();
+
+        return view('admin.floors.index', compact('floors', 'showingAll', 'properties', 'selectedPropertyId'));
     }
 
     public function create(): View

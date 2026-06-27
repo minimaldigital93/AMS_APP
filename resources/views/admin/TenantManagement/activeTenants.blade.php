@@ -66,8 +66,19 @@
                 <button @click="filter = 'unpaid'" :class="filter === 'unpaid' ? 'bg-gray-800 text-white' : 'bg-slate-50 text-slate-600 hover:bg-slate-100'"
                     class="px-3 py-1.5 rounded-lg text-sm font-medium transition">{{ __('messages.unpaid') }}</button>
 
-                <!-- Floor dropdown (server-side filter) -->
-                <div class="ms-auto">
+                <!-- Property + Floor dropdowns (server-side filters) -->
+                <div class="ms-auto flex items-center gap-2">
+                    {{-- Property filter: only when the top-bar is on "All properties". --}}
+                    @if($showingAll && $properties->count() > 1)
+                    <select onchange="window.location.href = this.value"
+                        class="h-9 pl-3 pr-8 text-sm bg-slate-50 border border-slate-200 rounded-lg text-slate-700 font-medium focus:outline-none focus:ring-2 focus:ring-slate-300 cursor-pointer"
+                        aria-label="{{ __('messages.filter_by_property') }}" title="{{ __('messages.filter_by_property') }}">
+                        <option value="{{ request()->fullUrlWithQuery(['property' => null, 'floor' => null, 'page' => null]) }}" @selected(!$selectedPropertyId)>{{ __('messages.all_properties') }}</option>
+                        @foreach($properties as $prop)
+                            <option value="{{ request()->fullUrlWithQuery(['property' => $prop->id, 'floor' => null, 'page' => null]) }}" @selected($selectedPropertyId === $prop->id)>{{ $prop->name }}</option>
+                        @endforeach
+                    </select>
+                    @endif
                     <select onchange="window.location.href = this.value"
                         class="h-9 pl-3 pr-8 text-sm bg-slate-50 border border-slate-200 rounded-lg text-slate-700 font-medium focus:outline-none focus:ring-2 focus:ring-slate-300 cursor-pointer">
                         <option value="{{ request()->fullUrlWithQuery(['floor' => null, 'page' => null]) }}" @selected(!request()->filled('floor'))>{{ __('messages.all_floors') }}</option>
@@ -112,7 +123,12 @@
                                         </div>
                                     </div>
                                 </td>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{ $tenant->floor?->floor_name ?? ($tenant->apartment?->floor?->floor_name ?? 'N/A') }} / {{ $tenant->apartment?->apartment_number ?? 'N/A' }}</td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                    {{ $tenant->floor?->floor_name ?? ($tenant->apartment?->floor?->floor_name ?? 'N/A') }} / {{ $tenant->apartment?->apartment_number ?? 'N/A' }}
+                                    @if($showingAll && $tenant->apartment?->floor?->property)
+                                    <span class="block text-xs text-slate-400">{{ $tenant->apartment->floor->property->name }}</span>
+                                    @endif
+                                </td>
                                 <td class="px-6 py-4 whitespace-nowrap">
                                     @php $rp = $rentProgressMap[$tenant->id] ?? null; @endphp
                                     @if($rp)
@@ -200,6 +216,9 @@
                         <div class="min-w-0 flex-1">
                             <p class="font-medium text-gray-900 text-sm truncate">{{ $tenant->name }}</p>
                             <p class="text-xs text-gray-500 truncate">{{ $tenant->floor?->floor_name ?? ($tenant->apartment?->floor?->floor_name ?? 'N/A') }} / {{ $tenant->apartment?->apartment_number ?? 'N/A' }}</p>
+                            @if($showingAll && $tenant->apartment?->floor?->property)
+                            <p class="text-xs text-slate-400 truncate">{{ $tenant->apartment->floor->property->name }}</p>
+                            @endif
                         </div>
 
                         <!-- Status badge -->
