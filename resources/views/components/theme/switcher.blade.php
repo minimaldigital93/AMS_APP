@@ -5,78 +5,51 @@
 ])
 
 {{--
-    <x-theme.switcher> — premium theme picker (LIST VIEW) with LIVE PREVIEW.
+    <x-theme.switcher> — theme picker rendered as a LIST.
 
-    • Clicking a row previews the theme instantly across the whole app
-      (rewrites <html data-theme>) without a reload.
+    • Each theme is a row showing its name, description and colour swatches.
     • "Apply" persists the choice (PUT, JSON) and mirrors a cookie so the login
-      screen keeps the look. The saved theme shows an "Active" indicator.
-    • "Reset preview" reverts to the saved theme.
+      screen keeps the look; the saved theme shows an "Active" indicator.
+    • No live preview — the new look takes effect after Apply (page reloads).
 --}}
 <div
     x-data="amsThemeSwitcher({
         applied: @js($active),
         url: @js($updateUrl),
     })"
-    x-init="init()"
     class="space-y-5"
 >
-    {{-- Section header + toolbar --}}
+    {{-- Section header --}}
     <div class="flex flex-wrap items-end justify-between gap-3">
         <div class="min-w-0">
             <h3 class="ams-title text-lg">{{ __('messages.theme_choose') }}</h3>
             <p class="ams-muted text-sm mt-0.5">{{ __('messages.theme_choose_hint') }}</p>
         </div>
-        <div class="flex items-center gap-3 flex-wrap">
-            <p class="ams-muted text-sm">
-                {{ __('messages.theme_active_label') }}
-                <span class="ams-text font-semibold" x-text="appliedName()"></span>
-            </p>
-            <button type="button"
-                class="ams-btn ams-btn-ghost text-xs"
-                x-show="preview !== applied"
-                x-cloak
-                @click="revert()">
-                <span class="material-icons" style="font-size:1rem">restart_alt</span>
-                {{ __('messages.theme_reset_preview') }}
-            </button>
-        </div>
+        <p class="ams-muted text-sm">
+            {{ __('messages.theme_active_label') }}
+            <span class="ams-text font-semibold" x-text="appliedName()"></span>
+        </p>
     </div>
 
-    {{-- Theme list --}}
-    <div class="ams-surface overflow-hidden" style="box-shadow: var(--shadow)">
+    {{-- Theme list. Each row is a theme; "Apply" saves it to the account. --}}
+    <div class="ams-theme-list">
         @foreach($themes as $theme)
-            @php($p = $theme->preview)
+            @php
+                $p = $theme->preview;
+                $t = $theme->tokens;
+                $accent = $t['--accent-color'] ?? '#111827';
+                $border = $t['--border-color'] ?? 'rgba(0,0,0,0.08)';
+            @endphp
             <div
-                role="button" tabindex="0"
-                @click="setPreview(@js($theme->slug))"
-                @keydown.enter="setPreview(@js($theme->slug))"
-                @keydown.space.prevent="setPreview(@js($theme->slug))"
-                class="relative flex items-center gap-4 p-4 cursor-pointer transition focus:outline-none"
-                :class="preview === @js($theme->slug) ? 'bg-active' : 'hover:bg-hover'"
-                @if(!$loop->first) style="border-top: 1px solid var(--border-color)" @endif
+                class="ams-theme-row"
+                :class="applied === @js($theme->slug) ? 'is-active' : ''"
             >
-                {{-- Left accent bar shown for the previewed row --}}
-                <span x-show="preview === @js($theme->slug)" x-cloak
-                      class="absolute left-0 top-2.5 bottom-2.5 w-1 rounded-full"
-                      style="background: {{ $theme->tokens['--accent-color'] }}"></span>
-
-                {{-- Thumbnail: miniature dashboard in the theme's own colors --}}
-                <div class="relative flex-shrink-0 w-28 h-16 rounded-token-sm overflow-hidden p-1.5 flex gap-1.5"
-                     style="background: {{ $p['background'] }}; border: 1px solid {{ $theme->tokens['--border-color'] }}">
-                    {{-- sidebar --}}
-                    <div class="w-1/4 rounded-md flex flex-col gap-1 p-1"
-                         style="background: {{ $p['sidebar'] }}; border: 1px solid {{ $theme->tokens['--border-color'] }}">
-                        <span class="h-1 rounded-full" style="background: {{ $theme->tokens['--accent-color'] }}; width: 90%"></span>
-                        <span class="h-0.5 rounded-full" style="background: {{ $p['accent'] }}; width: 70%; opacity: .55"></span>
-                        <span class="h-0.5 rounded-full" style="background: {{ $p['accent'] }}; width: 80%; opacity: .55"></span>
-                    </div>
-                    {{-- main panel --}}
-                    <div class="flex-1 rounded-md flex flex-col justify-between p-1"
-                         style="background: {{ $p['card'] }}; border: 1px solid {{ $theme->tokens['--border-color'] }}">
-                        <span class="h-1 rounded-full" style="background: {{ $p['primary'] }}; width: 60%"></span>
-                        <span class="h-2 rounded" style="background: {{ $theme->tokens['--accent-color'] }}; width: 45%"></span>
-                    </div>
+                {{-- Swatches --}}
+                <div class="ams-theme-row__swatches flex-shrink-0">
+                    @foreach(['background','sidebar','card','accent'] as $swatch)
+                        <span class="w-4 h-4 rounded-full"
+                              style="background: {{ $swatch === 'accent' ? $accent : ($p[$swatch] ?? '#fff') }}; border: 1px solid {{ $border }}"></span>
+                    @endforeach
                 </div>
 
                 {{-- Meta --}}
@@ -85,27 +58,17 @@
                         <h4 class="ams-title text-base truncate">{{ $theme->name }}</h4>
                         <span x-show="applied === @js($theme->slug)" x-cloak
                               class="ams-badge ams-badge-accent flex-shrink-0">
-                            <span class="material-icons" style="font-size:0.9rem">check</span>
                             {{ __('messages.theme_demo_active') }}
                         </span>
                     </div>
-                    <p class="ams-muted text-xs mt-0.5 truncate">{{ $theme->description }}</p>
-
-                    {{-- Color swatches --}}
-                    <div class="flex items-center gap-1.5 mt-2">
-                        @foreach(['background','sidebar','card','primary','accent'] as $swatch)
-                            <span class="w-4 h-4 rounded-full"
-                                  style="background: {{ $p[$swatch] }}; border: 1px solid {{ $theme->tokens['--border-color'] }}"
-                                  title="{{ ucfirst($swatch) }}"></span>
-                        @endforeach
-                    </div>
+                    <p class="ams-muted text-xs mt-0.5 line-clamp-1">{{ $theme->description }}</p>
                 </div>
 
                 {{-- Apply --}}
                 <button type="button"
-                    @click.stop="apply(@js($theme->slug))"
+                    @click="apply(@js($theme->slug))"
                     :disabled="saving === @js($theme->slug)"
-                    class="ams-btn flex-shrink-0 min-w-[7rem]"
+                    class="ams-btn flex-shrink-0"
                     :class="applied === @js($theme->slug) ? 'ams-btn-soft' : 'ams-btn-primary'">
                     <template x-if="saving === @js($theme->slug)">
                         <span class="material-icons animate-spin" style="font-size:1.05rem">progress_activity</span>
@@ -131,31 +94,21 @@
     function amsThemeSwitcher(config) {
         return {
             applied: config.applied,
-            preview: config.applied,
             url: config.url,
             saving: null,
             toast: '',
             _toastTimer: null,
             names: @js($themes->pluck('name', 'slug')),
 
-            init() {
-                // Ensure the page reflects the saved theme on entry.
-                document.documentElement.setAttribute('data-theme', this.applied);
-            },
             appliedName() { return this.names[this.applied] ?? this.applied; },
-            setPreview(slug) {
-                this.preview = slug;
-                document.documentElement.setAttribute('data-theme', slug);
-            },
-            revert() { this.setPreview(this.applied); },
             showToast(msg) {
                 this.toast = msg;
                 clearTimeout(this._toastTimer);
                 this._toastTimer = setTimeout(() => (this.toast = ''), 2600);
             },
             async apply(slug) {
+                if (slug === this.applied) return;
                 this.saving = slug;
-                this.setPreview(slug);
                 try {
                     const res = await fetch(this.url, {
                         method: 'PUT',
@@ -170,8 +123,9 @@
                     const data = await res.json();
                     this.applied = data.theme ?? slug;
                     this.showToast(@js(__('messages.theme_saved')));
+                    // Reload so the saved theme is applied across the whole app.
+                    setTimeout(() => window.location.reload(), 600);
                 } catch (e) {
-                    this.revert();
                     this.showToast(@js(__('messages.theme_save_failed')));
                 } finally {
                     this.saving = null;

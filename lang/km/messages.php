@@ -1237,7 +1237,7 @@ return [
     'theme_active_label' => 'ស្បែកសកម្ម៖',
     'theme_reset_preview' => 'កំណត់ការមើលឡើងវិញ',
     'theme_choose' => 'ជ្រើសរើសស្បែក',
-    'theme_choose_hint' => 'ចុចស្បែកណាមួយដើម្បីមើលផ្ទាល់ បន្ទាប់មកចុច «អនុវត្ត» ដើម្បីរក្សាទុកក្នុងគណនី។',
+    'theme_choose_hint' => 'ជ្រើសរើសស្បែក រួចចុច «អនុវត្ត» ដើម្បីរក្សាទុកក្នុងគណនី។',
     'theme_live_preview' => 'ការមើលផ្ទាល់',
     'theme_instant' => 'ភ្លាមៗ',
     'theme_mode_dark' => 'ងងឹត',

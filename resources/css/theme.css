@@ -313,10 +313,14 @@
     /* =========================================================================
        SIDEBAR  (premium, collapsible, active indicator)
        ========================================================================= */
+    /* Sidebar chrome reads from optional --sidebar-* tokens, each falling back
+       to the matching base token. Light-sidebar themes (the default) set none
+       of these and look identical; dark-sidebar themes (e.g. Skeuomorphism)
+       just define the handful they need. */
     .ams-sidebar {
         background: var(--sidebar-bg);
-        color: var(--text-primary);
-        border-right: 1px solid var(--border-color);
+        color: var(--sidebar-text, var(--text-primary));
+        border-right: 1px solid var(--sidebar-border, var(--border-color));
         transition: width var(--transition), transform var(--transition),
             background-color var(--transition);
     }
@@ -325,7 +329,7 @@
         font-weight: 700;
         text-transform: uppercase;
         letter-spacing: 0.08em;
-        color: var(--text-secondary);
+        color: var(--sidebar-text-muted, var(--text-secondary));
     }
     .ams-nav-item {
         position: relative;
@@ -335,22 +339,22 @@
         padding: 0.65rem 0.85rem;
         margin: 0.15rem 0;
         border-radius: var(--radius-sm);
-        color: var(--text-secondary);
+        color: var(--sidebar-text-muted, var(--text-secondary));
         font-weight: 500;
         font-size: 0.9rem;
         transition: background-color var(--transition), color var(--transition),
             box-shadow var(--transition);
     }
     .ams-nav-item:hover {
-        background: var(--hover-bg);
-        color: var(--text-primary);
-        box-shadow: inset 0 0 0 1px var(--border-color);
+        background: var(--sidebar-hover, var(--hover-bg));
+        color: var(--sidebar-text, var(--text-primary));
+        box-shadow: inset 0 0 0 1px var(--sidebar-border, var(--border-color));
     }
     .ams-nav-item .ams-nav-icon { flex-shrink: 0; width: 1.25rem; text-align: center; }
 
     .ams-nav-item.is-active {
-        background: var(--active-bg);
-        color: var(--text-primary);
+        background: var(--sidebar-active, var(--active-bg));
+        color: var(--sidebar-text, var(--text-primary));
         font-weight: 700;
     }
     /* Left accent bar on the active item. */
@@ -363,7 +367,7 @@
         width: 3px;
         height: 60%;
         border-radius: var(--radius-pill);
-        background: var(--accent-color);
+        background: var(--sidebar-accent, var(--accent-color));
     }
 
     /* =========================================================================
@@ -474,42 +478,43 @@ body.ams-themed {
     transition: background-color var(--transition), color var(--transition);
 }
 
-/* Sidebar shell + inner panel. */
+/* Sidebar shell + inner panel. Reads optional --sidebar-* tokens (fallback to
+   base tokens) so dark-sidebar themes need no bespoke selectors. */
 .ams-themed .sidebar-container { background: var(--sidebar-bg); }
-.ams-themed .sidebar-container > div { background: var(--sidebar-bg); color: var(--text-primary); }
+.ams-themed .sidebar-container > div { background: var(--sidebar-bg); color: var(--sidebar-text, var(--text-primary)); }
 .ams-themed .sidebar-container .border-t,
-.ams-themed .sidebar-container .border-b { border-color: var(--border-color); }
-.ams-themed .sidebar-container h2 { color: var(--text-primary); }
-.ams-themed .sidebar-container .logout-button { color: var(--text-secondary); }
+.ams-themed .sidebar-container .border-b { border-color: var(--sidebar-border, var(--border-color)); }
+.ams-themed .sidebar-container h2 { color: var(--sidebar-text, var(--text-primary)); }
+.ams-themed .sidebar-container .logout-button { color: var(--sidebar-text-muted, var(--text-secondary)); }
 
 /* Nav links — inactive text, hover, and the icon chip. */
 .ams-themed .nav-link.text-gray-700,
 .ams-themed .submenu-item.text-gray-700,
-.ams-themed .section-header { color: var(--text-secondary); }
+.ams-themed .section-header { color: var(--sidebar-text-muted, var(--text-secondary)); }
 .ams-themed .nav-link.text-gray-700:hover,
 .ams-themed .submenu-item.text-gray-700:hover,
-.ams-themed .section-header:hover { color: var(--text-primary); }
+.ams-themed .section-header:hover { color: var(--sidebar-text, var(--text-primary)); }
 .ams-themed .nav-link .nav-icon {
-    background: var(--hover-bg);
-    box-shadow: inset 0 0 0 1px var(--border-color);
+    background: var(--sidebar-hover, var(--hover-bg));
+    box-shadow: inset 0 0 0 1px var(--sidebar-border, var(--border-color));
 }
 .ams-themed .nav-link::before {
-    background: var(--hover-bg);
-    box-shadow: inset 0 0 0 1px var(--border-color);
+    background: var(--sidebar-hover, var(--hover-bg));
+    box-shadow: inset 0 0 0 1px var(--sidebar-border, var(--border-color));
 }
 .ams-themed .nav-link:hover .nav-icon {
-    background: var(--active-bg);
-    box-shadow: inset 0 0 0 1px var(--border-color);
+    background: var(--sidebar-active, var(--active-bg));
+    box-shadow: inset 0 0 0 1px var(--sidebar-border, var(--border-color));
 }
 
 /* Active nav item — token surface + accent text + left accent bar. */
 .ams-themed .nav-link.active {
-    background: var(--active-bg);
-    color: var(--accent-color);
-    box-shadow: inset 0 0 0 1px var(--border-color);
+    background: var(--sidebar-active, var(--active-bg));
+    color: var(--sidebar-accent, var(--accent-color));
+    box-shadow: inset 0 0 0 1px var(--sidebar-border, var(--border-color));
 }
 .ams-themed .nav-link.active::before {
-    background: var(--accent-color);
+    background: var(--sidebar-accent, var(--accent-color));
     opacity: 1;
     left: 0;
     width: 3px;
@@ -517,14 +522,14 @@ body.ams-themed {
     box-shadow: none;
 }
 .ams-themed .nav-link.active .nav-icon {
-    background: color-mix(in srgb, var(--accent-color) 16%, transparent);
-    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent-color) 30%, transparent);
+    background: color-mix(in srgb, var(--sidebar-accent, var(--accent-color)) 16%, transparent);
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--sidebar-accent, var(--accent-color)) 30%, transparent);
 }
 
 /* Section-header accent bar/glow. */
-.ams-themed .section-header::before { background: var(--accent-color); }
-.ams-themed .section-header::after { background: var(--hover-bg); }
-.ams-themed .section-header:hover { color: var(--text-primary); }
+.ams-themed .section-header::before { background: var(--sidebar-accent, var(--accent-color)); }
+.ams-themed .section-header::after { background: var(--sidebar-hover, var(--hover-bg)); }
+.ams-themed .section-header:hover { color: var(--sidebar-text, var(--text-primary)); }
 
 /* Shared top bar (partials/topbar.blade.php). */
 .ams-themed #topbarNav {
@@ -533,4 +538,285 @@ body.ams-themed {
     -webkit-backdrop-filter: saturate(1.4) blur(14px);
     border-bottom: 1px solid var(--border-color);
     color: var(--text-primary);
+}
+
+/*
+ * ============================================================================
+ *  PER-THEME STRUCTURAL OVERRIDES  (themes 3-8)
+ * ----------------------------------------------------------------------------
+ *  Colour and the structural tokens (--radius*, --shadow*, --transition) are
+ *  driven entirely by the DB token map. This section adds only the *physical*
+ *  effects that a single token value cannot express — gradients, paired
+ *  shadows, backdrop blur, inset wells, hard offset shadows. Each block is
+ *  scoped to `[data-theme="…"]` so it is purely additive: themes that don't
+ *  opt in (Carbon Gray, Platinum Silver, the light tints) are never touched.
+ * ============================================================================
+ */
+
+/* ───────────────────────── THEME 3 · SKEUOMORPHISM ─────────────────────────
+   Brushed metal, raised glossy controls, inset wells, dark carbon sidebar. */
+[data-theme="skeuomorphism"] .ams-card,
+[data-theme="skeuomorphism"] .ams-surface,
+[data-theme="skeuomorphism"] .ams-stat-card,
+[data-theme="skeuomorphism"] .ams-tenant-card,
+[data-theme="skeuomorphism"] .ams-property-card,
+[data-theme="skeuomorphism"] .ams-invoice-card,
+[data-theme="skeuomorphism"] .ams-receipt-card {
+    background: linear-gradient(180deg, #FBFCFD 0%, #EBEDF1 100%);
+    box-shadow: var(--shadow), inset 0 1px 0 rgba(255,255,255,0.9),
+        inset 0 -1px 0 rgba(20,24,33,0.06);
+}
+[data-theme="skeuomorphism"] .ams-btn-primary {
+    background: linear-gradient(180deg, #3A3A3A 0%, #1E1E1E 100%);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.25),
+        0 2px 4px rgba(20,24,33,0.35), 0 6px 14px rgba(20,24,33,0.25);
+    text-shadow: 0 -1px 0 rgba(0,0,0,0.35);
+}
+[data-theme="skeuomorphism"] .ams-btn-primary:active {
+    background: linear-gradient(180deg, #1E1E1E 0%, #2E2E2E 100%);
+    box-shadow: inset 0 1px 3px rgba(20,24,33,0.5);
+    transform: translateY(1px) scale(0.99);
+}
+[data-theme="skeuomorphism"] .ams-btn-ghost,
+[data-theme="skeuomorphism"] .ams-btn-soft {
+    background: linear-gradient(180deg, #FFFFFF 0%, #E9EBEF 100%);
+    border-color: rgba(20,24,33,0.18);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.9), 0 1px 2px rgba(20,24,33,0.18);
+}
+[data-theme="skeuomorphism"] .ams-input,
+[data-theme="skeuomorphism"] .ams-select,
+[data-theme="skeuomorphism"] .ams-textarea {
+    background: #F4F5F7;
+    border-color: rgba(20,24,33,0.18);
+    box-shadow: inset 0 2px 4px rgba(20,24,33,0.14), inset 0 1px 0 rgba(20,24,33,0.05);
+}
+[data-theme="skeuomorphism"] .ams-sidebar,
+[data-theme="skeuomorphism"] .sidebar-container,
+[data-theme="skeuomorphism"] .sidebar-container > div {
+    background-image:
+        repeating-linear-gradient(90deg, rgba(255,255,255,0.025) 0 1px, transparent 1px 3px),
+        linear-gradient(180deg, #2A2C31 0%, #1B1D21 100%);
+}
+[data-theme="skeuomorphism"] .ams-topbar,
+[data-theme="skeuomorphism"] #topbarNav {
+    background:
+        repeating-linear-gradient(90deg, rgba(20,24,33,0.02) 0 1px, transparent 1px 3px),
+        linear-gradient(180deg, #F3F4F6 0%, #E4E6EA 100%);
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+}
+
+/* ───────────────────────── THEME 4 · NEOMORPHISM ──────────────────────────
+   One soft surface; panels extrude via paired shadows, inputs are recessed.
+   (The dual --shadow / --shadow-sm / --shadow-lg tokens do most of the work.) */
+[data-theme="neomorphism"] .ams-card,
+[data-theme="neomorphism"] .ams-surface,
+[data-theme="neomorphism"] .ams-stat-card,
+[data-theme="neomorphism"] .ams-tenant-card,
+[data-theme="neomorphism"] .ams-property-card,
+[data-theme="neomorphism"] .ams-invoice-card,
+[data-theme="neomorphism"] .ams-receipt-card { border-color: transparent; }
+[data-theme="neomorphism"] .ams-input,
+[data-theme="neomorphism"] .ams-select,
+[data-theme="neomorphism"] .ams-textarea {
+    background: #E0E5EC;
+    border-color: transparent;
+    box-shadow: inset 4px 4px 8px rgba(163,177,198,0.55),
+        inset -4px -4px 8px rgba(255,255,255,0.9);
+}
+[data-theme="neomorphism"] .ams-input:focus,
+[data-theme="neomorphism"] .ams-select:focus,
+[data-theme="neomorphism"] .ams-textarea:focus {
+    box-shadow: inset 2px 2px 5px rgba(163,177,198,0.6),
+        inset -2px -2px 5px rgba(255,255,255,0.95), 0 0 0 3px var(--ring-color);
+}
+[data-theme="neomorphism"] .ams-btn-ghost,
+[data-theme="neomorphism"] .ams-btn-soft {
+    background: #E0E5EC;
+    border-color: transparent;
+    box-shadow: 4px 4px 8px rgba(163,177,198,0.5), -4px -4px 8px rgba(255,255,255,0.85);
+}
+[data-theme="neomorphism"] .ams-btn-primary:active,
+[data-theme="neomorphism"] .ams-btn-ghost:active,
+[data-theme="neomorphism"] .ams-btn-soft:active {
+    box-shadow: inset 4px 4px 8px rgba(20,24,33,0.22),
+        inset -2px -2px 6px rgba(255,255,255,0.18);
+}
+[data-theme="neomorphism"] .ams-stat-icon,
+[data-theme="neomorphism"] .ams-nav-item .ams-nav-icon,
+[data-theme="neomorphism"] .nav-link .nav-icon {
+    background: #E0E5EC;
+    border-color: transparent;
+    box-shadow: 3px 3px 6px rgba(163,177,198,0.5), -3px -3px 6px rgba(255,255,255,0.9);
+}
+[data-theme="neomorphism"] .ams-topbar,
+[data-theme="neomorphism"] #topbarNav {
+    background: #E0E5EC;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    border-bottom-color: transparent;
+    box-shadow: 0 4px 12px rgba(163,177,198,0.35);
+}
+
+/* ───────────────────────── THEME 5 · GLASSMORPHISM ────────────────────────
+   Frosted translucent panels over a fixed aurora gradient. */
+[data-theme="glassmorphism"] body.ams-themed { background-attachment: fixed; }
+[data-theme="glassmorphism"] .ams-card,
+[data-theme="glassmorphism"] .ams-surface,
+[data-theme="glassmorphism"] .ams-stat-card,
+[data-theme="glassmorphism"] .ams-tenant-card,
+[data-theme="glassmorphism"] .ams-property-card,
+[data-theme="glassmorphism"] .ams-invoice-card,
+[data-theme="glassmorphism"] .ams-receipt-card,
+[data-theme="glassmorphism"] .ams-dropdown,
+[data-theme="glassmorphism"] .ams-modal {
+    backdrop-filter: blur(18px) saturate(1.4);
+    -webkit-backdrop-filter: blur(18px) saturate(1.4);
+    border-color: rgba(255,255,255,0.55);
+}
+[data-theme="glassmorphism"] .ams-sidebar,
+[data-theme="glassmorphism"] .sidebar-container,
+[data-theme="glassmorphism"] .sidebar-container > div {
+    background: rgba(255,255,255,0.42);
+    backdrop-filter: blur(20px) saturate(1.4);
+    -webkit-backdrop-filter: blur(20px) saturate(1.4);
+}
+[data-theme="glassmorphism"] .ams-topbar,
+[data-theme="glassmorphism"] #topbarNav {
+    background: rgba(255,255,255,0.40);
+    backdrop-filter: blur(20px) saturate(1.5);
+    -webkit-backdrop-filter: blur(20px) saturate(1.5);
+}
+[data-theme="glassmorphism"] .ams-input,
+[data-theme="glassmorphism"] .ams-select,
+[data-theme="glassmorphism"] .ams-textarea {
+    background: rgba(255,255,255,0.45);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    border-color: rgba(255,255,255,0.6);
+}
+
+/* ───────────────────────── THEME 6 · MINIMAL ──────────────────────────────
+   Flat surfaces, hairline borders, restrained motion. */
+[data-theme="minimal"] .ams-card { backdrop-filter: none; }
+[data-theme="minimal"] .ams-card-hover:hover,
+[data-theme="minimal"] a.ams-card:hover,
+[data-theme="minimal"] .ams-stat-card:hover,
+[data-theme="minimal"] .ams-tenant-card:hover,
+[data-theme="minimal"] .ams-property-card:hover,
+[data-theme="minimal"] .ams-invoice-card:hover,
+[data-theme="minimal"] .ams-receipt-card:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-lg);
+    border-color: rgba(0,0,0,0.14);
+}
+[data-theme="minimal"] .ams-btn-primary { box-shadow: none; }
+[data-theme="minimal"] .ams-btn-primary:hover { box-shadow: none; transform: none; background: #000; }
+[data-theme="minimal"] .ams-topbar,
+[data-theme="minimal"] #topbarNav {
+    backdrop-filter: saturate(1.1) blur(6px);
+    -webkit-backdrop-filter: saturate(1.1) blur(6px);
+}
+
+/* ───────────────────────── THEME 7 · BRUTALISM ────────────────────────────
+   Square, heavy black outlines, hard offset shadows, snappy press. */
+[data-theme="brutalism"] .ams-card,
+[data-theme="brutalism"] .ams-surface,
+[data-theme="brutalism"] .ams-stat-card,
+[data-theme="brutalism"] .ams-tenant-card,
+[data-theme="brutalism"] .ams-property-card,
+[data-theme="brutalism"] .ams-invoice-card,
+[data-theme="brutalism"] .ams-receipt-card,
+[data-theme="brutalism"] .ams-dropdown,
+[data-theme="brutalism"] .ams-modal,
+[data-theme="brutalism"] .ams-input,
+[data-theme="brutalism"] .ams-select,
+[data-theme="brutalism"] .ams-textarea {
+    border-width: 2px;
+    border-color: #0A0A0A;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+}
+[data-theme="brutalism"] .ams-btn {
+    border-width: 2px;
+    border-color: #0A0A0A;
+    box-shadow: 3px 3px 0 0 #0A0A0A;
+}
+[data-theme="brutalism"] .ams-btn:hover { transform: translate(2px, 2px); box-shadow: 1px 1px 0 0 #0A0A0A; }
+[data-theme="brutalism"] .ams-btn:active { transform: translate(3px, 3px); box-shadow: 0 0 0 0 #0A0A0A; }
+[data-theme="brutalism"] .ams-btn-ghost,
+[data-theme="brutalism"] .ams-btn-soft { background: #FFFFFF; }
+[data-theme="brutalism"] .ams-card-hover:hover,
+[data-theme="brutalism"] a.ams-card:hover,
+[data-theme="brutalism"] .ams-stat-card:hover,
+[data-theme="brutalism"] .ams-tenant-card:hover,
+[data-theme="brutalism"] .ams-property-card:hover,
+[data-theme="brutalism"] .ams-invoice-card:hover,
+[data-theme="brutalism"] .ams-receipt-card:hover {
+    transform: translate(2px, 2px);
+    box-shadow: 2px 2px 0 0 #0A0A0A;
+    border-color: #0A0A0A;
+}
+[data-theme="brutalism"] .ams-title { font-weight: 800; }
+[data-theme="brutalism"] .ams-badge { border-width: 2px; }
+[data-theme="brutalism"] .ams-topbar,
+[data-theme="brutalism"] #topbarNav {
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    border-bottom: 2px solid #0A0A0A;
+}
+[data-theme="brutalism"] .ams-sidebar,
+[data-theme="brutalism"] .sidebar-container { border-right: 2px solid #0A0A0A; }
+
+/* ───────────────────────── THEME 8 · BENTO GRID ───────────────────────────
+   Generous rounded surfaces, airy spacing, a confident lift on hover.
+   (The bento dashboard *layout* lives in the dashboard view; this is the skin.) */
+[data-theme="bento"] .ams-card,
+[data-theme="bento"] .ams-stat-card { backdrop-filter: none; }
+[data-theme="bento"] .ams-card-hover:hover,
+[data-theme="bento"] a.ams-card:hover,
+[data-theme="bento"] .ams-stat-card:hover,
+[data-theme="bento"] .ams-tenant-card:hover,
+[data-theme="bento"] .ams-property-card:hover {
+    transform: translateY(-6px);
+    box-shadow: var(--shadow-lg);
+}
+
+/*
+ * ============================================================================
+ *  THEME PICKER  (Settings ▸ Theme) — list view
+ * ----------------------------------------------------------------------------
+ *  Each theme is a row. The row frame follows the *active* theme's tokens;
+ *  the swatches are inline-styled with each theme's own colours by
+ *  switcher.blade. No live preview — Apply persists and reloads.
+ * ============================================================================
+ */
+.ams-theme-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.65rem;
+}
+.ams-theme-row {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    background: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow-sm);
+    padding: 0.85rem 1rem;
+    transition: box-shadow var(--transition), border-color var(--transition);
+}
+.ams-theme-row:hover {
+    box-shadow: var(--shadow);
+    border-color: color-mix(in srgb, var(--accent-color) 22%, var(--border-color));
+}
+.ams-theme-row.is-active {
+    border-color: var(--accent-color);
+    box-shadow: 0 0 0 2px var(--accent-color), var(--shadow);
+}
+.ams-theme-row__swatches {
+    display: flex;
+    align-items: center;
+    gap: 0.3rem;
 }

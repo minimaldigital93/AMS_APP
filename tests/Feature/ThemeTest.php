@@ -8,13 +8,35 @@ beforeEach(function () {
     $this->seed(ThemeSeeder::class);
 });
 
-it('seeds the available light themes', function () {
-    expect(Theme::count())->toBe(4);
-    expect(Theme::pluck('slug')->all())->toEqualCanonicalizing(
-        ['carbon-gray', 'platinum-silver', 'light-blue', 'light-green']
-    );
-    // All offered themes are light.
+it('seeds the full premium theme catalog', function () {
+    expect(Theme::count())->toBe(10);
+    expect(Theme::pluck('slug')->all())->toEqualCanonicalizing([
+        // The two originals + six premium style themes …
+        'carbon-gray', 'platinum-silver', 'skeuomorphism', 'neomorphism',
+        'glassmorphism', 'minimal', 'brutalism', 'bento',
+        // … plus the retained light tints.
+        'light-blue', 'light-green',
+    ]);
+    // All offered themes are light (dark mode is a per-theme follow-up).
     expect(Theme::pluck('mode')->unique()->all())->toBe(['light']);
+});
+
+it('emits structural tokens for the style themes', function () {
+    // Style themes override radius/shadow; the originals inherit CSS defaults.
+    $brutalism = Theme::where('slug', 'brutalism')->firstOrFail();
+    expect($brutalism->tokens['--radius'])->toBe('0px');
+
+    $skeuo = Theme::where('slug', 'skeuomorphism')->firstOrFail();
+    expect($skeuo->tokens)->toHaveKey('--sidebar-text');
+
+    // Seeder-only hints (prefixed "__") must never reach the token map.
+    expect(collect(array_keys($skeuo->tokens))->filter(
+        fn ($k) => str_starts_with($k, '__')
+    ))->toBeEmpty();
+
+    // Carbon Gray stays colour-only — no structural override leaked in.
+    $carbon = Theme::where('slug', 'carbon-gray')->firstOrFail();
+    expect($carbon->tokens)->not->toHaveKey('--radius');
 });
 
 it('prunes themes that are no longer offered', function () {
@@ -47,7 +69,7 @@ it('the theme route is not swallowed by the /admin/settings/{key} wildcard', fun
     $this->actingAs($admin)
         ->get(route('admin.settings.theme'))
         ->assertOk()
-        ->assertSee('Live preview');
+        ->assertSee(__('messages.theme_choose'));
 });
 
 it('persists a chosen theme to the user and returns json + cookie', function () {

@@ -11,10 +11,6 @@
         </a>
     </div>
 
-    @if (session('error'))
-        <div class="rounded-lg bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-600">{{ session('error') }}</div>
-    @endif
-
     <div class="bg-white rounded-xl border border-slate-100">
         <form method="POST" action="{{ route('admin.properties.store') }}">
             @csrf

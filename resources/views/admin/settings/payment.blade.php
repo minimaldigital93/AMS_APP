@@ -7,10 +7,6 @@
     <h1 class="text-2xl font-semibold text-slate-800 tracking-tight">{{ __('messages.payment_settings') }}</h1>
     <p class="mt-1 text-sm text-gray-500">{{ __('messages.payment_settings_hint') }}</p>
 
-    @if (session('success'))
-        <div class="mt-4 rounded-lg bg-emerald-50 border border-emerald-200 px-4 py-3 text-sm text-emerald-700">{{ session('success') }}</div>
-    @endif
-
     @if ($errors->any())
         <div class="mt-4 rounded-lg bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-600">
             <ul class="list-disc list-inside space-y-0.5">

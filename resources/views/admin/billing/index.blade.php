@@ -21,13 +21,6 @@
         </div>
     @endif
 
-    @if (session('error'))
-        <div class="mt-4 rounded-lg bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-600">{{ session('error') }}</div>
-    @endif
-    @if (session('success'))
-        <div class="mt-4 rounded-lg bg-emerald-50 border border-emerald-200 px-4 py-3 text-sm text-emerald-700">{{ session('success') }}</div>
-    @endif
-
     @php($plan = $usage['plan'])
     @php($sub = $subscription)
 

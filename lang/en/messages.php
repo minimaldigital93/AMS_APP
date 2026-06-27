@@ -1237,7 +1237,7 @@ return [
     'theme_active_label' => 'Active theme:',
     'theme_reset_preview' => 'Reset preview',
     'theme_choose' => 'Choose a theme',
-    'theme_choose_hint' => 'Click a theme to preview it live, then Apply to save it to your account.',
+    'theme_choose_hint' => 'Pick a theme and Apply to save it to your account.',
     'theme_live_preview' => 'Live preview',
     'theme_instant' => 'Instant',
     'theme_mode_dark' => 'Dark',

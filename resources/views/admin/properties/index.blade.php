@@ -16,13 +16,6 @@
         </a>
     </div>
 
-    @if (session('success'))
-        <div class="rounded-lg bg-emerald-50 border border-emerald-200 px-4 py-3 text-sm text-emerald-700">{{ session('success') }}</div>
-    @endif
-    @if (session('error'))
-        <div class="rounded-lg bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-600">{{ session('error') }}</div>
-    @endif
-
     @if ($properties->isEmpty())
         <div class="rounded-xl border border-slate-100 bg-white p-12 text-center">
             <p class="text-slate-500">{{ __('messages.no_properties_yet') }}</p>
