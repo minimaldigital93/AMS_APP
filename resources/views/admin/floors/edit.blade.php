@@ -76,7 +76,7 @@
                         <div>
                             <p class="text-sm font-semibold text-slate-800">{{ $apartment->apartment_number }}</p>
                             <div class="flex gap-3 text-[12px] text-slate-400">
-                                <span>${{ number_format($apartment->monthly_rent, 2) }}</span>
+                                <span>{{ money($apartment->monthly_rent) }}</span>
                                 <span>·</span>
                                 <span class="font-medium @if($apartment->status === 'available') text-emerald-600 @elseif($apartment->status === 'occupied') text-sky-600 @endif">{{ status_label($apartment->status) }}</span>
                             </div>

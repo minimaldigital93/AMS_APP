@@ -71,7 +71,7 @@
                     {{ $is_above_break_even ? "Yes — you're making money" : "Not yet — you're short" }}
                 </div>
                 <div class="text-3xl font-extrabold mt-1 leading-none">
-                    {{ $is_above_break_even ? '+' : '−' }}${{ number_format(abs($is_above_break_even ? $safety_margin : $amount_needed), 0) }}
+                    {{ $is_above_break_even ? '+' : '−' }}{{ money(abs($is_above_break_even ? $safety_margin : $amount_needed), 0) }}
                     <span class="text-sm font-medium opacity-80">{{ __('messages.this_month') }}</span>
                 </div>
             </div>
@@ -79,11 +79,11 @@
         <div class="grid grid-cols-2 gap-3 mt-5">
             <div class="rounded-xl bg-white/15 px-4 py-3">
                 <div class="text-xs opacity-80">{{ __('messages.money_in_rent') }}</div>
-                <div class="text-xl font-bold mt-0.5">${{ number_format($current_revenue, 0) }}</div>
+                <div class="text-xl font-bold mt-0.5">{{ money($current_revenue, 0) }}</div>
             </div>
             <div class="rounded-xl bg-white/15 px-4 py-3">
                 <div class="text-xs opacity-80">{{ __('messages.money_out_costs') }}</div>
-                <div class="text-xl font-bold mt-0.5">${{ number_format($total_expenses, 0) }}</div>
+                <div class="text-xl font-bold mt-0.5">{{ money($total_expenses, 0) }}</div>
             </div>
         </div>
     </div>
@@ -153,7 +153,7 @@
                         @endforeach
                     </svg>
                     <div class="absolute inset-0 flex flex-col items-center justify-center">
-                        <span class="text-2xl font-extrabold text-slate-800 leading-none">${{ number_format($util['total'], 0) }}</span>
+                        <span class="text-2xl font-extrabold text-slate-800 leading-none">{{ money($util['total'], 0) }}</span>
                         <span class="text-xs text-slate-400">{{ __('messages.total') }}</span>
                     </div>
                 </div>
@@ -163,7 +163,7 @@
                         <div class="flex items-center gap-2 text-xs">
                             <span class="w-2.5 h-2.5 rounded-full shrink-0" style="background: {{ $palette[$i % count($palette)] }}"></span>
                             <span class="text-slate-600 flex-1 truncate">{{ $item['label'] }}</span>
-                            <span class="font-medium text-slate-700">${{ number_format($item['amount'], 0) }}</span>
+                            <span class="font-medium text-slate-700">{{ money($item['amount'], 0) }}</span>
                         </div>
                     @endforeach
                 </div>
@@ -185,7 +185,7 @@
                 <svg class="w-5 h-5 text-sky-500" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 22a7 7 0 0 0 7-7c0-2-1-3.9-3-5.5s-3.5-4-4-6.5c-.5 2.5-2 4.9-4 6.5C6 11.1 5 13 5 15a7 7 0 0 0 7 7Z"/></svg>
             </div>
             <p class="text-[11px] uppercase tracking-wide text-slate-400 font-semibold">{{ __('messages.avg_utilities_room') }}</p>
-            <p class="text-2xl font-extrabold text-slate-800 mt-1">${{ number_format($util['avg_per_room'], 0) }}</p>
+            <p class="text-2xl font-extrabold text-slate-800 mt-1">{{ money($util['avg_per_room'], 0) }}</p>
             <p class="text-[11px] text-slate-400 mt-1">{{ __('messages.across_rooms_used', ['count' => $util['rooms_used']]) }}</p>
         </div>
 
@@ -197,7 +197,7 @@
             <p class="text-[11px] uppercase tracking-wide text-slate-400 font-semibold">{{ __('messages.highest_utility_room') }}</p>
             @if($util['top_apartment'])
                 <p class="text-2xl font-extrabold text-slate-800 mt-1">{{ __('messages.apt_short') }} {{ $util['top_apartment']['label'] }}</p>
-                <p class="text-[11px] text-slate-400 mt-1">${{ number_format($util['top_apartment']['amount'], 0) }} {{ __('messages.in_utilities') }}</p>
+                <p class="text-[11px] text-slate-400 mt-1">{{ money($util['top_apartment']['amount'], 0) }} {{ __('messages.in_utilities') }}</p>
             @else
                 <p class="text-2xl font-extrabold text-slate-300 mt-1">—</p>
                 <p class="text-[11px] text-slate-400 mt-1">{{ __('messages.no_data_yet') }}</p>
@@ -212,7 +212,7 @@
             <p class="text-[11px] uppercase tracking-wide text-slate-400 font-semibold">{{ __('messages.biggest_cost_cut') }}</p>
             @if($biggest_expense)
                 <p class="text-2xl font-extrabold text-slate-800 mt-1 truncate" title="{{ $biggest_expense['label'] }}">{{ $biggest_expense['label'] }}</p>
-                <p class="text-[11px] text-slate-400 mt-1">${{ number_format($biggest_expense['amount'], 0) }} {{ __('messages.this_month') }}</p>
+                <p class="text-[11px] text-slate-400 mt-1">{{ money($biggest_expense['amount'], 0) }} {{ __('messages.this_month') }}</p>
             @else
                 <p class="text-2xl font-extrabold text-slate-300 mt-1">—</p>
                 <p class="text-[11px] text-slate-400 mt-1">{{ __('messages.no_expenses_yet') }}</p>

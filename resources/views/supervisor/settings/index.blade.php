@@ -66,7 +66,7 @@
             @foreach($defaultSettings as $category => $categorySettings)
             <div>
                 <p class="px-4 mb-2 text-[13px] font-medium uppercase tracking-wide text-gray-500">{{ $categoryLabels[$category] ?? ucfirst($category) }}</p>
-                <div class="bg-white rounded-xl shadow-sm overflow-hidden divide-y divide-gray-100">
+                <div class="bg-white rounded-xl shadow-sm overflow-hidden divide-y divide-gray-100"@if($category === 'system') x-data="{ currency: @js(settings('system_currency', 'USD')) }"@endif>
                     @foreach($categorySettings as $key => $defaultValue)
                     @php
                         $currentValue = $settings->flatten()->firstWhere('key', $key)->value ?? $defaultValue;
@@ -75,7 +75,7 @@
                             : ucwords(str_replace('_', ' ', substr($key, strlen($category) + 1)));
                         $icon = $rowIcons[$key] ?? $defaultRowIcon;
                     @endphp
-                    <div class="flex {{ $key === 'company_address' ? 'items-start' : 'items-center' }} gap-3 px-4 py-3">
+                    <div class="flex {{ $key === 'company_address' ? 'items-start' : 'items-center' }} gap-3 px-4 py-3"@if($key === 'khr_exchange_rate') x-show="currency === 'KHR'" x-cloak @endif>
                         <svg class="flex-shrink-0 w-5 h-5 text-gray-400 {{ $key === 'company_address' ? 'mt-0.5' : '' }}" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" d="{{ $icon }}" />
                         </svg>
@@ -86,13 +86,22 @@
                             placeholder="{{ __('messages.enter') }} {{ $label }}">{{ $currentValue }}</textarea>
                         @elseif($key === 'system_currency')
                         <span class="relative ml-auto inline-flex items-center">
-                            <select name="settings[{{ $key }}]" id="{{ $key }}" class="{{ $selectClasses }}">
+                            <select name="settings[{{ $key }}]" id="{{ $key }}" x-model="currency" class="{{ $selectClasses }}">
                                 <option value="USD" {{ $currentValue == 'USD' ? 'selected' : '' }}>USD ($)</option>
                                 <option value="KHR" {{ $currentValue == 'KHR' ? 'selected' : '' }}>KHR (៛)</option>
                             </select>
                             <svg class="pointer-events-none absolute right-0 w-3.5 h-3.5 text-gray-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" d="{{ $chevronIcon }}" />
                             </svg>
+                        </span>
+                        @elseif($key === 'khr_exchange_rate')
+                        <span class="ml-auto inline-flex items-center gap-1 text-[15px] text-gray-400">
+                            <span>1 $ =</span>
+                            <input type="number" min="1" step="any" name="settings[{{ $key }}]" id="{{ $key }}"
+                                value="{{ $currentValue }}"
+                                class="w-24 bg-transparent border-0 p-0 text-right text-gray-500 focus:text-gray-900 focus:ring-0 focus:outline-none"
+                                placeholder="4100">
+                            <span>៛</span>
                         </span>
                         @else
                         <input type="text" name="settings[{{ $key }}]" id="{{ $key }}" value="{{ $currentValue }}"

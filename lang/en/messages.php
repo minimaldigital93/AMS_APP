@@ -193,6 +193,8 @@ return [
     'email_from_name' => 'From Name',
     'email_from_address' => 'From Address',
     'system_currency' => 'Currency',
+    'khr_exchange_rate' => 'Exchange rate',
+    'exchange_rate_invalid' => 'Please enter a valid exchange rate (riel per 1 USD).',
     'system_date_format' => 'Date Format',
     'system_time_format' => 'Time Format',
     'fiscal_year_start' => 'Fiscal Year Start',

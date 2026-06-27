@@ -71,7 +71,7 @@
                     <select name="apartment_id" id="apartment_id" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent">
                         @foreach($apartments as $apt)
                             <option value="{{ $apt->id }}" {{ old('apartment_id', $tenant->apartment_id) == $apt->id ? 'selected' : '' }}>
-                                {{ $apt->apartment_number }} — ${{ number_format($apt->monthly_rent, 2) }}/mo
+                                {{ $apt->apartment_number }} — {{ money($apt->monthly_rent) }}/mo
                                 @if($apt->id == $tenant->apartment_id) ({{ __('messages.current') }}) @endif
                             </option>
                         @endforeach
@@ -145,7 +145,7 @@
 
                     <div>
                         <label for="deposit" class="block text-sm font-medium text-gray-700 mb-1">{{ __('messages.deposit_amount') }}</label>
-                        <input type="number" id="deposit" name="deposit" step="0.01" min="0" value="{{ old('deposit', $tenant->deposit) }}" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent">
+                        <input type="number" id="deposit" name="deposit" step="0.01" min="0" value="{{ old('deposit', money_input($tenant->deposit)) }}" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent">
                         @error('deposit')
                             <p class="text-red-500 text-sm mt-1">{{ $message }}</p>
                         @enderror

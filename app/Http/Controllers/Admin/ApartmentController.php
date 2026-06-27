@@ -142,6 +142,7 @@ class ApartmentController extends Controller
         ], [
             'apartment_number.unique' => __('messages.validation_apartment_number_taken', ['number' => $request->input('apartment_number')]),
         ]);
+        $validated = convert_money_input($validated, ['monthly_rent', 'deposit', 'apartments.*.monthly_rent']);
 
         // Enforce the account's subscription plan room cap.
         $accountId = current_account_id();
@@ -176,6 +177,7 @@ class ApartmentController extends Controller
         ], [
             'apartment_number.unique' => __('messages.validation_apartment_number_taken', ['number' => $request->input('apartment_number')]),
         ]);
+        $validated = convert_money_input($validated, ['monthly_rent', 'deposit', 'apartments.*.monthly_rent']);
 
         $apartment->update($validated);
 
@@ -216,6 +218,7 @@ class ApartmentController extends Controller
             'date_of_birth.before_or_equal' => __('messages.tenant_must_be_18'),
             'move_in_date.after_or_equal' => __('messages.move_in_date_min'),
         ]);
+        $validated = convert_money_input($validated, ['monthly_rent', 'deposit', 'apartments.*.monthly_rent']);
 
         $tenant = null;
         $documentPath = null;

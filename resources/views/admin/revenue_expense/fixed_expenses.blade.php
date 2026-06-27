@@ -37,7 +37,7 @@
                             @php $rental = $apartment->rentals->first(); @endphp
                             <p class="text-sm text-gray-600">
                                 {{ __('messages.tenant') }}: <span class="font-medium">{{ $rental->tenant->name ?? 'N/A' }}</span>
-                                — {{ __('messages.rent') }}: <span class="font-semibold text-blue-600">${{ number_format($rental->rent_amount, 2) }}/{{ __('messages.mo_short') }}</span>
+                                — {{ __('messages.rent') }}: <span class="font-semibold text-blue-600">{{ money($rental->rent_amount) }}/{{ __('messages.mo_short') }}</span>
                             </p>
                         @else
                             <p class="text-sm text-gray-400 italic">{{ __('messages.no_active_tenant') }}</p>
@@ -84,7 +84,7 @@
                                         {{ $typeIcons[$expense->expense_type] ?? '📋' }} {{ __('messages.type_' . $expense->expense_type) }}
                                     </span>
                                 </td>
-                                <td class="px-3 py-2 text-right font-semibold text-red-600">${{ number_format($expense->amount, 2) }}</td>
+                                <td class="px-3 py-2 text-right font-semibold text-red-600">{{ money($expense->amount) }}</td>
                                 <td class="px-3 py-2 text-center">
                                     <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium {{ $expense->is_active ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500' }}">
                                         {{ $expense->is_active ? __('messages.active') : __('messages.disabled') }}
@@ -118,7 +118,7 @@
                         <tfoot class="bg-gray-100">
                             <tr>
                                 <td class="px-3 py-2 font-bold text-gray-900" colspan="2">{{ __('messages.total_monthly') }}</td>
-                                <td class="px-3 py-2 text-right font-bold text-red-600">${{ number_format($apartment->fixedExpenses->where('is_active', true)->sum('amount'), 2) }}</td>
+                                <td class="px-3 py-2 text-right font-bold text-red-600">{{ money($apartment->fixedExpenses->where('is_active', true)->sum('amount')) }}</td>
                                 <td class="px-3 py-2" colspan="2"></td>
                             </tr>
                         </tfoot>

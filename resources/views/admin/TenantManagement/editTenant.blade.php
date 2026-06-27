@@ -152,7 +152,7 @@
                     <!-- Deposit -->
                     <div>
                         <label for="deposit" class="block text-sm font-medium text-gray-700 mb-2">{{ __('messages.deposit_amount') }}</label>
-                        <input type="number" id="deposit" name="deposit" step="0.01" min="0" placeholder="0.00" value="{{ old('deposit', $tenant->deposit) }}" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent {{ $errors->has('deposit') ? 'border-red-500' : '' }}">
+                        <input type="number" id="deposit" name="deposit" step="0.01" min="0" placeholder="0.00" value="{{ old('deposit', money_input($tenant->deposit)) }}" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent {{ $errors->has('deposit') ? 'border-red-500' : '' }}">
                         @error('deposit')
                             <p class="text-red-500 text-sm mt-1">{{ $message }}</p>
                         @enderror

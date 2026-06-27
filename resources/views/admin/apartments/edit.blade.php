@@ -65,7 +65,7 @@
                     <!-- Monthly Rent -->
                     <div>
                         <label class="block text-xs font-medium text-slate-500 mb-1.5 uppercase tracking-wide">{{ __('messages.monthly_rent') }} <span class="text-red-400">*</span></label>
-                        <input type="number" name="monthly_rent" step="0.01" min="0" value="{{ old('monthly_rent', $apartment->monthly_rent) }}" required
+                        <input type="number" name="monthly_rent" step="0.01" min="0" value="{{ old('monthly_rent', money_input($apartment->monthly_rent)) }}" required
                                placeholder="0.00"
                                class="w-full px-3.5 py-2 text-sm border border-slate-200 rounded-lg bg-slate-50/50 placeholder-slate-300 focus:outline-none focus:ring-2 focus:ring-slate-300 focus:border-slate-300 transition @error('monthly_rent') border-red-300 ring-1 ring-red-200 @enderror">
                         @error('monthly_rent')

@@ -178,6 +178,7 @@ class ApartmentController extends Controller
             'date_of_birth.before_or_equal' => __('messages.tenant_must_be_18'),
             'move_in_date.after_or_equal' => __('messages.move_in_date_min'),
         ]);
+        $validated = convert_money_input($validated, ['monthly_rent', 'deposit', 'apartments.*.monthly_rent']);
 
         return DB::transaction(function () use ($request, $apartment, $validated) {
             // Lock the apartment row so two concurrent assignments can't both succeed.

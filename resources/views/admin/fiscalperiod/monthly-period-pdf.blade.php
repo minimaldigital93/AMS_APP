@@ -77,15 +77,15 @@
     </div>
     <div>
         <div class="label">{{ __('messages.opening_balance') }}</div>
-        <div class="value">{{ currency_symbol() }}{{ number_format($monthlyPeriod->opening_balance, 2) }}</div>
+        <div class="value">{{ money($monthlyPeriod->opening_balance) }}</div>
     </div>
     <div>
         <div class="label">{{ __('messages.closing_balance') }}</div>
         <div class="value">
             @if($monthlyPeriod->isClosed())
-                {{ currency_symbol() }}{{ number_format($monthlyPeriod->closing_balance, 2) }}
+                {{ money($monthlyPeriod->closing_balance) }}
             @else
-                {{ currency_symbol() }}{{ number_format($monthlyPeriod->opening_balance + $financials['net_income'], 2) }} <span style="font-size:10px;color:#6b7280;">(projected)</span>
+                {{ money($monthlyPeriod->opening_balance + $financials['net_income']) }} <span style="font-size:10px;color:#6b7280;">(projected)</span>
             @endif
         </div>
     </div>
@@ -99,35 +99,35 @@
 <div class="balance-flow">
     <div class="flow-card">
         <div class="label">{{ __('messages.opening') }}</div>
-        <div class="amount">{{ currency_symbol() }}{{ number_format($monthlyPeriod->opening_balance, 2) }}</div>
+        <div class="amount">{{ money($monthlyPeriod->opening_balance) }}</div>
     </div>
     <div class="flow-card income">
         <div class="label">+ Income</div>
-        <div class="amount">{{ currency_symbol() }}{{ number_format($financials['total_income'], 2) }}</div>
+        <div class="amount">{{ money($financials['total_income']) }}</div>
     </div>
     <div class="flow-card expense">
         <div class="label">− Expenses</div>
-        <div class="amount">{{ currency_symbol() }}{{ number_format($financials['total_expenses'], 2) }}</div>
+        <div class="amount">{{ money($financials['total_expenses']) }}</div>
     </div>
     <div class="flow-card net">
         <div class="label">{{ __('messages.net') }}</div>
         <div class="amount" style="{{ $financials['net_income'] >= 0 ? 'color:#16a34a' : 'color:#dc2626' }}">
-            {{ $financials['net_income'] >= 0 ? '+' : '' }}{{ currency_symbol() }}{{ number_format($financials['net_income'], 2) }}
+            {{ $financials['net_income'] >= 0 ? '+' : '' }}{{ money($financials['net_income']) }}
         </div>
     </div>
     @if($monthlyPeriod->owner_withdrawal > 0)
     <div class="flow-card">
         <div class="label">− Owner Draw</div>
-        <div class="amount" style="color:#7c3aed">{{ currency_symbol() }}{{ number_format($monthlyPeriod->owner_withdrawal, 2) }}</div>
+        <div class="amount" style="color:#7c3aed">{{ money($monthlyPeriod->owner_withdrawal) }}</div>
     </div>
     @endif
     <div class="flow-card">
         <div class="label">{{ __('messages.closing') }}</div>
         <div class="amount">
             @if($monthlyPeriod->isClosed())
-                {{ currency_symbol() }}{{ number_format($monthlyPeriod->closing_balance, 2) }}
+                {{ money($monthlyPeriod->closing_balance) }}
             @else
-                {{ currency_symbol() }}{{ number_format($monthlyPeriod->opening_balance + $financials['net_income'], 2) }}
+                {{ money($monthlyPeriod->opening_balance + $financials['net_income']) }}
             @endif
         </div>
     </div>
@@ -146,25 +146,25 @@
         <tbody>
             <tr>
                 <td>Rent Payments ({{ $financials['payment_count'] }} payment{{ $financials['payment_count'] != 1 ? 's' : '' }})</td>
-                <td class="right">{{ currency_symbol() }}{{ number_format($financials['rent_income'], 2) }}</td>
+                <td class="right">{{ money($financials['rent_income']) }}</td>
             </tr>
             @if($financials['late_fees'] > 0)
             <tr>
                 <td>{{ __('messages.late_fees') }}</td>
-                <td class="right">{{ currency_symbol() }}{{ number_format($financials['late_fees'], 2) }}</td>
+                <td class="right">{{ money($financials['late_fees']) }}</td>
             </tr>
             @endif
             @if($financials['other_income'] > 0)
             <tr>
                 <td>{{ __('messages.other_income') }}</td>
-                <td class="right">{{ currency_symbol() }}{{ number_format($financials['other_income'], 2) }}</td>
+                <td class="right">{{ money($financials['other_income']) }}</td>
             </tr>
             @endif
         </tbody>
         <tfoot>
             <tr>
                 <td>{{ __('messages.total_income') }}</td>
-                <td class="right" style="color:#16a34a;">{{ currency_symbol() }}{{ number_format($financials['total_income'], 2) }}</td>
+                <td class="right" style="color:#16a34a;">{{ money($financials['total_income']) }}</td>
             </tr>
         </tfoot>
     </table>
@@ -184,14 +184,14 @@
             @forelse($financials['utility_expenses'] as $type => $amount)
             <tr>
                 <td style="text-transform:capitalize;">{{ str_replace('_', ' ', $type) }}</td>
-                <td class="right">{{ currency_symbol() }}{{ number_format($amount, 2) }}</td>
+                <td class="right">{{ money($amount) }}</td>
             </tr>
             @empty
             @endforelse
             @if($financials['fixed_expenses'] > 0)
             <tr>
                 <td>{{ __('messages.fixed_other_expenses') }}</td>
-                <td class="right">{{ currency_symbol() }}{{ number_format($financials['fixed_expenses'], 2) }}</td>
+                <td class="right">{{ money($financials['fixed_expenses']) }}</td>
             </tr>
             @endif
             @if(empty($financials['utility_expenses']) && $financials['fixed_expenses'] == 0)
@@ -203,7 +203,7 @@
         <tfoot>
             <tr>
                 <td>{{ __('messages.total_expenses') }}</td>
-                <td class="right" style="color:#dc2626;">{{ currency_symbol() }}{{ number_format($financials['total_expenses'], 2) }}</td>
+                <td class="right" style="color:#dc2626;">{{ money($financials['total_expenses']) }}</td>
             </tr>
         </tfoot>
     </table>
@@ -216,7 +216,7 @@
         <div style="font-size:11px;color:#9ca3af;margin-top:2px;">{{ __('messages.total_income_minus') }}</div>
     </div>
     <div style="font-size:24px;font-weight:700;color:{{ $financials['net_income'] >= 0 ? '#16a34a' : '#dc2626' }};">
-        {{ $financials['net_income'] >= 0 ? '+' : '' }}{{ currency_symbol() }}{{ number_format($financials['net_income'], 2) }}
+        {{ $financials['net_income'] >= 0 ? '+' : '' }}{{ money($financials['net_income']) }}
     </div>
 </div>
 
@@ -228,7 +228,7 @@
         <div style="font-size:11px;color:#9ca3af;margin-top:2px;">Owner's draw — reduces carried-forward cash, not net income @if($monthlyPeriod->withdrawal_note)&nbsp;|&nbsp; {{ $monthlyPeriod->withdrawal_note }}@endif</div>
     </div>
     <div style="font-size:24px;font-weight:700;color:#7c3aed;">
-        − {{ currency_symbol() }}{{ number_format($monthlyPeriod->owner_withdrawal, 2) }}
+        − {{ money($monthlyPeriod->owner_withdrawal) }}
     </div>
 </div>
 @endif
@@ -243,15 +243,15 @@
         <tbody>
             <tr>
                 <td>{{ __('messages.assets') }}</td>
-                <td class="right" style="color:#2563eb;font-weight:600;">{{ currency_symbol() }}{{ number_format($balanceSheet['total_assets'], 2) }}</td>
+                <td class="right" style="color:#2563eb;font-weight:600;">{{ money($balanceSheet['total_assets']) }}</td>
             </tr>
             <tr>
                 <td>{{ __('messages.liabilities') }}</td>
-                <td class="right" style="color:#dc2626;font-weight:600;">{{ currency_symbol() }}{{ number_format($balanceSheet['total_liabilities'], 2) }}</td>
+                <td class="right" style="color:#dc2626;font-weight:600;">{{ money($balanceSheet['total_liabilities']) }}</td>
             </tr>
             <tr>
                 <td>{{ __('messages.equity') }}</td>
-                <td class="right" style="color:#16a34a;font-weight:600;">{{ currency_symbol() }}{{ number_format($balanceSheet['total_equity'], 2) }}</td>
+                <td class="right" style="color:#16a34a;font-weight:600;">{{ money($balanceSheet['total_equity']) }}</td>
             </tr>
         </tbody>
     </table>

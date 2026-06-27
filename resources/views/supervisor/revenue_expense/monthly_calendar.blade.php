@@ -59,7 +59,7 @@
                 </div>
                 <div class="min-w-0">
                     <p class="text-xs text-slate-400 font-medium truncate">{{ __('messages.total_income') }}</p>
-                    <p class="text-lg sm:text-xl font-bold text-emerald-600">${{ number_format($monthTotalIncome, 2) }}</p>
+                    <p class="text-lg sm:text-xl font-bold text-emerald-600">{{ money($monthTotalIncome) }}</p>
                 </div>
             </div>
         </div>
@@ -70,7 +70,7 @@
                 </div>
                 <div class="min-w-0">
                     <p class="text-xs text-slate-400 font-medium truncate">{{ __('messages.total_expenses') }}</p>
-                    <p class="text-lg sm:text-xl font-bold text-red-600">${{ number_format($monthTotalExpense, 2) }}</p>
+                    <p class="text-lg sm:text-xl font-bold text-red-600">{{ money($monthTotalExpense) }}</p>
                 </div>
             </div>
         </div>
@@ -82,7 +82,7 @@
                 <div class="min-w-0">
                     <p class="text-xs text-slate-400 font-medium truncate">{{ __('messages.net_profit_loss') }}</p>
                     <p class="text-lg sm:text-xl font-bold {{ $monthNet >= 0 ? 'text-sky-600' : 'text-amber-600' }}">
-                        {{ $monthNet >= 0 ? '+' : '' }}${{ number_format($monthNet, 2) }}
+                        {{ $monthNet >= 0 ? '+' : '' }}{{ money($monthNet) }}
                     </p>
                 </div>
             </div>
@@ -96,7 +96,7 @@
                     <p class="text-xs text-slate-400 font-medium truncate">{{ __('messages.best_day') }}</p>
                     @if($bestDay)
                         <p class="text-lg sm:text-xl font-bold text-slate-800 leading-tight">{{ $startOfMonth->copy()->day($bestDay)->format('M d') }}</p>
-                        <p class="text-[11px] text-emerald-600 font-medium">+${{ number_format($calendarDays[$bestDay]['net'], 2) }}</p>
+                        <p class="text-[11px] text-emerald-600 font-medium">+{{ money($calendarDays[$bestDay]['net']) }}</p>
                     @else
                         <p class="text-sm text-slate-300">{{ __('messages.no_data') }}</p>
                     @endif
@@ -165,19 +165,19 @@
                         {{-- Desktop: income / expense split + combined net --}}
                         <div class="hidden sm:flex flex-col items-end gap-0.5 mt-auto">
                             @if($dayData['income'] > 0)
-                                <span class="text-[11px] font-semibold text-emerald-600">+${{ number_format($dayData['income'], 0) }}</span>
+                                <span class="text-[11px] font-semibold text-emerald-600">+{{ money($dayData['income'], 0) }}</span>
                             @endif
                             @if($dayData['expense'] > 0)
-                                <span class="text-[11px] font-semibold text-red-600">-${{ number_format($dayData['expense'], 0) }}</span>
+                                <span class="text-[11px] font-semibold text-red-600">-{{ money($dayData['expense'], 0) }}</span>
                             @endif
                             @if($hasBoth)
-                                <span class="mt-0.5 pt-0.5 border-t border-slate-100 w-full text-right text-xs font-bold {{ $netColor }}">{{ $netSign }}${{ number_format(abs($net), 0) }}</span>
+                                <span class="mt-0.5 pt-0.5 border-t border-slate-100 w-full text-right text-xs font-bold {{ $netColor }}">{{ $netSign }}{{ money(abs($net), 0) }}</span>
                             @endif
                         </div>
 
                         {{-- Mobile: single color-coded net pill --}}
                         <div class="sm:hidden mt-auto flex justify-center">
-                            <span class="inline-flex items-center px-1.5 py-0.5 rounded-md text-[11px] font-bold leading-none {{ $netColor }} {{ $netBg }}">{{ $netSign }}${{ number_format(abs($net), 0) }}</span>
+                            <span class="inline-flex items-center px-1.5 py-0.5 rounded-md text-[11px] font-bold leading-none {{ $netColor }} {{ $netBg }}">{{ $netSign }}{{ money(abs($net), 0) }}</span>
                         </div>
                     @endif
                 </div>
@@ -208,15 +208,15 @@
                         </div>
                         <div class="flex items-center gap-3 sm:gap-4 text-sm flex-shrink-0">
                             @if($dayData['income'] > 0)
-                                <span class="text-emerald-600 font-medium">+${{ number_format($dayData['income'], 2) }}</span>
+                                <span class="text-emerald-600 font-medium">+{{ money($dayData['income']) }}</span>
                             @endif
                             @if($dayData['expense'] > 0)
-                                <span class="text-red-600 font-medium">-${{ number_format($dayData['expense'], 2) }}</span>
+                                <span class="text-red-600 font-medium">-{{ money($dayData['expense']) }}</span>
                             @endif
                             {{-- Net total only when there's both income and expense to combine --}}
                             @if($hasBoth)
                                 <span class="font-semibold {{ $dayData['net'] >= 0 ? 'text-emerald-700' : 'text-red-700' }} w-24 text-right">
-                                    {{ $dayData['net'] >= 0 ? '+' : '' }}${{ number_format($dayData['net'], 2) }}
+                                    {{ $dayData['net'] >= 0 ? '+' : '' }}{{ money($dayData['net']) }}
                                 </span>
                             @endif
                         </div>

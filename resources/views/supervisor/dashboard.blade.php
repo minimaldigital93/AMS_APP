@@ -90,26 +90,26 @@
                 </div>
                 <div>
                     <p class="text-xs text-slate-400 font-medium">{{ __('messages.revenue') }}</p>
-                    <p class="text-xl font-bold text-slate-800">${{ number_format($stats['revenue']['total_monthly'] ?? 0, 2) }}</p>
+                    <p class="text-xl font-bold text-slate-800">{{ money($stats['revenue']['total_monthly'] ?? 0) }}</p>
                 </div>
             </div>
             <div class="summary-details hidden">
             <p class="text-[11px] text-slate-400 mt-2 space-y-0.5">
                 @php $byType = $stats['revenue']['by_type'] ?? []; @endphp
                 @if(($byType['rent'] ?? 0) > 0)
-                    <span class="flex justify-between"><span>{{ __('messages.rent') }}</span><span class="font-medium text-green-500">+${{ number_format($byType['rent'], 2) }}</span></span>
+                    <span class="flex justify-between"><span>{{ __('messages.rent') }}</span><span class="font-medium text-green-500">+{{ money($byType['rent']) }}</span></span>
                 @endif
                 @if(($byType['deposit'] ?? 0) > 0)
-                    <span class="flex justify-between"><span>{{ __('messages.deposit') }}</span><span class="font-medium text-green-500">+${{ number_format($byType['deposit'], 2) }}</span></span>
+                    <span class="flex justify-between"><span>{{ __('messages.deposit') }}</span><span class="font-medium text-green-500">+{{ money($byType['deposit']) }}</span></span>
                 @endif
                 @if(($byType['utilities'] ?? 0) > 0)
-                    <span class="flex justify-between"><span>{{ __('messages.utilities') }}</span><span class="font-medium text-green-500">+${{ number_format($byType['utilities'], 2) }}</span></span>
+                    <span class="flex justify-between"><span>{{ __('messages.utilities') }}</span><span class="font-medium text-green-500">+{{ money($byType['utilities']) }}</span></span>
                 @endif
                 @if(($stats['revenue']['late_fees_this_month'] ?? 0) > 0)
-                    <span class="flex justify-between"><span>{{ __('messages.late_fees') }}</span><span class="font-medium text-green-500">+${{ number_format($stats['revenue']['late_fees_this_month'], 2) }}</span></span>
+                    <span class="flex justify-between"><span>{{ __('messages.late_fees') }}</span><span class="font-medium text-green-500">+{{ money($stats['revenue']['late_fees_this_month']) }}</span></span>
                 @endif
                 @if(($byType['other'] ?? 0) > 0)
-                    <span class="flex justify-between"><span>{{ __('messages.other') }}</span><span class="font-medium text-green-500">+${{ number_format($byType['other'], 2) }}</span></span>
+                    <span class="flex justify-between"><span>{{ __('messages.other') }}</span><span class="font-medium text-green-500">+{{ money($byType['other']) }}</span></span>
                 @endif
             </p>
             </div>
@@ -123,17 +123,17 @@
                 </div>
                 <div>
                     <p class="text-xs text-slate-400 font-medium">{{ __('messages.expense') }}</p>
-                    <p class="text-xl font-bold text-slate-800">${{ number_format($stats['expenses']['monthly_total'] ?? 0, 2) }}</p>
+                    <p class="text-xl font-bold text-slate-800">{{ money($stats['expenses']['monthly_total'] ?? 0) }}</p>
                 </div>
             </div>
             <div class="summary-details hidden">
             <p class="text-[11px] text-slate-400 mt-2 space-y-0.5">
                 @if(($stats['expenses']['utilities_total'] ?? 0) > 0)
-                    <span class="flex justify-between"><span>{{ __('messages.utilities') }}</span><span class="font-medium text-red-400">-${{ number_format($stats['expenses']['utilities_total'], 2) }}</span></span>
+                    <span class="flex justify-between"><span>{{ __('messages.utilities') }}</span><span class="font-medium text-red-400">-{{ money($stats['expenses']['utilities_total']) }}</span></span>
                 @endif
                 @foreach(($stats['expenses']['account_breakdown'] ?? []) as $cat => $amt)
                     @if($amt > 0)
-                        <span class="flex justify-between"><span>{{ str_replace('_', ' ', ucfirst($cat)) }}</span><span class="font-medium text-red-400">-${{ number_format($amt, 2) }}</span></span>
+                        <span class="flex justify-between"><span>{{ str_replace('_', ' ', ucfirst($cat)) }}</span><span class="font-medium text-red-400">-{{ money($amt) }}</span></span>
                     @endif
                 @endforeach
             </p>
@@ -152,14 +152,14 @@
                 <div>
                     <p class="text-xs text-slate-400 font-medium">{{ __('messages.net_profit') }}</p>
                     <p class="text-xl font-bold {{ $netProfit >= 0 ? 'text-green-700' : 'text-red-700' }}">
-                        {{ $netProfit >= 0 ? '+' : '' }}${{ number_format($netProfit, 2) }}
+                        {{ $netProfit >= 0 ? '+' : '' }}{{ money($netProfit) }}
                     </p>
                 </div>
             </div>
             <div class="summary-details hidden">
             <p class="text-[11px] text-slate-400 mt-2 space-y-0.5">
-                <span class="flex justify-between"><span>{{ __('messages.revenue') }}</span><span class="font-medium text-emerald-500">+${{ number_format($stats['revenue']['total_monthly'] ?? 0, 2) }}</span></span>
-                <span class="flex justify-between"><span>{{ __('messages.expense') }}</span><span class="font-medium text-red-400">-${{ number_format($stats['expenses']['monthly_total'] ?? 0, 2) }}</span></span>
+                <span class="flex justify-between"><span>{{ __('messages.revenue') }}</span><span class="font-medium text-emerald-500">+{{ money($stats['revenue']['total_monthly'] ?? 0) }}</span></span>
+                <span class="flex justify-between"><span>{{ __('messages.expense') }}</span><span class="font-medium text-red-400">-{{ money($stats['expenses']['monthly_total'] ?? 0) }}</span></span>
             </p>
                 </div>
             </div>
@@ -302,13 +302,13 @@
                             @if($dayData['income'] > 0)
                                 <div class="flex items-center gap-1 mb-0.5">
                                     <span class="w-1.5 h-1.5 rounded-full bg-green-500 shrink-0"></span>
-                                    <span class="text-[11px] font-medium text-green-700 truncate">+${{ number_format($dayData['income'], 0) }}</span>
+                                    <span class="text-[11px] font-medium text-green-700 truncate">+{{ money($dayData['income'], 0) }}</span>
                                 </div>
                             @endif
                             @if($dayData['expense'] > 0)
                                 <div class="flex items-center gap-1">
                                     <span class="w-1.5 h-1.5 rounded-full bg-red-500 shrink-0"></span>
-                                    <span class="text-[11px] font-medium text-red-700 truncate">-${{ number_format($dayData['expense'], 0) }}</span>
+                                    <span class="text-[11px] font-medium text-red-700 truncate">-{{ money($dayData['expense'], 0) }}</span>
                                 </div>
                             @endif
                         @elseif(!$isFuture)
@@ -355,11 +355,11 @@
                     <tr class="hover:bg-slate-50/50">
                         <td class="py-2.5 font-medium text-slate-700">{{ $period->name }}</td>
                         <td class="py-2.5 text-slate-400">{{ $period->opening_date->format('M d') }} - {{ $period->closing_date->format('M d, Y') }}</td>
-                        <td class="py-2.5 text-right">${{ number_format($period->opening_balance, 2) }}</td>
-                        <td class="py-2.5 text-right">${{ number_format($period->closing_balance, 2) }}</td>
+                        <td class="py-2.5 text-right">{{ money($period->opening_balance) }}</td>
+                        <td class="py-2.5 text-right">{{ money($period->closing_balance) }}</td>
                         @php $change = $period->closing_balance - $period->opening_balance; @endphp
                         <td class="py-2.5 text-right {{ $change >= 0 ? 'text-green-600' : 'text-red-600' }}">
-                            {{ $change >= 0 ? '+' : '' }}${{ number_format($change, 2) }}
+                            {{ $change >= 0 ? '+' : '' }}{{ money($change) }}
                         </td>
                         <td class="py-2.5 text-right">
                             <span class="text-slate-400 text-xs">{{ status_label($period->status) }}</span>

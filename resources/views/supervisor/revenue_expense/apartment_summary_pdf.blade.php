@@ -78,9 +78,8 @@
 
         @php
             $fmt = function($v) use ($wholeNumbers) {
-                $cur = currency_symbol();
-                if(!isset($v)) return $cur.'0';
-                return $wholeNumbers ? ($cur . number_format(round($v), 0)) : ($cur . number_format($v, 2));
+                if(!isset($v)) return money(0, 0);
+                return $wholeNumbers ? money($v, 0) : money($v);
             };
         @endphp
 
@@ -202,7 +201,7 @@
                     <td>{{ $apt['apartment_number'] }}</td>
                     <td>{{ $gl['utilities_expense']['code'] }}</td>
                     <td>{{ $gl['utilities_expense']['name'] }}</td>
-                    <td class="right">{{ number_format($utilities, 2) }}</td>
+                    <td class="right">{{ money_number($utilities) }}</td>
                     <td class="right">&nbsp;</td>
                     <td>{{ __('messages.utilities_cost_unit') }}</td>
                 </tr>

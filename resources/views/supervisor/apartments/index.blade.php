@@ -111,7 +111,7 @@
                                     $rentRental = $rentTenant ? $apartment->rentals()->where('tenant_id', $rentTenant->id)->latest()->first() : null;
                                     $rentExpected = (float) ($rentRental->rent_amount ?? $apartment->monthly_rent ?? 0);
                                 @endphp
-                                <span class="text-sm font-medium text-slate-600">${{ number_format($rentExpected, 2) }}</span>
+                                <span class="text-sm font-medium text-slate-600">{{ money($rentExpected) }}</span>
                             </td>
                             <td class="px-4 py-3">
                                 @php
@@ -294,7 +294,7 @@
                                     <span class="text-base font-semibold text-slate-800">{{ $apartment->apartment_number }}</span>
                                     <span class="inline-flex items-center gap-1.5 text-[11px] font-medium {{ $mStatusText }}">{{ status_label($apartment->status) }}</span>
                                 </div>
-                                <span class="text-sm font-semibold text-slate-700 flex-shrink-0">${{ number_format($mRent, 2) }}</span>
+                                <span class="text-sm font-semibold text-slate-700 flex-shrink-0">{{ money($mRent) }}</span>
                             </div>
 
                             <div class="mt-3">

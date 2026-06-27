@@ -259,6 +259,7 @@ class TenantController extends Controller
             'date_of_birth.before_or_equal' => __('messages.tenant_must_be_18'),
             'move_in_date.after_or_equal' => __('messages.move_in_date_min'),
         ]);
+        $validated = convert_money_input($validated, ['monthly_rent', 'deposit', 'apartments.*.monthly_rent']);
 
         // A supervisor may only place a tenant in one of their assigned properties.
         $apartment = Apartments::with('floor')->findOrFail($validated['apartment_id']);
@@ -650,6 +651,7 @@ class TenantController extends Controller
         ], [
             'phone.unique' => __('messages.validation_phone_taken'),
         ]);
+        $validated = convert_money_input($validated, ['monthly_rent', 'deposit', 'apartments.*.monthly_rent']);
 
         // A supervisor may only (re)assign a tenant to one of their properties.
         $targetApartment = Apartments::with('floor')->findOrFail($validated['apartment_id']);

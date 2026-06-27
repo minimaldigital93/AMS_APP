@@ -6,6 +6,16 @@ use Illuminate\Foundation\Http\FormRequest;
 
 class StoreOtherExpenseRequest extends FormRequest
 {
+    use \App\Http\Requests\Concerns\ConvertsCurrencyInput;
+
+    /**
+     * @return array<int, string>
+     */
+    protected function moneyInputKeys(): array
+    {
+        return ['amount'];
+    }
+
     /**
      * Categories allowed for "other" (non-utility, non-business) expenses.
      * Keep in sync with the Accounts category constants and the recordExpense view.

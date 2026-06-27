@@ -42,10 +42,10 @@
                         </div>
                         <div class="text-right">
                             <p class="text-sm text-gray-500">{{ __('messages.balance') }}</p>
-                            <p class="text-lg font-bold">${{ number_format($period->opening_balance, 2) }}</p>
+                            <p class="text-lg font-bold">{{ money($period->opening_balance) }}</p>
                             @if($period->status === 'closed' && $period->closing_balance != 0)
                                 <p class="text-xs {{ $period->closing_balance >= $period->opening_balance ? 'text-green-600' : 'text-red-600' }}">
-                                    → ${{ number_format($period->closing_balance, 2) }}
+                                    → {{ money($period->closing_balance) }}
                                 </p>
                             @endif
                         </div>

@@ -6,6 +6,16 @@ use Illuminate\Foundation\Http\FormRequest;
 
 class RecordBulkIncomeRequest extends FormRequest
 {
+    use \App\Http\Requests\Concerns\ConvertsCurrencyInput;
+
+    /**
+     * @return array<int, string>
+     */
+    protected function moneyInputKeys(): array
+    {
+        return ['apartments.*.amount', 'apartments.*.late_fee'];
+    }
+
     public function rules(): array
     {
         return [

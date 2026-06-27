@@ -120,11 +120,11 @@
             </div>
             <div>
                 <p class="text-xs text-slate-400 uppercase tracking-wide">{{ __('messages.monthly_rent') }}</p>
-                <p class="text-sm font-medium text-slate-800 mt-0.5">${{ number_format($tenant->apartment?->monthly_rent ?? optional($tenant->rentals->first())->rent_amount ?? 0, 2) }}</p>
+                <p class="text-sm font-medium text-slate-800 mt-0.5">{{ money($tenant->apartment?->monthly_rent ?? optional($tenant->rentals->first())->rent_amount ?? 0) }}</p>
             </div>
             <div>
                 <p class="text-xs text-slate-400 uppercase tracking-wide">{{ __('messages.deposit') }}</p>
-                <p class="text-sm font-medium text-slate-800 mt-0.5">${{ number_format($tenant->deposit ?? 0, 2) }}</p>
+                <p class="text-sm font-medium text-slate-800 mt-0.5">{{ money($tenant->deposit ?? 0) }}</p>
             </div>
             <div>
                 <p class="text-xs text-slate-400 uppercase tracking-wide">{{ __('messages.move_in') }}</p>
@@ -143,7 +143,7 @@
             <h3 class="text-sm font-medium text-slate-500 uppercase tracking-wide">{{ __('messages.payment_history') }}</h3>
             @if($totalDue > 0)
                 <div class="flex items-center gap-2 text-xs">
-                    <span class="px-2.5 py-1 rounded-full bg-red-50 text-red-600 font-medium">{{ __('messages.outstanding') }} ${{ number_format($totalDue, 2) }}</span>
+                    <span class="px-2.5 py-1 rounded-full bg-red-50 text-red-600 font-medium">{{ __('messages.outstanding') }} {{ money($totalDue) }}</span>
                 </div>
             @endif
         </div>
@@ -160,7 +160,7 @@
                     @endphp
                     <div class="flex items-center justify-between gap-3 py-3">
                         <p class="text-sm font-medium text-slate-700 w-20 shrink-0">{{ $row['label'] }}</p>
-                        <p class="text-sm font-semibold {{ $paid ? 'text-emerald-700' : 'text-slate-400' }} flex-1 text-right">${{ number_format($amount, 2) }}</p>
+                        <p class="text-sm font-semibold {{ $paid ? 'text-emerald-700' : 'text-slate-400' }} flex-1 text-right">{{ money($amount) }}</p>
                         @if($paid)
                             <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-50 text-emerald-600 w-20 justify-center shrink-0">{{ __('messages.paid') }}</span>
                         @else

@@ -188,20 +188,20 @@
                 <tr>
                     <td class="name">{{ __('messages.rent') }} — {{ $monthYear }}</td>
                     <td class="qty">1</td>
-                    <td class="price">{{ currency_symbol() }}{{ number_format($rentAmount, 2) }}</td>
+                    <td class="price">{{ money($rentAmount) }}</td>
                 </tr>
                 @foreach($utilities as $utility)
                     <tr>
                         <td class="name">{{ ucfirst(str_replace('_', ' ', $utility->utility_type)) }}</td>
                         <td class="qty">1</td>
-                        <td class="price">{{ currency_symbol() }}{{ number_format($utility->charge_amount, 2) }}</td>
+                        <td class="price">{{ money($utility->charge_amount) }}</td>
                     </tr>
                 @endforeach
                 @foreach($fixedExpenses as $expense)
                     <tr>
                         <td class="name">{{ $expense->expense_name }}</td>
                         <td class="qty">1</td>
-                        <td class="price">{{ currency_symbol() }}{{ number_format($expense->amount, 2) }}</td>
+                        <td class="price">{{ money($expense->amount) }}</td>
                     </tr>
                 @endforeach
             </tbody>
@@ -212,7 +212,7 @@
         <!-- Total -->
         <div class="total-line">
             <span class="label">{{ __('messages.total') }}</span>
-            <span class="amount">{{ currency_symbol() }}{{ number_format($totalBill, 2) }}</span>
+            <span class="amount">{{ money($totalBill) }}</span>
         </div>
 
         <div style="margin-top:10px;">
@@ -222,12 +222,12 @@
             </div>
             <div class="pay-row">
                 <span class="muted">{{ __('messages.amount_paid') }}</span>
-                <span style="font-weight:700;">{{ currency_symbol() }}{{ number_format($amountPaid, 2) }}</span>
+                <span style="font-weight:700;">{{ money($amountPaid) }}</span>
             </div>
             @if($balance > 0)
                 <div class="pay-row">
                     <span class="muted">{{ __('messages.balance_due') }}</span>
-                    <span style="font-weight:700;color:#b45309;">{{ currency_symbol() }}{{ number_format($balance, 2) }}</span>
+                    <span style="font-weight:700;color:#b45309;">{{ money($balance) }}</span>
                 </div>
             @endif
             @if($reference)

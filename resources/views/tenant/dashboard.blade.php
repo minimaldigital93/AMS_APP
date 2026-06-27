@@ -95,14 +95,14 @@
         </div>
         <div class="bg-white rounded-xl border border-slate-100 shadow-sm p-4 sm:p-5">
             <p class="text-xs text-gray-400 uppercase">{{ __('messages.monthly_rent') }}</p>
-            <p class="text-lg font-bold text-gray-900 mt-1">{{ currency_symbol() }}{{ number_format($paymentStats['this_month_total'], 2) }}</p>
+            <p class="text-lg font-bold text-gray-900 mt-1">{{ money($paymentStats['this_month_total']) }}</p>
             <p class="text-xs text-gray-400 mt-0.5">{{ __('messages.current_period') }}</p>
         </div>
         <div class="bg-white rounded-xl border border-slate-100 shadow-sm p-4 sm:p-5">
             <p class="text-xs text-gray-400 uppercase">{{ __('messages.paid_this_month') }}</p>
             <p class="text-lg font-bold mt-1
                 {{ $paymentStats['this_month_status'] === 'paid' ? 'text-green-600' : ($paymentStats['this_month_status'] === 'partial' ? 'text-yellow-600' : 'text-red-500') }}">
-                {{ currency_symbol() }}{{ number_format($paymentStats['this_month_paid'], 2) }}
+                {{ money($paymentStats['this_month_paid']) }}
             </p>
             <div class="mt-2 h-1.5 bg-gray-100 rounded-full overflow-hidden">
                 <div class="h-full rounded-full
@@ -114,7 +114,7 @@
         </div>
         <div class="bg-white rounded-xl border border-slate-100 shadow-sm p-4 sm:p-5">
             <p class="text-xs text-gray-400 uppercase">{{ __('messages.all_time_paid') }}</p>
-            <p class="text-lg font-bold text-gray-900 mt-1">{{ currency_symbol() }}{{ number_format($paymentStats['all_time_paid'], 2) }}</p>
+            <p class="text-lg font-bold text-gray-900 mt-1">{{ money($paymentStats['all_time_paid']) }}</p>
             <p class="text-xs text-gray-400 mt-0.5">{{ __('messages.total_payments') }}</p>
         </div>
     </div>
@@ -149,7 +149,7 @@
                         </div>
                     </div>
                     <div class="text-right flex-shrink-0">
-                        <p class="text-sm font-semibold text-gray-900">{{ currency_symbol() }}{{ number_format($payment->amount, 2) }}</p>
+                        <p class="text-sm font-semibold text-gray-900">{{ money($payment->amount) }}</p>
                         <span class="text-xs px-1.5 py-0.5 rounded-full bg-green-100 text-green-700">{{ __('messages.paid') }}</span>
                     </div>
                 </div>

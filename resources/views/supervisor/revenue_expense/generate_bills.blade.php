@@ -41,7 +41,7 @@
                     </div>
                     <div class="text-center">
                         <p class="text-sm text-gray-500">{{ __('messages.total_monthly_apt_costs') }}</p>
-                        <p class="text-2xl font-bold text-red-600">${{ number_format($totalMonthlyExpenses, 2) }}</p>
+                        <p class="text-2xl font-bold text-red-600">{{ money($totalMonthlyExpenses) }}</p>
                     </div>
                 </div>
                 <div>
@@ -75,8 +75,8 @@
                     </div>
                     <div class="text-right">
                         <p class="text-xs text-gray-500">{{ __('messages.total_monthly_bill') }}</p>
-                        <p class="text-xl font-bold text-red-600">${{ number_format($bill['total_bill'], 2) }}</p>
-                        <p class="text-xs text-gray-400">{{ __('messages.rent') }}: ${{ number_format($bill['monthly_rent'], 2) }} + {{ __('messages.costs') }}: ${{ number_format($bill['total_fixed'], 2) }}</p>
+                        <p class="text-xl font-bold text-red-600">{{ money($bill['total_bill']) }}</p>
+                        <p class="text-xs text-gray-400">{{ __('messages.rent') }}: {{ money($bill['monthly_rent']) }} + {{ __('messages.costs') }}: {{ money($bill['total_fixed']) }}</p>
                     </div>
                 </div>
 

@@ -6,6 +6,16 @@ use Illuminate\Foundation\Http\FormRequest;
 
 class AddTenantChargeRequest extends FormRequest
 {
+    use \App\Http\Requests\Concerns\ConvertsCurrencyInput;
+
+    /**
+     * @return array<int, string>
+     */
+    protected function moneyInputKeys(): array
+    {
+        return ['charge_amount'];
+    }
+
     public function rules(): array
     {
         return [

@@ -167,6 +167,7 @@ class FloorController extends Controller
             'apartments.*.apartment_number.unique' => __('messages.validation_apartment_number_taken_generic'),
             'apartments.*.apartment_number.distinct' => __('messages.validation_apartment_number_taken_generic'),
         ]);
+        $validated = convert_money_input($validated, ['monthly_rent', 'deposit', 'apartments.*.monthly_rent']);
 
         // Floors are unlimited on every plan; only the room cap applies here.
         $accountId = current_account_id();
@@ -225,6 +226,7 @@ class FloorController extends Controller
             ], [
                 'apartment_number.unique' => __('messages.validation_apartment_number_taken', ['number' => $request->input('apartment_number')]),
             ]);
+            $validated = convert_money_input($validated, ['monthly_rent', 'deposit', 'apartments.*.monthly_rent']);
 
             // Enforce the account's subscription plan room cap.
             $accountId = current_account_id();
@@ -271,6 +273,7 @@ class FloorController extends Controller
         ], [
             'floor_name.unique' => __('messages.validation_floor_name_taken'),
         ]);
+        $validated = convert_money_input($validated, ['monthly_rent', 'deposit', 'apartments.*.monthly_rent']);
 
         try {
             $floor->update([

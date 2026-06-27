@@ -86,29 +86,29 @@
     <div class="grid grid-cols-2 md:grid-cols-5 gap-3 mb-6">
         <div class="bg-white rounded-lg shadow p-4 text-center">
             <p class="text-xs text-gray-500">{{ __('messages.opening') }}</p>
-            <p class="text-lg font-bold mt-1">${{ number_format($monthlyPeriod->opening_balance, 2) }}</p>
+            <p class="text-lg font-bold mt-1">{{ money($monthlyPeriod->opening_balance) }}</p>
         </div>
         <div class="bg-white rounded-lg shadow p-4 text-center">
             <p class="text-xs text-gray-500">{{ __('messages.income') }}</p>
-            <p class="text-lg font-bold text-green-600 mt-1">+${{ number_format($financials['total_income'], 2) }}</p>
+            <p class="text-lg font-bold text-green-600 mt-1">+{{ money($financials['total_income']) }}</p>
         </div>
         <div class="bg-white rounded-lg shadow p-4 text-center">
             <p class="text-xs text-gray-500">{{ __('messages.expenses_word') }}</p>
-            <p class="text-lg font-bold text-red-600 mt-1">-${{ number_format($financials['total_expenses'], 2) }}</p>
+            <p class="text-lg font-bold text-red-600 mt-1">-{{ money($financials['total_expenses']) }}</p>
         </div>
         <div class="bg-white rounded-lg shadow p-4 text-center">
             <p class="text-xs text-gray-500">{{ __('messages.net') }}</p>
             <p class="text-lg font-bold {{ $financials['net_income'] >= 0 ? 'text-green-600' : 'text-red-600' }} mt-1">
-                {{ $financials['net_income'] >= 0 ? '+' : '' }}${{ number_format($financials['net_income'], 2) }}
+                {{ $financials['net_income'] >= 0 ? '+' : '' }}{{ money($financials['net_income']) }}
             </p>
         </div>
         <div class="bg-white rounded-lg shadow p-4 text-center">
             <p class="text-xs text-gray-500">{{ __('messages.closing') }}</p>
             <p class="text-lg font-bold mt-1">
                 @if($monthlyPeriod->isClosed())
-                    ${{ number_format($monthlyPeriod->closing_balance, 2) }}
+                    {{ money($monthlyPeriod->closing_balance) }}
                 @else
-                    <span class="text-gray-400">${{ number_format($monthlyPeriod->opening_balance + $financials['net_income'], 2) }}</span>
+                    <span class="text-gray-400">{{ money($monthlyPeriod->opening_balance + $financials['net_income']) }}</span>
                 @endif
             </p>
         </div>
@@ -121,7 +121,7 @@
             <div class="flex-1">
                 <div class="flex items-center justify-between">
                     <p class="text-sm font-semibold text-purple-800">{{ __('messages.owner_profit_withdrawal') }}</p>
-                    <p class="text-lg font-bold text-purple-700">− ${{ number_format($monthlyPeriod->owner_withdrawal, 2) }}</p>
+                    <p class="text-lg font-bold text-purple-700">− {{ money($monthlyPeriod->owner_withdrawal) }}</p>
                 </div>
                 @if($monthlyPeriod->withdrawal_note)
                     <p class="text-sm text-purple-700/80 mt-1">{{ $monthlyPeriod->withdrawal_note }}</p>
@@ -136,26 +136,26 @@
         <div class="bg-white rounded-lg shadow p-5">
             <h3 class="font-semibold text-sm text-gray-700 mb-3">{{ __('messages.income') }}</h3>
             <div class="space-y-2 text-sm">
-                <div class="flex justify-between"><span class="text-gray-600">{{ __('messages.rent') }}</span><span class="font-medium text-green-600">${{ number_format($financials['rent_income'], 2) }}</span></div>
-                <div class="flex justify-between"><span class="text-gray-600">{{ __('messages.late_fees') }}</span><span class="font-medium text-green-600">${{ number_format($financials['late_fees'], 2) }}</span></div>
+                <div class="flex justify-between"><span class="text-gray-600">{{ __('messages.rent') }}</span><span class="font-medium text-green-600">{{ money($financials['rent_income']) }}</span></div>
+                <div class="flex justify-between"><span class="text-gray-600">{{ __('messages.late_fees') }}</span><span class="font-medium text-green-600">{{ money($financials['late_fees']) }}</span></div>
                 @if($financials['other_income'] > 0)
-                    <div class="flex justify-between"><span class="text-gray-600">{{ __('messages.type_other') }}</span><span class="font-medium text-green-600">${{ number_format($financials['other_income'], 2) }}</span></div>
+                    <div class="flex justify-between"><span class="text-gray-600">{{ __('messages.type_other') }}</span><span class="font-medium text-green-600">{{ money($financials['other_income']) }}</span></div>
                 @endif
-                <div class="flex justify-between border-t pt-2 font-semibold"><span>{{ __('messages.total') }}</span><span class="text-green-700">${{ number_format($financials['total_income'], 2) }}</span></div>
+                <div class="flex justify-between border-t pt-2 font-semibold"><span>{{ __('messages.total') }}</span><span class="text-green-700">{{ money($financials['total_income']) }}</span></div>
             </div>
         </div>
         <div class="bg-white rounded-lg shadow p-5">
             <h3 class="font-semibold text-sm text-gray-700 mb-3">{{ __('messages.expenses_word') }}</h3>
             <div class="space-y-2 text-sm">
                 @forelse($financials['utility_expenses'] as $type => $amount)
-                    <div class="flex justify-between"><span class="text-gray-600 capitalize">{{ str_replace('_', ' ', $type) }}</span><span class="font-medium text-red-600">${{ number_format($amount, 2) }}</span></div>
+                    <div class="flex justify-between"><span class="text-gray-600 capitalize">{{ str_replace('_', ' ', $type) }}</span><span class="font-medium text-red-600">{{ money($amount) }}</span></div>
                 @empty
                     <p class="text-gray-400 text-xs">{{ __('messages.no_utility_expenses') }}</p>
                 @endforelse
                 @if($financials['fixed_expenses'] > 0)
-                    <div class="flex justify-between"><span class="text-gray-600">{{ __('messages.fixed_other') }}</span><span class="font-medium text-red-600">${{ number_format($financials['fixed_expenses'], 2) }}</span></div>
+                    <div class="flex justify-between"><span class="text-gray-600">{{ __('messages.fixed_other') }}</span><span class="font-medium text-red-600">{{ money($financials['fixed_expenses']) }}</span></div>
                 @endif
-                <div class="flex justify-between border-t pt-2 font-semibold"><span>{{ __('messages.total') }}</span><span class="text-red-700">${{ number_format($financials['total_expenses'], 2) }}</span></div>
+                <div class="flex justify-between border-t pt-2 font-semibold"><span>{{ __('messages.total') }}</span><span class="text-red-700">{{ money($financials['total_expenses']) }}</span></div>
             </div>
         </div>
     </div>
@@ -171,21 +171,21 @@
         <div class="grid grid-cols-3 gap-4 text-center">
             <div>
                 <p class="text-xs text-gray-500 uppercase">{{ __('messages.assets') }}</p>
-                <p class="text-lg font-bold text-sky-600">${{ number_format($balanceSheet['total_assets'], 2) }}</p>
+                <p class="text-lg font-bold text-sky-600">{{ money($balanceSheet['total_assets']) }}</p>
             </div>
             <div>
                 <p class="text-xs text-gray-500 uppercase">{{ __('messages.liabilities') }}</p>
-                <p class="text-lg font-bold text-red-600">${{ number_format($balanceSheet['total_liabilities'], 2) }}</p>
+                <p class="text-lg font-bold text-red-600">{{ money($balanceSheet['total_liabilities']) }}</p>
             </div>
             <div>
                 <p class="text-xs text-gray-500 uppercase">{{ __('messages.equity') }}</p>
-                <p class="text-lg font-bold text-green-600">${{ number_format($balanceSheet['total_equity'], 2) }}</p>
+                <p class="text-lg font-bold text-green-600">{{ money($balanceSheet['total_equity']) }}</p>
             </div>
         </div>
         <p class="text-xs text-gray-400 mt-3 text-center">
-            Opening equity ${{ number_format($balanceSheet['opening_equity'], 2) }}
-            + retained earnings ${{ number_format($balanceSheet['retained_earnings'], 2) }}
-            − owner draws ${{ number_format($balanceSheet['owner_withdrawals'], 2) }}.
+            Opening equity {{ money($balanceSheet['opening_equity']) }}
+            + retained earnings {{ money($balanceSheet['retained_earnings']) }}
+            − owner draws {{ money($balanceSheet['owner_withdrawals']) }}.
         </p>
     </div>
 
@@ -207,12 +207,12 @@
                         <div class="bg-gray-50 rounded-lg p-3">
                             <p class="text-xs text-gray-500">{{ __('messages.net_income_profit') }}</p>
                             <p class="font-bold mt-0.5 {{ $financials['net_income'] >= 0 ? 'text-green-600' : 'text-red-600' }}">
-                                {{ $financials['net_income'] >= 0 ? '+' : '' }}${{ number_format($financials['net_income'], 2) }}
+                                {{ $financials['net_income'] >= 0 ? '+' : '' }}{{ money($financials['net_income']) }}
                             </p>
                         </div>
                         <div class="bg-gray-50 rounded-lg p-3">
                             <p class="text-xs text-gray-500">{{ __('messages.cash_available') }}</p>
-                            <p class="font-bold mt-0.5">${{ number_format($monthlyPeriod->opening_balance + $financials['net_income'], 2) }}</p>
+                            <p class="font-bold mt-0.5">{{ money($monthlyPeriod->opening_balance + $financials['net_income']) }}</p>
                         </div>
                     </div>
 

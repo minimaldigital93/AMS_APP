@@ -193,6 +193,8 @@ return [
     'email_from_name' => 'ឈ្មោះអ្នកផ្ញើ',
     'email_from_address' => 'អាសយដ្ឋានអ្នកផ្ញើ',
     'system_currency' => 'រូបិយប័ណ្ណ',
+    'khr_exchange_rate' => 'អត្រាប្តូរប្រាក់',
+    'exchange_rate_invalid' => 'សូមបញ្ចូលអត្រាប្តូរប្រាក់ត្រឹមត្រូវ (រៀល ក្នុង ១ ដុល្លារ)។',
     'system_date_format' => 'ទម្រង់កាលបរិច្ឆេទ',
     'system_time_format' => 'ទម្រង់ពេលវេលា',
     'fiscal_year_start' => 'ចាប់ផ្តើមឆ្នាំសារពើពន្ធ',

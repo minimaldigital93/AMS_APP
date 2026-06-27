@@ -78,7 +78,7 @@
                 </div>
                 <div>
                     <p class="text-xs text-slate-400 font-medium">{{ __('messages.total_expected') }}</p>
-                    <p class="text-xl font-bold text-sky-600">${{ number_format($totalRentExpected, 2) }}</p>
+                    <p class="text-xl font-bold text-sky-600">{{ money($totalRentExpected) }}</p>
                 </div>
             </div>
             <p class="text-[11px] text-slate-400 mt-2">{{ __('messages.active_tenants_n', ['count' => count($tenantBillsAll ?? $tenantBills)]) }}</p>
@@ -90,7 +90,7 @@
                 </div>
                 <div>
                     <p class="text-xs text-slate-400 font-medium">{{ __('messages.collected') }}</p>
-                    <p class="text-xl font-bold text-emerald-600">${{ number_format($totalRentCollected, 2) }}</p>
+                    <p class="text-xl font-bold text-emerald-600">{{ money($totalRentCollected) }}</p>
                 </div>
             </div>
             <p class="text-[11px] text-slate-400 mt-2">{{ __('messages.tenants_paid', ['count' => $paidCount]) }}</p>
@@ -102,7 +102,7 @@
                 </div>
                 <div>
                     <p class="text-xs text-slate-400 font-medium">{{ __('messages.pending') }}</p>
-                    <p class="text-xl font-bold text-amber-600">${{ number_format($totalPending, 2) }}</p>
+                    <p class="text-xl font-bold text-amber-600">{{ money($totalPending) }}</p>
                 </div>
             </div>
             <p class="text-[11px] text-slate-400 mt-2">{{ __('messages.n_pending', ['count' => $pendingCount]) }}</p>
@@ -205,8 +205,8 @@
                             </div>
                         </td>
                         <td class="px-4 py-4 whitespace-nowrap">
-                            <p class="text-sm font-bold {{ $bill['status'] === 'paid' ? 'text-emerald-600' : 'text-slate-800' }}">${{ number_format($bill['total_bill'], 2) }}</p>
-                            <p class="text-xs text-slate-400">{{ __('messages.rent') }} ${{ number_format($bill['monthly_rent'], 2) }}</p>
+                            <p class="text-sm font-bold {{ $bill['status'] === 'paid' ? 'text-emerald-600' : 'text-slate-800' }}">{{ money($bill['total_bill']) }}</p>
+                            <p class="text-xs text-slate-400">{{ __('messages.rent') }} {{ money($bill['monthly_rent']) }}</p>
                         </td>
                         <td class="px-4 py-4 whitespace-nowrap">
                             @if($bill['status'] === 'paid')
@@ -271,7 +271,7 @@
                 </div>
                 <!-- Amount + status -->
                 <div class="flex flex-col items-center flex-1 min-w-0">
-                    <p class="text-sm font-bold {{ $bill['status'] === 'paid' ? 'text-emerald-600' : 'text-slate-800' }} whitespace-nowrap">${{ number_format($bill['total_bill'], 2) }}</p>
+                    <p class="text-sm font-bold {{ $bill['status'] === 'paid' ? 'text-emerald-600' : 'text-slate-800' }} whitespace-nowrap">{{ money($bill['total_bill']) }}</p>
                     @if($bill['status'] === 'paid')
                         <span class="mt-0.5 px-1.5 py-0.5 text-[10px] font-semibold rounded bg-emerald-100 text-emerald-700">{{ __('messages.paid') }}</span>
                     @elseif($bill['status'] === 'overdue')

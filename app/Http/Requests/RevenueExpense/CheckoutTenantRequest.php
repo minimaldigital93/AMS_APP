@@ -6,6 +6,16 @@ use Illuminate\Foundation\Http\FormRequest;
 
 class CheckoutTenantRequest extends FormRequest
 {
+    use \App\Http\Requests\Concerns\ConvertsCurrencyInput;
+
+    /**
+     * @return array<int, string>
+     */
+    protected function moneyInputKeys(): array
+    {
+        return ['rent_amount', 'late_fee'];
+    }
+
     public function rules(): array
     {
         return [

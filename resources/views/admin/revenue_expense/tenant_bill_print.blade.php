@@ -358,7 +358,7 @@
                     <tr>
                         <td><strong>Monthly Rent — {{ $monthYear }}</strong></td>
                         <td><span class="category-label">{{ __('messages.rent') }}</span></td>
-                        <td>{{ currency_symbol() }}{{ number_format($rent_amount, 2) }}</td>
+                        <td>{{ money($rent_amount) }}</td>
                     </tr>
 
                     <!-- Utility Charges -->
@@ -371,7 +371,7 @@
                             @endif
                         </td>
                         <td><span class="category-label">{{ __('messages.utility') }}</span></td>
-                        <td>{{ currency_symbol() }}{{ number_format($utility->charge_amount, 2) }}</td>
+                        <td>{{ money($utility->charge_amount) }}</td>
                     </tr>
                     @endforeach
 
@@ -380,7 +380,7 @@
                     <tr>
                         <td>{{ $expense->expense_name }}</td>
                         <td><span class="category-label">{{ __('messages.apartment_cost') }}</span></td>
-                        <td>{{ currency_symbol() }}{{ number_format($expense->amount, 2) }}</td>
+                        <td>{{ money($expense->amount) }}</td>
                     </tr>
                     @endforeach
                 </tbody>
@@ -390,37 +390,37 @@
             <div class="totals-section">
                 <div class="total-row">
                     <span>{{ __('messages.subtotal_rent') }}</span>
-                    <span>{{ currency_symbol() }}{{ number_format($rent_amount, 2) }}</span>
+                    <span>{{ money($rent_amount) }}</span>
                 </div>
                 @if($totalUtilities > 0)
                 <div class="total-row">
                     <span>{{ __('messages.subtotal_utilities') }}</span>
-                    <span>{{ currency_symbol() }}{{ number_format($totalUtilities, 2) }}</span>
+                    <span>{{ money($totalUtilities) }}</span>
                 </div>
                 @endif
                 @if($totalFixed > 0)
                 <div class="total-row">
                     <span>{{ __('messages.subtotal_apt_costs') }}</span>
-                    <span>{{ currency_symbol() }}{{ number_format($totalFixed, 2) }}</span>
+                    <span>{{ money($totalFixed) }}</span>
                 </div>
                 @endif
 
                 <div class="total-row grand">
                     <span class="label">{{ __('messages.total_bill_caps') }}</span>
-                    <span class="amount">{{ currency_symbol() }}{{ number_format($totalBill, 2) }}</span>
+                    <span class="amount">{{ money($totalBill) }}</span>
                 </div>
 
                 @if($totalPaid > 0)
                 <div class="total-row paid" style="margin-top: 12px;">
                     <span>{{ __('messages.amount_paid') }}</span>
-                    <span>-{{ currency_symbol() }}{{ number_format($totalPaid, 2) }}</span>
+                    <span>-{{ money($totalPaid) }}</span>
                 </div>
                 @endif
 
                 @if($balance > 0)
                 <div class="total-row balance">
                     <span>{{ __('messages.balance_due_caps') }}</span>
-                    <span>{{ currency_symbol() }}{{ number_format($balance, 2) }}</span>
+                    <span>{{ money($balance) }}</span>
                 </div>
                 @elseif($paidThisMonth)
                 <div class="total-row paid-full">
@@ -441,7 +441,7 @@
                             (Ref: {{ $payment->transaction_reference }})
                         @endif
                     </span>
-                    <span>{{ currency_symbol() }}{{ number_format($payment->amount + ($payment->late_fee ?? 0), 2) }} — {{ \Carbon\Carbon::parse($payment->paid_at)->format('M d, Y') }}</span>
+                    <span>{{ money($payment->amount + ($payment->late_fee ?? 0)) }} — {{ \Carbon\Carbon::parse($payment->paid_at)->format('M d, Y') }}</span>
                 </div>
                 @endforeach
             </div>

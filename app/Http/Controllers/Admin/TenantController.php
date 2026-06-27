@@ -470,6 +470,7 @@ class TenantController extends Controller
             'date_of_birth.before_or_equal' => __('messages.tenant_must_be_18'),
             'move_in_date.after_or_equal' => __('messages.move_in_date_min'),
         ]);
+        $validated = convert_money_input($validated, ['monthly_rent', 'deposit', 'apartments.*.monthly_rent']);
 
         // Handle photo upload - SEPARATE from validation
         if ($request->hasFile('photo') && $request->file('photo')->isValid()) {
@@ -591,6 +592,7 @@ class TenantController extends Controller
         ], [
             'phone.unique' => __('messages.validation_phone_taken'),
         ]);
+        $validated = convert_money_input($validated, ['monthly_rent', 'deposit', 'apartments.*.monthly_rent']);
 
         // Handle apartment change
         $oldApartmentId = $tenant->apartment_id;

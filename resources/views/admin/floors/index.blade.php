@@ -187,7 +187,7 @@
                                     <span class="text-sm font-medium text-slate-700">{{ $apartment->apartment_number }}</span>
                                 </td>
                                 <td class="px-4 py-3">
-                                    <span class="text-sm text-slate-600">${{ number_format($apartment->monthly_rent, 2) }}</span>
+                                    <span class="text-sm text-slate-600">{{ money($apartment->monthly_rent) }}</span>
                                 </td>
                                 <td class="px-4 py-3">
                                     <span class="inline-flex items-center gap-1.5 text-xs font-medium
@@ -235,7 +235,7 @@
                         </div>
                         <div class="mt-2 flex items-center justify-between text-sm">
                             <span class="text-slate-400 text-xs">{{ __('messages.monthly_rent') }}</span>
-                            <span class="text-slate-600 font-medium">${{ number_format($apartment->monthly_rent, 2) }}</span>
+                            <span class="text-slate-600 font-medium">{{ money($apartment->monthly_rent) }}</span>
                         </div>
                         <div class="mt-1 flex items-center justify-between text-sm">
                             <span class="text-slate-400 text-xs">{{ __('messages.supervisor') }}</span>

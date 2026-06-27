@@ -63,8 +63,8 @@
             <div class="row"><span class="label">{{ __('messages.closing_date') }}</span><span style="font-weight:600;">{{ $fiscalperiod->closing_date->format('M d, Y') }}</span></div>
         </div>
         <div class="box">
-            <div class="row"><span class="label">{{ __('messages.opening_balance') }}</span><span style="font-weight:700;">{{ currency_symbol() }}{{ number_format($fiscalperiod->opening_balance, 2) }}</span></div>
-            <div class="row"><span class="label">{{ __('messages.closing_balance') }}</span><span style="font-weight:700;">{{ currency_symbol() }}{{ number_format($fiscalperiod->closing_balance, 2) }}</span></div>
+            <div class="row"><span class="label">{{ __('messages.opening_balance') }}</span><span style="font-weight:700;">{{ money($fiscalperiod->opening_balance) }}</span></div>
+            <div class="row"><span class="label">{{ __('messages.closing_balance') }}</span><span style="font-weight:700;">{{ money($fiscalperiod->closing_balance) }}</span></div>
         </div>
     </div>
 </div>
@@ -76,30 +76,30 @@
     <div class="two-col">
         <div class="box">
             <div class="box-title">{{ __('messages.income') }}</div>
-            <div class="row"><span class="label">{{ __('messages.rent_payments') }}</span><span style="color:#16a34a;font-weight:600;">{{ currency_symbol() }}{{ number_format($periodFinancials['rent_income'], 2) }}</span></div>
+            <div class="row"><span class="label">{{ __('messages.rent_payments') }}</span><span style="color:#16a34a;font-weight:600;">{{ money($periodFinancials['rent_income']) }}</span></div>
             @if($periodFinancials['late_fees'] > 0)
-            <div class="row"><span class="label">{{ __('messages.late_fees') }}</span><span style="color:#16a34a;font-weight:600;">{{ currency_symbol() }}{{ number_format($periodFinancials['late_fees'], 2) }}</span></div>
+            <div class="row"><span class="label">{{ __('messages.late_fees') }}</span><span style="color:#16a34a;font-weight:600;">{{ money($periodFinancials['late_fees']) }}</span></div>
             @endif
             @if($periodFinancials['other_income'] > 0)
-            <div class="row"><span class="label">{{ __('messages.other_income') }}</span><span style="color:#16a34a;font-weight:600;">{{ currency_symbol() }}{{ number_format($periodFinancials['other_income'], 2) }}</span></div>
+            <div class="row"><span class="label">{{ __('messages.other_income') }}</span><span style="color:#16a34a;font-weight:600;">{{ money($periodFinancials['other_income']) }}</span></div>
             @endif
-            <div class="row-total"><span>{{ __('messages.total_income') }}</span><span style="color:#16a34a;">{{ currency_symbol() }}{{ number_format($periodFinancials['total_income'], 2) }}</span></div>
+            <div class="row-total"><span>{{ __('messages.total_income') }}</span><span style="color:#16a34a;">{{ money($periodFinancials['total_income']) }}</span></div>
         </div>
         <div class="box">
             <div class="box-title">{{ __('messages.expenses_word') }}</div>
             @foreach($periodFinancials['utility_expenses'] as $type => $amount)
-            <div class="row"><span class="label" style="text-transform:capitalize;">{{ str_replace('_',' ',$type) }}</span><span style="color:#dc2626;font-weight:600;">{{ currency_symbol() }}{{ number_format($amount, 2) }}</span></div>
+            <div class="row"><span class="label" style="text-transform:capitalize;">{{ str_replace('_',' ',$type) }}</span><span style="color:#dc2626;font-weight:600;">{{ money($amount) }}</span></div>
             @endforeach
             @if($periodFinancials['fixed_expenses'] > 0)
-            <div class="row"><span class="label">{{ __('messages.fixed_other') }}</span><span style="color:#dc2626;font-weight:600;">{{ currency_symbol() }}{{ number_format($periodFinancials['fixed_expenses'], 2) }}</span></div>
+            <div class="row"><span class="label">{{ __('messages.fixed_other') }}</span><span style="color:#dc2626;font-weight:600;">{{ money($periodFinancials['fixed_expenses']) }}</span></div>
             @endif
-            <div class="row-total"><span>{{ __('messages.total_expenses') }}</span><span style="color:#dc2626;">{{ currency_symbol() }}{{ number_format($periodFinancials['total_expenses'], 2) }}</span></div>
+            <div class="row-total"><span>{{ __('messages.total_expenses') }}</span><span style="color:#dc2626;">{{ money($periodFinancials['total_expenses']) }}</span></div>
         </div>
     </div>
     <div class="net-box" style="background:{{ $periodFinancials['net_income'] >= 0 ? '#f0fdf4' : '#fef2f2' }};border:1px solid {{ $periodFinancials['net_income'] >= 0 ? '#86efac' : '#fca5a5' }};">
         <div style="font-size:13px;font-weight:700;color:#374151;">Net {{ $periodFinancials['net_income'] >= 0 ? 'Profit' : 'Loss' }} for the Year</div>
         <div style="font-size:22px;font-weight:700;color:{{ $periodFinancials['net_income'] >= 0 ? '#16a34a' : '#dc2626' }};">
-            {{ $periodFinancials['net_income'] >= 0 ? '+' : '' }}{{ currency_symbol() }}{{ number_format($periodFinancials['net_income'], 2) }}
+            {{ $periodFinancials['net_income'] >= 0 ? '+' : '' }}{{ money($periodFinancials['net_income']) }}
         </div>
     </div>
 </div>
@@ -126,7 +126,7 @@
             <tr>
                 <td style="font-weight:600;">{{ ucfirst($item->item_type) }}</td>
                 <td>{{ $item->name }}</td>
-                <td class="right">{{ currency_symbol() }}{{ number_format($item->amount, 2) }}</td>
+                <td class="right">{{ money($item->amount) }}</td>
                 <td>{{ $item->as_of_date->format('M d, Y') }}</td>
                 <td>{{ $item->reference_number ?? '—' }}</td>
             </tr>
@@ -145,21 +145,21 @@
     <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:14px;">
         <div class="box" style="text-align:center;">
             <div style="font-size:11px;color:#6b7280;font-weight:600;text-transform:uppercase;margin-bottom:6px;">{{ __('messages.total_assets') }}</div>
-            <div style="font-size:20px;font-weight:700;color:#1e40af;">{{ currency_symbol() }}{{ number_format($summary['total_assets'], 2) }}</div>
+            <div style="font-size:20px;font-weight:700;color:#1e40af;">{{ money($summary['total_assets']) }}</div>
         </div>
         <div class="box" style="text-align:center;">
             <div style="font-size:11px;color:#6b7280;font-weight:600;text-transform:uppercase;margin-bottom:6px;">{{ __('messages.total_liabilities') }}</div>
-            <div style="font-size:20px;font-weight:700;color:#dc2626;">{{ currency_symbol() }}{{ number_format($summary['total_liabilities'], 2) }}</div>
+            <div style="font-size:20px;font-weight:700;color:#dc2626;">{{ money($summary['total_liabilities']) }}</div>
         </div>
         <div class="box" style="text-align:center;">
             <div style="font-size:11px;color:#6b7280;font-weight:600;text-transform:uppercase;margin-bottom:6px;">{{ __('messages.total_equity') }}</div>
-            <div style="font-size:20px;font-weight:700;color:#16a34a;">{{ currency_symbol() }}{{ number_format($summary['total_equity'], 2) }}</div>
+            <div style="font-size:20px;font-weight:700;color:#16a34a;">{{ money($summary['total_equity']) }}</div>
         </div>
     </div>
     <div style="background:{{ $summary['balance_check'] ? '#f0fdf4' : '#fefce8' }};border:1px solid {{ $summary['balance_check'] ? '#86efac' : '#fde68a' }};border-radius:6px;padding:12px 16px;font-size:12px;color:{{ $summary['balance_check'] ? '#166534' : '#92400e' }};">
-        <strong>Assets ({{ currency_symbol() }}{{ number_format($summary['total_assets'], 2) }})</strong> =
-        <strong>Liabilities ({{ currency_symbol() }}{{ number_format($summary['total_liabilities'], 2) }})</strong> +
-        <strong>Equity ({{ currency_symbol() }}{{ number_format($summary['total_equity'], 2) }})</strong>
+        <strong>Assets ({{ money($summary['total_assets']) }})</strong> =
+        <strong>Liabilities ({{ money($summary['total_liabilities']) }})</strong> +
+        <strong>Equity ({{ money($summary['total_equity']) }})</strong>
         &nbsp;&nbsp; {{ $summary['balance_check'] ? '✓ Balanced' : '✗ Not Balanced' }}
     </div>
 </div>

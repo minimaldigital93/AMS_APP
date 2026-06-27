@@ -36,6 +36,7 @@ class SettingsController extends Controller
             ],
             'system' => [
                 'system_currency' => 'USD',
+                'khr_exchange_rate' => '4100',
             ],
         ];
 
@@ -66,7 +67,11 @@ class SettingsController extends Controller
         $request->validate([
             'settings' => 'required|array',
             'settings.*' => 'nullable|string',
+            'settings.khr_exchange_rate' => 'nullable|numeric|min:1',
             'company_logo' => 'nullable|image|mimes:jpeg,jpg,png,webp|max:2048',
+        ], [
+            'settings.khr_exchange_rate.numeric' => __('messages.exchange_rate_invalid'),
+            'settings.khr_exchange_rate.min' => __('messages.exchange_rate_invalid'),
         ]);
 
         foreach ($request->settings as $key => $value) {

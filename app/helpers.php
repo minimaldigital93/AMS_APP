@@ -46,6 +46,162 @@ if (! function_exists('currency_symbol')) {
     }
 }
 
+if (! function_exists('exchange_rate')) {
+    /**
+     * The number of Khmer Riel per 1 USD, from the `khr_exchange_rate` setting.
+     *
+     * USD is the base currency every amount is stored in. When the account's
+     * `system_currency` is KHR, amounts are multiplied by this rate for display
+     * and divided by it to convert riel input back to the stored USD base.
+     *
+     * Falls back to a sane default and never returns <= 0 (a zero/negative rate
+     * would blow up conversions), so callers can divide by it safely.
+     */
+    function exchange_rate(): float
+    {
+        $rate = (float) settings('khr_exchange_rate', 4100);
+
+        return $rate > 0 ? $rate : 4100;
+    }
+}
+
+if (! function_exists('currency_is_khr')) {
+    /**
+     * Whether the current account displays amounts in Khmer Riel.
+     */
+    function currency_is_khr(): bool
+    {
+        return settings('system_currency', 'USD') === 'KHR';
+    }
+}
+
+if (! function_exists('to_display_amount')) {
+    /**
+     * Convert a stored USD (base-currency) amount into the active display
+     * currency as a raw number (no symbol, no formatting). Use for charts,
+     * JS data, and pre-filled input values. USD passes through unchanged.
+     */
+    function to_display_amount(float|int|string|null $usd): float
+    {
+        $value = (float) ($usd ?? 0);
+
+        return currency_is_khr() ? $value * exchange_rate() : $value;
+    }
+}
+
+if (! function_exists('to_base_amount')) {
+    /**
+     * Convert an amount entered in the active display currency back into the
+     * stored USD base currency. Use in controllers before persisting any money
+     * the user typed. USD input passes through unchanged.
+     */
+    function to_base_amount(float|int|string|null $amount): float
+    {
+        $value = (float) ($amount ?? 0);
+
+        return currency_is_khr() ? $value / exchange_rate() : $value;
+    }
+}
+
+if (! function_exists('convert_money_input')) {
+    /**
+     * Convert the given money fields of a validated/input array from the active
+     * display currency back into the stored USD base currency. No-op when the
+     * account is in USD. Field paths support `*` wildcards for nested arrays
+     * (e.g. 'apartments.*.amount', 'bills.*.expenses.*.amount').
+     *
+     * Only money fields should be listed here — never meter readings or counts.
+     */
+    function convert_money_input(array $data, array $keys): array
+    {
+        if (! currency_is_khr()) {
+            return $data;
+        }
+
+        $apply = function (&$node, array $segments) use (&$apply) {
+            $seg = array_shift($segments);
+
+            if ($seg === '*') {
+                if (is_array($node)) {
+                    foreach ($node as &$child) {
+                        if ($segments === []) {
+                            if (is_numeric($child)) {
+                                $child = to_base_amount($child);
+                            }
+                        } else {
+                            $apply($child, $segments);
+                        }
+                    }
+                }
+
+                return;
+            }
+
+            if (! is_array($node) || ! array_key_exists($seg, $node)) {
+                return;
+            }
+
+            if ($segments === []) {
+                if (is_numeric($node[$seg])) {
+                    $node[$seg] = to_base_amount($node[$seg]);
+                }
+            } else {
+                $apply($node[$seg], $segments);
+            }
+        };
+
+        foreach ($keys as $path) {
+            $apply($data, explode('.', $path));
+        }
+
+        return $data;
+    }
+}
+
+if (! function_exists('money_number')) {
+    /**
+     * Format a stored USD amount in the active display currency WITHOUT the
+     * currency symbol (converted + thousand-separated). KHR is shown as whole
+     * riel by default; USD keeps 2 decimals. Use where the markup supplies its
+     * own symbol/sign, or for input value="" attributes.
+     */
+    function money_number(float|int|string|null $usd, ?int $decimals = null): string
+    {
+        $decimals ??= currency_is_khr() ? 0 : 2;
+
+        return number_format(to_display_amount($usd), $decimals);
+    }
+}
+
+if (! function_exists('money_input')) {
+    /**
+     * A stored USD amount converted into the active display currency for use as
+     * an <input type="number"> value: no currency symbol and NO thousand
+     * separators (those are invalid in a number input). KHR is rounded to whole
+     * riel; USD keeps 2 decimals. The submitted value is converted back to USD
+     * by the controllers via convert_money_input().
+     */
+    function money_input(float|int|string|null $usd): string
+    {
+        $decimals = currency_is_khr() ? 0 : 2;
+
+        return number_format(to_display_amount($usd), $decimals, '.', '');
+    }
+}
+
+if (! function_exists('money')) {
+    /**
+     * Format a stored USD amount for display in the active currency: converts to
+     * KHR when selected, prefixes the currency symbol, and formats (whole riel
+     * for KHR, 2 decimals for USD). Drop-in replacement for the old
+     * `currency_symbol() . number_format($x, 2)` pattern.
+     */
+    function money(float|int|string|null $usd, ?int $decimals = null): string
+    {
+        return currency_symbol().money_number($usd, $decimals);
+    }
+}
+
 if (! function_exists('status_label')) {
     /**
      * Translate a model status value (e.g. 'occupied', 'qr_generated') into a

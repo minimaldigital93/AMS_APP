@@ -11,6 +11,16 @@ use Illuminate\Foundation\Http\FormRequest;
  */
 class StoreBalanceSheetItemRequest extends FormRequest
 {
+    use \App\Http\Requests\Concerns\ConvertsCurrencyInput;
+
+    /**
+     * @return array<int, string>
+     */
+    protected function moneyInputKeys(): array
+    {
+        return ['amount'];
+    }
+
     public function rules(): array
     {
         $period = $this->route('fiscalperiod');

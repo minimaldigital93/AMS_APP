@@ -24,22 +24,22 @@
     <div class="grid grid-cols-3 gap-4 mb-2">
         <div class="bg-white rounded-lg shadow p-4 text-center">
             <p class="text-xs text-gray-500 uppercase">{{ __('messages.assets') }}</p>
-            <p class="text-lg font-bold text-sky-600">${{ number_format($summary['total_assets'], 2) }}</p>
+            <p class="text-lg font-bold text-sky-600">{{ money($summary['total_assets']) }}</p>
         </div>
         <div class="bg-white rounded-lg shadow p-4 text-center">
             <p class="text-xs text-gray-500 uppercase">{{ __('messages.liabilities') }}</p>
-            <p class="text-lg font-bold text-red-600">${{ number_format($summary['total_liabilities'], 2) }}</p>
+            <p class="text-lg font-bold text-red-600">{{ money($summary['total_liabilities']) }}</p>
         </div>
         <div class="bg-white rounded-lg shadow p-4 text-center">
             <p class="text-xs text-gray-500 uppercase">{{ __('messages.equity') }}</p>
-            <p class="text-lg font-bold text-green-600">${{ number_format($summary['total_equity'], 2) }}</p>
+            <p class="text-lg font-bold text-green-600">{{ money($summary['total_equity']) }}</p>
         </div>
     </div>
     <p class="text-center text-xs mb-6 {{ $summary['balance_check'] ? 'text-green-600' : 'text-amber-600' }}">
         @if($summary['balance_check'])
             ✓ Balanced — Assets = Liabilities + Equity
         @else
-            ⚠ Out of balance by ${{ number_format(abs($summary['total_assets'] - ($summary['total_liabilities'] + $summary['total_equity'])), 2) }}
+            ⚠ Out of balance by {{ money(abs($summary['total_assets'] - ($summary['total_liabilities'] + $summary['total_equity']))) }}
         @endif
     </p>
 
@@ -60,24 +60,24 @@
                 <tbody class="divide-y">
                     <tr>
                         <td class="py-2 font-medium text-gray-700">{{ __('messages.assets') }}</td>
-                        <td class="py-2 text-right">${{ number_format($summary['opening_assets'], 2) }}</td>
-                        <td class="py-2 text-right text-green-600">+${{ number_format($summary['retained_earnings'], 2) }}</td>
-                        <td class="py-2 text-right text-purple-600">−${{ number_format($summary['owner_withdrawals'], 2) }}</td>
-                        <td class="py-2 text-right font-semibold text-sky-600">${{ number_format($summary['total_assets'], 2) }}</td>
+                        <td class="py-2 text-right">{{ money($summary['opening_assets']) }}</td>
+                        <td class="py-2 text-right text-green-600">+{{ money($summary['retained_earnings']) }}</td>
+                        <td class="py-2 text-right text-purple-600">−{{ money($summary['owner_withdrawals']) }}</td>
+                        <td class="py-2 text-right font-semibold text-sky-600">{{ money($summary['total_assets']) }}</td>
                     </tr>
                     <tr>
                         <td class="py-2 font-medium text-gray-700">{{ __('messages.liabilities') }}</td>
-                        <td class="py-2 text-right">${{ number_format($summary['opening_liabilities'], 2) }}</td>
+                        <td class="py-2 text-right">{{ money($summary['opening_liabilities']) }}</td>
                         <td class="py-2 text-right text-gray-400">—</td>
                         <td class="py-2 text-right text-gray-400">—</td>
-                        <td class="py-2 text-right font-semibold text-red-600">${{ number_format($summary['total_liabilities'], 2) }}</td>
+                        <td class="py-2 text-right font-semibold text-red-600">{{ money($summary['total_liabilities']) }}</td>
                     </tr>
                     <tr>
                         <td class="py-2 font-medium text-gray-700">{{ __('messages.equity') }}</td>
-                        <td class="py-2 text-right">${{ number_format($summary['opening_equity'], 2) }}</td>
-                        <td class="py-2 text-right text-green-600">+${{ number_format($summary['retained_earnings'], 2) }}</td>
-                        <td class="py-2 text-right text-purple-600">−${{ number_format($summary['owner_withdrawals'], 2) }}</td>
-                        <td class="py-2 text-right font-semibold text-green-600">${{ number_format($summary['total_equity'], 2) }}</td>
+                        <td class="py-2 text-right">{{ money($summary['opening_equity']) }}</td>
+                        <td class="py-2 text-right text-green-600">+{{ money($summary['retained_earnings']) }}</td>
+                        <td class="py-2 text-right text-purple-600">−{{ money($summary['owner_withdrawals']) }}</td>
+                        <td class="py-2 text-right font-semibold text-green-600">{{ money($summary['total_equity']) }}</td>
                     </tr>
                 </tbody>
             </table>
@@ -101,14 +101,14 @@
                     @forelse($summary['income_by_category'] ?? [] as $cat => $amount)
                         <div class="flex justify-between">
                             <span class="text-gray-600">{{ $categoryLabels[$cat] ?? ucfirst(str_replace('_', ' ', $cat)) }}</span>
-                            <span class="font-medium text-green-600">${{ number_format($amount, 2) }}</span>
+                            <span class="font-medium text-green-600">{{ money($amount) }}</span>
                         </div>
                     @empty
                         <p class="text-gray-400 text-xs">{{ __('messages.no_revenue_recorded') }}</p>
                     @endforelse
                     <div class="flex justify-between border-t pt-1 font-semibold">
                         <span>{{ __('messages.total_revenue') }}</span>
-                        <span class="text-green-700">${{ number_format($summary['total_income'], 2) }}</span>
+                        <span class="text-green-700">{{ money($summary['total_income']) }}</span>
                     </div>
                 </div>
             </div>
@@ -128,14 +128,14 @@
                     @forelse($summary['expense_by_category'] ?? [] as $cat => $amount)
                         <div class="flex justify-between">
                             <span class="text-gray-600">{{ $expLabels[$cat] ?? ucfirst(str_replace('_', ' ', $cat)) }}</span>
-                            <span class="font-medium text-red-600">${{ number_format($amount, 2) }}</span>
+                            <span class="font-medium text-red-600">{{ money($amount) }}</span>
                         </div>
                     @empty
                         <p class="text-gray-400 text-xs">{{ __('messages.no_expenses_recorded') }}</p>
                     @endforelse
                     <div class="flex justify-between border-t pt-1 font-semibold">
                         <span>{{ __('messages.total_expenses') }}</span>
-                        <span class="text-red-700">${{ number_format($summary['total_expenses'], 2) }}</span>
+                        <span class="text-red-700">{{ money($summary['total_expenses']) }}</span>
                     </div>
                 </div>
             </div>
@@ -144,16 +144,16 @@
             <div>
                 <p class="text-xs text-gray-400">{{ __('messages.retained_earnings') }}</p>
                 <p class="font-bold text-sm {{ ($summary['retained_earnings'] ?? 0) >= 0 ? 'text-green-600' : 'text-red-600' }}">
-                    ${{ number_format($summary['retained_earnings'] ?? 0, 2) }}
+                    {{ money($summary['retained_earnings'] ?? 0) }}
                 </p>
             </div>
             <div>
                 <p class="text-xs text-gray-400">{{ __('messages.owner_draws') }}</p>
-                <p class="font-bold text-sm text-purple-600">${{ number_format($summary['owner_withdrawals'] ?? 0, 2) }}</p>
+                <p class="font-bold text-sm text-purple-600">{{ money($summary['owner_withdrawals'] ?? 0) }}</p>
             </div>
             <div>
                 <p class="text-xs text-gray-400">{{ __('messages.net_worth') }}</p>
-                <p class="font-bold text-sm text-sky-600">${{ number_format($summary['net_worth'] ?? 0, 2) }}</p>
+                <p class="font-bold text-sm text-sky-600">{{ money($summary['net_worth'] ?? 0) }}</p>
             </div>
         </div>
     </div>

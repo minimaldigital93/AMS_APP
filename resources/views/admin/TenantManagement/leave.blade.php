@@ -40,11 +40,11 @@
             </div>
             <div class="bg-slate-50 rounded-lg p-3">
                 <p class="text-xs text-slate-400">{{ __('messages.monthly_rent') }}</p>
-                <p class="font-semibold text-slate-800">${{ number_format($rental->rent_amount ?? 0, 2) }}</p>
+                <p class="font-semibold text-slate-800">{{ money($rental->rent_amount ?? 0) }}</p>
             </div>
             <div class="bg-slate-50 rounded-lg p-3">
                 <p class="text-xs text-slate-400">{{ __('messages.deposit') }}</p>
-                <p class="font-semibold text-slate-800">${{ number_format($tenant->deposit ?? 0, 2) }}</p>
+                <p class="font-semibold text-slate-800">{{ money($tenant->deposit ?? 0) }}</p>
             </div>
             <div class="bg-amber-50 rounded-lg p-3">
                 <p class="text-xs text-slate-400">{{ __('messages.stay_days_label') }}</p>
@@ -118,7 +118,7 @@
                                         </span>
                                     </td>
                                     <td class="px-3 py-2 text-gray-500">{{ $charge->due_date->format('M d, Y') }}</td>
-                                    <td class="px-3 py-2 text-right font-semibold text-gray-800">${{ number_format($charge->amount, 2) }}</td>
+                                    <td class="px-3 py-2 text-right font-semibold text-gray-800">{{ money($charge->amount) }}</td>
                                 </tr>
                                 @endforeach
                             </tbody>

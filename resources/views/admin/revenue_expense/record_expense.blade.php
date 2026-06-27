@@ -178,7 +178,7 @@
                 </div>
                 <div class="min-w-0">
                     <p class="text-xs text-slate-400 font-medium">{{ __('messages.tenants_expense_collected') }}</p>
-                    <p class="text-lg md:text-xl font-bold text-emerald-600">${{ number_format($tenantsExpenseCollected, 2) }}</p>
+                    <p class="text-lg md:text-xl font-bold text-emerald-600">{{ money($tenantsExpenseCollected) }}</p>
                 </div>
                 <div class="ml-auto text-right text-xs text-slate-500"></div>
             </div>
@@ -186,33 +186,33 @@
                 <div class="rounded-xl bg-slate-50 p-4 border border-slate-100">
                     <div class="flex items-center justify-between text-sm text-slate-600">
                         <span>{{ __('messages.apartment_costs_total') }}</span>
-                        <span class="font-semibold text-indigo-600">${{ number_format($sumFixed, 2) }}</span>
+                        <span class="font-semibold text-indigo-600">{{ money($sumFixed) }}</span>
                     </div>
                 </div>
                 <div class="grid grid-cols-2 md:grid-cols-3 gap-2">
                     <div class="bg-amber-50 rounded-lg px-2 py-1.5 text-center">
                         <p class="text-[10px] text-amber-500 font-medium uppercase">{{ __('messages.electric') }}</p>
-                        <p class="text-sm font-bold text-amber-700">${{ number_format($sumElec, 2) }}</p>
+                        <p class="text-sm font-bold text-amber-700">{{ money($sumElec) }}</p>
                     </div>
                     <div class="bg-sky-50 rounded-lg px-2 py-1.5 text-center">
                         <p class="text-[10px] text-sky-500 font-medium uppercase">{{ __('messages.water') }}</p>
-                        <p class="text-sm font-bold text-sky-700">${{ number_format($sumWater, 2) }}</p>
+                        <p class="text-sm font-bold text-sky-700">{{ money($sumWater) }}</p>
                     </div>
                     <div class="bg-purple-50 rounded-lg px-2 py-1.5 text-center">
                         <p class="text-[10px] text-purple-500 font-medium uppercase">{{ __('messages.type_internet') }}</p>
-                        <p class="text-sm font-bold text-purple-700">${{ number_format($sumNet, 2) }}</p>
+                        <p class="text-sm font-bold text-purple-700">{{ money($sumNet) }}</p>
                     </div>
                     <div class="bg-orange-50 rounded-lg px-2 py-1.5 text-center">
                         <p class="text-[10px] text-orange-500 font-medium uppercase">{{ __('messages.type_parking') }}</p>
-                        <p class="text-sm font-bold text-orange-700">${{ number_format($sumParking, 2) }}</p>
+                        <p class="text-sm font-bold text-orange-700">{{ money($sumParking) }}</p>
                     </div>
                     <div class="bg-green-50 rounded-lg px-2 py-1.5 text-center">
                         <p class="text-[10px] text-green-500 font-medium uppercase">{{ __('messages.type_trash') }}</p>
-                        <p class="text-sm font-bold text-green-700">${{ number_format($sumTrash, 2) }}</p>
+                        <p class="text-sm font-bold text-green-700">{{ money($sumTrash) }}</p>
                     </div>
                     <div class="bg-slate-50 rounded-lg px-2 py-1.5 text-center">
                         <p class="text-[10px] text-slate-500 font-medium uppercase">{{ __('messages.type_other') }}</p>
-                        <p class="text-sm font-bold text-slate-700">${{ number_format($sumOther, 2) }}</p>
+                        <p class="text-sm font-bold text-slate-700">{{ money($sumOther) }}</p>
                     </div>
                 </div>
             </div>
@@ -226,7 +226,7 @@
                 </div>
                 <div class="min-w-0">
                     <p class="text-xs text-slate-400 font-medium">{{ __('messages.business_expenses') }}</p>
-                    <p class="text-lg md:text-xl font-bold text-orange-600">${{ number_format($businessTotal, 2) }}</p>
+                    <p class="text-lg md:text-xl font-bold text-orange-600">{{ money($businessTotal) }}</p>
                 </div>
                 <div class="ml-auto text-right text-xs text-slate-500"></div>
             </div>
@@ -234,7 +234,7 @@
                 <div class="rounded-xl bg-slate-50 p-4 border border-slate-100">
                     <div class="flex items-center justify-between">
                         <span>{{ __('messages.business_total') }}</span>
-                        <span class="font-semibold text-orange-600">${{ number_format($businessTotal, 2) }}</span>
+                        <span class="font-semibold text-orange-600">{{ money($businessTotal) }}</span>
                     </div>
                 </div>
             </div>
@@ -249,7 +249,7 @@
             </div>
             <div>
                 <p class="text-xs text-slate-400 font-medium">{{ $expenseNet >= 0 ? __('messages.expense_revenue').' — '.__('messages.added_to_revenue') : __('messages.remaining_business_expense') }}</p>
-                <p class="text-xl font-bold {{ $expenseNet >= 0 ? 'text-emerald-600' : 'text-orange-600' }}">{{ $expenseNet < 0 ? '-' : '+' }}${{ number_format(abs($expenseNet), 2) }}</p>
+                <p class="text-xl font-bold {{ $expenseNet >= 0 ? 'text-emerald-600' : 'text-orange-600' }}">{{ $expenseNet < 0 ? '-' : '+' }}{{ money(abs($expenseNet)) }}</p>
             </div>
             <div class="ml-auto text-right text-xs text-slate-500"></div>
         </div>
@@ -257,15 +257,15 @@
             <div class="rounded-xl bg-slate-50 p-4 border border-slate-100 space-y-2">
                 <div class="flex items-center justify-between text-sm text-slate-600">
                     <span>{{ __('messages.business_expenses') }}</span>
-                    <span class="font-semibold text-orange-600">-${{ number_format($businessTotal, 2) }}</span>
+                    <span class="font-semibold text-orange-600">-{{ money($businessTotal) }}</span>
                 </div>
                 <div class="flex items-center justify-between text-sm text-slate-600">
                     <span>{{ __('messages.tenants_expense_collected') }}</span>
-                    <span class="font-semibold text-emerald-600">+${{ number_format($tenantsExpenseCollected, 2) }}</span>
+                    <span class="font-semibold text-emerald-600">+{{ money($tenantsExpenseCollected) }}</span>
                 </div>
                 <div class="flex items-center justify-between text-sm pt-2 border-t border-slate-200 {{ $expenseNet >= 0 ? 'text-emerald-700' : 'text-orange-700' }}">
                     <span class="font-medium">{{ $expenseNet >= 0 ? __('messages.expense_revenue') : __('messages.remaining_business_expense') }}</span>
-                    <span class="font-bold">{{ $expenseNet < 0 ? '-' : '+' }}${{ number_format(abs($expenseNet), 2) }}</span>
+                    <span class="font-bold">{{ $expenseNet < 0 ? '-' : '+' }}{{ money(abs($expenseNet)) }}</span>
                 </div>
             </div>
         </div>
@@ -326,7 +326,7 @@
                         </div>
                         <div class="flex items-center gap-3">
                             <span class="text-xs text-slate-400 font-medium">{{ count($expensesInFloor) }} {{ __('messages.apartments') }}</span>
-                            <span class="text-sm font-bold text-red-600">${{ number_format($floorTotal, 2) }}</span>
+                            <span class="text-sm font-bold text-red-600">{{ money($floorTotal) }}</span>
                             <svg class="w-4 h-4 text-slate-400 group-open:rotate-90 transition-transform" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7" />
                             </svg>
@@ -363,23 +363,23 @@
                                             {{ $aptExp['has_active_rental'] ? __('messages.occupied') : __('messages.vacant') }}
                                         </span>
                                     </td>
-                                    <td class="px-4 py-3 text-right text-sm {{ $aptExp['electricity'] > 0 ? 'font-semibold text-amber-600' : 'text-slate-400' }}">${{ number_format($aptExp['electricity'], 2) }}</td>
-                                    <td class="px-4 py-3 text-right text-sm {{ $aptExp['water'] > 0 ? 'font-semibold text-sky-600' : 'text-slate-400' }}">${{ number_format($aptExp['water'], 2) }}</td>
-                                    <td class="px-4 py-3 text-right text-sm {{ $aptExp['internet'] > 0 ? 'font-semibold text-purple-600' : 'text-slate-400' }}">${{ number_format($aptExp['internet'], 2) }}</td>
-                                    <td class="px-4 py-3 text-right text-sm {{ $aptExp['parking'] > 0 ? 'font-semibold text-orange-600' : 'text-slate-400' }}">${{ number_format($aptExp['parking'], 2) }}</td>
-                                    <td class="px-4 py-3 text-right text-sm {{ $aptExp['trash'] > 0 ? 'font-semibold text-green-600' : 'text-slate-400' }}">${{ number_format($aptExp['trash'], 2) }}</td>
-                                    <td class="px-4 py-3 text-right text-sm {{ $aptExp['other'] > 0 ? 'font-semibold text-slate-600' : 'text-slate-400' }}">${{ number_format($aptExp['other'], 2) }}</td>
+                                    <td class="px-4 py-3 text-right text-sm {{ $aptExp['electricity'] > 0 ? 'font-semibold text-amber-600' : 'text-slate-400' }}">{{ money($aptExp['electricity']) }}</td>
+                                    <td class="px-4 py-3 text-right text-sm {{ $aptExp['water'] > 0 ? 'font-semibold text-sky-600' : 'text-slate-400' }}">{{ money($aptExp['water']) }}</td>
+                                    <td class="px-4 py-3 text-right text-sm {{ $aptExp['internet'] > 0 ? 'font-semibold text-purple-600' : 'text-slate-400' }}">{{ money($aptExp['internet']) }}</td>
+                                    <td class="px-4 py-3 text-right text-sm {{ $aptExp['parking'] > 0 ? 'font-semibold text-orange-600' : 'text-slate-400' }}">{{ money($aptExp['parking']) }}</td>
+                                    <td class="px-4 py-3 text-right text-sm {{ $aptExp['trash'] > 0 ? 'font-semibold text-green-600' : 'text-slate-400' }}">{{ money($aptExp['trash']) }}</td>
+                                    <td class="px-4 py-3 text-right text-sm {{ $aptExp['other'] > 0 ? 'font-semibold text-slate-600' : 'text-slate-400' }}">{{ money($aptExp['other']) }}</td>
                                     <td class="px-4 py-3 text-right text-sm">
                                         @if($aptExp['fixed_total'] > 0)
                                         <button @click="showFixed = !showFixed" class="font-semibold text-indigo-600 hover:text-indigo-800">
-                                            ${{ number_format($aptExp['fixed_total'], 2) }}
+                                            {{ money($aptExp['fixed_total']) }}
                                             <svg class="w-3 h-3 inline transition-transform" :class="showFixed ? 'rotate-180' : ''" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
                                         </button>
                                         @else
                                         <span class="text-slate-400">$0.00</span>
                                         @endif
                                     </td>
-                                    <td class="px-4 py-3 text-right font-bold text-red-600">${{ number_format($aptExp['grand_total'], 2) }}</td>
+                                    <td class="px-4 py-3 text-right font-bold text-red-600">{{ money($aptExp['grand_total']) }}</td>
                                 </tr>
                                 @if($aptExp['fixed_items']->count() > 0)
                                 <tr x-show="showFixed" x-cloak class="bg-indigo-50">
@@ -387,7 +387,7 @@
                                         <div class="flex flex-wrap gap-2">
                                             @foreach($aptExp['fixed_items'] as $fi)
                                             <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-indigo-100 text-indigo-700">
-                                                {{ $fi->expense_name }}: ${{ number_format($fi->amount, 2) }}
+                                                {{ $fi->expense_name }}: {{ money($fi->amount) }}
                                             </span>
                                             @endforeach
                                         </div>
@@ -400,14 +400,14 @@
                                 <tr>
                                     <td class="px-3 py-3"></td>
                                     <td class="px-4 py-3 font-bold text-slate-800" colspan="2">{{ __('messages.floor_total') }}</td>
-                                    <td class="px-4 py-3 text-right font-bold text-amber-600">${{ number_format($floorElec, 2) }}</td>
-                                    <td class="px-4 py-3 text-right font-bold text-sky-600">${{ number_format($floorWater, 2) }}</td>
-                                    <td class="px-4 py-3 text-right font-bold text-purple-600">${{ number_format($floorNet, 2) }}</td>
-                                    <td class="px-4 py-3 text-right font-bold text-orange-600">${{ number_format($floorPark, 2) }}</td>
-                                    <td class="px-4 py-3 text-right font-bold text-green-600">${{ number_format($floorTrash, 2) }}</td>
-                                    <td class="px-4 py-3 text-right font-bold text-slate-600">${{ number_format($floorOther, 2) }}</td>
-                                    <td class="px-4 py-3 text-right font-bold text-indigo-600">${{ number_format($floorFixed, 2) }}</td>
-                                    <td class="px-4 py-3 text-right font-bold text-red-600">${{ number_format($floorTotal, 2) }}</td>
+                                    <td class="px-4 py-3 text-right font-bold text-amber-600">{{ money($floorElec) }}</td>
+                                    <td class="px-4 py-3 text-right font-bold text-sky-600">{{ money($floorWater) }}</td>
+                                    <td class="px-4 py-3 text-right font-bold text-purple-600">{{ money($floorNet) }}</td>
+                                    <td class="px-4 py-3 text-right font-bold text-orange-600">{{ money($floorPark) }}</td>
+                                    <td class="px-4 py-3 text-right font-bold text-green-600">{{ money($floorTrash) }}</td>
+                                    <td class="px-4 py-3 text-right font-bold text-slate-600">{{ money($floorOther) }}</td>
+                                    <td class="px-4 py-3 text-right font-bold text-indigo-600">{{ money($floorFixed) }}</td>
+                                    <td class="px-4 py-3 text-right font-bold text-red-600">{{ money($floorTotal) }}</td>
                                 </tr>
                             </tfoot>
                         </table>
@@ -439,7 +439,7 @@
                                     {{ $aptExp['has_active_rental'] ? __('messages.occupied') : __('messages.vacant') }}
                                 </span>
                             </div>
-                            <p class="text-sm font-bold text-red-600 whitespace-nowrap">${{ number_format($aptExp['grand_total'], 2) }}</p>
+                            <p class="text-sm font-bold text-red-600 whitespace-nowrap">{{ money($aptExp['grand_total']) }}</p>
                             <button @click="openDetail(@js($detailJson))"
                                 class="inline-flex items-center justify-center h-8 w-8 rounded-lg text-sky-700 bg-sky-50 active:bg-sky-100 transition flex-shrink-0" title="{{ __('messages.view') }}">
                                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
@@ -644,7 +644,7 @@
                             {{ $oe->description }}
                             @if($oe->note)<span class="block text-xs text-slate-400">{{ $oe->note }}</span>@endif
                         </td>
-                        <td class="px-4 py-3 text-right font-semibold text-purple-600">${{ number_format($oe->amount, 2) }}</td>
+                        <td class="px-4 py-3 text-right font-semibold text-purple-600">{{ money($oe->amount) }}</td>
                         <td class="px-4 py-3 text-center">
                             <form action="{{ route('admin.revenue_expense.delete_other_expense', $oe) }}" method="POST" data-confirm="{{ __('messages.remove_expense_confirm') }}">
                                 @csrf @method('DELETE')
@@ -669,7 +669,7 @@
                             @if($be->note)<span class="block text-xs text-slate-400">{{ $be->note }}</span>@endif
                             @if($be->is_recurring)<span class="inline-flex items-center ml-1 px-1.5 py-0.5 rounded text-xs bg-sky-50 text-sky-600">{{ __('messages.recurring') }}</span>@endif
                         </td>
-                        <td class="px-4 py-3 text-right font-semibold text-amber-600">${{ number_format($be->amount, 2) }}</td>
+                        <td class="px-4 py-3 text-right font-semibold text-amber-600">{{ money($be->amount) }}</td>
                         <td class="px-4 py-3">
                             <div class="flex items-center justify-center gap-2">
                                 @if($be->attachment)
@@ -693,7 +693,7 @@
                 <tfoot class="bg-slate-50/80">
                     <tr>
                         <td class="px-4 py-3 font-bold text-slate-800" colspan="4">{{ __('messages.total') }}</td>
-                        <td class="px-4 py-3 text-right font-bold text-red-600">${{ number_format($totalOtherExpenses + $businessTotal, 2) }}</td>
+                        <td class="px-4 py-3 text-right font-bold text-red-600">{{ money($totalOtherExpenses + $businessTotal) }}</td>
                         <td></td>
                     </tr>
                 </tfoot>
@@ -721,7 +721,7 @@
                     <p class="font-semibold text-slate-800 text-sm truncate">{{ $oe->description }}</p>
                     <span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-purple-100 text-purple-700">{{ __('messages.type_other') }}</span>
                 </div>
-                <p class="text-sm font-bold text-purple-600 whitespace-nowrap">${{ number_format($oe->amount, 2) }}</p>
+                <p class="text-sm font-bold text-purple-600 whitespace-nowrap">{{ money($oe->amount) }}</p>
                 <button @click="openBizDetail(@js($bizJson))"
                     class="inline-flex items-center justify-center h-8 w-8 rounded-lg text-sky-700 bg-sky-50 active:bg-sky-100 transition flex-shrink-0" title="{{ __('messages.view') }}">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
@@ -747,7 +747,7 @@
                     <p class="font-semibold text-slate-800 text-sm truncate">{{ $be->expense_name }}</p>
                     <span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-amber-100 text-amber-700">{{ __('messages.business_word') }}</span>
                 </div>
-                <p class="text-sm font-bold text-amber-600 whitespace-nowrap">${{ number_format($be->amount, 2) }}</p>
+                <p class="text-sm font-bold text-amber-600 whitespace-nowrap">{{ money($be->amount) }}</p>
                 <button @click="openBizDetail(@js($bizJson))"
                     class="inline-flex items-center justify-center h-8 w-8 rounded-lg text-sky-700 bg-sky-50 active:bg-sky-100 transition flex-shrink-0" title="{{ __('messages.view') }}">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>

@@ -126,7 +126,7 @@
                 </div>
                 <div>
                     <p class="text-xs text-slate-400 font-medium">{{ __('messages.income') }}</p>
-                    <p class="text-xl font-bold text-emerald-600">${{ number_format($income['total_income'], 2) }}</p>
+                    <p class="text-xl font-bold text-emerald-600">{{ money($income['total_income']) }}</p>
                 </div>
             </div>
             <p class="text-[11px] text-slate-400 mt-2">{{ $income['payment_count'] }} payment{{ $income['payment_count'] !== 1 ? 's' : '' }}</p>
@@ -138,7 +138,7 @@
                 </div>
                 <div>
                     <p class="text-xs text-slate-400 font-medium">{{ __('messages.business_expenses') }}</p>
-                    <p class="text-xl font-bold text-red-600">${{ number_format($expenses['total_expenses'], 2) }}</p>
+                    <p class="text-xl font-bold text-red-600">{{ money($expenses['total_expenses']) }}</p>
                 </div>
             </div>
             <p class="text-[11px] text-slate-400 mt-2">{{ $expenses['expense_count'] }} transaction{{ $expenses['expense_count'] !== 1 ? 's' : '' }}</p>
@@ -151,7 +151,7 @@
                 <div>
                     <p class="text-xs text-slate-400 font-medium">{{ __('messages.net_profit') }}</p>
                     <p class="text-xl font-bold {{ $summary['net_profit'] >= 0 ? 'text-sky-600' : 'text-orange-600' }}">
-                        {{ $summary['net_profit'] >= 0 ? '+' : '' }}${{ number_format($summary['net_profit'], 2) }}
+                        {{ $summary['net_profit'] >= 0 ? '+' : '' }}{{ money($summary['net_profit']) }}
                     </p>
                 </div>
             </div>
@@ -169,10 +169,10 @@
                 </div>
                 <div>
                     <p class="text-xs text-slate-400 font-medium">{{ __('messages.deposits') }}</p>
-                    <p class="text-xl font-bold {{ $deposit_net >= 0 ? 'text-emerald-600' : 'text-red-600' }}">{{ $deposit_net >= 0 ? '+' : '' }}${{ number_format($deposit_net, 2) }}</p>
+                    <p class="text-xl font-bold {{ $deposit_net >= 0 ? 'text-emerald-600' : 'text-red-600' }}">{{ $deposit_net >= 0 ? '+' : '' }}{{ money($deposit_net) }}</p>
                 </div>
             </div>
-            <p class="text-[11px] text-slate-400 mt-2">Received: ${{ number_format($deposit_income, 2) }} · Refunds: ${{ number_format($deposit_refunds, 2) }}</p>
+            <p class="text-[11px] text-slate-400 mt-2">Received: {{ money($deposit_income) }} · Refunds: {{ money($deposit_refunds) }}</p>
         </div>
     </div>
 
@@ -226,25 +226,25 @@
                     @if(($income['rent_income'] ?? 0) > 0)
                     <div class="flex items-center justify-between text-xs">
                         <div class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full inline-block" style="background:#10B981"></span><span class="text-slate-500">{{ __('messages.rent') }}</span></div>
-                        <span class="font-semibold text-slate-700">${{ number_format($income['rent_income'], 2) }}</span>
+                        <span class="font-semibold text-slate-700">{{ money($income['rent_income']) }}</span>
                     </div>
                     @endif
                     {{-- Utilities Income: electricity, water --}}
                     @if(($income['total_utility_income'] ?? 0) > 0)
                     <div class="flex items-center justify-between text-xs font-medium text-slate-600 pt-1">
                         <span class="uppercase tracking-wider text-[10px] text-slate-400">{{ __('messages.utilities_income') }}</span>
-                        <span class="text-slate-500">${{ number_format($income['total_utility_income'], 2) }}</span>
+                        <span class="text-slate-500">{{ money($income['total_utility_income']) }}</span>
                     </div>
                     @if(($income['utility_breakdown']['electricity'] ?? 0) > 0)
                     <div class="flex items-center justify-between text-xs pl-3">
                         <div class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full inline-block" style="background:#F59E0B"></span><span class="text-slate-500">{{ __('messages.electric') }}</span></div>
-                        <span class="font-semibold text-slate-700">${{ number_format($income['utility_breakdown']['electricity'], 2) }}</span>
+                        <span class="font-semibold text-slate-700">{{ money($income['utility_breakdown']['electricity']) }}</span>
                     </div>
                     @endif
                     @if(($income['utility_breakdown']['water'] ?? 0) > 0)
                     <div class="flex items-center justify-between text-xs pl-3">
                         <div class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full inline-block" style="background:#38BDF8"></span><span class="text-slate-500">{{ __('messages.water') }}</span></div>
-                        <span class="font-semibold text-slate-700">${{ number_format($income['utility_breakdown']['water'], 2) }}</span>
+                        <span class="font-semibold text-slate-700">{{ money($income['utility_breakdown']['water']) }}</span>
                     </div>
                     @endif
                     @endif
@@ -252,30 +252,30 @@
                     @if(($income['other_income'] ?? 0) > 0)
                     <div class="flex items-center justify-between text-xs font-medium text-slate-600 pt-1">
                         <span class="uppercase tracking-wider text-[10px] text-slate-400">{{ __('messages.other_income') }}</span>
-                        <span class="text-slate-500">${{ number_format($income['other_income'], 2) }}</span>
+                        <span class="text-slate-500">{{ money($income['other_income']) }}</span>
                     </div>
                     @if(($income['other_income_breakdown']['internet'] ?? 0) > 0)
                     <div class="flex items-center justify-between text-xs pl-3">
                         <div class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full inline-block" style="background:#8B5CF6"></span><span class="text-slate-500">{{ __('messages.type_internet') }}</span></div>
-                        <span class="font-semibold text-slate-700">${{ number_format($income['other_income_breakdown']['internet'], 2) }}</span>
+                        <span class="font-semibold text-slate-700">{{ money($income['other_income_breakdown']['internet']) }}</span>
                     </div>
                     @endif
                     @if(($income['other_income_breakdown']['parking'] ?? 0) > 0)
                     <div class="flex items-center justify-between text-xs pl-3">
                         <div class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full inline-block" style="background:#F97316"></span><span class="text-slate-500">{{ __('messages.type_parking') }}</span></div>
-                        <span class="font-semibold text-slate-700">${{ number_format($income['other_income_breakdown']['parking'], 2) }}</span>
+                        <span class="font-semibold text-slate-700">{{ money($income['other_income_breakdown']['parking']) }}</span>
                     </div>
                     @endif
                     @if(($income['other_income_breakdown']['trash'] ?? 0) > 0)
                     <div class="flex items-center justify-between text-xs pl-3">
                         <div class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full inline-block" style="background:#14B8A6"></span><span class="text-slate-500">{{ __('messages.type_trash') }}</span></div>
-                        <span class="font-semibold text-slate-700">${{ number_format($income['other_income_breakdown']['trash'], 2) }}</span>
+                        <span class="font-semibold text-slate-700">{{ money($income['other_income_breakdown']['trash']) }}</span>
                     </div>
                     @endif
                     @if(($income['other_income_breakdown']['other'] ?? 0) > 0)
                     <div class="flex items-center justify-between text-xs pl-3">
                         <div class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full inline-block" style="background:#EC4899"></span><span class="text-slate-500">{{ __('messages.type_other') }}</span></div>
-                        <span class="font-semibold text-slate-700">${{ number_format($income['other_income_breakdown']['other'], 2) }}</span>
+                        <span class="font-semibold text-slate-700">{{ money($income['other_income_breakdown']['other']) }}</span>
                     </div>
                     @endif
                     @endif
@@ -283,19 +283,19 @@
                     @if(($income['deposit_income'] ?? 0) > 0)
                     <div class="flex items-center justify-between text-xs">
                         <div class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full inline-block" style="background:#6366F1"></span><span class="text-slate-500">{{ __('messages.deposits') }}</span></div>
-                        <span class="font-semibold text-slate-700">${{ number_format($income['deposit_income'], 2) }}</span>
+                        <span class="font-semibold text-slate-700">{{ money($income['deposit_income']) }}</span>
                     </div>
                     @endif
                     @if(($income['late_fees'] ?? 0) > 0)
                     <div class="flex items-center justify-between text-xs">
                         <div class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full inline-block" style="background:#EF4444"></span><span class="text-slate-500">{{ __('messages.late_fees') }}</span></div>
-                        <span class="font-semibold text-slate-700">${{ number_format($income['late_fees'], 2) }}</span>
+                        <span class="font-semibold text-slate-700">{{ money($income['late_fees']) }}</span>
                     </div>
                     @endif
                     {{-- Total --}}
                     <div class="flex items-center justify-between text-xs font-bold border-t border-slate-100 pt-2 mt-1">
                         <span class="text-slate-700">{{ __('messages.total_income') }}</span>
-                        <span class="text-emerald-600">${{ number_format($income['total_income'], 2) }}</span>
+                        <span class="text-emerald-600">{{ money($income['total_income']) }}</span>
                     </div>
                 </div>
             </div>
@@ -310,30 +310,30 @@
                     @if($businessExpensesTotal > 0)
                     <div class="flex items-center justify-between text-xs">
                         <div class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full inline-block" style="background:#F97316"></span><span class="text-slate-500">{{ __('messages.business_word') }}</span></div>
-                        <span class="font-semibold text-slate-700">${{ number_format($businessExpensesTotal, 2) }}</span>
+                        <span class="font-semibold text-slate-700">{{ money($businessExpensesTotal) }}</span>
                     </div>
                     @endif
                     @if(($expenses['utility_expenses'] ?? 0) > 0)
                     <div class="flex items-center justify-between text-xs">
                         <div class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full inline-block" style="background:#6366F1"></span><span class="text-slate-500">{{ __('messages.utilities') }}</span></div>
-                        <span class="font-semibold text-slate-700">${{ number_format($expenses['utility_expenses'], 2) }}</span>
+                        <span class="font-semibold text-slate-700">{{ money($expenses['utility_expenses']) }}</span>
                     </div>
                     @endif
                     @if(($expenses['deposit_expenses'] ?? 0) > 0)
                     <div class="flex items-center justify-between text-xs">
                         <div class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full inline-block" style="background:#EC4899"></span><span class="text-slate-500">{{ __('messages.deposit_refunds') }}</span></div>
-                        <span class="font-semibold text-slate-700">${{ number_format($expenses['deposit_expenses'], 2) }}</span>
+                        <span class="font-semibold text-slate-700">{{ money($expenses['deposit_expenses']) }}</span>
                     </div>
                     @endif
                     @if(($expenses['other_expenses'] ?? 0) > 0)
                     <div class="flex items-center justify-between text-xs">
                         <div class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full inline-block" style="background:#64748B"></span><span class="text-slate-500">{{ __('messages.type_other') }}</span></div>
-                        <span class="font-semibold text-slate-700">${{ number_format($expenses['other_expenses'], 2) }}</span>
+                        <span class="font-semibold text-slate-700">{{ money($expenses['other_expenses']) }}</span>
                     </div>
                     @endif
                     <div class="flex items-center justify-between text-xs font-bold border-t border-slate-100 pt-2 mt-1">
                         <span class="text-slate-700">{{ __('messages.total_expenses') }}</span>
-                        <span class="text-red-600">${{ number_format($expenses['total_expenses'], 2) }}</span>
+                        <span class="text-red-600">{{ money($expenses['total_expenses']) }}</span>
                     </div>
                 </div>
             </div>
@@ -347,11 +347,11 @@
         <div class="grid grid-cols-3 gap-4 mb-4">
             <div class="bg-white rounded-xl border border-slate-100 p-5">
                 <p class="text-xs text-slate-400 font-medium">{{ __('messages.expected_rent') }}</p>
-                <p class="text-xl font-bold text-sky-600 mt-1">${{ number_format($totalRentExpected, 2) }}</p>
+                <p class="text-xl font-bold text-sky-600 mt-1">{{ money($totalRentExpected) }}</p>
             </div>
             <div class="bg-white rounded-xl border border-slate-100 p-5">
                 <p class="text-xs text-slate-400 font-medium">{{ __('messages.collected') }}</p>
-                <p class="text-xl font-bold text-emerald-600 mt-1">${{ number_format($totalRentCollected, 2) }}</p>
+                <p class="text-xl font-bold text-emerald-600 mt-1">{{ money($totalRentCollected) }}</p>
             </div>
             <div class="bg-white rounded-xl border border-slate-100 p-5">
                 <p class="text-xs text-slate-400 font-medium">{{ __('messages.collection_rate') }}</p>
@@ -414,7 +414,7 @@
                                         <td class="px-3 py-2 text-slate-500">{{ $s['rental']->tenant->name ?? 'N/A' }}</td>
                                         <td class="px-3 py-2 text-right">
                                             <input type="number" name="apartments[{{ $index }}][amount]" step="0.01" min="0.01"
-                                                value="{{ $s['monthly_rent'] }}" class="w-24 px-2 py-1 text-right text-sm border rounded focus:ring-sky-500 focus:border-sky-500 font-semibold text-sky-600">
+                                                value="{{ money_input($s['monthly_rent']) }}" class="w-24 px-2 py-1 text-right text-sm border rounded focus:ring-sky-500 focus:border-sky-500 font-semibold text-sky-600">
                                         </td>
                                         <td class="hidden sm:table-cell px-3 py-2 text-right">
                                             <input type="number" name="apartments[{{ $index }}][late_fee]" step="0.01" min="0" value="0"
@@ -434,7 +434,7 @@
                                     <tr>
                                         <td class="px-2 py-2"></td>
                                         <td class="px-3 py-2 font-semibold text-slate-800" colspan="2">{{ __('messages.total_selected') }}</td>
-                                        <td class="px-3 py-2 text-right font-bold text-sky-600" id="totalSelectedAmount">${{ number_format($totalRentExpected, 2) }}</td>
+                                        <td class="px-3 py-2 text-right font-bold text-sky-600" id="totalSelectedAmount">{{ money($totalRentExpected) }}</td>
                                         <td class="hidden sm:table-cell px-3 py-2 text-right font-bold text-amber-600" id="totalSelectedLateFee">$0.00</td>
                                         <td class="hidden sm:table-cell px-3 py-2"></td>
                                     </tr>
@@ -533,7 +533,7 @@
         {{-- Expense Summary --}}
         <div class="bg-white rounded-xl border border-slate-100 p-5 mb-4">
             <p class="text-xs text-slate-400 font-medium">{{ __('messages.total_utility_expenses') }}</p>
-            <p class="text-xl font-bold text-red-600 mt-1">${{ number_format($totalExpensesAmount, 2) }}</p>
+            <p class="text-xl font-bold text-red-600 mt-1">{{ money($totalExpensesAmount) }}</p>
         </div>
 
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
@@ -568,22 +568,22 @@
                                             {{ $aptExp['has_active_rental'] ? __('messages.occupied') : __('messages.vacant') }}
                                         </span>
                                     </td>
-                                    <td class="px-3 py-2 text-right {{ $aptExp['electricity'] > 0 ? 'font-semibold text-amber-600' : 'text-slate-300' }}">${{ number_format($aptExp['electricity'], 2) }}</td>
-                                    <td class="px-3 py-2 text-right {{ $aptExp['water'] > 0 ? 'font-semibold text-sky-600' : 'text-slate-300' }}">${{ number_format($aptExp['water'], 2) }}</td>
-                                    <td class="px-3 py-2 text-right {{ $aptExp['internet'] > 0 ? 'font-semibold text-purple-600' : 'text-slate-300' }}">${{ number_format($aptExp['internet'], 2) }}</td>
-                                    <td class="px-3 py-2 text-right {{ $aptExp['parking'] > 0 ? 'font-semibold text-orange-600' : 'text-slate-300' }}">${{ number_format($aptExp['parking'], 2) }}</td>
-                                    <td class="px-3 py-2 text-right font-bold text-red-600">${{ number_format($aptExp['total'], 2) }}</td>
+                                    <td class="px-3 py-2 text-right {{ $aptExp['electricity'] > 0 ? 'font-semibold text-amber-600' : 'text-slate-300' }}">{{ money($aptExp['electricity']) }}</td>
+                                    <td class="px-3 py-2 text-right {{ $aptExp['water'] > 0 ? 'font-semibold text-sky-600' : 'text-slate-300' }}">{{ money($aptExp['water']) }}</td>
+                                    <td class="px-3 py-2 text-right {{ $aptExp['internet'] > 0 ? 'font-semibold text-purple-600' : 'text-slate-300' }}">{{ money($aptExp['internet']) }}</td>
+                                    <td class="px-3 py-2 text-right {{ $aptExp['parking'] > 0 ? 'font-semibold text-orange-600' : 'text-slate-300' }}">{{ money($aptExp['parking']) }}</td>
+                                    <td class="px-3 py-2 text-right font-bold text-red-600">{{ money($aptExp['total']) }}</td>
                                 </tr>
                                 @endforeach
                             </tbody>
                             <tfoot class="bg-slate-50/80">
                                 <tr class="font-semibold">
                                     <td class="px-3 py-2 text-slate-800" colspan="2">{{ __('messages.grand_total') }}</td>
-                                    <td class="px-3 py-2 text-right text-amber-600">${{ number_format(collect($apartmentExpenses)->sum('electricity'), 2) }}</td>
-                                    <td class="px-3 py-2 text-right text-sky-600">${{ number_format(collect($apartmentExpenses)->sum('water'), 2) }}</td>
-                                    <td class="px-3 py-2 text-right text-purple-600">${{ number_format(collect($apartmentExpenses)->sum('internet'), 2) }}</td>
-                                    <td class="px-3 py-2 text-right text-orange-600">${{ number_format(collect($apartmentExpenses)->sum('parking'), 2) }}</td>
-                                    <td class="px-3 py-2 text-right text-red-600">${{ number_format($totalExpensesAmount, 2) }}</td>
+                                    <td class="px-3 py-2 text-right text-amber-600">{{ money(collect($apartmentExpenses)->sum('electricity')) }}</td>
+                                    <td class="px-3 py-2 text-right text-sky-600">{{ money(collect($apartmentExpenses)->sum('water')) }}</td>
+                                    <td class="px-3 py-2 text-right text-purple-600">{{ money(collect($apartmentExpenses)->sum('internet')) }}</td>
+                                    <td class="px-3 py-2 text-right text-orange-600">{{ money(collect($apartmentExpenses)->sum('parking')) }}</td>
+                                    <td class="px-3 py-2 text-right text-red-600">{{ money($totalExpensesAmount) }}</td>
                                 </tr>
                             </tfoot>
                         </table>
@@ -675,7 +675,7 @@
                             </h3>
                             @if($fa->rentals->isNotEmpty())
                             @php $r = $fa->rentals->first(); @endphp
-                            <p class="text-xs text-slate-400">{{ $r->tenant->name ?? 'N/A' }} — ${{ number_format($r->rent_amount, 2) }}/mo</p>
+                            <p class="text-xs text-slate-400">{{ $r->tenant->name ?? 'N/A' }} — {{ money($r->rent_amount) }}/mo</p>
                             @else
                             <p class="text-xs text-slate-400 italic">{{ __('messages.no_active_tenant') }}</p>
                             @endif
@@ -704,7 +704,7 @@
                                     @php $icons = ['parking'=>'🚗','internet'=>'📡','trash'=>'🗑️','other'=>'📋']; @endphp
                                     <span class="text-xs">{{ $icons[$expense->expense_type] ?? '📋' }} {{ ucfirst($expense->expense_type) }}</span>
                                 </td>
-                                <td class="px-2 py-1.5 text-right font-semibold text-red-600">${{ number_format($expense->amount, 2) }}</td>
+                                <td class="px-2 py-1.5 text-right font-semibold text-red-600">{{ money($expense->amount) }}</td>
                                 <td class="px-2 py-1.5 text-center">
                                     <span class="px-1.5 py-0.5 rounded-full text-xs font-medium {{ $expense->is_active ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-400' }}">
                                         {{ $expense->is_active ? __('messages.active') : __('messages.off') }}
@@ -736,7 +736,7 @@
                         <tfoot class="bg-slate-50/80">
                             <tr>
                                 <td class="px-2 py-1.5 font-semibold text-slate-800" colspan="2">{{ __('messages.monthly_total') }}</td>
-                                <td class="px-2 py-1.5 text-right font-bold text-red-600">${{ number_format($fa->fixedExpenses->where('is_active', true)->sum('amount'), 2) }}</td>
+                                <td class="px-2 py-1.5 text-right font-bold text-red-600">{{ money($fa->fixedExpenses->where('is_active', true)->sum('amount')) }}</td>
                                 <td colspan="2"></td>
                             </tr>
                         </tfoot>
@@ -818,7 +818,7 @@
                     </div>
                     <div class="text-center">
                         <p class="text-xs text-slate-400">{{ __('messages.total_monthly') }}</p>
-                        <p class="text-xl font-bold text-red-600">${{ number_format($totalMonthlyExpenses, 2) }}</p>
+                        <p class="text-xl font-bold text-red-600">{{ money($totalMonthlyExpenses) }}</p>
                     </div>
                 </div>
                 <label class="flex items-center gap-2 cursor-pointer">
@@ -843,8 +843,8 @@
                             </div>
                         </div>
                         <div class="text-right">
-                            <p class="text-sm font-bold text-red-600">${{ number_format($bill['total_bill'], 2) }}</p>
-                            <p class="text-xs text-slate-400">Rent ${{ number_format($bill['monthly_rent'], 2) }} + Costs ${{ number_format($bill['total_fixed'], 2) }}</p>
+                            <p class="text-sm font-bold text-red-600">{{ money($bill['total_bill']) }}</p>
+                            <p class="text-xs text-slate-400">Rent {{ money($bill['monthly_rent']) }} + Costs {{ money($bill['total_fixed']) }}</p>
                         </div>
                     </div>
 
@@ -909,7 +909,7 @@
             </div>
             <div class="bg-white rounded-xl border border-slate-100 p-5">
                 <p class="text-xs text-slate-400 font-medium">{{ __('messages.avg_rent_unit') }}</p>
-                <p class="text-xl font-bold text-emerald-600 mt-1">${{ number_format($avg_rent_per_apartment, 2) }}</p>
+                <p class="text-xl font-bold text-emerald-600 mt-1">{{ money($avg_rent_per_apartment) }}</p>
             </div>
             <div class="bg-white rounded-xl border border-slate-100 p-5">
                 <p class="text-xs text-slate-400 font-medium">{{ __('messages.occupancy') }}</p>
@@ -930,15 +930,15 @@
                 <div class="space-y-3">
                     <div class="bg-slate-50 p-3 rounded-lg flex justify-between items-center">
                         <div><p class="text-sm font-medium text-slate-700">{{ __('messages.business_expenses') }}</p><p class="text-xs text-slate-400">{{ __('messages.recurring_business_costs') }}</p></div>
-                        <span class="text-lg font-bold text-slate-800">${{ number_format($business_expenses, 2) }}</span>
+                        <span class="text-lg font-bold text-slate-800">{{ money($business_expenses) }}</span>
                     </div>
                     <div class="bg-slate-50 p-3 rounded-lg flex justify-between items-center">
                         <div><p class="text-sm font-medium text-slate-700">{{ __('messages.per_unit_cost') }}</p><p class="text-xs text-slate-400">{{ __('messages.elec_water_parking') }}</p></div>
-                        <span class="text-lg font-bold text-slate-800">${{ number_format($variable_cost_per_unit, 2) }}</span>
+                        <span class="text-lg font-bold text-slate-800">{{ money($variable_cost_per_unit) }}</span>
                     </div>
                     <div class="bg-sky-50 border border-sky-200 p-3 rounded-lg flex justify-between items-center">
-                        <div><p class="text-sm font-medium text-slate-700">{{ __('messages.contribution_margin') }}</p><p class="text-xs text-slate-400">${{ number_format($avg_rent_per_apartment, 2) }} - ${{ number_format($variable_cost_per_unit, 2) }}</p></div>
-                        <span class="text-lg font-bold text-sky-600">${{ number_format($contribution_margin_per_unit, 2) }}</span>
+                        <div><p class="text-sm font-medium text-slate-700">{{ __('messages.contribution_margin') }}</p><p class="text-xs text-slate-400">{{ money($avg_rent_per_apartment) }} - {{ money($variable_cost_per_unit) }}</p></div>
+                        <span class="text-lg font-bold text-sky-600">{{ money($contribution_margin_per_unit) }}</span>
                     </div>
                     <div class="bg-amber-50 border border-amber-200 p-3 rounded-lg flex justify-between items-center">
                         <p class="text-sm font-medium text-slate-700">{{ __('messages.break_even_units_label') }}</p>
@@ -946,7 +946,7 @@
                     </div>
                     <div class="bg-amber-50 border border-amber-200 p-3 rounded-lg flex justify-between items-center">
                         <p class="text-sm font-medium text-slate-700">{{ __('messages.break_even_revenue') }}</p>
-                        <span class="text-lg font-bold text-amber-700">${{ number_format($break_even_revenue, 2) }}</span>
+                        <span class="text-lg font-bold text-amber-700">{{ money($break_even_revenue) }}</span>
                     </div>
                 </div>
             </div>
@@ -956,12 +956,12 @@
                 <h2 class="text-sm font-semibold text-slate-800 mb-4 pb-2 border-b border-slate-100">{{ __('messages.current_performance') }}</h2>
                 <div class="space-y-3">
                     <div class="bg-emerald-50 p-3 rounded-lg flex justify-between items-center">
-                        <div><p class="text-sm font-medium text-slate-700">{{ __('messages.current_monthly_revenue') }}</p><p class="text-xs text-slate-400">{{ $current_occupancy }} units × ${{ number_format($avg_rent_per_apartment, 2) }}</p></div>
-                        <span class="text-lg font-bold text-emerald-600">${{ number_format($current_revenue, 2) }}</span>
+                        <div><p class="text-sm font-medium text-slate-700">{{ __('messages.current_monthly_revenue') }}</p><p class="text-xs text-slate-400">{{ $current_occupancy }} units × {{ money($avg_rent_per_apartment) }}</p></div>
+                        <span class="text-lg font-bold text-emerald-600">{{ money($current_revenue) }}</span>
                     </div>
                     <div class="bg-emerald-50 border border-emerald-200 p-3 rounded-lg flex justify-between items-center">
                         <div><p class="text-sm font-medium text-slate-700">{{ __('messages.safety_margin_dollar') }}</p><p class="text-xs text-slate-400">{{ __('messages.cushion_above') }}</p></div>
-                        <span class="text-lg font-bold text-emerald-600">${{ number_format($safety_margin, 2) }}</span>
+                        <span class="text-lg font-bold text-emerald-600">{{ money($safety_margin) }}</span>
                     </div>
                     <div class="bg-emerald-50 border border-emerald-200 p-3 rounded-lg flex justify-between items-center">
                         <p class="text-sm font-medium text-slate-700">{{ __('messages.safety_margin_pct') }}</p>
@@ -990,22 +990,22 @@
                 <div>
                     <div class="flex justify-between text-sm mb-1">
                         <span class="text-slate-500">{{ __('messages.break_even_required') }}</span>
-                        <span class="font-bold">${{ number_format($break_even_revenue, 2) }}</span>
+                        <span class="font-bold">{{ money($break_even_revenue) }}</span>
                     </div>
                     <div class="w-full bg-slate-200 rounded h-6">
                         <div class="bg-amber-500 h-full rounded flex items-center pl-2 text-white text-xs font-bold" style="width: {{ ($break_even_revenue / $maxVal) * 100 }}%">
-                            ${{ number_format($break_even_revenue, 2) }}
+                            {{ money($break_even_revenue) }}
                         </div>
                     </div>
                 </div>
                 <div>
                     <div class="flex justify-between text-sm mb-1">
                         <span class="text-slate-500">{{ __('messages.current_revenue') }}</span>
-                        <span class="font-bold">${{ number_format($current_revenue, 2) }}</span>
+                        <span class="font-bold">{{ money($current_revenue) }}</span>
                     </div>
                     <div class="w-full bg-slate-200 rounded h-6">
                         <div class="bg-emerald-500 h-full rounded flex items-center pl-2 text-white text-xs font-bold" style="width: {{ ($current_revenue / $maxVal) * 100 }}%">
-                            ${{ number_format($current_revenue, 2) }}
+                            {{ money($current_revenue) }}
                         </div>
                     </div>
                 </div>
