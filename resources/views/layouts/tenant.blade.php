@@ -122,6 +122,7 @@
         <!-- Main Content -->
         <main class="flex-1 p-3 sm:p-4 md:p-6 lg:p-8 overflow-auto h-full w-full min-w-0">
             @yield('content')
+            @include('partials.credit')
         </main>
     </div>
 

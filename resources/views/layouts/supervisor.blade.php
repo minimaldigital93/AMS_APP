@@ -266,6 +266,7 @@
         <main class="flex-1 p-3 sm:p-4 md:p-6 lg:p-8 overflow-auto h-full w-full min-w-0">
             @include('partials.flash')
             @yield('content')
+            @include('partials.credit')
             {{-- Spacer so content clears the mobile bottom navigation --}}
             <div class="h-20 md:hidden" aria-hidden="true"></div>
         </main>

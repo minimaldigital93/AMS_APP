@@ -354,48 +354,6 @@
     @endif
 
 
-    {{-- Recent Transactions removed per design request --}}
-
-    {{-- Recent Closed Fiscal Periods --}}
-    @if($fiscalData['has_active_period'] && $fiscalData['recent_periods']->count() > 0)
-    <div class="bg-white rounded-xl border border-slate-100 p-6">
-        <h2 class="text-lg font-semibold text-slate-800 mb-4">{{ __('messages.closed_periods') }}</h2>
-        <div class="overflow-x-auto">
-            <table class="w-full text-sm">
-                <thead>
-                    <tr class="text-left border-b border-slate-100">
-                        <th class="pb-2 text-[11px] font-medium text-slate-400 uppercase tracking-wider">{{ __('messages.period') }}</th>
-                        <th class="pb-2 text-[11px] font-medium text-slate-400 uppercase tracking-wider">{{ __('messages.dates') }}</th>
-                        <th class="pb-2 text-[11px] font-medium text-slate-400 uppercase tracking-wider text-right">{{ __('messages.opening') }}</th>
-                        <th class="pb-2 text-[11px] font-medium text-slate-400 uppercase tracking-wider text-right">{{ __('messages.closing') }}</th>
-                        <th class="pb-2 text-[11px] font-medium text-slate-400 uppercase tracking-wider text-right">{{ __('messages.change') }}</th>
-                        <th class="pb-2"></th>
-                    </tr>
-                </thead>
-                <tbody class="divide-y divide-slate-50">
-                    @foreach($fiscalData['recent_periods'] as $period)
-                    <tr class="hover:bg-slate-50/50">
-                        <td class="py-2.5 font-medium text-slate-700">
-                            <a href="{{ route('admin.fiscalperiod.show', $period->id) }}" class="hover:text-sky-600 hover:underline">{{ $period->name }}</a>
-                        </td>
-                        <td class="py-2.5 text-slate-400">{{ $period->opening_date->format('M d') }} - {{ $period->closing_date->format('M d, Y') }}</td>
-                        <td class="py-2.5 text-right">${{ number_format($period->opening_balance, 2) }}</td>
-                        <td class="py-2.5 text-right">${{ number_format($period->closing_balance, 2) }}</td>
-                        @php $change = $period->closing_balance - $period->opening_balance; @endphp
-                        <td class="py-2.5 text-right {{ $change >= 0 ? 'text-green-600' : 'text-red-600' }}">
-                            {{ $change >= 0 ? '+' : '' }}${{ number_format($change, 2) }}
-                        </td>
-                        <td class="py-2.5 text-right">
-                            <a href="{{ route('admin.fiscalperiod.reports', $period->id) }}" class="text-sky-600 hover:text-sky-700 text-xs font-medium">{{ __('messages.report') }}</a>
-                        </td>
-                    </tr>
-                    @endforeach
-                </tbody>
-            </table>
-        </div>
-    </div>
-    @endif
-
 @push('scripts')
     <script>
     document.addEventListener('DOMContentLoaded', function () {

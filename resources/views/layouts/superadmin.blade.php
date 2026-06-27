@@ -52,6 +52,7 @@
         <main class="flex-1 overflow-auto p-4 sm:p-6 lg:p-8">
             @include('partials.flash')
             @yield('content')
+            @include('partials.credit')
             {{-- Spacer so content clears the mobile bottom navigation --}}
             <div class="h-20 md:hidden" aria-hidden="true"></div>
         </main>

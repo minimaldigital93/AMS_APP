@@ -79,6 +79,8 @@
             <div class="login-card w-full sm:max-w-md mt-6 px-6 py-6 bg-white/10 shadow-2xl overflow-hidden rounded-2xl">
                 {{ $slot }}
             </div>
+
+            @include('partials.credit')
         </div>
 
         {{-- Overlays (subscribe button, pricing modal, etc.) — rendered outside the
