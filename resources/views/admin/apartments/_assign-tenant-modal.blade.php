@@ -323,6 +323,10 @@ document.addEventListener('DOMContentLoaded', function() {
             tenantOptionInput.value = 'new';
             form.reset();
             modal.classList.remove('hidden');
+            // Always open scrolled to the first field. Without this the form keeps
+            // whatever scroll position it had last time (or from a bounced submit),
+            // so it can open near the bottom and feel like it scrolls "backwards".
+            form.scrollTop = 0;
             lockScroll();
             syncModalToViewport();
         });
