@@ -1,0 +1,21 @@
+{
+  "resources/css/app.css": {
+    "file": "assets/app-BooLPg5d.css",
+    "src": "resources/css/app.css",
+    "isEntry": true,
+    "name": "app",
+    "names": [
+      "app.css"
+    ]
+  },
+  "resources/fonts/material-icons.woff2": {
+    "file": "assets/material-icons-kAwBdRge.woff2",
+    "src": "resources/fonts/material-icons.woff2"
+  },
+  "resources/js/app.js": {
+    "file": "assets/app-JBVIRvwQ.js",
+    "name": "app",
+    "src": "resources/js/app.js",
+    "isEntry": true
+  }
+}
