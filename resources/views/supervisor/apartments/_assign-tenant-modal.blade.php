@@ -94,7 +94,6 @@
                                 <option value="">{{ __('messages.select_gender') }}</option>
                                 <option value="male" {{ old('gender') === 'male' ? 'selected' : '' }}>{{ __('messages.male') }}</option>
                                 <option value="female" {{ old('gender') === 'female' ? 'selected' : '' }}>{{ __('messages.female') }}</option>
-                                <option value="other" {{ old('gender') === 'other' ? 'selected' : '' }}>{{ __('messages.other') }}</option>
                             </select>
                         </div>
                         <div>
@@ -111,7 +110,7 @@
                         </div>
                         <div class="col-span-2">
                             <label for="date_of_birth" class="block text-xs font-medium text-slate-500 mb-1 uppercase tracking-wide">{{ __('messages.date_of_birth') }}</label>
-                            <input type="date" id="date_of_birth" name="date_of_birth" max="{{ now()->subYears(18)->toDateString() }}" class="w-full px-3.5 py-2 text-sm border border-slate-200 rounded-lg bg-slate-50/50 text-slate-600 focus:outline-none focus:ring-2 focus:ring-slate-300 focus:border-slate-300 transition bg-white appearance-none h-10">
+                            <input type="date" id="date_of_birth" name="date_of_birth" class="w-full px-3.5 py-2 text-sm border border-slate-200 rounded-lg bg-slate-50/50 text-slate-600 focus:outline-none focus:ring-2 focus:ring-slate-300 focus:border-slate-300 transition bg-white appearance-none h-10">
                         </div>
                         <div class="col-span-2">
                             <label for="attached_photo" class="block text-xs font-medium text-slate-500 mb-1 uppercase tracking-wide">{{ __('messages.attached_photo') }}</label>
@@ -132,7 +131,7 @@
                     <div class="grid grid-cols-2 gap-3">
                         <div>
                             <label for="move_in_date" class="block text-xs font-medium text-slate-500 mb-1 uppercase tracking-wide">{{ __('messages.move_in_date') }} <span class="text-red-400">*</span></label>
-                            <input type="date" id="move_in_date" name="move_in_date" required min="{{ now()->subDays(3)->toDateString() }}" class="w-full px-3.5 py-2 text-sm border border-slate-200 rounded-lg bg-slate-50/50 text-slate-600 focus:outline-none focus:ring-2 focus:ring-slate-300 focus:border-slate-300 transition bg-white appearance-none h-10">
+                            <input type="date" id="move_in_date" name="move_in_date" required class="w-full px-3.5 py-2 text-sm border border-slate-200 rounded-lg bg-slate-50/50 text-slate-600 focus:outline-none focus:ring-2 focus:ring-slate-300 focus:border-slate-300 transition bg-white appearance-none h-10">
                         </div>
                         <div>
                             <label for="deposit" class="block text-xs font-medium text-slate-500 mb-1 uppercase tracking-wide">{{ __('messages.deposit') }} <span class="text-red-400">*</span></label>
@@ -284,22 +283,6 @@ document.addEventListener('DOMContentLoaded', function() {
             e.preventDefault();
             alert(@json(__('messages.phone_must_be_english')));
             phone.focus();
-            return;
-        }
-
-        const dobInput = document.getElementById('date_of_birth');
-        if (dobInput.value && dobInput.max && dobInput.value > dobInput.max) {
-            e.preventDefault();
-            alert(@json(__('messages.tenant_must_be_18')));
-            dobInput.focus();
-            return;
-        }
-
-        const moveIn = document.getElementById('move_in_date');
-        if (moveIn.value && moveIn.min && moveIn.value < moveIn.min) {
-            e.preventDefault();
-            alert(@json(__('messages.move_in_date_min')));
-            moveIn.focus();
             return;
         }
     });

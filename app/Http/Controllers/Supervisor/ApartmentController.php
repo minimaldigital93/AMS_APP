@@ -142,9 +142,6 @@ class ApartmentController extends Controller
     {
         $this->authorizeApartment($apartment);
 
-        $minBirthDate = now()->subYears(18)->toDateString();
-        $minMoveInDate = now()->subDays(3)->toDateString();
-
         $validated = $request->validate([
             'tenant_option' => 'required|in:existing,new',
             'tenant_id' => 'nullable|required_if:tenant_option,existing|exists:tenants,id',
@@ -164,19 +161,17 @@ class ApartmentController extends Controller
                     ->whereNull('deleted_at')
                     ->where(fn () => $request->input('tenant_option') === 'new'),
             ],
-            'gender' => 'nullable|in:male,female,other',
+            'gender' => 'nullable|in:male,female',
             'id_card_number' => 'nullable|string|max:50',
             'address' => 'nullable|string',
-            'date_of_birth' => 'nullable|date|before_or_equal:'.$minBirthDate,
+            'date_of_birth' => 'nullable|date',
             'attached_photo' => 'nullable|file|mimes:jpeg,jpg,png,gif,webp,heic,heif,pdf|max:10240',
             'id_pdf' => 'nullable|file|mimes:pdf,jpeg,jpg,png,gif,webp,heic,heif|max:10240',
-            'move_in_date' => 'required|date|after_or_equal:'.$minMoveInDate,
+            'move_in_date' => 'required|date',
             'deposit' => 'required|numeric|min:0',
         ], [
             'phone.unique' => __('messages.validation_phone_taken'),
             'phone.regex' => __('messages.phone_must_be_english'),
-            'date_of_birth.before_or_equal' => __('messages.tenant_must_be_18'),
-            'move_in_date.after_or_equal' => __('messages.move_in_date_min'),
         ]);
         $validated = convert_money_input($validated, ['monthly_rent', 'deposit', 'apartments.*.monthly_rent']);
 
