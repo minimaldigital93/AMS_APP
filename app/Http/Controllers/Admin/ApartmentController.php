@@ -121,17 +121,13 @@ class ApartmentController extends Controller
 
     public function store(Request $request)
     {
-        // The unit number is unique within the selected floor's property, so resolve
-        // that property from the chosen floor (account-scoped find) before validating.
-        $propertyId = Floors::find($request->input('floor_id'))?->property_id;
-
         $validated = $request->validate([
             'apartment_number' => [
                 'required', 'string', 'max:255',
-                // Per-property uniqueness: a unit "101" may exist in more than one
-                // property of the same account.
+                // Per-floor uniqueness: a unit "101" may exist on more than one
+                // floor of the same building (and across properties).
                 Rule::unique('apartments', 'apartment_number')
-                    ->where('property_id', $propertyId)
+                    ->where('floor_id', $request->input('floor_id'))
                     ->whereNull('deleted_at'),
             ],
             'floor_id' => 'required|exists:floors,id',
@@ -162,12 +158,12 @@ class ApartmentController extends Controller
         $validated = $request->validate([
             'apartment_number' => [
                 'required', 'string', 'max:255',
-                // Per-property uniqueness, ignoring this apartment's own row. The
-                // edit form can't move an apartment between floors, so the property
-                // is fixed to this apartment's existing property_id.
+                // Per-floor uniqueness, ignoring this apartment's own row. The edit
+                // form can't move an apartment between floors, so the floor is fixed
+                // to this apartment's existing floor_id.
                 Rule::unique('apartments', 'apartment_number')
                     ->ignore($apartment->id)
-                    ->where('property_id', $apartment->property_id)
+                    ->where('floor_id', $apartment->floor_id)
                     ->whereNull('deleted_at'),
             ],
             'monthly_rent' => 'required|numeric|min:0',

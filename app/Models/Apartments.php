@@ -21,8 +21,9 @@ class Apartments extends Model
 
     /**
      * Keep the denormalized property_id in sync: derive it from the floor on
-     * create so the per-property unique index (property_id, apartment_number,
-     * deleted_at) is always populated, regardless of which create path is used.
+     * create so ledger rows and reports can read an apartment's property without
+     * a join, regardless of which create path is used. Unit-number uniqueness is
+     * enforced per floor (see the apartments_floor_..._unique index).
      */
     protected static function booted(): void
     {

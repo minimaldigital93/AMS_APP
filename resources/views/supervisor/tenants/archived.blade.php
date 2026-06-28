@@ -90,13 +90,14 @@
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap">
                                     <div class="flex items-center">
-                                        @if($tenant->photo_path && !str_ends_with($tenant->photo_path, '.pdf'))
-                                            <img src="{{ asset('storage/' . $tenant->photo_path) }}" alt="{{ $tenant->name }}" class="h-10 w-10 rounded-full object-cover border border-gray-300" onerror="this.style.display='none'">
-                                        @else
-                                            <div class="h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center">
-                                                <span class="text-blue-600 font-semibold text-sm">{{ strtoupper(substr($tenant->name, 0, 1)) }}</span>
-                                            </div>
-                                        @endif
+                                        {{-- Initials sit underneath; the photo overlays them and, if its file is
+                                             missing (e.g. not migrated to this host), onerror reveals the initials. --}}
+                                        <div class="relative h-10 w-10 rounded-full bg-blue-100 border border-gray-300 overflow-hidden flex items-center justify-center flex-shrink-0">
+                                            <span class="text-blue-600 font-semibold text-sm">{{ strtoupper(substr($tenant->name, 0, 1)) }}</span>
+                                            @if($tenant->photo_path && !str_ends_with($tenant->photo_path, '.pdf'))
+                                                <img src="{{ asset('storage/' . $tenant->photo_path) }}" alt="{{ $tenant->name }}" class="absolute inset-0 h-full w-full object-cover" onerror="this.style.display='none'">
+                                            @endif
+                                        </div>
                                         <div class="ml-4">
                                             <p class="font-medium text-gray-900">{{ $tenant->name }}</p>
                                             <p class="text-sm text-gray-500">{{ $tenant->deleted_at?->format('M d, Y') ?? 'N/A' }}</p>
@@ -145,13 +146,12 @@
                     <div class="p-4 active:bg-slate-50 transition">
                         <!-- Top: avatar + name + archived date -->
                         <div class="flex items-start gap-3">
-                            @if($tenant->photo_path && !str_ends_with($tenant->photo_path, '.pdf'))
-                                <img src="{{ asset('storage/' . $tenant->photo_path) }}" alt="{{ $tenant->name }}" class="h-12 w-12 rounded-full object-cover border border-gray-200 flex-shrink-0" onerror="this.style.display='none'">
-                            @else
-                                <div class="h-12 w-12 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0">
-                                    <span class="text-blue-600 font-semibold">{{ strtoupper(substr($tenant->name, 0, 1)) }}</span>
-                                </div>
-                            @endif
+                            <div class="relative h-12 w-12 rounded-full bg-blue-100 border border-gray-200 overflow-hidden flex items-center justify-center flex-shrink-0">
+                                <span class="text-blue-600 font-semibold">{{ strtoupper(substr($tenant->name, 0, 1)) }}</span>
+                                @if($tenant->photo_path && !str_ends_with($tenant->photo_path, '.pdf'))
+                                    <img src="{{ asset('storage/' . $tenant->photo_path) }}" alt="{{ $tenant->name }}" class="absolute inset-0 h-full w-full object-cover" onerror="this.style.display='none'">
+                                @endif
+                            </div>
                             <div class="min-w-0 flex-1">
                                 <p class="font-semibold text-gray-900 truncate">{{ $tenant->name }}</p>
                                 <p class="text-xs text-gray-500">{{ $apt?->floor?->floor_name ?? 'N/A' }} / {{ $apt?->apartment_number ?? 'N/A' }}</p>
@@ -322,7 +322,7 @@ function viewTenantSettlement(tenantId, tenantName) {
                         <h3 class="text-sm font-medium text-gray-600 mb-4">{{ __('messages.personal_information') }}</h3>
                         <div class="space-y-3">
                             <div class="flex items-center gap-4">
-                                ${t.photo_path ? `<img src="${t.photo_path.startsWith('/') ? t.photo_path : ('{{ asset('storage') }}/' + t.photo_path)}" alt="${t.name}" class="h-20 w-20 rounded-lg object-cover border border-gray-300">` : `<div class="h-20 w-20 rounded-lg bg-red-50 flex items-center justify-center text-xl font-semibold text-red-600">${t.name.charAt(0).toUpperCase()}</div>`}
+                                ${t.photo_path ? `<div class="relative h-20 w-20 rounded-lg bg-red-50 overflow-hidden flex items-center justify-center text-xl font-semibold text-red-600 border border-gray-300">${t.name.charAt(0).toUpperCase()}<img src="${t.photo_path.startsWith('/') ? t.photo_path : ('{{ asset('storage') }}/' + t.photo_path)}" alt="${t.name}" class="absolute inset-0 h-full w-full object-cover" onerror="this.style.display='none'"></div>` : `<div class="h-20 w-20 rounded-lg bg-red-50 flex items-center justify-center text-xl font-semibold text-red-600">${t.name.charAt(0).toUpperCase()}</div>`}
                                 <div>
                                     <p class="text-xs text-gray-500">{{ __('messages.full_name') }}</p>
                                     <p class="text-sm font-medium text-gray-900">${t.name}</p>

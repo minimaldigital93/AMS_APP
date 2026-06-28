@@ -10,8 +10,10 @@ use function Pest\Laravel\post;
 uses(\Illuminate\Foundation\Testing\RefreshDatabase::class);
 
 /**
- * Unit numbers and floor names are unique within their property, not across the
- * whole account — two properties may each have a "Floor 1" and a unit "101".
+ * Floor names are unique within their property; unit numbers are unique within
+ * their floor. So two properties may each have a "Floor 1", and within one
+ * building every floor may have its own unit "101" — but a single floor can't
+ * list "101" twice.
  */
 it('allows the same unit number in two different properties', function () {
     $admin = makeAdmin();
@@ -35,7 +37,7 @@ it('allows the same unit number in two different properties', function () {
     expect(Apartments::where('floor_id', $f2->id)->value('property_id'))->toBe($p2->id);
 });
 
-it('blocks the same unit number within one property, even across floors', function () {
+it('allows the same unit number on different floors of one property', function () {
     $admin = makeAdmin();
     actingAs($admin);
 
@@ -48,6 +50,25 @@ it('blocks the same unit number within one property, even across floors', functi
     post(route('admin.apartments.store'), [
         'apartment_number' => '101',
         'floor_id' => $f2->id,
+        'monthly_rent' => 0,
+        'status' => 'available',
+    ])->assertSessionHasNoErrors();
+
+    expect(Apartments::where('apartment_number', '101')->count())->toBe(2);
+});
+
+it('blocks a duplicate unit number on the same floor', function () {
+    $admin = makeAdmin();
+    actingAs($admin);
+
+    $p1 = Property::create(['name' => 'Alpha']);
+    $f1 = Floors::create(['property_id' => $p1->id, 'floor_name' => 'F1']);
+
+    Apartments::create(['floor_id' => $f1->id, 'apartment_number' => '101', 'monthly_rent' => 0, 'status' => 'available']);
+
+    post(route('admin.apartments.store'), [
+        'apartment_number' => '101',
+        'floor_id' => $f1->id,
         'monthly_rent' => 0,
         'status' => 'available',
     ])->assertSessionHasErrors('apartment_number');

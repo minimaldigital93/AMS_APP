@@ -110,13 +110,14 @@
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap">
                                     <div class="flex items-center">
-                                        @if($tenant->photo_path && !str_ends_with($tenant->photo_path, '.pdf'))
-                                            <img src="{{ asset('storage/' . $tenant->photo_path) }}" alt="{{ $tenant->name }}" class="h-10 w-10 rounded-full object-cover border border-gray-300" onerror="this.style.display='none'">
-                                        @else
-                                            <div class="h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center">
-                                                <span class="text-blue-600 font-semibold text-sm">{{ strtoupper(substr($tenant->name, 0, 1)) }}</span>
-                                            </div>
-                                        @endif
+                                        {{-- Initials sit underneath; the photo overlays them and, if its file is
+                                             missing (e.g. not migrated to this host), onerror reveals the initials. --}}
+                                        <div class="relative h-10 w-10 rounded-full bg-blue-100 border border-gray-300 overflow-hidden flex items-center justify-center flex-shrink-0">
+                                            <span class="text-blue-600 font-semibold text-sm">{{ strtoupper(substr($tenant->name, 0, 1)) }}</span>
+                                            @if($tenant->photo_path && !str_ends_with($tenant->photo_path, '.pdf'))
+                                                <img src="{{ asset('storage/' . $tenant->photo_path) }}" alt="{{ $tenant->name }}" class="absolute inset-0 h-full w-full object-cover" onerror="this.style.display='none'">
+                                            @endif
+                                        </div>
                                         <div class="ml-4">
                                             <p class="font-medium text-gray-900">{{ $tenant->name }}</p>
                                             <p class="text-sm text-gray-500">{{ $tenant->user_id ? __('messages.linked') : __('messages.not_linked') }}</p>
@@ -204,13 +205,12 @@
                     <div x-show="matchesFilter('{{ $status }}','{{ strtolower($tenant->name ?? '') }}','{{ strtolower($tenant->apartment?->apartment_number ?? '') }}','{{ $dp }}')"
                          class="flex items-center gap-3 px-4 py-2.5 active:bg-slate-50 transition">
                         <!-- Avatar -->
-                        @if($tenant->photo_path && !str_ends_with($tenant->photo_path, '.pdf'))
-                            <img src="{{ asset('storage/' . $tenant->photo_path) }}" alt="{{ $tenant->name }}" class="h-9 w-9 rounded-full object-cover border border-gray-200 flex-shrink-0" onerror="this.style.display='none'">
-                        @else
-                            <div class="h-9 w-9 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0">
-                                <span class="text-blue-600 font-semibold text-sm">{{ strtoupper(substr($tenant->name, 0, 1)) }}</span>
-                            </div>
-                        @endif
+                        <div class="relative h-9 w-9 rounded-full bg-blue-100 border border-gray-200 overflow-hidden flex items-center justify-center flex-shrink-0">
+                            <span class="text-blue-600 font-semibold text-sm">{{ strtoupper(substr($tenant->name, 0, 1)) }}</span>
+                            @if($tenant->photo_path && !str_ends_with($tenant->photo_path, '.pdf'))
+                                <img src="{{ asset('storage/' . $tenant->photo_path) }}" alt="{{ $tenant->name }}" class="absolute inset-0 h-full w-full object-cover" onerror="this.style.display='none'">
+                            @endif
+                        </div>
 
                         <!-- Name + floor/apartment -->
                         <div class="min-w-0 flex-1">
