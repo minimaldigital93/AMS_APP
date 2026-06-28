@@ -52,7 +52,10 @@
 <script>
     if ('serviceWorker' in navigator) {
         window.addEventListener('load', function () {
-            navigator.serviceWorker.register('{{ asset('sw.js') }}', { scope: '/ams_app/' })
+            // No explicit scope: the default scope is the directory the script is
+            // served from, so it adapts to the root deployment and the proxied
+            // sub-path deployment alike without hardcoding any prefix.
+            navigator.serviceWorker.register('{{ asset('sw.js') }}')
                 .catch(function (err) {
                     console.error('Service worker registration failed:', err);
                 });
