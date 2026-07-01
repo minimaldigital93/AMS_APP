@@ -63,6 +63,7 @@
                         <th class="px-6 py-3 text-left text-sm font-semibold text-gray-900">{{ __('Plan') }}</th>
                         <th class="px-6 py-3 text-left text-sm font-semibold text-gray-900">{{ __('Status') }}</th>
                         <th class="px-6 py-3 text-left text-sm font-semibold text-gray-900">{{ __('Usage') }}</th>
+                        <th class="px-6 py-3 text-left text-sm font-semibold text-gray-900">{{ __('Disk usage') }}</th>
                         <th class="px-6 py-3 text-left text-sm font-semibold text-gray-900">{{ __('Expires') }}</th>
                         <th class="px-6 py-3 text-left text-sm font-semibold text-gray-900">{{ __('Actions') }}</th>
                     </tr>
@@ -93,6 +94,9 @@
                         </td>
                         <td class="px-6 py-4 text-gray-600 whitespace-nowrap">
                             {{ __('Floors') }}: {{ $usage[$account->id]['floors'] }} · {{ __('Rooms') }}: {{ $usage[$account->id]['apartments'] }}
+                        </td>
+                        <td class="px-6 py-4 text-gray-600 whitespace-nowrap">
+                            {{ format_bytes($usage[$account->id]['disk_bytes']) }}
                         </td>
                         <td class="px-6 py-4 text-gray-500 whitespace-nowrap">
                             {{ $sub?->expires_at ? $sub->expires_at->format('M j, Y') : '—' }}
@@ -156,7 +160,7 @@
                     </tr>
                     @empty
                     <tr>
-                        <td colspan="8" class="px-6 py-4 text-center text-gray-500">{{ __('No accounts yet.') }}</td>
+                        <td colspan="9" class="px-6 py-4 text-center text-gray-500">{{ __('No accounts yet.') }}</td>
                     </tr>
                     @endforelse
                 </tbody>

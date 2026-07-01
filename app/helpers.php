@@ -291,3 +291,24 @@ if (! function_exists('active_theme_slug')) {
         return theme_service()->currentSlug();
     }
 }
+
+if (! function_exists('format_bytes')) {
+    /**
+     * Human-readable file size from a raw byte count (e.g. 1536 → "1.5 KB",
+     * 0 → "0 B"). Steps up through B/KB/MB/GB/TB (1024-based) and keeps the
+     * unit meaningful for small accounts instead of showing "0.00 GB".
+     */
+    function format_bytes(int|float $bytes, int $decimals = 1): string
+    {
+        $bytes = max(0, (float) $bytes);
+        $units = ['B', 'KB', 'MB', 'GB', 'TB'];
+
+        $power = $bytes > 0 ? (int) floor(log($bytes, 1024)) : 0;
+        $power = min($power, count($units) - 1);
+
+        $value = $bytes / (1024 ** $power);
+
+        // Bytes are always whole; larger units keep the requested precision.
+        return number_format($value, $power === 0 ? 0 : $decimals).' '.$units[$power];
+    }
+}

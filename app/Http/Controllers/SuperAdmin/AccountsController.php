@@ -4,8 +4,10 @@ namespace App\Http\Controllers\SuperAdmin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Apartments;
+use App\Models\BusinessExpense;
 use App\Models\FiscalPeriods;
 use App\Models\Floors;
+use App\Models\MerchantPaymentSetting;
 use App\Models\Plan;
 use App\Models\Settings;
 use App\Models\Subscription;
@@ -16,6 +18,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rules\Password;
 
 /**
@@ -59,11 +62,17 @@ class AccountsController extends Controller
             ->groupBy('account_id')
             ->pluck('aggregate', 'account_id');
 
+        // Bytes of uploaded files each account owns (tenant photos/documents,
+        // expense attachments, company logo, KHQR images). Formatted for
+        // display with format_bytes() in the view.
+        $diskUsage = $this->diskUsageBytes($accountIds);
+
         $usage = [];
         foreach ($accountIds as $id) {
             $usage[$id] = [
                 'floors' => (int) ($floorCounts[$id] ?? 0),
                 'apartments' => (int) ($apartmentCounts[$id] ?? 0),
+                'disk_bytes' => (int) ($diskUsage[$id] ?? 0),
             ];
         }
 
@@ -72,6 +81,88 @@ class AccountsController extends Controller
             'usage' => $usage,
             'plans' => Plan::orderBy('price_usd')->get(),
         ]);
+    }
+
+    /**
+     * Total on-disk size (bytes) of every uploaded file each account owns,
+     * keyed by account id. Every upload in the app lands on the `public` disk.
+     *
+     * The high-volume sources — tenant photos + ID documents and business-expense
+     * attachments — store each file's byte size next to its path (kept in sync by
+     * the TracksFileSizes model hook, backfilled by migration), so they total in
+     * one grouped SUM() query each. That keeps this page's cost proportional to
+     * the number of accounts shown rather than the number of files they hold.
+     *
+     * The company logo and merchant KHQR image are at most one file per account
+     * and never scale with usage, so they are simply stat-ed directly (≤2 files
+     * per account). Missing files count as zero. All queries drop the account
+     * scope since this runs in the superadmin panel.
+     *
+     * @param  array<int>  $accountIds
+     * @return array<int,int>
+     */
+    private function diskUsageBytes(array $accountIds): array
+    {
+        if (empty($accountIds)) {
+            return [];
+        }
+
+        $usage = array_fill_keys($accountIds, 0);
+
+        // Tenant photos + ID documents. withTrashed: soft-deleted tenants still
+        // leave their uploaded files on disk, so they count toward usage.
+        $tenantBytes = Tenants::withoutAccountScope()->withTrashed()
+            ->whereIn('account_id', $accountIds)
+            ->selectRaw('account_id, COALESCE(SUM(photo_size), 0) + COALESCE(SUM(document_size), 0) as bytes')
+            ->groupBy('account_id')
+            ->pluck('bytes', 'account_id');
+
+        // Business-expense attachments.
+        $expenseBytes = BusinessExpense::withoutAccountScope()
+            ->whereIn('account_id', $accountIds)
+            ->selectRaw('account_id, COALESCE(SUM(attachment_size), 0) as bytes')
+            ->groupBy('account_id')
+            ->pluck('bytes', 'account_id');
+
+        foreach ($accountIds as $id) {
+            $usage[$id] += (int) ($tenantBytes[$id] ?? 0) + (int) ($expenseBytes[$id] ?? 0);
+        }
+
+        // At-most-one-per-account files stat-ed directly (they never scale with
+        // file count): the company logo (a Settings key/value path) and the
+        // merchant KHQR image.
+        $disk = Storage::disk('public');
+        $sizeOf = function (?string $path) use ($disk): int {
+            if (! filled($path)) {
+                return 0;
+            }
+
+            $full = $disk->path($path);
+
+            return is_file($full) ? (int) filesize($full) : 0;
+        };
+
+        Settings::withoutAccountScope()
+            ->whereIn('account_id', $accountIds)
+            ->where('key', 'company_logo')
+            ->get(['account_id', 'value'])
+            ->each(function ($s) use (&$usage, $sizeOf) {
+                if (array_key_exists($s->account_id, $usage)) {
+                    $usage[$s->account_id] += $sizeOf($s->value);
+                }
+            });
+
+        MerchantPaymentSetting::withoutAccountScope()
+            ->whereIn('account_id', $accountIds)
+            ->whereNotNull('khqr_image_path')
+            ->get(['account_id', 'khqr_image_path'])
+            ->each(function ($m) use (&$usage, $sizeOf) {
+                if (array_key_exists($m->account_id, $usage)) {
+                    $usage[$m->account_id] += $sizeOf($m->khqr_image_path);
+                }
+            });
+
+        return $usage;
     }
 
     /** Show the form to provision a new customer (admin) account. */
