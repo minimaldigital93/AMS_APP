@@ -48,7 +48,7 @@ class DashboardController extends Controller
         // Scope every dashboard widget to the globally selected property.
         $propertyId = current_property_id();
 
-        $stats = (new DashboardStatsService($this->ledgerUserId(), null, $propertyId))
+        $stats = (new DashboardStatsService($this->ledgerUserId(), null, $propertyId, $activePeriod?->id))
             ->build($dateRange['start'], $dateRange['end'], $displayMonth);
         $fiscalData = (new FiscalPeriodSummaryService($this->ledgerUserId(), null, $propertyId))
             ->build($activePeriod);

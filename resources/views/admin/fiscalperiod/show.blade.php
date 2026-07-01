@@ -101,7 +101,7 @@
     <div class="grid grid-cols-2 gap-4 mb-6">
         <div class="bg-white rounded-lg shadow p-4">
             <p class="text-xs text-gray-500 uppercase">{{ __('messages.opening_balance') }}</p>
-            <p class="text-xl font-bold mt-1">{{ money($fiscalperiod->opening_balance) }}</p>
+            <p class="text-xl font-bold mt-1">{{ money($periodOpening) }}</p>
         </div>
         <div class="bg-white rounded-lg shadow p-4">
             <p class="text-xs text-gray-500 uppercase">Net {{ $financialData['is_profitable'] ? 'Profit' : 'Loss' }}</p>
@@ -109,11 +109,34 @@
         </div>
     </div>
 
+    @if($selectedProperty)
+        {{-- Per-property live view: income/expenses/net and the running balance
+             are scoped to this property; the account-wide month-close, owner
+             draws and balance sheet live in the All Properties view. --}}
+        <div class="bg-sky-50 border border-sky-200 rounded-lg p-4 mb-6 flex items-start gap-3">
+            <svg class="w-5 h-5 text-sky-600 mt-0.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+            <div class="flex-1">
+                <p class="text-sm font-semibold text-sky-800">{{ __('messages.fp_showing_property', ['name' => $selectedProperty->name]) }}</p>
+                <p class="text-sm text-sky-700/90 mt-1">{{ __('messages.fp_property_scope_notice') }}</p>
+            </div>
+        </div>
+    @elseif($showingAll)
+        {{-- Consolidated view: figures span every property and the cash
+             carry-forward / owner draws / month-close are account-wide. --}}
+        <div class="bg-amber-50 border border-amber-200 rounded-lg p-4 mb-6 flex items-start gap-3">
+            <svg class="w-5 h-5 text-amber-600 mt-0.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+            <div class="flex-1">
+                <p class="text-sm font-semibold text-amber-800">{{ __('messages.all_properties_consolidated') }}</p>
+                <p class="text-sm text-amber-700/90 mt-1">{{ __('messages.mp_consolidated_notice') }}</p>
+            </div>
+        </div>
+    @endif
+
     {{-- Monthly Periods --}}
     <div class="bg-white rounded-lg shadow mb-6">
         <div class="flex items-center justify-between px-5 py-3 border-b">
             <h3 class="font-semibold">{{ __('messages.monthly_periods') }}</h3>
-            @if($fiscalperiod->status === 'open')
+            @if($consolidated && $fiscalperiod->status === 'open')
                 <form method="POST" action="{{ route('admin.fiscalperiod.recalculate-balances', $fiscalperiod->id) }}" data-confirm="Recalculate all monthly balances using carry-forward logic?">
                     @csrf
                     <button type="submit" class="p-2 rounded-lg bg-amber-100 text-amber-700 hover:bg-amber-200" title="Recalculate">
@@ -141,15 +164,11 @@
                                 </span>
                                 <span class="mx-1 text-gray-300">·</span>
                                 {{ __('messages.closing') }}:
-                                @if($month->isClosed())
-                                    <span class="font-semibold text-gray-700">{{ money($month->closing_balance) }}</span>
-                                @else
-                                    <span class="font-semibold text-gray-400">{{ money($month->opening_balance + $month->live_net) }}</span>
-                                @endif
+                                <span class="font-semibold {{ ($consolidated && $month->isClosed()) ? 'text-gray-700' : 'text-gray-400' }}">{{ money($month->live_closing) }}</span>
                             </p>
                         </div>
                         <div class="flex items-center gap-1.5 shrink-0">
-                            @if($month->canClose())
+                            @if($consolidated && $month->canClose())
                                 {{-- Close Month (opens withdrawal modal) --}}
                                 <button type="button"
                                         @click="closeModal = { open: true, action: '{{ route('admin.fiscalperiod.monthly-period.close', [$fiscalperiod->id, $month->id]) }}', name: @js($month->name), net: {{ $month->live_net }}, available: {{ $month->opening_balance + $month->live_net }}, amount: '' }"
@@ -186,22 +205,22 @@
                         @foreach($monthlyPeriods as $month)
                             <tr class="hover:bg-gray-50 {{ $month->isClosed() ? 'bg-gray-50/40' : '' }}">
                                 <td class="px-4 py-2.5 font-medium">{{ $month->name }}</td>
-                                <td class="px-4 py-2.5 text-right">{{ money($month->opening_balance) }}</td>
+                                <td class="px-4 py-2.5 text-right">{{ money($month->live_opening) }}</td>
                                 <td class="px-4 py-2.5 text-right text-green-600">+{{ money($month->live_income) }}</td>
                                 <td class="px-4 py-2.5 text-right text-red-600">-{{ money($month->live_expenses) }}</td>
                                 <td class="px-4 py-2.5 text-right font-semibold {{ $month->live_net >= 0 ? 'text-green-700' : 'text-red-700' }}">
                                     {{ $month->live_net >= 0 ? '+' : '' }}{{ money($month->live_net) }}
                                 </td>
                                 <td class="px-4 py-2.5 text-right">
-                                    @if($month->isClosed())
-                                        {{ money($month->closing_balance) }}
+                                    @if($consolidated && $month->isClosed())
+                                        {{ money($month->live_closing) }}
                                         @if($month->owner_withdrawal > 0)
                                             <div class="text-xs text-purple-600 font-normal" title="{{ $month->withdrawal_note }}">
                                                 − {{ money($month->owner_withdrawal) }} drawn
                                             </div>
                                         @endif
                                     @else
-                                        <span class="text-gray-400">{{ money($month->opening_balance + $month->live_net) }}</span>
+                                        <span class="text-gray-400">{{ money($month->live_closing) }}</span>
                                     @endif
                                 </td>
                                 <td class="px-4 py-2.5 text-center">
@@ -217,7 +236,7 @@
                                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
                                         </a>
 
-                                        @if($month->canClose())
+                                        @if($consolidated && $month->canClose())
                                             {{-- Close Month (opens withdrawal modal) --}}
                                             <button type="button"
                                                     @click="closeModal = { open: true, action: '{{ route('admin.fiscalperiod.monthly-period.close', [$fiscalperiod->id, $month->id]) }}', name: @js($month->name), net: {{ $month->live_net }}, available: {{ $month->opening_balance + $month->live_net }}, amount: '' }"
@@ -226,7 +245,7 @@
                                             </button>
                                         @endif
 
-                                        @if($month->canReopen())
+                                        @if($consolidated && $month->canReopen())
                                             {{-- Reopen Month --}}
                                             <form method="POST" action="{{ route('admin.fiscalperiod.monthly-period.reopen', [$fiscalperiod->id, $month->id]) }}"
                                                   data-confirm="Reopen {{ $month->name }}? This clears the recorded owner withdrawal.">
@@ -255,7 +274,7 @@
     </div>
 
     {{-- Close Period (only if open) --}}
-    @if($fiscalperiod->status === 'open')
+    @if($consolidated && $fiscalperiod->status === 'open')
         <div class="text-center mb-6">
             <button type="button" @click="closePeriodOpen = true"
                     class="bg-orange-600 text-white px-5 py-2 rounded-lg hover:bg-orange-700 text-sm font-semibold">
@@ -265,7 +284,7 @@
     @endif
 
     {{-- Delete (only if not closed) --}}
-    @if($fiscalperiod->status !== 'closed')
+    @if($consolidated && $fiscalperiod->status !== 'closed')
         <div class="text-center">
             <form method="POST" action="{{ route('admin.fiscalperiod.destroy', $fiscalperiod->id) }}" data-confirm="Delete this fiscal period? This cannot be undone.">
                 @csrf
@@ -276,7 +295,7 @@
     @endif
 
     {{-- Close-period modal: confirm closing balance --}}
-    @if($fiscalperiod->status === 'open')
+    @if($consolidated && $fiscalperiod->status === 'open')
         <div x-show="closePeriodOpen" x-cloak
              class="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/40 p-4 sm:items-center"
              @keydown.escape.window="closePeriodOpen = false">
@@ -311,7 +330,8 @@
         </div>
     @endif
 
-    {{-- Close-month modal: capture owner profit withdrawal --}}
+    {{-- Close-month modal: capture owner profit withdrawal (account-wide) --}}
+    @if($consolidated)
     <div x-show="closeModal.open" x-cloak
          class="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/40 p-4 sm:items-center"
          @keydown.escape.window="closeModal.open = false">
@@ -366,5 +386,6 @@
             </form>
         </div>
     </div>
+    @endif
 </div>
 @endsection

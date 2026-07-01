@@ -32,6 +32,7 @@ class DashboardStatsService
         private int $userId,
         private ?array $apartmentIds = null,
         private ?int $propertyId = null,
+        private ?int $fiscalPeriodId = null,
     ) {}
 
     /**
@@ -317,6 +318,10 @@ class DashboardStatsService
             ->whereBetween('transaction_date', [$startDate->copy()->startOfDay(), $endDate->copy()->endOfDay()])
             ->forProperty($this->propertyId);
 
+        if ($this->fiscalPeriodId !== null) {
+            $query->where('fiscal_period_id', $this->fiscalPeriodId);
+        }
+
         if ($this->apartmentIds === null) {
             $query->where('user_id', $this->userId);
         } else {
@@ -336,6 +341,10 @@ class DashboardStatsService
         $query = Accounts::where('account_type', Accounts::TYPE_EXPENSE)
             ->whereBetween('transaction_date', [$startDate->copy()->startOfDay(), $endDate->copy()->endOfDay()])
             ->forProperty($this->propertyId);
+
+        if ($this->fiscalPeriodId !== null) {
+            $query->where('fiscal_period_id', $this->fiscalPeriodId);
+        }
 
         if ($this->apartmentIds === null) {
             $query->where('user_id', $this->userId);

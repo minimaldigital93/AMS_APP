@@ -61,7 +61,7 @@ class DashboardController extends Controller
 
         $userId = $this->ledgerUserId() ?? 0; // ?? 0 keeps the type contract; period absent → no rows match anyway
 
-        $stats = (new DashboardStatsService($userId, $apartmentIds, $propertyId))
+        $stats = (new DashboardStatsService($userId, $apartmentIds, $propertyId, $activePeriod?->id))
             ->build($dateRange['start'], $dateRange['end'], $displayMonth);
         $fiscalData = (new FiscalPeriodSummaryService($userId, $apartmentIds, $propertyId))
             ->build($activePeriod);

@@ -87,16 +87,29 @@ class FiscalPeriodController extends Controller
     /**
      * Dashboard view — financial summary + monthly periods with live numbers.
      */
-    public function show(FiscalPeriods $fiscalperiod)
+    public function show(FiscalPeriods $fiscalperiod, PropertyContext $propertyContext)
     {
         $this->authorizeUser($fiscalperiod);
 
-        $financialData = $this->financials->forPeriod($fiscalperiod);
-        $monthlyPeriods = $this->attachLiveFinancials($fiscalperiod->monthlyPeriods()->orderBy('start_date')->get(), $fiscalperiod);
+        [$consolidated, $showingAll, $selectedProperty, $scopePropertyId] = $this->resolveScope($propertyContext);
+
+        $financialData = $this->financials->forPeriod($fiscalperiod, $scopePropertyId);
+        $monthlyPeriods = $this->attachLiveFinancials(
+            $fiscalperiod->monthlyPeriods()->orderBy('start_date')->get(),
+            $fiscalperiod,
+            $consolidated,
+            $scopePropertyId,
+        );
         $balanceSummary = $this->balanceSheetService->summary($fiscalperiod);
 
+        // A single-property view has no cash seed of its own — the fiscal
+        // period's opening balance is account-wide — so its running balance
+        // starts at zero.
+        $periodOpening = $consolidated ? (float) $fiscalperiod->opening_balance : 0.0;
+
         return view('admin.fiscalperiod.show', compact(
-            'fiscalperiod', 'financialData', 'monthlyPeriods', 'balanceSummary'
+            'fiscalperiod', 'financialData', 'monthlyPeriods', 'balanceSummary',
+            'consolidated', 'showingAll', 'selectedProperty', 'periodOpening'
         ));
     }
 
@@ -202,12 +215,16 @@ class FiscalPeriodController extends Controller
     // MONTHLY PERIOD MANAGEMENT
     // ============================================================
 
-    public function showMonth(FiscalPeriods $fiscalperiod, MonthlyPeriod $monthlyPeriod)
+    public function showMonth(FiscalPeriods $fiscalperiod, MonthlyPeriod $monthlyPeriod, PropertyContext $propertyContext)
     {
         $this->authorizeUser($fiscalperiod);
         $this->ensureMonthBelongsTo($fiscalperiod, $monthlyPeriod);
 
-        $financials = $this->financials->forMonth($fiscalperiod, $monthlyPeriod);
+        [$consolidated, $showingAll, $selectedProperty, $scopePropertyId] = $this->resolveScope($propertyContext);
+
+        $financials = $this->financials->forMonth($fiscalperiod, $monthlyPeriod, $scopePropertyId);
+        ['opening' => $openingBalance, 'closing' => $closingBalance, 'closing_is_firm' => $closingIsFirm]
+            = $this->monthBalances($fiscalperiod, $monthlyPeriod, $financials, $consolidated, $scopePropertyId);
 
         $previousMonth = $fiscalperiod->monthlyPeriods()
             ->where('start_date', '<', $monthlyPeriod->start_date)
@@ -222,7 +239,8 @@ class FiscalPeriodController extends Controller
         $balanceSheet = $this->balanceSheetService->summaryAsOf($fiscalperiod, $monthlyPeriod);
 
         return view('admin.fiscalperiod.monthly_period_show', compact(
-            'fiscalperiod', 'monthlyPeriod', 'financials', 'previousMonth', 'nextMonth', 'balanceSheet'
+            'fiscalperiod', 'monthlyPeriod', 'financials', 'previousMonth', 'nextMonth', 'balanceSheet',
+            'consolidated', 'showingAll', 'selectedProperty', 'openingBalance', 'closingBalance', 'closingIsFirm'
         ));
     }
 
@@ -370,15 +388,22 @@ class FiscalPeriodController extends Controller
         ));
     }
 
-    public function printMonthlyPDF(FiscalPeriods $fiscalperiod, MonthlyPeriod $monthlyPeriod)
+    public function printMonthlyPDF(FiscalPeriods $fiscalperiod, MonthlyPeriod $monthlyPeriod, PropertyContext $propertyContext)
     {
         $this->authorizeUser($fiscalperiod);
         $this->ensureMonthBelongsTo($fiscalperiod, $monthlyPeriod);
 
-        $financials = $this->financials->forMonth($fiscalperiod, $monthlyPeriod);
+        [$consolidated, $showingAll, $selectedProperty, $scopePropertyId] = $this->resolveScope($propertyContext);
+
+        $financials = $this->financials->forMonth($fiscalperiod, $monthlyPeriod, $scopePropertyId);
+        ['opening' => $openingBalance, 'closing' => $closingBalance, 'closing_is_firm' => $closingIsFirm]
+            = $this->monthBalances($fiscalperiod, $monthlyPeriod, $financials, $consolidated, $scopePropertyId);
         $balanceSheet = $this->balanceSheetService->summaryAsOf($fiscalperiod, $monthlyPeriod);
 
-        return view('admin.fiscalperiod.monthly-period-pdf', compact('fiscalperiod', 'monthlyPeriod', 'financials', 'balanceSheet'));
+        return view('admin.fiscalperiod.monthly-period-pdf', compact(
+            'fiscalperiod', 'monthlyPeriod', 'financials', 'balanceSheet',
+            'consolidated', 'showingAll', 'selectedProperty', 'openingBalance', 'closingBalance', 'closingIsFirm'
+        ));
     }
 
     public function exportCSV(FiscalPeriods $fiscalperiod, PropertyContext $propertyContext)
@@ -457,16 +482,100 @@ class FiscalPeriodController extends Controller
     // ============================================================
 
     /**
-     * Stamp each MonthlyPeriod with live_income/expenses/net for view rendering.
-     * (We don't persist these — they're derived from the Accounts ledger.)
+     * Resolve the active property scope for the fiscal-period display pages.
+     *
+     * A single-property account (or the explicit "All properties" view) is
+     * treated as *consolidated*: it reads the stored account-wide cash
+     * carry-forward and offers the real month-close controls. When one property
+     * is selected out of several, the figures are scoped to that property and
+     * the balance flow becomes a live running total — the month-close, owner
+     * draws and balance sheet stay account-wide (only offered when consolidated).
+     *
+     * @return array{0: bool, 1: bool, 2: \App\Models\Property|null, 3: int|null}
+     *                                                                            [consolidated, showingAll, selectedProperty, scopePropertyId]
      */
-    private function attachLiveFinancials($monthlyPeriods, FiscalPeriods $fiscalPeriod)
+    private function resolveScope(PropertyContext $propertyContext): array
     {
+        $showingAll = $propertyContext->showingAllProperties();
+        $consolidated = $showingAll || $propertyContext->hasSingleProperty();
+        $selectedProperty = $consolidated ? null : $propertyContext->activeProperty();
+
+        return [$consolidated, $showingAll, $selectedProperty, $selectedProperty?->id];
+    }
+
+    /**
+     * Opening/closing cash balance for a single month.
+     *
+     * Consolidated: use the stored account-wide carry-forward (firm once the
+     * month is closed). Per-property: no stored balance exists, so build a live
+     * running total from the property's net income across the period's earlier
+     * months (owner draws stay account-wide and are excluded here).
+     *
+     * @return array{opening: float, closing: float, closing_is_firm: bool}
+     */
+    private function monthBalances(
+        FiscalPeriods $fiscalPeriod,
+        MonthlyPeriod $monthlyPeriod,
+        array $financials,
+        bool $consolidated,
+        ?int $propertyId,
+    ): array {
+        if ($consolidated) {
+            $opening = (float) $monthlyPeriod->opening_balance;
+            $firm = $monthlyPeriod->isClosed();
+
+            return [
+                'opening' => $opening,
+                'closing' => $firm ? (float) $monthlyPeriod->closing_balance : $opening + $financials['net_income'],
+                'closing_is_firm' => $firm,
+            ];
+        }
+
+        $opening = 0.0;
+        $earlierMonths = $fiscalPeriod->monthlyPeriods()
+            ->where('start_date', '<', $monthlyPeriod->start_date)
+            ->orderBy('start_date')
+            ->get();
+        foreach ($earlierMonths as $earlier) {
+            $opening += $this->financials->forMonth($fiscalPeriod, $earlier, $propertyId)['net_income'];
+        }
+
+        return [
+            'opening' => round($opening, 2),
+            'closing' => round($opening + $financials['net_income'], 2),
+            'closing_is_firm' => false,
+        ];
+    }
+
+    /**
+     * Stamp each MonthlyPeriod with live income/expenses/net and a running
+     * opening/closing balance for view rendering. (We don't persist these —
+     * they're derived from the Accounts ledger.)
+     *
+     * Consolidated uses the stored account-wide carry-forward; a per-property
+     * scope rebuilds the running balance live from that property's net income
+     * (starting at zero, owner draws excluded).
+     */
+    private function attachLiveFinancials($monthlyPeriods, FiscalPeriods $fiscalPeriod, bool $consolidated, ?int $propertyId)
+    {
+        $running = 0.0;
+
         foreach ($monthlyPeriods as $month) {
-            $data = $this->financials->forMonth($fiscalPeriod, $month);
+            $data = $this->financials->forMonth($fiscalPeriod, $month, $propertyId);
             $month->live_income = $data['total_income'];
             $month->live_expenses = $data['total_expenses'];
             $month->live_net = $data['net_income'];
+
+            if ($consolidated) {
+                $month->live_opening = (float) $month->opening_balance;
+                $month->live_closing = $month->isClosed()
+                    ? (float) $month->closing_balance
+                    : (float) $month->opening_balance + $data['net_income'];
+            } else {
+                $month->live_opening = round($running, 2);
+                $month->live_closing = round($running + $data['net_income'], 2);
+                $running = $month->live_closing;
+            }
         }
 
         return $monthlyPeriods;

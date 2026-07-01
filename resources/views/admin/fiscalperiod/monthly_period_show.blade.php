@@ -2,7 +2,7 @@
 
 @section('content')
 <div class="container mx-auto py-8 max-w-4xl"
-     x-data="{ closeOpen: false, withdrawal: '', available: {{ $monthlyPeriod->opening_balance + $financials['net_income'] }} }">
+     x-data="{ closeOpen: false, withdrawal: '', available: {{ $openingBalance + $financials['net_income'] }} }">
     {{-- Header with navigation --}}
     <div class="flex items-start justify-between mb-6 gap-4">
         <div>
@@ -17,14 +17,14 @@
             </p>
         </div>
         <div class="flex flex-wrap gap-2 justify-end">
-            @if($monthlyPeriod->canClose())
+            @if($consolidated && $monthlyPeriod->canClose())
                 {{-- Close Month (opens withdrawal modal) --}}
                 <button type="button" @click="closeOpen = true; withdrawal = ''"
                         class="text-sm bg-amber-600 text-white px-3 py-2 rounded-lg hover:bg-amber-700 flex items-center" title="{{ __('messages.close_month') }}">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
                 </button>
             @endif
-            @if($monthlyPeriod->canReopen())
+            @if($consolidated && $monthlyPeriod->canReopen())
                 {{-- Reopen Month --}}
                 <form method="POST" action="{{ route('admin.fiscalperiod.monthly-period.reopen', [$fiscalperiod->id, $monthlyPeriod->id]) }}" data-confirm="Reopen {{ $monthlyPeriod->name }}?">
                     @csrf
@@ -82,11 +82,34 @@
         </div>
     </div>
 
+    @if($selectedProperty)
+        {{-- Per-property live view: figures and the running balance are scoped to
+             this property; the account-wide close / owner draws / balance sheet
+             live in the All Properties view. --}}
+        <div class="bg-sky-50 border border-sky-200 rounded-lg p-4 mb-6 flex items-start gap-3">
+            <svg class="w-5 h-5 text-sky-600 mt-0.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+            <div class="flex-1">
+                <p class="text-sm font-semibold text-sky-800">{{ __('messages.fp_showing_property', ['name' => $selectedProperty->name]) }}</p>
+                <p class="text-sm text-sky-700/90 mt-1">{{ __('messages.fp_property_scope_notice') }}</p>
+            </div>
+        </div>
+    @elseif($showingAll)
+        {{-- Consolidated view: figures span every property; carry-forward, owner
+             draws and month-close are account-wide. --}}
+        <div class="bg-amber-50 border border-amber-200 rounded-lg p-4 mb-6 flex items-start gap-3">
+            <svg class="w-5 h-5 text-amber-600 mt-0.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+            <div class="flex-1">
+                <p class="text-sm font-semibold text-amber-800">{{ __('messages.all_properties_consolidated') }}</p>
+                <p class="text-sm text-amber-700/90 mt-1">{{ __('messages.mp_consolidated_notice') }}</p>
+            </div>
+        </div>
+    @endif
+
     {{-- Balance Flow --}}
     <div class="grid grid-cols-2 md:grid-cols-5 gap-3 mb-6">
         <div class="bg-white rounded-lg shadow p-4 text-center">
             <p class="text-xs text-gray-500">{{ __('messages.opening') }}</p>
-            <p class="text-lg font-bold mt-1">{{ money($monthlyPeriod->opening_balance) }}</p>
+            <p class="text-lg font-bold mt-1">{{ money($openingBalance) }}</p>
         </div>
         <div class="bg-white rounded-lg shadow p-4 text-center">
             <p class="text-xs text-gray-500">{{ __('messages.income') }}</p>
@@ -105,16 +128,16 @@
         <div class="bg-white rounded-lg shadow p-4 text-center">
             <p class="text-xs text-gray-500">{{ __('messages.closing') }}</p>
             <p class="text-lg font-bold mt-1">
-                @if($monthlyPeriod->isClosed())
-                    {{ money($monthlyPeriod->closing_balance) }}
+                @if($closingIsFirm)
+                    {{ money($closingBalance) }}
                 @else
-                    <span class="text-gray-400">{{ money($monthlyPeriod->opening_balance + $financials['net_income']) }}</span>
+                    <span class="text-gray-400">{{ money($closingBalance) }}</span>
                 @endif
             </p>
         </div>
     </div>
 
-    @if($monthlyPeriod->isClosed() && $monthlyPeriod->owner_withdrawal > 0)
+    @if($consolidated && $monthlyPeriod->isClosed() && $monthlyPeriod->owner_withdrawal > 0)
         {{-- Owner profit withdrawal (a draw — reduces carried cash, not net income) --}}
         <div class="bg-purple-50 border border-purple-200 rounded-lg p-4 mb-6 flex items-start gap-3">
             <svg class="w-5 h-5 text-purple-600 mt-0.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2-4h10a2 2 0 012 2v6a2 2 0 01-2 2H9a2 2 0 01-2-2v-6a2 2 0 012-2zm7 5a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
@@ -160,7 +183,8 @@
         </div>
     </div>
 
-    {{-- Balance Sheet as of this month end (auto-calculated) --}}
+    {{-- Balance Sheet as of this month end (auto-calculated, account-wide) --}}
+    @if($consolidated)
     <div class="bg-white rounded-lg shadow p-5 mb-6">
         <div class="flex items-center justify-between mb-3">
             <h3 class="font-semibold text-sm text-gray-700">Balance Sheet — as of {{ $monthlyPeriod->end_date->format('M d, Y') }}</h3>
@@ -188,9 +212,10 @@
             − owner draws {{ money($balanceSheet['owner_withdrawals']) }}.
         </p>
     </div>
+    @endif
 
     {{-- Close-month modal: capture owner profit withdrawal --}}
-    @if($monthlyPeriod->canClose())
+    @if($consolidated && $monthlyPeriod->canClose())
     <div x-show="closeOpen" x-cloak
          class="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/40 p-4 sm:items-center"
          @keydown.escape.window="closeOpen = false">

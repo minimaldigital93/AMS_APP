@@ -60,6 +60,11 @@
     <h1>{{ __('messages.monthly_transaction_summary') }}</h1>
     <p>{{ $monthlyPeriod->name }} &nbsp;|&nbsp; {{ $monthlyPeriod->start_date->format('M d, Y') }} – {{ $monthlyPeriod->end_date->format('M d, Y') }}</p>
     <p>Fiscal Period: {{ $fiscalperiod->name }}</p>
+    @if($selectedProperty)
+        <p style="color:#0369a1;font-size:11px;margin-top:6px;">{{ __('messages.fp_showing_property', ['name' => $selectedProperty->name]) }}</p>
+    @elseif(! empty($showingAll))
+        <p style="color:#b45309;font-size:11px;margin-top:6px;">{{ __('messages.all_properties_consolidated') }}</p>
+    @endif
 </div>
 
 <div class="meta">
@@ -77,15 +82,15 @@
     </div>
     <div>
         <div class="label">{{ __('messages.opening_balance') }}</div>
-        <div class="value">{{ money($monthlyPeriod->opening_balance) }}</div>
+        <div class="value">{{ money($openingBalance) }}</div>
     </div>
     <div>
         <div class="label">{{ __('messages.closing_balance') }}</div>
         <div class="value">
-            @if($monthlyPeriod->isClosed())
-                {{ money($monthlyPeriod->closing_balance) }}
+            @if($closingIsFirm)
+                {{ money($closingBalance) }}
             @else
-                {{ money($monthlyPeriod->opening_balance + $financials['net_income']) }} <span style="font-size:10px;color:#6b7280;">(projected)</span>
+                {{ money($closingBalance) }} <span style="font-size:10px;color:#6b7280;">(projected)</span>
             @endif
         </div>
     </div>
@@ -99,7 +104,7 @@
 <div class="balance-flow">
     <div class="flow-card">
         <div class="label">{{ __('messages.opening') }}</div>
-        <div class="amount">{{ money($monthlyPeriod->opening_balance) }}</div>
+        <div class="amount">{{ money($openingBalance) }}</div>
     </div>
     <div class="flow-card income">
         <div class="label">+ Income</div>
@@ -115,7 +120,7 @@
             {{ $financials['net_income'] >= 0 ? '+' : '' }}{{ money($financials['net_income']) }}
         </div>
     </div>
-    @if($monthlyPeriod->owner_withdrawal > 0)
+    @if($consolidated && $monthlyPeriod->owner_withdrawal > 0)
     <div class="flow-card">
         <div class="label">− Owner Draw</div>
         <div class="amount" style="color:#7c3aed">{{ money($monthlyPeriod->owner_withdrawal) }}</div>
@@ -123,13 +128,7 @@
     @endif
     <div class="flow-card">
         <div class="label">{{ __('messages.closing') }}</div>
-        <div class="amount">
-            @if($monthlyPeriod->isClosed())
-                {{ money($monthlyPeriod->closing_balance) }}
-            @else
-                {{ money($monthlyPeriod->opening_balance + $financials['net_income']) }}
-            @endif
-        </div>
+        <div class="amount">{{ money($closingBalance) }}</div>
     </div>
 </div>
 
@@ -220,7 +219,7 @@
     </div>
 </div>
 
-@if($monthlyPeriod->owner_withdrawal > 0)
+@if($consolidated && $monthlyPeriod->owner_withdrawal > 0)
 {{-- Owner Profit Withdrawal (owner's draw — not an expense) --}}
 <div style="background:#faf5ff;border:1px solid #d8b4fe;border-radius:6px;padding:16px 20px;display:flex;justify-content:space-between;align-items:center;margin-bottom:24px;">
     <div>
@@ -233,7 +232,8 @@
 </div>
 @endif
 
-{{-- Balance Sheet as of this month end (auto-calculated) --}}
+{{-- Balance Sheet as of this month end (auto-calculated, account-wide) --}}
+@if($consolidated)
 <div style="margin-bottom:24px;">
     <div style="font-size:12px;color:#6b7280;font-weight:600;text-transform:uppercase;margin-bottom:8px;">
         Balance Sheet — as of {{ $monthlyPeriod->end_date->format('M d, Y') }}
@@ -256,6 +256,7 @@
         </tbody>
     </table>
 </div>
+@endif
 
 <div class="footer">
     <p>Generated on {{ now()->format('F d, Y \a\t H:i') }} &nbsp;|&nbsp; {{ $fiscalperiod->name }} &nbsp;|&nbsp; For official use only</p>
