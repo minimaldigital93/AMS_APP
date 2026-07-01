@@ -161,12 +161,29 @@ class RevenueExpenseController extends Controller
         $filterMonth = request('month') ? (int) request('month') : null;
         $filterYear = request('year') ? (int) request('year') : null;
 
+        $periodMonths = $this->buildPeriodMonths($activePeriod);
+
+        // When landing on the page without an explicit month filter (e.g. clicking
+        // "Revenue & Expense" in the sidebar), default the calendar to the current
+        // month — but only if it falls within the active period, so a closed/past
+        // period still opens on its whole range instead of clamping oddly.
+        if (! $filterMonth && ! $filterYear) {
+            $nowMonth = now()->month;
+            $nowYear = now()->year;
+            $currentInPeriod = collect($periodMonths)->contains(
+                fn ($pm) => $pm['month'] === $nowMonth && $pm['year'] === $nowYear
+            );
+
+            if ($currentInPeriod) {
+                $filterMonth = $nowMonth;
+                $filterYear = $nowYear;
+            }
+        }
+
         // Get date range (clamped to fiscal period bounds)
         $dateRange = $this->getFilteredDateRange($activePeriod, $filterMonth, $filterYear);
         $startDate = $dateRange['start'];
         $endDate = $dateRange['end'];
-
-        $periodMonths = $this->buildPeriodMonths($activePeriod);
 
         // ===== DASHBOARD DATA =====
         $revenueExpenseData = $this->getRevenueExpenseData($startDate, $endDate);
