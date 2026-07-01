@@ -263,9 +263,8 @@
 
         /* Section header title styling */
         .section-title {
-            font-size: 0.75rem;
-            letter-spacing: 0.05em;
-            font-weight: 700;
+            font-size: 0.875rem; /* match Dashboard label (text-sm) */
+            font-weight: 500; /* match Dashboard label (font-medium) */
             color: #374151; /* match Dashboard label (text-gray-700) */
             position: relative;
             z-index: 1;
