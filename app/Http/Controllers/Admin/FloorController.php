@@ -155,17 +155,16 @@ class FloorController extends Controller
             'apartments' => 'nullable|array',
             'apartments.*.apartment_number' => [
                 'required', 'string', 'max:255', 'distinct',
-                // Scope uniqueness to the property (resolved server-side above) so a
-                // unit "101" can exist in more than one property of the same account.
-                Rule::unique('apartments', 'apartment_number')
-                    ->where('property_id', $propertyId)
-                    ->whereNull('deleted_at'),
+                // Uniqueness is per-floor (matching the DB index on
+                // floor_id + apartment_number). This is a brand-new floor, so no
+                // existing room can belong to it yet — `distinct` is what stops the
+                // batch from listing the same number twice. A unit "101" may still
+                // exist on other floors of this property (and in other properties).
             ],
             'apartments.*.monthly_rent' => 'nullable|numeric|min:0',
             'apartments.*.status' => 'nullable|in:available,occupied',
         ], [
             'floor_name.unique' => __('messages.validation_floor_name_taken'),
-            'apartments.*.apartment_number.unique' => __('messages.validation_apartment_number_taken_generic'),
             'apartments.*.apartment_number.distinct' => __('messages.validation_apartment_number_taken_generic'),
         ]);
         $validated = convert_money_input($validated, ['monthly_rent', 'deposit', 'apartments.*.monthly_rent']);
@@ -218,9 +217,11 @@ class FloorController extends Controller
                     'required',
                     'string',
                     'max:255',
-                    // Unique within this floor's property, not the whole account.
+                    // Per-floor uniqueness (matching the DB index): the same unit
+                    // number may live on other floors of this property, just not
+                    // twice on this one.
                     Rule::unique('apartments', 'apartment_number')
-                        ->where('property_id', $floor->property_id)
+                        ->where('floor_id', $floor->id)
                         ->whereNull('deleted_at'),
                 ],
                 'monthly_rent' => 'nullable|numeric|min:0',

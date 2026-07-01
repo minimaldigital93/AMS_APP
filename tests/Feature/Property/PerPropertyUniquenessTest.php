@@ -6,6 +6,7 @@ use App\Models\Property;
 
 use function Pest\Laravel\actingAs;
 use function Pest\Laravel\post;
+use function Pest\Laravel\put;
 
 uses(\Illuminate\Foundation\Testing\RefreshDatabase::class);
 
@@ -71,6 +72,76 @@ it('blocks a duplicate unit number on the same floor', function () {
         'floor_id' => $f1->id,
         'monthly_rent' => 0,
         'status' => 'available',
+    ])->assertSessionHasErrors('apartment_number');
+
+    expect(Apartments::where('apartment_number', '101')->count())->toBe(1);
+});
+
+it('allows a new floor to reuse a unit number already used on another floor of the property', function () {
+    $admin = makeAdmin();
+    actingAs($admin);
+
+    $p1 = Property::create(['name' => 'Alpha']);
+    $f1 = Floors::create(['property_id' => $p1->id, 'floor_name' => 'F1']);
+    Apartments::create(['floor_id' => $f1->id, 'apartment_number' => '101', 'monthly_rent' => 0, 'status' => 'available']);
+
+    // Active property defaults to Alpha; the merged floors+rooms create form posts
+    // the new floor together with its rooms.
+    post(route('admin.floors.store'), [
+        'floor_name' => 'F2',
+        'apartments' => [
+            ['apartment_number' => '101', 'monthly_rent' => 0, 'status' => 'available'],
+        ],
+    ])->assertSessionHasNoErrors();
+
+    expect(Apartments::where('apartment_number', '101')->count())->toBe(2);
+});
+
+it('blocks a duplicate unit number within the same new floor batch', function () {
+    $admin = makeAdmin();
+    actingAs($admin);
+
+    Property::create(['name' => 'Alpha']);
+
+    post(route('admin.floors.store'), [
+        'floor_name' => 'F1',
+        'apartments' => [
+            ['apartment_number' => '101', 'monthly_rent' => 0, 'status' => 'available'],
+            ['apartment_number' => '101', 'monthly_rent' => 0, 'status' => 'available'],
+        ],
+    ])->assertSessionHasErrors('apartments.0.apartment_number');
+});
+
+it('allows adding a unit to a floor when the number exists on another floor', function () {
+    $admin = makeAdmin();
+    actingAs($admin);
+
+    $p1 = Property::create(['name' => 'Alpha']);
+    $f1 = Floors::create(['property_id' => $p1->id, 'floor_name' => 'F1']);
+    $f2 = Floors::create(['property_id' => $p1->id, 'floor_name' => 'F2']);
+    Apartments::create(['floor_id' => $f1->id, 'apartment_number' => '101', 'monthly_rent' => 0, 'status' => 'available']);
+
+    put(route('admin.floors.update', $f2), [
+        'action' => 'add_apartment',
+        'apartment_number' => '101',
+        'monthly_rent' => 0,
+    ])->assertSessionHasNoErrors();
+
+    expect(Apartments::where('apartment_number', '101')->count())->toBe(2);
+});
+
+it('blocks adding a duplicate unit number to the same floor', function () {
+    $admin = makeAdmin();
+    actingAs($admin);
+
+    $p1 = Property::create(['name' => 'Alpha']);
+    $f1 = Floors::create(['property_id' => $p1->id, 'floor_name' => 'F1']);
+    Apartments::create(['floor_id' => $f1->id, 'apartment_number' => '101', 'monthly_rent' => 0, 'status' => 'available']);
+
+    put(route('admin.floors.update', $f1), [
+        'action' => 'add_apartment',
+        'apartment_number' => '101',
+        'monthly_rent' => 0,
     ])->assertSessionHasErrors('apartment_number');
 
     expect(Apartments::where('apartment_number', '101')->count())->toBe(1);
