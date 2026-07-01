@@ -1,50 +1,54 @@
 @extends('layouts.admin')
 
-@section('title','Floor Management')
+@section('title', __('messages.floors_and_rooms'))
 
 @section('content')
 <div class="max-w-6xl mx-auto space-y-8">
     <!-- Header -->
+    {{-- Property scoping is driven by the top-bar selector; on "All properties"
+         each floor below is tagged with its building. Rooms are listed inline
+         under each floor via the collapsible dropdown. --}}
     <div class="flex items-center justify-between gap-3">
         <div>
-            <h1 class="text-2xl font-semibold text-slate-800 tracking-tight">{{ __('messages.floor_management') }}</h1>
+            <h1 class="text-2xl font-semibold text-slate-800 tracking-tight">{{ __('messages.floors_and_rooms') }}</h1>
         </div>
         <div class="flex items-center gap-2">
-            <a href="{{ route('admin.floors.create') }}" class="inline-flex items-center gap-2 bg-slate-800 hover:bg-slate-700 text-white text-sm font-medium py-2.5 px-5 rounded-lg transition" title="Add Floor">
+            <a href="{{ route('admin.floors.create') }}" class="inline-flex items-center gap-2 bg-slate-800 hover:bg-slate-700 text-white text-sm font-medium py-2.5 px-5 rounded-lg transition" title="{{ __('messages.add_floor') }}">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" />
-                </svg></a>
+                </svg>
+            </a>
         </div>
     </div>
 
-    <!-- Floors -->
+    <!-- Floors (each expands to its rooms) -->
     <div class="space-y-5">
         @forelse($floors as $floor)
+        @php
+            $total = $floor->apartments->count();
+            $available = $floor->apartments->where('status', 'available')->count();
+            $occupied = $floor->apartments->where('status', 'occupied')->count();
+        @endphp
         <div class="bg-white rounded-xl border border-slate-100 overflow-hidden hover:border-slate-200 transition">
-            <!-- Floor Header -->
-            <div class="p-5">
-                <div class="flex items-center justify-between">
-                    <div class="flex items-center gap-3">
-                        <div class="w-10 h-10 rounded-lg bg-slate-100 flex items-center justify-center">
+            <details class="group">
+                <summary class="flex items-center justify-between gap-3 cursor-pointer px-6 py-4 hover:bg-slate-50/50 transition">
+                    <div class="flex items-center gap-3 min-w-0">
+                        <div class="w-9 h-9 rounded-lg bg-slate-100 flex items-center justify-center flex-shrink-0">
                             <svg class="w-5 h-5 text-slate-500" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" d="M2.25 21h19.5m-18-18v18m10.5-18v18m6-13.5V21M6.75 6.75h.75m-.75 3h.75m-.75 3h.75m3-6h.75m-.75 3h.75m-.75 3h.75M6.75 21v-3.375c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21M3 3h12m-.75 4.5H21m-3.75 3H21m-3.75 3H21" />
                             </svg>
                         </div>
-                        <div>
-                            <h3 class="text-lg font-semibold text-slate-800">{{ $floor->floor_name }}</h3>
+                        <div class="min-w-0">
+                            <h2 class="text-base font-semibold text-slate-800 truncate">{{ $floor->floor_name }}</h2>
                             @if($showingAll && $floor->property)
-                            <span class="inline-flex items-center gap-1 mt-0.5 text-xs text-slate-400">
+                            <span class="inline-flex items-center gap-1 text-xs text-slate-400">
                                 <span class="material-icons text-[13px] leading-none">apartment</span>
                                 {{ $floor->property->name }}
                             </span>
                             @endif
                         </div>
                     </div>
-                    @php
-                        $total = $floor->apartments->count();
-                        $available = $floor->apartments->where('status', 'available')->count();
-                        $occupied = $floor->apartments->where('status', 'occupied')->count();
-                    @endphp
+
                     <div class="flex items-center gap-4">
                         <div class="flex items-center gap-1.5" title="{{ __('messages.total') }}">
                             <span class="w-2 h-2 rounded-full bg-slate-300"></span>
@@ -60,22 +64,15 @@
                         </div>
                     </div>
 
-                    <!-- Actions -->
-                    <div class="flex items-center gap-1">
-                        <button type="button" onclick="openApartmentsModal('modal-floor-{{ $floor->id }}')"
-                           class="text-slate-500 hover:text-slate-700 p-2 rounded-lg bg-slate-50/40 hover:bg-slate-100/60 transition" title="{{ __('messages.apartments') }}">
-                            <svg class="w-[18px] h-[18px]" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z" />
-                                <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                            </svg>
-                        </button>
+                    <!-- Floor Actions (stopPropagation so they don't toggle the dropdown) -->
+                    <div class="flex items-center gap-1" onclick="event.stopPropagation()">
                         <a href="{{ route('admin.floors.edit', $floor) }}"
                            class="text-sky-600 hover:text-sky-700 p-2 rounded-lg bg-sky-50/20 hover:bg-sky-50/40 transition" title="{{ __('messages.edit_floor') }}">
                             <svg class="w-[18px] h-[18px]" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125" />
                             </svg>
                         </a>
-                        <form method="POST" action="{{ route('admin.floors.destroy', $floor) }}" class="inline" data-confirm="Are you sure you want to delete {{ $floor->floor_name }}? This action cannot be undone. All apartments will also be deleted.">
+                        <form method="POST" action="{{ route('admin.floors.destroy', $floor) }}" class="inline" data-confirm="{{ __('messages.confirm_delete_floor', ['name' => $floor->floor_name]) }}">
                             @csrf
                             @method('DELETE')
                             <button type="submit" class="text-red-500 hover:text-red-600 p-2 rounded-lg bg-red-50/20 hover:bg-red-50/40 transition" title="{{ __('messages.delete_floor') }}">
@@ -85,9 +82,312 @@
                             </button>
                         </form>
                     </div>
-                </div>
-            </div>
 
+                    <svg class="w-4 h-4 text-slate-400 group-open:rotate-90 transition-transform flex-shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7" />
+                    </svg>
+                </summary>
+
+                @if($floor->apartments->count() > 0)
+                <!-- Rooms Table (desktop) -->
+                <div class="hidden md:block overflow-x-auto border-t border-slate-50">
+                <table class="w-full">
+                    <thead>
+                        <tr class="bg-slate-50/80">
+                            <th class="px-4 py-3 text-left text-[11px] font-medium text-slate-400 uppercase tracking-wider">No</th>
+                            <th class="px-4 py-3 text-left text-[11px] font-medium text-slate-400 uppercase tracking-wider">{{ __('messages.apartment') }}</th>
+                            <th class="px-4 py-3 text-left text-[11px] font-medium text-slate-400 uppercase tracking-wider">{{ __('messages.tenant') }}</th>
+                            <th class="px-4 py-3 text-left text-[11px] font-medium text-slate-400 uppercase tracking-wider">{{ __('messages.monthly_rent') }}</th>
+                            <th class="px-4 py-3 text-left text-[11px] font-medium text-slate-400 uppercase tracking-wider">{{ __('messages.status') }}</th>
+                            <th class="px-4 py-3 text-left text-[11px] font-medium text-slate-400 uppercase tracking-wider">{{ __('messages.stay_duration') }}</th>
+                            <th class="px-4 py-3 text-left text-[11px] font-medium text-slate-400 uppercase tracking-wider">{{ __('messages.supervisor') }}</th>
+                            <th class="px-4 py-3 text-right text-[11px] font-medium text-slate-400 uppercase tracking-wider">{{ __('messages.actions') }}</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-50">
+                        @foreach($floor->apartments as $apartment)
+                        @php
+                            $tenant = $apartment->tenants->whereNull('deleted_at')->sortByDesc('id')->first();
+                        @endphp
+                        <tr class="hover:bg-slate-50/50 transition">
+                            <td class="px-4 py-3 text-sm text-slate-500">{{ $loop->iteration }}</td>
+                            <td class="px-4 py-3">
+                                <div class="flex items-center gap-2">
+                                    <span class="w-1.5 h-1.5 rounded-full {{
+                                        $apartment->status === 'available' ? 'bg-emerald-400' :
+                                        ($apartment->status === 'occupied' ? 'bg-sky-400' : 'bg-amber-400')
+                                    }}" title="{{ __('messages.' . $apartment->status) }}"></span>
+                                    <span class="text-sm font-medium text-slate-700">{{ $apartment->apartment_number }}</span>
+                                </div>
+                            </td>
+                            <td class="px-4 py-3">
+                                @if($tenant)
+                                    <div class="flex items-center gap-2.5">
+                                        @if($tenant->photo_path && !str_ends_with($tenant->photo_path, '.pdf'))
+                                            <img src="{{ asset('storage/' . $tenant->photo_path) }}" alt="{{ $tenant->name }}" class="h-7 w-7 rounded-full object-cover border border-slate-200">
+                                        @else
+                                            <div class="h-7 w-7 rounded-full bg-slate-100 flex items-center justify-center text-xs font-medium text-slate-500">
+                                                {{ strtoupper(substr($tenant->name, 0, 1)) }}
+                                            </div>
+                                        @endif
+                                        <div>
+                                            <div class="text-sm font-medium text-slate-700">{{ $tenant->name }}</div>
+                                            <div class="text-[11px] text-slate-400">{{ $tenant->phone }}</div>
+                                        </div>
+                                    </div>
+                                @else
+                                    <span class="text-slate-300 text-sm">—</span>
+                                @endif
+                            </td>
+                            <td class="px-4 py-3">
+                                @php
+                                    $rentTenant = $apartment->tenants()->whereNull('deleted_at')->latest()->first();
+                                    $rentRental = $rentTenant ? $apartment->rentals()->where('tenant_id', $rentTenant->id)->latest()->first() : null;
+                                    $rentExpected = (float) ($rentRental->rent_amount ?? $apartment->monthly_rent ?? 0);
+                                @endphp
+                                <span class="text-sm font-medium text-slate-600">{{ money($rentExpected) }}</span>
+                            </td>
+                            <td class="px-4 py-3">
+                                @php
+                                    $statusTextClass = match($apartment->status) {
+                                        'available' => 'text-emerald-600',
+                                        'occupied' => 'text-sky-600',
+                                        default => 'text-slate-500',
+                                    };
+                                    $statusBgClass = match($apartment->status) {
+                                        'available' => 'bg-emerald-400',
+                                        'occupied' => 'bg-sky-400',
+                                        default => 'bg-slate-300',
+                                    };
+                                @endphp
+                                <span class="inline-flex items-center gap-1.5 text-xs font-medium {{ $statusTextClass }}">
+                                    <span class="w-1.5 h-1.5 rounded-full {{ $statusBgClass }}"></span>
+                                    {{ status_label($apartment->status) }}
+                                </span>
+                            </td>
+                            <td class="px-4 py-3">
+                                @php
+                                    $hasMonthlyPeriod = false;
+
+                                    if($tenant && $tenant->move_in_date) {
+                                        $moveInDate = \Carbon\Carbon::parse($tenant->move_in_date);
+                                        $today = now();
+
+                                        if ($tenant->move_out_date) {
+                                            $moveOutDate = \Carbon\Carbon::parse($tenant->move_out_date);
+                                        }
+
+                                        $billingDay = $moveInDate->day;
+                                        if ($today->day >= $billingDay) {
+                                            $periodStart = $today->copy()->day($billingDay)->startOfDay();
+                                        } else {
+                                            $prevMonth = $today->copy()->subMonth();
+                                            $periodStart = $prevMonth->day(min($billingDay, $prevMonth->daysInMonth))->startOfDay();
+                                        }
+                                        $periodEnd = $periodStart->copy()->addMonth()->subDay()->endOfDay();
+                                        if ($periodStart->lt($moveInDate)) $periodStart = $moveInDate->copy();
+                                        if ($tenant->move_out_date && $periodEnd->gt($moveOutDate)) $periodEnd = $moveOutDate->copy()->endOfDay();
+
+                                        $periodTotalDays = max(1, $periodStart->diffInDays($periodEnd));
+                                        $periodDaysPassed = max(0, min($periodTotalDays, $periodStart->diffInDays($today)));
+                                        $periodPercent = min(100, max(0, round(($periodDaysPassed / $periodTotalDays) * 100, 1)));
+                                        $periodDaysLeft = max(0, (int)$today->diffInDays($periodEnd, false));
+
+                                        if ($periodPercent >= 80) {
+                                            $monthBarColor = 'bg-red-400';
+                                            $monthTextColor = 'text-red-500';
+                                        } elseif ($periodPercent >= 50) {
+                                            $monthBarColor = 'bg-amber-400';
+                                            $monthTextColor = 'text-amber-500';
+                                        } else {
+                                            $monthBarColor = 'bg-sky-400';
+                                            $monthTextColor = 'text-sky-500';
+                                        }
+
+                                        $rental = $apartment->rentals()->where('tenant_id', $tenant->id)->latest()->first();
+                                        $expectedAmount = $rental->rent_amount ?? $apartment->monthly_rent ?? 0;
+                                        $paymentPercent = 0;
+
+                                        if ($expectedAmount > 0 && $rental) {
+                                            try {
+                                                $paidAmount = (float) $rental->payments()
+                                                    ->whereNotNull('paid_at')
+                                                    ->whereBetween('due_date', [$periodStart->toDateString(), $periodEnd->toDateString()])
+                                                    ->sum('amount');
+                                                $paymentPercent = min(100, max(0, round(($paidAmount / $expectedAmount) * 100, 1)));
+                                            } catch (\Exception $e) {
+                                                $paymentPercent = 0;
+                                            }
+                                        }
+
+                                        $hasMonthlyPeriod = true;
+                                    }
+                                @endphp
+
+                                @if($tenant && $tenant->move_in_date)
+                                    @if($hasMonthlyPeriod)
+                                    <div class="w-32" title="{{ $periodStart->format('M d') }}–{{ $periodEnd->format('M d') }} ({{ $periodPercent }}%, {{ $periodDaysLeft }}d left)">
+                                        <div class="flex items-center justify-between mb-1">
+                                            <span class="text-[11px] font-medium {{ $monthTextColor }}">
+                                                @if($paymentPercent >= 100)
+                                                    <span class="inline-flex items-center gap-1 text-emerald-500">
+                                                        <svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="3" viewBox="0 0 24 24">
+                                                            <path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+                                                        </svg>
+                                                        {{ __('messages.paid') }}
+                                                    </span>
+                                                @else
+                                                    {{ $periodDaysLeft }}d left
+                                                @endif
+                                            </span>
+                                            <span class="text-[11px] font-medium {{ $monthTextColor }}">{{ $periodPercent }}%</span>
+                                        </div>
+                                        <div class="h-1.5 w-full rounded-full bg-slate-100 overflow-hidden">
+                                            <div class="h-full rounded-full {{ $monthBarColor }}" style="width: {{ $periodPercent }}%"></div>
+                                        </div>
+                                    </div>
+                                    @endif
+                                @else
+                                    <span class="text-slate-300 text-xs">—</span>
+                                @endif
+                            </td>
+                            <td class="px-4 py-3">
+                                @php
+                                    $displaySupervisor = ($tenant?->manager ?? null) ?? $apartment->supervisor;
+                                @endphp
+                                @if($displaySupervisor)
+                                    <span class="text-sm text-slate-600">{{ $displaySupervisor->name }}</span>
+                                @else
+                                    <span class="text-slate-300 text-sm">—</span>
+                                @endif
+                            </td>
+                            <td class="px-4 py-3 text-right">
+                                <div class="flex items-center justify-end gap-1">
+                                    @if(!$tenant || $tenant->status !== 'active')
+                                    <button type="button"
+                                            data-apartment-id="{{ $apartment->id }}"
+                                            data-apartment-number="{{ $apartment->apartment_number }}"
+                                            class="assign-tenant-btn text-emerald-600 hover:text-emerald-700 p-1.5 rounded-lg bg-emerald-50/20 hover:bg-emerald-50 transition"
+                                            title="{{ __('messages.assign_tenant') }}">
+                                        <svg class="w-[16px] h-[16px]" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" />
+                                        </svg>
+                                    </button>
+                                    @endif
+
+                                    <a href="{{ route('admin.apartments.show', $apartment->id) }}"
+                                       title="{{ __('messages.view_apartment') }}"
+                                       class="text-slate-600 hover:text-slate-800 p-1.5 rounded-lg hover:bg-slate-50 transition">
+                                        <svg class="w-[16px] h-[16px]" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z" />
+                                            <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                        </svg>
+                                    </a>
+
+                                    <a href="{{ route('admin.apartments.edit', $apartment->id) }}"
+                                       title="{{ __('messages.edit_apartment') }}"
+                                       class="text-sky-600 hover:text-sky-700 p-1.5 rounded-lg bg-sky-50/20 hover:bg-slate-50 transition">
+                                        <svg class="w-[16px] h-[16px]" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125" />
+                                        </svg>
+                                    </a>
+                                </div>
+                            </td>
+                        </tr>
+                        @endforeach
+                    </tbody>
+                </table>
+                </div>
+
+                <!-- Rooms cards (mobile) -->
+                <div class="md:hidden border-t border-slate-50 divide-y divide-slate-50">
+                    @foreach($floor->apartments as $apartment)
+                        @php
+                            $mTenant = $apartment->tenants()->whereNull('deleted_at')->latest()->first();
+                            $mRental = $mTenant ? $apartment->rentals()->where('tenant_id', $mTenant->id)->latest()->first() : null;
+                            $mRent = (float) ($mRental->rent_amount ?? $apartment->monthly_rent ?? 0);
+                            $mSupervisor = ($mTenant?->manager ?? null) ?? $apartment->supervisor;
+                            $mStatusText = match($apartment->status) {
+                                'available' => 'text-emerald-600',
+                                'occupied' => 'text-sky-600',
+                                default => 'text-slate-500',
+                            };
+                            $mStatusBg = match($apartment->status) {
+                                'available' => 'bg-emerald-400',
+                                'occupied' => 'bg-sky-400',
+                                default => 'bg-slate-300',
+                            };
+                        @endphp
+                        <div class="p-4">
+                            <div class="flex items-start justify-between gap-3">
+                                <div class="flex items-center gap-2 min-w-0">
+                                    <span class="w-1.5 h-1.5 rounded-full {{ $mStatusBg }} flex-shrink-0"></span>
+                                    <span class="text-base font-semibold text-slate-800">{{ $apartment->apartment_number }}</span>
+                                    <span class="inline-flex items-center gap-1.5 text-[11px] font-medium {{ $mStatusText }}">{{ status_label($apartment->status) }}</span>
+                                </div>
+                                <span class="text-sm font-semibold text-slate-700 flex-shrink-0">{{ money($mRent) }}</span>
+                            </div>
+
+                            <div class="mt-3">
+                                @if($mTenant)
+                                    <div class="flex items-center gap-2.5">
+                                        @if($mTenant->photo_path && !str_ends_with($mTenant->photo_path, '.pdf'))
+                                            <img src="{{ asset('storage/' . $mTenant->photo_path) }}" alt="{{ $mTenant->name }}" class="h-9 w-9 rounded-full object-cover border border-slate-200">
+                                        @else
+                                            <div class="h-9 w-9 rounded-full bg-slate-100 flex items-center justify-center text-xs font-medium text-slate-500">{{ strtoupper(substr($mTenant->name, 0, 1)) }}</div>
+                                        @endif
+                                        <div class="min-w-0">
+                                            <div class="text-sm font-medium text-slate-700 truncate">{{ $mTenant->name }}</div>
+                                            <div class="text-[11px] text-slate-400">{{ $mTenant->phone }}</div>
+                                        </div>
+                                    </div>
+                                @else
+                                    <span class="text-slate-300 text-sm">{{ __('messages.vacant') ?? '—' }}</span>
+                                @endif
+                            </div>
+
+                            <div class="mt-3 flex items-center justify-between gap-3">
+                                <div class="text-xs text-slate-400 truncate">
+                                    @if($mSupervisor)
+                                        <span class="text-slate-300">{{ __('messages.supervisor') }}:</span> {{ $mSupervisor->name }}
+                                    @endif
+                                </div>
+                                <div class="flex items-center gap-1 flex-shrink-0">
+                                    @if(!$mTenant || $mTenant->status !== 'active')
+                                    <button type="button"
+                                            data-apartment-id="{{ $apartment->id }}"
+                                            data-apartment-number="{{ $apartment->apartment_number }}"
+                                            class="assign-tenant-btn inline-flex items-center justify-center h-9 w-9 rounded-lg text-emerald-600 bg-emerald-50 active:bg-emerald-100 transition" title="{{ __('messages.assign_tenant') }}">
+                                        <svg class="w-[18px] h-[18px]" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" /></svg>
+                                    </button>
+                                    @endif
+                                    <a href="{{ route('admin.apartments.show', $apartment->id) }}" class="inline-flex items-center justify-center h-9 w-9 rounded-lg text-slate-600 bg-slate-50 active:bg-slate-100 transition" title="{{ __('messages.view_apartment') }}">
+                                        <svg class="w-[18px] h-[18px]" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z" /><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+                                    </a>
+                                    <a href="{{ route('admin.apartments.edit', $apartment->id) }}" class="inline-flex items-center justify-center h-9 w-9 rounded-lg text-sky-600 bg-sky-50 active:bg-sky-100 transition" title="{{ __('messages.edit_apartment') }}">
+                                        <svg class="w-[18px] h-[18px]" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125" /></svg>
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                    @endforeach
+                </div>
+                @else
+                <!-- Empty floor -->
+                <div class="border-t border-slate-50 text-center py-12 px-6">
+                    <div class="w-12 h-12 rounded-xl bg-slate-50 flex items-center justify-center mx-auto mb-3">
+                        <svg class="w-6 h-6 text-slate-300" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M8.25 21v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21m0 0h4.5V3.545M12.75 21h7.5V10.75M2.25 21h1.5m18 0h-18M2.25 9l4.5-1.636M18.75 3l-1.5.545m0 6.205l3 1m1.5.5l-1.5-.5M6.75 7.364V3h-3v18m3-13.636l10.5-3.819" />
+                        </svg>
+                    </div>
+                    <p class="text-slate-500 text-sm font-medium">{{ __('messages.no_apts_this_floor') }}</p>
+                    <a href="{{ route('admin.floors.edit', $floor) }}" class="inline-flex items-center gap-1.5 mt-3 text-sky-600 hover:text-sky-700 text-sm font-medium">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" /></svg>
+                        {{ __('messages.add_apartment') }}
+                    </a>
+                </div>
+                @endif
+            </details>
         </div>
         @empty
         <div class="bg-white rounded-xl border border-slate-100 p-16 text-center">
@@ -110,173 +410,20 @@
     @endif
 </div>
 
-
-<!-- Floor Apartments Modals -->
-@foreach($floors as $floor)
-<div id="modal-floor-{{ $floor->id }}" class="hidden fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-    <div class="bg-white rounded-2xl max-w-4xl w-full max-h-[85vh] overflow-y-auto shadow-xl">
-        <!-- Modal Header -->
-        <div class="p-6 border-b border-slate-100 sticky top-0 bg-white z-10 flex items-center justify-between rounded-t-2xl">
-            <div>
-                <h2 class="text-lg font-semibold text-slate-800">{{ $floor->floor_name }}</h2>
-                <p class="text-slate-400 text-sm mt-0.5">{{ __('messages.apt_units_overview') }}</p>
-            </div>
-            <button onclick="closeApartmentsModal('modal-floor-{{ $floor->id }}')" class="text-slate-300 hover:text-slate-500 p-1 transition">
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"></path>
-                </svg>
-            </button>
-        </div>
-
-        <!-- Modal Body -->
-        <div class="p-6">
-            @if($floor->apartments->count() > 0)
-                <!-- Statistics -->
-                @php
-                    $total = $floor->apartments->count();
-                    $available = $floor->apartments->where('status', 'available')->count();
-                    $occupied = $floor->apartments->where('status', 'occupied')->count();
-                @endphp
-                <div class="grid grid-cols-3 gap-3 mb-6">
-                    <div class="rounded-xl bg-slate-50 p-4">
-                        <p class="text-[11px] text-slate-400 uppercase tracking-wider font-medium">{{ __('messages.total') }}</p>
-                        <p class="text-2xl font-semibold text-slate-700 mt-1">{{ $total }}</p>
-                    </div>
-                    <div class="rounded-xl bg-emerald-50/70 p-4">
-                        <p class="text-[11px] text-emerald-500 uppercase tracking-wider font-medium">{{ __('messages.available') }}</p>
-                        <p class="text-2xl font-semibold text-emerald-700 mt-1">{{ $available }}</p>
-                    </div>
-                    <div class="rounded-xl bg-sky-50/70 p-4">
-                        <p class="text-[11px] text-sky-500 uppercase tracking-wider font-medium">{{ __('messages.occupied') }}</p>
-                        <p class="text-2xl font-semibold text-sky-700 mt-1">{{ $occupied }}</p>
-                    </div>
-                </div>
-
-                <!-- Apartments Table (desktop) -->
-                <div class="hidden md:block overflow-x-auto rounded-xl border border-slate-100">
-                    <table class="w-full">
-                        <thead>
-                            <tr class="bg-slate-50/80">
-                                <th class="px-4 py-3 text-left text-[11px] font-medium text-slate-400 uppercase tracking-wider">{{ __('messages.unit_hash') }}</th>
-                                <th class="px-4 py-3 text-left text-[11px] font-medium text-slate-400 uppercase tracking-wider">{{ __('messages.monthly_rent') }}</th>
-                                <th class="px-4 py-3 text-left text-[11px] font-medium text-slate-400 uppercase tracking-wider">{{ __('messages.status') }}</th>
-                                <th class="px-4 py-3 text-left text-[11px] font-medium text-slate-400 uppercase tracking-wider">{{ __('messages.supervisor') }}</th>
-                            </tr>
-                        </thead>
-                        <tbody class="divide-y divide-slate-50">
-                            @foreach($floor->apartments as $apartment)
-                            <tr class="hover:bg-slate-50/50 transition">
-                                <td class="px-4 py-3">
-                                    <span class="text-sm font-medium text-slate-700">{{ $apartment->apartment_number }}</span>
-                                </td>
-                                <td class="px-4 py-3">
-                                    <span class="text-sm text-slate-600">{{ money($apartment->monthly_rent) }}</span>
-                                </td>
-                                <td class="px-4 py-3">
-                                    <span class="inline-flex items-center gap-1.5 text-xs font-medium
-                                        @if($apartment->status === 'available') text-emerald-600
-                                        @elseif($apartment->status === 'occupied') text-sky-600
-                                        @else text-slate-500
-                                        @endif">
-                                        <span class="w-1.5 h-1.5 rounded-full
-                                            @if($apartment->status === 'available') bg-emerald-400
-                                            @elseif($apartment->status === 'occupied') bg-sky-400
-                                            @else bg-slate-300
-                                            @endif"></span>
-                                        {{ status_label($apartment->status) }}
-                                    </span>
-                                </td>
-                                <td class="px-4 py-3">
-                                    <span class="text-sm text-slate-400">
-                                        {{ $apartment->supervisor ? $apartment->supervisor->name : '—' }}
-                                    </span>
-                                </td>
-                            </tr>
-                            @endforeach
-                        </tbody>
-                    </table>
-                </div>
-
-                <!-- Apartments cards (mobile) -->
-                <div class="md:hidden space-y-2.5">
-                    @foreach($floor->apartments as $apartment)
-                    <div class="rounded-xl border border-slate-100 p-3.5">
-                        <div class="flex items-center justify-between">
-                            <span class="text-sm font-semibold text-slate-700">{{ $apartment->apartment_number }}</span>
-                            <span class="inline-flex items-center gap-1.5 text-xs font-medium
-                                @if($apartment->status === 'available') text-emerald-600
-                                @elseif($apartment->status === 'occupied') text-sky-600
-                                @else text-slate-500
-                                @endif">
-                                <span class="w-1.5 h-1.5 rounded-full
-                                    @if($apartment->status === 'available') bg-emerald-400
-                                    @elseif($apartment->status === 'occupied') bg-sky-400
-                                    @else bg-slate-300
-                                    @endif"></span>
-                                {{ status_label($apartment->status) }}
-                            </span>
-                        </div>
-                        <div class="mt-2 flex items-center justify-between text-sm">
-                            <span class="text-slate-400 text-xs">{{ __('messages.monthly_rent') }}</span>
-                            <span class="text-slate-600 font-medium">{{ money($apartment->monthly_rent) }}</span>
-                        </div>
-                        <div class="mt-1 flex items-center justify-between text-sm">
-                            <span class="text-slate-400 text-xs">{{ __('messages.supervisor') }}</span>
-                            <span class="text-slate-500">{{ $apartment->supervisor ? $apartment->supervisor->name : '—' }}</span>
-                        </div>
-                    </div>
-                    @endforeach
-                </div>
-            @else
-            <div class="text-center py-14">
-                <div class="w-12 h-12 rounded-xl bg-slate-50 flex items-center justify-center mx-auto mb-3">
-                    <svg class="w-6 h-6 text-slate-300" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M8.25 21v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21m0 0h4.5V3.545M12.75 21h7.5V10.75M2.25 21h1.5m18 0h-18M2.25 9l4.5-1.636M18.75 3l-1.5.545m0 6.205l3 1m1.5.5l-1.5-.5M6.75 7.364V3h-3v18m3-13.636l10.5-3.819" />
-                    </svg>
-                </div>
-                <p class="text-slate-500 text-sm font-medium">{{ __('messages.no_apts_this_floor') }}</p>
-                <p class="text-slate-400 text-xs mt-1">{{ __('messages.add_apts_from_mgmt') }}</p>
-            </div>
-            @endif
-        </div>
-
-        <!-- Modal Footer -->
-        <div class="p-5 border-t border-slate-100 sticky bottom-0 bg-white rounded-b-2xl">
-            <button type="button" onclick="closeApartmentsModal('modal-floor-{{ $floor->id }}')" class="w-full text-slate-500 hover:text-slate-700 bg-slate-50 hover:bg-slate-100 text-sm font-medium py-2.5 px-4 rounded-lg transition">
-                Close
-            </button>
-        </div>
-    </div>
-</div>
-@endforeach
+@include('admin.apartments._assign-tenant-modal')
 
 <script>
-function openApartmentsModal(modalId) {
-    document.getElementById(modalId).classList.remove('hidden');
-    document.body.style.overflow = 'hidden';
-}
-
-function closeApartmentsModal(modalId) {
-    document.getElementById(modalId).classList.add('hidden');
-    document.body.style.overflow = '';
-}
-
-document.addEventListener('click', function(event) {
-    document.querySelectorAll('[id^="modal-floor-"]').forEach(modal => {
-        if (event.target === modal) {
-            modal.classList.add('hidden');
-            document.body.style.overflow = '';
-        }
-    });
-});
-
-document.addEventListener('keydown', function(event) {
-    if (event.key === 'Escape') {
-        document.querySelectorAll('[id^="modal-floor-"]').forEach(modal => {
-            modal.classList.add('hidden');
+document.addEventListener('DOMContentLoaded', function() {
+    // Accordion behaviour: opening one floor collapses the others.
+    const floorDetails = document.querySelectorAll('details.group');
+    if (!floorDetails || floorDetails.length === 0) return;
+    floorDetails.forEach(detail => {
+        detail.addEventListener('toggle', function() {
+            if (detail.open) {
+                floorDetails.forEach(d => { if (d !== detail) d.open = false; });
+            }
         });
-        document.body.style.overflow = '';
-    }
+    });
 });
 </script>
 @endsection

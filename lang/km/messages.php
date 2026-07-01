@@ -62,6 +62,7 @@ return [
     'property_management' => 'គ្រប់គ្រងអចលនទ្រព្យ',
     'properties' => 'អចលនទ្រព្យ',
     'floors' => 'ជាន់',
+    'floors_and_rooms' => 'ជាន់ និងបន្ទប់',
     'apartments' => 'បន្ទប់',
     'rooms' => 'បន្ទប់',
     'staff' => 'បុគ្គលិក',
@@ -242,6 +243,7 @@ return [
     'add_floor' => 'បន្ថែមជាន់',
     'edit_floor' => 'កែសម្រួលជាន់',
     'delete_floor' => 'លុបជាន់',
+    'confirm_delete_floor' => 'តើអ្នកប្រាកដថាចង់លុប :name មែនទេ? សកម្មភាពនេះមិនអាចត្រឡប់វិញបានទេ។ ជាន់ត្រូវតែទទេ (គ្មានបន្ទប់) ជាមុនសិន។',
 
     // Apartments
     'apartment_management' => 'គ្រប់គ្រងបន្ទប់',

@@ -18,9 +18,9 @@ it('blocks deleting an apartment that still has an active tenant', function () {
     $tenant = makeTenant($apartment);              // status = active
     makeRental($tenant, $apartment);                // end_date null → ongoing
 
-    $this->from(route('admin.apartments.index'))
+    $this->from(route('admin.floors.index'))
         ->delete(route('admin.apartments.destroy', $apartment))
-        ->assertRedirect(route('admin.apartments.index'))
+        ->assertRedirect(route('admin.floors.index'))
         ->assertSessionHas('error');
 
     // Still present (not soft-deleted).
@@ -30,9 +30,9 @@ it('blocks deleting an apartment that still has an active tenant', function () {
 it('deletes a vacant apartment', function () {
     $apartment = makeApartment();
 
-    $this->from(route('admin.apartments.index'))
+    $this->from(route('admin.floors.index'))
         ->delete(route('admin.apartments.destroy', $apartment))
-        ->assertRedirect(route('admin.apartments.index'))
+        ->assertRedirect(route('admin.floors.index'))
         ->assertSessionHas('success');
 
     expect(Apartments::whereKey($apartment->id)->exists())->toBeFalse();
@@ -43,7 +43,7 @@ it('allows deleting an apartment whose tenant has moved out', function () {
     $tenant = makeTenant($apartment, ['status' => 'inactive']);
     makeRental($tenant, $apartment, ['end_date' => now()->subDay()->toDateString()]);
 
-    $this->from(route('admin.apartments.index'))
+    $this->from(route('admin.floors.index'))
         ->delete(route('admin.apartments.destroy', $apartment))
         ->assertSessionHas('success');
 

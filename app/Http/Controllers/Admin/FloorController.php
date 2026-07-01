@@ -49,11 +49,18 @@ class FloorController extends Controller
             });
         }
 
+        // Rooms are now listed inline under each floor (the merged "Floors And
+        // Rooms" page), so eager-load the tenants/supervisor the room table needs.
         $floors = $query->with(['property', 'apartments' => function ($query) {
-            $query->with('supervisor')->orderBy('apartment_number');
+            $query->with(['supervisor', 'tenants' => fn ($q) => $q->whereNull('deleted_at')])
+                ->orderBy('apartment_number');
         }])->withCount('apartments')->paginate(10)->withQueryString();
 
-        return view('admin.floors.index', compact('floors', 'showingAll', 'properties', 'selectedPropertyId'));
+        // Unassigned active tenants power the "Existing Tenant" tab of the shared
+        // assign-tenant modal embedded on this page.
+        $availableTenants = Tenants::where('status', 'active')->whereNull('apartment_id')->get();
+
+        return view('admin.floors.index', compact('floors', 'showingAll', 'properties', 'selectedPropertyId', 'availableTenants'));
     }
 
     public function create(): View
@@ -123,13 +130,6 @@ class FloorController extends Controller
         $properties = Property::orderBy('name')->get();
 
         return view('admin.floors.edit', compact('floor', 'properties'));
-    }
-
-    public function getApartments(Floors $floor): View
-    {
-        $apartments = $floor->apartments()->paginate(10);
-
-        return view('admin.apartments.index', compact('floor', 'apartments'));
     }
 
     public function store(Request $request)

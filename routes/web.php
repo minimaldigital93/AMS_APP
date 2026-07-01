@@ -162,10 +162,9 @@ Route::middleware(['auth', 'role:admin|superadmin', 'subscription.active'])->gro
     Route::post('/admin/floors', [FloorController::class, 'store'])->name('admin.floors.store');
     Route::put('/admin/floors/{floor}', [FloorController::class, 'update'])->name('admin.floors.update');
     Route::delete('/admin/floors/{floor}', [FloorController::class, 'destroy'])->name('admin.floors.destroy');
-    Route::get('/admin/floors/{floor}/apartments', [FloorController::class, 'getApartments'])->name('admin.floors.apartments');
 
-    // Apartment Management Routes
-    Route::get('/admin/apartments', [ApartmentController::class, 'index'])->name('admin.apartments.index');
+    // Room Routes (the room list lives in the merged "Floors And Rooms" page,
+    // admin.floors.index; these back the room create/show/edit/assign actions).
     Route::get('/admin/apartments/create', [ApartmentController::class, 'create'])->name('admin.apartments.create');
     Route::get('/admin/apartments/{apartment}', [ApartmentController::class, 'show'])->name('admin.apartments.show');
     Route::get('/admin/apartments/{apartment}/edit', [ApartmentController::class, 'edit'])->name('admin.apartments.edit');

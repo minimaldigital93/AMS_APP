@@ -62,6 +62,7 @@ return [
     'property_management' => 'Property Management',
     'properties' => 'Properties',
     'floors' => 'Floors',
+    'floors_and_rooms' => 'Floors And Rooms',
     'apartments' => 'Rooms',
     'rooms' => 'Rooms',
     'staff' => 'Staff',
@@ -242,6 +243,7 @@ return [
     'add_floor' => 'Add Floor',
     'edit_floor' => 'Edit Floor',
     'delete_floor' => 'Delete Floor',
+    'confirm_delete_floor' => 'Are you sure you want to delete :name? This action cannot be undone. The floor must be empty (no rooms) first.',
 
     // Apartments
     'apartment_management' => 'Room Management',

@@ -22,51 +22,6 @@ class ApartmentController extends Controller
 {
     public function __construct(private SubscriptionService $subscriptions) {}
 
-    public function index(Request $request, \App\Services\Property\PropertyContext $propertyContext): View
-    {
-        // The top-bar property selector is the single control for scoping: when
-        // it is on "All properties" we show every building (grouped by floor,
-        // each tagged with its property), otherwise everything is scoped to the
-        // globally active property. current_property_id() is null while showing
-        // all, so it doubles as the effective scope in both cases.
-        $showingAll = $propertyContext->showingAllProperties();
-        $scopeId = current_property_id();
-
-        $query = Apartments::with(['floor.property', 'tenants', 'supervisor'])->forProperty($scopeId);
-
-        // Search functionality
-        if ($request->has('search')) {
-            $search = $request->get('search');
-            $query->where('apartment_number', 'like', "%{$search}%");
-        }
-
-        // Filter by status
-        if ($request->has('status')) {
-            $query->where('status', $request->get('status'));
-        }
-
-        $apartments = $query->get();
-
-        // Group apartments by floor in ascending order
-        $apartmentsByFloor = $apartments->filter(function ($apartment) {
-            return $apartment->floor !== null;
-        })->groupBy(function ($apartment) {
-            return $apartment->floor->id;
-        })->sortBy(function ($group) {
-            return $group->first()->floor->id;
-        });
-
-        $floorsWithApartments = Floors::forProperty($scopeId)->with('apartments')->orderBy('id', 'asc')->get();
-        $floors = Floors::forProperty($scopeId)->with('property')->orderBy('id', 'asc')->get();
-        $statuses = Apartments::getStatuses();
-        $supervisors = User::role('supervisor')->get();
-        // Unassigned tenants are account-wide (no apartment yet) and stay assignable
-        // to any property, so they are intentionally not property-filtered here.
-        $availableTenants = Tenants::where('status', 'active')->whereNull('apartment_id')->get();
-
-        return view('admin.apartments.index', compact('apartmentsByFloor', 'floors', 'floorsWithApartments', 'statuses', 'supervisors', 'availableTenants', 'showingAll'));
-    }
-
     public function create(): View
     {
         $floors = Floors::all();
@@ -138,7 +93,7 @@ class ApartmentController extends Controller
 
         Apartments::create($validated);
 
-        return redirect()->route('admin.apartments.index')->with('success', __('messages.flash_apartment_created'));
+        return redirect()->route('admin.floors.index')->with('success', __('messages.flash_apartment_created'));
     }
 
     public function update(Request $request, Apartments $apartment)
@@ -165,7 +120,7 @@ class ApartmentController extends Controller
 
         $apartment->update($validated);
 
-        return redirect()->route('admin.apartments.index')->with('success', __('messages.flash_apartment_updated'));
+        return redirect()->route('admin.floors.index')->with('success', __('messages.flash_apartment_updated'));
     }
 
     public function assignTenant(Request $request, Apartments $apartment)
@@ -330,7 +285,7 @@ class ApartmentController extends Controller
             );
         }
 
-        return redirect()->route('admin.apartments.index')->with('success', __('messages.flash_tenant_assigned'));
+        return redirect()->route('admin.floors.index')->with('success', __('messages.flash_tenant_assigned'));
     }
 
     public function destroy(Apartments $apartment)
@@ -350,6 +305,6 @@ class ApartmentController extends Controller
             return back()->with('success', __('messages.flash_apartment_deleted'));
         }
 
-        return redirect()->route('admin.apartments.index')->with('success', __('messages.flash_apartment_deleted'));
+        return redirect()->route('admin.floors.index')->with('success', __('messages.flash_apartment_deleted'));
     }
 }

@@ -140,7 +140,7 @@
         <p class="text-gray-500 mb-4">{{ __('messages.no_active_rentals_desc') }}</p>
         <div class="flex justify-center gap-4">
             <a href="{{ route('admin.revenue_expense.fixed_expenses') }}" class="inline-flex items-center px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition">{{ __('messages.setup_apt_costs') }}</a>
-            <a href="{{ route('admin.apartments.index') }}" class="inline-flex items-center px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition">{{ __('messages.manage_apartments') }}</a>
+            <a href="{{ route('admin.floors.index') }}" class="inline-flex items-center px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition">{{ __('messages.manage_apartments') }}</a>
         </div>
     </div>
     @endif
