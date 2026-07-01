@@ -977,7 +977,7 @@ class RevenueExpenseController extends Controller
         }
 
         $tenantName = $rental->tenant->name ?? __('messages.tenant');
-        $aptNumber = $rental->apartment->apartment_number;
+        $aptNumber = ($rental->apartment?->apartment_number ?? 'N/A');
 
         return redirect()->back()
             ->with('print_bill_rental', $rental->id)
@@ -1040,7 +1040,7 @@ class RevenueExpenseController extends Controller
             'rental' => $rental,
             'apartment' => $rental->apartment,
             'tenant' => $rental->tenant,
-            'floor' => $rental->apartment->floor,
+            'floor' => $rental->apartment?->floor,
             'dueDate' => $dueDate,
             'monthYear' => now()->format('F Y'),
             'rent_amount' => $rental->rent_amount,
@@ -1095,7 +1095,7 @@ class RevenueExpenseController extends Controller
             'rental' => $rental,
             'apartment' => $rental->apartment,
             'tenant' => $rental->tenant,
-            'property' => $rental->apartment->property,
+            'property' => $rental->apartment?->property,
             'monthYear' => Carbon::create($year, $month, 1)->format('F Y'),
             'rentAmount' => $rental->rent_amount,
             'utilities' => $utilities,
@@ -1133,7 +1133,7 @@ class RevenueExpenseController extends Controller
             __('messages.flash_income_recorded', [
                 'type' => ucfirst($validated['payment_type']),
                 'amount' => number_format($validated['amount'], 2),
-                'apt' => $rental->apartment->apartment_number,
+                'apt' => ($rental->apartment?->apartment_number ?? 'N/A'),
             ])
         );
     }
@@ -1382,7 +1382,7 @@ class RevenueExpenseController extends Controller
             __('messages.flash_utility_expense_recorded', [
                 'type' => ucfirst($validated['utility_type']),
                 'amount' => number_format($validated['charge_amount'], 2),
-                'apt' => $rental->apartment->apartment_number,
+                'apt' => ($rental->apartment?->apartment_number ?? 'N/A'),
             ])
         );
     }

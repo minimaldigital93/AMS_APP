@@ -39,6 +39,30 @@ it('records rent payment with paired Accounts entry', function () {
     expect($account->account_type)->toBe(Accounts::TYPE_INCOME);
 });
 
+it('records payment without crashing when the rental apartment was soft-deleted', function () {
+    // Apartments use SoftDeletes, and soft-deleting does NOT fire the DB
+    // onDelete('cascade') to rentals — so $rental->apartment legitimately
+    // resolves to null. The ledger description must degrade to "Apt N/A"
+    // instead of throwing "Attempt to read property on null".
+    $this->apartment->delete();
+
+    $rental = $this->rental->fresh();
+    expect($rental->apartment)->toBeNull();
+
+    $this->service->recordPayment($rental, [
+        'amount' => 500,
+        'transaction_date' => '2026-05-01',
+        'payment_method' => 'cash',
+        'payment_type' => 'rent',
+        'late_fee' => 0,
+        'transaction_reference' => null,
+        'note' => null,
+    ]);
+
+    expect(Accounts::count())->toBe(1);
+    expect(Accounts::sole()->description)->toContain('[Apt N/A]');
+});
+
 it('records a separate late-fee Accounts row when late_fee > 0', function () {
     $this->service->recordPayment($this->rental, [
         'amount' => 500,

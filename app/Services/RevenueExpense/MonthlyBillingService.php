@@ -144,7 +144,7 @@ class MonthlyBillingService
             'user_id' => $this->userId,
             'account_type' => Accounts::TYPE_EXPENSE,
             'category' => Accounts::CAT_BUSINESS_FIXED,
-            'description' => '[Apt '.$rental->apartment->apartment_number.'] '.$expenseName.' (monthly)',
+            'description' => '[Apt '.($rental->apartment?->apartment_number ?? 'N/A').'] '.$expenseName.' (monthly)',
             'amount' => $amount,
             'transaction_date' => $billingDate->toDateString(),
             'note' => 'Auto-generated monthly fixed expense',

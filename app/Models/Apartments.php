@@ -112,6 +112,32 @@ class Apartments extends Model
         return $this->hasMany(Rentals::class, 'apartment_id');
     }
 
+    /**
+     * Rentals that are still ongoing — no end date, or an end date in the
+     * future. Mirrors the "active rental" definition used in
+     * ApartmentController::show().
+     */
+    public function activeRentals(): HasMany
+    {
+        return $this->hasMany(Rentals::class, 'apartment_id')
+            ->where(function ($query) {
+                $query->whereNull('end_date')->orWhere('end_date', '>=', now());
+            });
+    }
+
+    /**
+     * True when a tenant currently lives here. Apartments soft-delete, which
+     * does NOT cascade to rentals/tenants at the DB level, so deleting an
+     * occupied unit would leave a live rental pointing at an invisible
+     * apartment ($rental->apartment === null) and break the ledger. Callers
+     * must block deletion when this is true — see ApartmentController::destroy().
+     */
+    public function isCurrentlyOccupied(): bool
+    {
+        return $this->activeRentals()->exists()
+            || $this->tenants()->where('status', 'active')->exists();
+    }
+
     public function fixedExpenses(): HasMany
     {
         return $this->hasMany(ApartmentFixedExpense::class, 'apartment_id');

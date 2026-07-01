@@ -1050,6 +1050,7 @@ return [
     'flash_unit_added' => 'Unit added.',
     'flash_floor_updated' => 'Floor updated.',
     'flash_floor_deleted' => 'Floor deleted.',
+    'flash_floor_has_apartments' => 'Remove this floor\'s apartments before deleting it.',
 
     // Properties
     'add_new_property' => 'Add New Property',
@@ -1090,6 +1091,7 @@ return [
     'flash_apartment_created' => 'Apartment created.',
     'flash_apartment_updated' => 'Apartment updated.',
     'flash_apartment_deleted' => 'Apartment deleted.',
+    'flash_apartment_has_active_tenant' => 'This apartment still has an active tenant. Move the tenant out before deleting it.',
     'flash_tenant_assigned' => 'Tenant assigned.',
     'flash_apartment_not_available' => 'This apartment is not available.',
 

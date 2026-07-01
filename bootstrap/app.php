@@ -49,5 +49,21 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->statefulApi();
     })
     ->withExceptions(function (Exceptions $exceptions): void {
-        //
+        // Attach identifying context to every reported exception so production
+        // errors can be traced back to a user / account / request. This runs on
+        // every log write, so it is fully defensive and must never throw — a
+        // failure here must not mask the original error.
+        $exceptions->context(function (): array {
+            try {
+                return array_filter([
+                    'user_id' => auth()->id(),
+                    'account_id' => function_exists('current_account_id') ? current_account_id() : null,
+                    'url' => request()->fullUrl(),
+                    'method' => request()->method(),
+                    'ip' => request()->ip(),
+                ], fn ($value) => $value !== null);
+            } catch (\Throwable $e) {
+                return [];
+            }
+        });
     })->create();

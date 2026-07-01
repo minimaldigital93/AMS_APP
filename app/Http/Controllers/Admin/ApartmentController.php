@@ -347,6 +347,13 @@ class ApartmentController extends Controller
 
     public function destroy(Apartments $apartment)
     {
+        // Block deletion while a tenant still lives here. Soft-delete does not
+        // cascade to rentals/tenants, so removing an occupied unit would orphan
+        // the live rental ($rental->apartment === null) and break ledger writes.
+        if ($apartment->isCurrentlyOccupied()) {
+            return back()->with('error', __('messages.flash_apartment_has_active_tenant'));
+        }
+
         $apartment->delete();
 
         // Check if request came from floor edit page

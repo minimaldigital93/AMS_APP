@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{{ __('messages.payment_receipt') }} — {{ $tenant->name ?? __('messages.tenant') }} — {{ $apartment->apartment_number }}</title>
+    <title>{{ __('messages.payment_receipt') }} — {{ $tenant->name ?? __('messages.tenant') }} — {{ $apartment?->apartment_number ?? 'N/A' }}</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
@@ -170,7 +170,7 @@
         @if($property)
             <div class="meta-row"><span class="label">{{ __('messages.property_name') }}</span><span class="value">{{ $property->name }}</span></div>
         @endif
-        <div class="meta-row"><span class="label">{{ __('messages.room_number') }}</span><span class="value">{{ $apartment->apartment_number }}</span></div>
+        <div class="meta-row"><span class="label">{{ __('messages.room_number') }}</span><span class="value">{{ $apartment?->apartment_number ?? 'N/A' }}</span></div>
         <div class="meta-row"><span class="label">{{ __('messages.bill_reference_number') }}</span><span class="value">{{ $billReference }}</span></div>
 
         <hr class="divider">

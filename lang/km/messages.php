@@ -1050,6 +1050,7 @@ return [
     'flash_unit_added' => 'បន្ទប់ត្រូវបានបន្ថែម។',
     'flash_floor_updated' => 'ជាន់ត្រូវបានធ្វើបច្ចុប្បន្នភាព។',
     'flash_floor_deleted' => 'ជាន់ត្រូវបានលុប។',
+    'flash_floor_has_apartments' => 'សូមលុបបន្ទប់ទាំងអស់នៃជាន់នេះមុននឹងលុបវា។',
 
     // Properties
     'add_new_property' => 'បន្ថែមអចលនទ្រព្យថ្មី',
@@ -1090,6 +1091,7 @@ return [
     'flash_apartment_created' => 'បន្ទប់ត្រូវបានបង្កើត។',
     'flash_apartment_updated' => 'បន្ទប់ត្រូវបានធ្វើបច្ចុប្បន្នភាព។',
     'flash_apartment_deleted' => 'បន្ទប់ត្រូវបានលុប។',
+    'flash_apartment_has_active_tenant' => 'បន្ទប់នេះនៅមានអ្នកជួលកំពុងស្នាក់នៅ។ សូមឲ្យអ្នកជួលចាកចេញមុននឹងលុបបន្ទប់។',
     'flash_tenant_assigned' => 'អ្នកជួលត្រូវបានកំណត់។',
     'flash_apartment_not_available' => 'បន្ទប់នេះមិនមានសម្រាប់ការកំណត់ទេ។',
 

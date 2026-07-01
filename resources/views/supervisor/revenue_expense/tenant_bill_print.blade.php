@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Bill — {{ $tenant->name ?? 'Tenant' }} — {{ $apartment->apartment_number }} — {{ $monthYear }}</title>
+    <title>Bill — {{ $tenant->name ?? 'Tenant' }} — {{ $apartment?->apartment_number ?? 'N/A' }} — {{ $monthYear }}</title>
     <style>
         * {
             margin: 0;
@@ -335,7 +335,7 @@
             </div>
             <div class="info-block" style="text-align: right;">
                 <h3>{{ __('messages.apartment_details') }}</h3>
-                <p class="name">{{ $apartment->apartment_number }}</p>
+                <p class="name">{{ $apartment?->apartment_number ?? 'N/A' }}</p>
                 <p>Floor {{ $floor->floor_number ?? 'N/A' }}</p>
                 <p>Lease Start: {{ $rental->start_date ? $rental->start_date->format('M d, Y') : 'N/A' }}</p>
             </div>

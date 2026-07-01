@@ -296,6 +296,13 @@ class FloorController extends Controller
 
     public function destroy(Floors $floor)
     {
+        // Don't orphan rooms — a soft-deleted floor leaves its apartments pointing
+        // at an invisible floor ($apartment->floor === null). Require it be empty
+        // first (apartments() already excludes soft-deleted rooms).
+        if ($floor->apartments()->exists()) {
+            return back()->with('error', __('messages.flash_floor_has_apartments'));
+        }
+
         $floor->delete();
 
         return redirect()->route('admin.floors.index')->with('success', __('messages.flash_floor_deleted'));

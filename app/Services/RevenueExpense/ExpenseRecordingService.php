@@ -54,7 +54,7 @@ class ExpenseRecordingService
             'user_id' => $this->userId,
             'account_type' => Accounts::TYPE_EXPENSE,
             'category' => Accounts::CAT_UTILITIES_EXPENSE,
-            'description' => '[Apt '.$rental->apartment->apartment_number.'] '.ucfirst($data['utility_type']),
+            'description' => '[Apt '.($rental->apartment?->apartment_number ?? 'N/A').'] '.ucfirst($data['utility_type']),
             'amount' => $data['charge_amount'],
             'transaction_date' => $data['transaction_date'],
             'note' => $data['note'] ?? null,
