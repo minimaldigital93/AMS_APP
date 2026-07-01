@@ -28,7 +28,7 @@
 
     <!-- Form -->
     <div class="bg-white rounded-xl border border-slate-100">
-        <form method="POST" action="{{ route('admin.apartments.update', $apartment->id) }}">
+        <form method="POST" action="{{ route('admin.apartments.update', $apartment->id) }}" id="updateRoomForm">
             @csrf
             @method('PUT')
 
@@ -114,16 +114,6 @@
                     @enderror
                 </div>
             </div>
-
-            <!-- Footer Actions -->
-            <div class="px-6 py-4 border-t border-slate-100 flex gap-3">
-                <button type="submit" class="flex-1 bg-slate-800 hover:bg-slate-700 text-white text-sm font-medium py-2.5 px-5 rounded-lg transition">
-                    Update Room
-                </button>
-                <a href="{{ route('admin.floors.index') }}" class="flex-1 text-center text-slate-500 hover:text-slate-700 bg-slate-50 hover:bg-slate-100 text-sm font-medium py-2.5 px-5 rounded-lg transition">
-                    Cancel
-                </a>
-            </div>
         </form>
 
         <!-- Danger Zone -->
@@ -141,6 +131,16 @@
                     </button>
                 </form>
             </div>
+        </div>
+
+        <!-- Footer Actions -->
+        <div class="px-6 py-4 border-t border-slate-100 flex gap-3">
+            <button type="submit" form="updateRoomForm" class="flex-1 bg-slate-800 hover:bg-slate-700 text-white text-sm font-medium py-2.5 px-5 rounded-lg transition">
+                Update Room
+            </button>
+            <a href="{{ route('admin.floors.index') }}" class="flex-1 text-center text-slate-500 hover:text-slate-700 bg-slate-50 hover:bg-slate-100 text-sm font-medium py-2.5 px-5 rounded-lg transition">
+                Cancel
+            </a>
         </div>
     </div>
 </div>

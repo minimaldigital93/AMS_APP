@@ -130,6 +130,23 @@
         </form>
     </div>
 
+    <!-- Danger Zone -->
+    <div class="bg-white rounded-xl border border-red-100 p-6">
+        <div class="flex items-center justify-between gap-4">
+            <div>
+                <h3 class="text-sm font-medium text-red-600">{{ __('messages.delete_floor') }}</h3>
+                <p class="text-slate-400 text-xs mt-0.5">{{ __('messages.cannot_be_undone') }}</p>
+            </div>
+            <form method="POST" action="{{ route('admin.floors.destroy', $floor) }}" class="inline" data-confirm="{{ __('messages.confirm_delete_floor', ['name' => $floor->floor_name]) }}">
+                @csrf
+                @method('DELETE')
+                <button type="submit" class="text-red-500 hover:text-white hover:bg-red-500 text-sm font-medium py-2 px-4 rounded-lg border border-red-200 hover:border-red-500 transition">
+                    {{ __('messages.delete_floor') }}
+                </button>
+            </form>
+        </div>
+    </div>
+
     <!-- Footer Actions -->
     <div class="flex gap-3">
         <a href="{{ route('admin.floors.index') }}" class="flex-1 text-center text-slate-500 hover:text-slate-700 bg-slate-50 hover:bg-slate-100 text-sm font-medium py-2.5 px-5 rounded-lg transition">{{ __('messages.cancel') }}</a>
