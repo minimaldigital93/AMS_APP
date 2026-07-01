@@ -3,12 +3,13 @@
 namespace App\Models;
 
 use App\Models\Concerns\BelongsToAccount;
+use App\Models\Concerns\TracksFileSizes;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class BusinessExpense extends Model
 {
-    use BelongsToAccount;
+    use BelongsToAccount, TracksFileSizes;
 
     protected $fillable = [
         'user_id',
@@ -31,6 +32,15 @@ class BusinessExpense extends Model
             'amount' => 'float',
             'expense_date' => 'date',
             'is_recurring' => 'boolean',
+            'attachment_size' => 'integer',
+        ];
+    }
+
+    /** Upload path columns whose byte size is tracked (see TracksFileSizes). */
+    protected function fileSizeColumns(): array
+    {
+        return [
+            'attachment' => 'attachment_size',
         ];
     }
 

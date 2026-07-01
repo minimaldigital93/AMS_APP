@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Models\Concerns\BelongsToAccount;
 use App\Models\Concerns\FiltersByProperty;
+use App\Models\Concerns\TracksFileSizes;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -11,7 +12,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Tenants extends Model
 {
-    use BelongsToAccount, FiltersByProperty, SoftDeletes;
+    use BelongsToAccount, FiltersByProperty, SoftDeletes, TracksFileSizes;
 
     /** Tenants reach a property through apartment → floor. */
     protected function propertyPath(): ?string
@@ -50,6 +51,17 @@ class Tenants extends Model
             'archived_at' => 'datetime',
             'deleted_at' => 'datetime',
             'deposit' => 'float',
+            'photo_size' => 'integer',
+            'document_size' => 'integer',
+        ];
+    }
+
+    /** Upload path columns whose byte size is tracked (see TracksFileSizes). */
+    protected function fileSizeColumns(): array
+    {
+        return [
+            'photo_path' => 'photo_size',
+            'document_path' => 'document_size',
         ];
     }
 
