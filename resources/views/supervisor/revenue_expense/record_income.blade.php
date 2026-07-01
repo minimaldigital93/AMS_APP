@@ -668,7 +668,7 @@
 function billingManager() {
     return {
         typeLabels: { electricity: '{{ __('messages.electric') }}', water: '{{ __('messages.water') }}', internet: '{{ __('messages.type_internet') }}', parking: '{{ __('messages.type_parking') }}', trash: '{{ __('messages.type_trash') }}', other: '{{ __('messages.type_other') }}' },
-        filter: 'all',
+        filter: '{{ in_array(request('filter'), ['paid', 'pending', 'overdue']) ? request('filter') : 'all' }}',
         searchOpen: false,
         searchQuery: '',
 

@@ -94,6 +94,7 @@ class FloorController extends Controller
                         'status' => $apt->status,
                         'rent' => (float) $apt->monthly_rent,
                         'tenant' => $tenant?->name,
+                        'tenant_id' => $tenant?->id,
                         'stay_label' => $stay['stay_label'] ?? null,
                         'cycle_percent' => $stay['cycle_percent'] ?? null,
                         'days_left' => $stay['days_left'] ?? null,

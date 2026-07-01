@@ -125,6 +125,15 @@
                                         {{-- Unit number --}}
                                         <span class="text-sm font-bold text-slate-700 leading-tight pr-6">{{ $apt['number'] }}</span>
 
+                                        {{-- Occupied → whole card links to the tenant's detail --}}
+                                        @if(!$isAvailable && !empty($apt['tenant_id']))
+                                            <a href="{{ route('admin.tenants.show', $apt['tenant_id']) }}"
+                                               class="absolute inset-0 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-300"
+                                               title="{{ __('messages.view') }}: {{ $apt['tenant'] }}">
+                                                <span class="sr-only">{{ $apt['tenant'] }}</span>
+                                            </a>
+                                        @endif
+
                                         {{-- Stay duration (half-donut: monthly cycle progress, total stay in centre) --}}
                                         @if(!empty($apt['stay_label']))
                                             <div class="mt-1 flex flex-col items-center">

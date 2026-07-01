@@ -201,7 +201,8 @@
     {{-- Payment Status Quick View --}}
     @if($fiscalData['has_active_period'] && !$isFullPeriod)
     <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div class="bg-white border border-slate-200 rounded-xl p-4 flex items-center justify-between">
+        <a href="{{ route('supervisor.revenue_expense.record_income', ['month' => $displayMonth->month, 'year' => $displayMonth->year, 'filter' => 'paid']) }}"
+            class="bg-white border border-slate-200 rounded-xl p-4 flex items-center justify-between hover:border-emerald-300 hover:shadow-sm transition">
             <div>
                 <p class="flex items-center gap-2 text-sm font-medium text-slate-600">
                     <span class="p-1.5 rounded-full bg-emerald-50 inline-flex items-center justify-center">
@@ -223,9 +224,10 @@
                 <canvas id="paymentsDonutPaid" width="64" height="64"></canvas>
                 <span class="absolute inset-0 flex items-center justify-center pointer-events-none text-xs font-medium text-slate-700">{{ $paid }} / {{ $assigned }}</span>
             </div>
-        </div>
+        </a>
 
-        <div class="bg-white border border-slate-200 rounded-xl p-4 flex items-center justify-between">
+        <a href="{{ route('supervisor.revenue_expense.record_income', ['month' => $displayMonth->month, 'year' => $displayMonth->year, 'filter' => 'pending']) }}"
+            class="bg-white border border-slate-200 rounded-xl p-4 flex items-center justify-between hover:border-amber-300 hover:shadow-sm transition">
             <div>
                 <p class="flex items-center gap-2 text-sm font-medium text-slate-600">
                     <span class="p-1.5 rounded-full bg-amber-50 inline-flex items-center justify-center">
@@ -240,9 +242,10 @@
                 <canvas id="paymentsDonutPending" width="64" height="64"></canvas>
                 <span class="absolute inset-0 flex items-center justify-center pointer-events-none text-xs font-medium text-slate-700">{{ $pending }} / {{ $assigned }}</span>
             </div>
-        </div>
+        </a>
 
-        <div class="bg-white border border-slate-200 rounded-xl p-4 flex items-center justify-between">
+        <a href="{{ route('supervisor.revenue_expense.record_income', ['month' => $displayMonth->month, 'year' => $displayMonth->year, 'filter' => 'overdue']) }}"
+            class="bg-white border border-slate-200 rounded-xl p-4 flex items-center justify-between hover:border-red-300 hover:shadow-sm transition">
             <div>
                 <p class="flex items-center gap-2 text-sm font-medium text-slate-600">
                     <span class="p-1.5 rounded-full bg-red-50 inline-flex items-center justify-center">
@@ -257,7 +260,7 @@
                 <canvas id="paymentsDonutOverdue" width="64" height="64"></canvas>
                 <span class="absolute inset-0 flex items-center justify-center pointer-events-none text-xs font-medium text-slate-700">{{ $overdue }} / {{ $assigned }}</span>
             </div>
-        </div>
+        </a>
     </div>
     @endif
 
