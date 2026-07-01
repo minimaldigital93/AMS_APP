@@ -104,7 +104,7 @@
                     <tbody class="bg-white divide-y divide-gray-200">
                         @forelse ($tenants as $tenant)
                             @php $rp = $rentProgressMap[$tenant->id] ?? null; $status = $rp['status'] ?? 'unknown'; @endphp
-                            <tr x-show="matchesFilter('{{ $status }}','{{ strtolower($tenant->name ?? '') }}','{{ strtolower($tenant->apartment?->apartment_number ?? '') }}','{{ $rp['day_percent'] ?? 0 }}')" class="hover:bg-gray-50 transition">
+                            <tr x-show="matchesFilter('{{ $status }}','{{ strtolower($tenant->name ?? '') }}','{{ strtolower($tenant->apartment?->apartment_number ?? '') }}','{{ $rp['cycle_percent'] ?? 0 }}')" class="hover:bg-gray-50 transition">
                                 <td class="px-4 py-4 whitespace-nowrap text-sm text-gray-600">
                                     {{ $tenants->firstItem() ? $tenants->firstItem() + $loop->index : $loop->iteration }}
                                 </td>
@@ -134,10 +134,11 @@
                                     @php $rp = $rentProgressMap[$tenant->id] ?? null; @endphp
                                     @if($rp)
                                     @php
-                                        $dp = $rp['day_percent'];
-                                        $totalDays = $rp['total_days'] ?? 30;
-                                        $daysStayed = $rp['days_stayed'] ?? 0;
-                                        $daysRemaining = max(0, $totalDays - $daysStayed);
+                                        // Progress tracks the tenant's monthly rent cycle from their
+                                        // stay/move-in date (renews on the monthly anniversary), not the
+                                        // calendar month. Source: Rentals::stayProgress().
+                                        $dp = $rp['cycle_percent'] ?? 0;
+                                        $daysRemaining = $rp['days_left'] ?? 0;
                                     @endphp
                                     <div class="w-28">
                                         <div class="w-full bg-slate-200 rounded-full h-1.5">
@@ -197,10 +198,9 @@
                     @php
                         $rp = $rentProgressMap[$tenant->id] ?? null;
                         $status = $rp['status'] ?? 'unknown';
-                        $dp = $rp['day_percent'] ?? 0;
-                        $totalDays = $rp['total_days'] ?? 30;
-                        $daysStayed = $rp['days_stayed'] ?? 0;
-                        $daysRemaining = max(0, $totalDays - $daysStayed);
+                        // Stay-date monthly cycle (see desktop table above).
+                        $dp = $rp['cycle_percent'] ?? 0;
+                        $daysRemaining = $rp['days_left'] ?? 0;
                     @endphp
                     <div x-show="matchesFilter('{{ $status }}','{{ strtolower($tenant->name ?? '') }}','{{ strtolower($tenant->apartment?->apartment_number ?? '') }}','{{ $dp }}')"
                          class="flex items-center gap-3 px-4 py-2.5 active:bg-slate-50 transition">
