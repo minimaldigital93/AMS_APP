@@ -92,7 +92,7 @@
                             </span>
                         </td>
                         <td class="px-6 py-4 text-gray-600 whitespace-nowrap">
-                            {{ __('Floors') }}: {{ $usage[$account->id]['floors'] }} · {{ __('Apts') }}: {{ $usage[$account->id]['apartments'] }}
+                            {{ __('Floors') }}: {{ $usage[$account->id]['floors'] }} · {{ __('Rooms') }}: {{ $usage[$account->id]['apartments'] }}
                         </td>
                         <td class="px-6 py-4 text-gray-500 whitespace-nowrap">
                             {{ $sub?->expires_at ? $sub->expires_at->format('M j, Y') : '—' }}

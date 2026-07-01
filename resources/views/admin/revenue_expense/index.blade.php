@@ -464,7 +464,7 @@
                         <div class="mb-3">
                             <label class="block text-xs font-medium text-slate-700 mb-1">{{ __('messages.apartment') }} *</label>
                             <select name="rental_id" id="rental_id" required class="w-full px-3 py-2 text-sm border rounded-lg focus:ring-green-500 focus:border-green-500">
-                                <option value="">-- Select apartment --</option>
+                                <option value="">-- Select room --</option>
                                 @foreach($apartments as $apartment)
                                     @foreach($apartment->rentals as $rental)
                                     <option value="{{ $rental->id }}" data-rent="{{ $rental->rent_amount }}" {{ old('rental_id') == $rental->id ? 'selected' : '' }}>
@@ -792,7 +792,7 @@
                                 <textarea name="note" rows="2" class="w-full px-3 py-2 text-sm border rounded-lg focus:ring-red-500 focus:border-red-500">{{ old('note') }}</textarea>
                             </div>
                             <button type="submit" class="w-full px-4 py-2 bg-red-600 text-white text-sm rounded-lg hover:bg-red-700 transition font-medium">
-                                Assign Apartment Cost
+                                Assign Room Cost
                             </button>
                         </div>
                     </form>

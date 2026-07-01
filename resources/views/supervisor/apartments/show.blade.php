@@ -1,6 +1,6 @@
 @extends('layouts.supervisor')
 
-@section('title', 'View Apartment')
+@section('title', 'View Room')
 
 @section('content')
 <div class="max-w-4xl mx-auto space-y-6">

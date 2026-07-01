@@ -24,25 +24,13 @@ class ApartmentController extends Controller
 
     public function index(Request $request, \App\Services\Property\PropertyContext $propertyContext): View
     {
-        // When the top-bar is on "All properties", offer a per-page property
-        // filter so the user can narrow to one building without changing the
-        // global selection. Otherwise everything stays scoped to the active one.
+        // The top-bar property selector is the single control for scoping: when
+        // it is on "All properties" we show every building (grouped by floor,
+        // each tagged with its property), otherwise everything is scoped to the
+        // globally active property. current_property_id() is null while showing
+        // all, so it doubles as the effective scope in both cases.
         $showingAll = $propertyContext->showingAllProperties();
-        $properties = collect();
-        $selectedPropertyId = null;
-
-        if ($showingAll) {
-            $properties = $propertyContext->accessibleProperties();
-            $requested = $request->integer('property') ?: null;
-
-            if ($requested !== null && $properties->contains('id', $requested)) {
-                $selectedPropertyId = $requested;
-            }
-        }
-
-        // Effective property scope: the per-page filter in "all" mode (null = no
-        // narrowing), otherwise the globally active property.
-        $scopeId = $showingAll ? $selectedPropertyId : current_property_id();
+        $scopeId = current_property_id();
 
         $query = Apartments::with(['floor.property', 'tenants', 'supervisor'])->forProperty($scopeId);
 
@@ -76,7 +64,7 @@ class ApartmentController extends Controller
         // to any property, so they are intentionally not property-filtered here.
         $availableTenants = Tenants::where('status', 'active')->whereNull('apartment_id')->get();
 
-        return view('admin.apartments.index', compact('apartmentsByFloor', 'floors', 'floorsWithApartments', 'statuses', 'supervisors', 'availableTenants', 'showingAll', 'properties', 'selectedPropertyId'));
+        return view('admin.apartments.index', compact('apartmentsByFloor', 'floors', 'floorsWithApartments', 'statuses', 'supervisors', 'availableTenants', 'showingAll'));
     }
 
     public function create(): View

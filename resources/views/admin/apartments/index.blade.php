@@ -1,31 +1,16 @@
 @extends('layouts.admin')
 
-@section('title', 'Apartment Management')
+@section('title', 'Room Management')
 
 @section('content')
 <div class="max-w-6xl mx-auto space-y-8">
     <!-- Header -->
+    {{-- Property scoping is driven by the top-bar selector; on "All properties"
+         each floor below is tagged with its building. --}}
     <div class="flex items-center justify-between gap-3">
         <div>
             <h1 class="text-2xl font-semibold text-slate-800 tracking-tight">{{ __('messages.apartment_management') }}</h1>
         </div>
-        {{-- Per-page property filter: only when the top-bar is on "All properties". --}}
-        @if($showingAll && $properties->count() > 1)
-        <form method="GET" action="{{ route('admin.apartments.index') }}" class="relative">
-            <span class="material-icons absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 text-base pointer-events-none">apartment</span>
-            <select name="property" onchange="this.form.submit()"
-                class="appearance-none pl-9 pr-9 py-2.5 text-sm font-medium text-slate-700 bg-white border border-slate-200 rounded-lg hover:border-slate-300 focus:outline-none focus:ring-2 focus:ring-sky-500/40 focus:border-sky-400 transition cursor-pointer max-w-[200px]"
-                aria-label="{{ __('messages.filter_by_property') }}" title="{{ __('messages.filter_by_property') }}">
-                <option value="">{{ __('messages.all_properties') }}</option>
-                @foreach($properties as $prop)
-                    <option value="{{ $prop->id }}" @selected($selectedPropertyId === $prop->id)>{{ $prop->name }}</option>
-                @endforeach
-            </select>
-            <svg class="w-4 h-4 absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
-            </svg>
-        </form>
-        @endif
     </div>
 
     <!-- Apartments Grouped by Floor -->

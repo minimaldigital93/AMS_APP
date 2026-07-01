@@ -133,7 +133,7 @@
         $gl = [
             'rent_income' => ['code' => '4000', 'name' => 'Rent Income'],
             'utilities_expense' => ['code' => '5000', 'name' => 'Utilities Expense'],
-            'fixed_expense' => ['code' => '5100', 'name' => 'Apartment Costs (Owner)'],
+            'fixed_expense' => ['code' => '5100', 'name' => 'Room Costs (Owner)'],
             'reconciliation' => ['code' => '2000', 'name' => 'Accounts Receivable / Payable']
         ];
 

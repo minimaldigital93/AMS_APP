@@ -65,7 +65,7 @@
     @if($floor->apartments->count() > 0)
     <div class="bg-white rounded-xl border border-slate-100">
         <div class="p-6">
-            <h3 class="text-sm font-medium text-slate-500 uppercase tracking-wide mb-4">Existing Apartment Units ({{ $floor->apartments->count() }})</h3>
+            <h3 class="text-sm font-medium text-slate-500 uppercase tracking-wide mb-4">Existing Room Units ({{ $floor->apartments->count() }})</h3>
             <div class="space-y-3 max-h-96 overflow-y-auto">
                 @foreach($floor->apartments as $apartment)
                 <div class="bg-slate-50 rounded-xl border border-slate-100 p-4 flex items-center justify-between group hover:border-slate-200 transition">

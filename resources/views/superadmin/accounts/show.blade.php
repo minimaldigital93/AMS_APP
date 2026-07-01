@@ -60,7 +60,7 @@
                 </div>
                 <div class="rounded-lg bg-gray-50 p-4 text-center">
                     <div class="text-2xl font-bold text-gray-900">{{ $stats['apartments'] }}</div>
-                    <div class="text-xs text-gray-500 mt-1">{{ __('Apartments') }}</div>
+                    <div class="text-xs text-gray-500 mt-1">{{ __('Rooms') }}</div>
                 </div>
                 <div class="rounded-lg bg-gray-50 p-4 text-center">
                     <div class="text-2xl font-bold text-gray-900">{{ $stats['tenants'] }}</div>
