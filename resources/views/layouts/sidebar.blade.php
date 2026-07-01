@@ -266,7 +266,7 @@
             font-size: 0.75rem;
             letter-spacing: 0.05em;
             font-weight: 700;
-            color: #9ca3af;
+            color: #374151; /* match Dashboard label (text-gray-700) */
             position: relative;
             z-index: 1;
             transition: color 0.3s ease;
