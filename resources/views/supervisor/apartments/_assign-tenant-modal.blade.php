@@ -252,6 +252,30 @@ document.addEventListener('DOMContentLoaded', function() {
         if (bytes >= 1024 * 1024) return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
         return Math.max(1, Math.round(bytes / 1024)) + ' KB';
     }
+
+    // Shrink large iPhone photos client-side (same path the tenant/expense forms
+    // use) so an image never approaches the upload cap. Replaces the input's file
+    // with the compressed copy via DataTransfer. PDFs pass through untouched.
+    let pendingCompressions = 0;
+    async function compressInput(input) {
+        const file = input && input.files && input.files[0];
+        if (!file || !file.type || !file.type.startsWith('image/')) return;
+        if (typeof window.amsCompressImage !== 'function') return;
+        pendingCompressions++;
+        try {
+            const out = await window.amsCompressImage(file, 1920, 0.72);
+            if (out && out !== file) {
+                const dt = new DataTransfer();
+                dt.items.add(out);
+                input.files = dt.files;
+            }
+        } catch (err) {
+            // Leave the original file in place — the size check below still guards it.
+        } finally {
+            pendingCompressions--;
+        }
+    }
+
     function fileTooLarge(input) {
         const file = input && input.files && input.files[0];
         if (file && file.size > MAX_FILE_BYTES) {
@@ -265,12 +289,23 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     ['attached_photo', 'id_pdf'].forEach(function(id) {
         const el = document.getElementById(id);
-        if (el) el.addEventListener('change', function() { fileTooLarge(el); });
+        if (el) el.addEventListener('change', async function() {
+            await compressInput(el);
+            fileTooLarge(el);
+        });
     });
 
     form.addEventListener('submit', function(e) {
         // Only validate the new-tenant fields when creating a new tenant.
         if (tenantOptionInput.value !== 'new') return;
+
+        // A just-picked photo may still be compressing — don't POST the raw
+        // (possibly oversized) original; ask the user to submit again in a moment.
+        if (pendingCompressions > 0) {
+            e.preventDefault();
+            alert(@json(__('messages.attachment_optimizing')));
+            return;
+        }
 
         // Block submission if an attachment is still over the size limit.
         if (fileTooLarge(document.getElementById('attached_photo')) ||

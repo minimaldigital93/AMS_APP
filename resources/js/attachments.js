@@ -53,6 +53,13 @@ function compressImage(file, maxDimension, quality) {
     });
 }
 
+// Exposed for the "Assign Tenant" quick-action modal, whose file inputs are
+// plain (not the Alpine `multiAttachments` component) and driven by an inline
+// <script>. Without this, that modal couldn't shrink large iPhone photos and a
+// photo over the per-file limit would either be wiped or trip a raw 413.
+window.amsCompressImage = compressImage;
+window.amsFormatFileSize = formatFileSize;
+
 // Belt-and-braces guard: a form can combine multiple file inputs (e.g. a
 // tenant's photo + several documents) whose individual limits are each fine,
 // but which together can still exceed the server's total request-size cap.

@@ -523,6 +523,7 @@ return [
     'attachment_too_large' => 'The file ":name" is :size, which is too large. Please choose a file under :max.',
     'attachment_too_many' => 'You can attach up to :max files.',
     'attachment_total_too_large' => 'These files add up to :size, which is too large to upload together (limit :max). Please remove a file or use a smaller photo/document, or resize it and try again.',
+    'attachment_optimizing' => 'Your photo is still being prepared for upload. Please tap Assign again in a moment.',
     'flash_attachment_removed' => 'Attachment removed.',
     'remove_attachment_confirm' => 'Remove this attachment?',
     'tenant_documents' => 'ID Documents',
