@@ -16,6 +16,24 @@
             </a>
         </div>
 
+        @if($tenant->attachments->isNotEmpty())
+        <!-- Existing ID Documents (own form per delete, kept outside the update form below) -->
+        <div class="bg-white rounded-xl border border-slate-100 p-6 mb-6">
+            <label class="block text-sm font-medium text-slate-500 mb-2">{{ __('messages.tenant_documents') }}</label>
+            <ul class="space-y-1">
+                @foreach($tenant->attachments as $doc)
+                    <li class="flex items-center gap-2 text-sm bg-slate-50 rounded-lg px-3 py-1.5">
+                        <a href="{{ $doc->url() }}" target="_blank" rel="noopener" download class="flex-1 min-w-0 truncate text-sky-700 hover:underline">{{ $doc->original_name }}</a>
+                        <form action="{{ route('admin.tenants.destroy_document', [$tenant, $doc]) }}" method="POST" data-confirm="{{ __('messages.remove_attachment_confirm') }}">
+                            @csrf @method('DELETE')
+                            <button type="submit" class="text-red-500 hover:text-red-600 text-base leading-none px-1" title="{{ __('messages.delete') }}">&times;</button>
+                        </form>
+                    </li>
+                @endforeach
+            </ul>
+        </div>
+        @endif
+
         <!-- Form Card -->
         <div class="bg-white rounded-xl border border-slate-100 p-6">
             <form action="{{ route('admin.tenants.update', $tenant->id) }}" method="POST" enctype="multipart/form-data" class="space-y-6">
@@ -57,6 +75,16 @@
                     @error('photo')
                         <p class="text-red-500 text-sm mt-1">{{ $message }}</p>
                     @enderror
+                </div>
+
+                <!-- ID Documents -->
+                <div>
+                    <x-attachments-input
+                        name="documents"
+                        :label="__('messages.add_more_documents')"
+                        :hint="__('messages.tenant_documents_hint')"
+                        :max-files="4"
+                        :max-bytes="10485760" />
                 </div>
 
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -177,18 +205,6 @@
                     @enderror
                 </div>
 
-                <!-- Attached Document -->
-                @if($tenant->document_path)
-                    <div>
-                        <label class="block text-sm font-medium text-slate-500 mb-2">{{ __('messages.attached_document') }}</label>
-                        <a href="{{ asset('storage/' . $tenant->document_path) }}" target="_blank"
-                            title="{{ __('messages.view_document') }}"
-                            aria-label="{{ __('messages.view_document') }}"
-                            class="h-12 w-12 rounded-lg bg-red-50 hover:bg-red-100 border border-red-100 hover:border-red-200 inline-flex items-center justify-center transition">
-                            <svg class="w-6 h-6 text-red-600" fill="currentColor" viewBox="0 0 20 20"><path d="M4 2h7l5 5v11a2 2 0 01-2 2H4a2 2 0 01-2-2V4a2 2 0 012-2z"/></svg>
-                        </a>
-                    </div>
-                @endif
 
                 <!-- Buttons -->
                 <div class="flex gap-3 pt-6">

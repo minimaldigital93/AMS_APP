@@ -8,8 +8,8 @@ use App\Models\BusinessExpense;
 use App\Models\FiscalPeriods;
 use App\Models\Rentals;
 use App\Models\Utilities;
+use App\Services\Attachments\AttachmentService;
 use Carbon\Carbon;
-use Illuminate\Support\Facades\Storage;
 
 /**
  * Write-side service for expense recording — utility, other, business, and
@@ -24,7 +24,10 @@ class ExpenseRecordingService
         private int $userId,
         private ?FiscalPeriods $period,
         private ?int $propertyId = null,
-    ) {}
+        private ?AttachmentService $attachments = null,
+    ) {
+        $this->attachments ??= new AttachmentService;
+    }
 
     /**
      * Per-apartment utility/maintenance expense. Writes both a Utilities row
@@ -96,7 +99,7 @@ class ExpenseRecordingService
      * BusinessExpense row AND a matching Accounts entry so the dashboard
      * picks it up.
      */
-    public function recordBusinessExpense(array $data, ?string $attachmentPath = null): BusinessExpense
+    public function recordBusinessExpense(array $data): BusinessExpense
     {
         $expenseDate = Carbon::parse($data['expense_date']);
 
@@ -112,7 +115,6 @@ class ExpenseRecordingService
             'billing_year' => $expenseDate->year,
             'is_recurring' => (bool) ($data['is_recurring'] ?? false),
             'note' => $data['note'] ?? null,
-            'attachment' => $attachmentPath,
         ]);
 
         Accounts::create([
@@ -149,9 +151,7 @@ class ExpenseRecordingService
             ->limit(1)
             ->delete();
 
-        if ($businessExpense->attachment) {
-            Storage::disk('public')->delete($businessExpense->attachment);
-        }
+        $this->attachments->deleteAllFor($businessExpense);
 
         $businessExpense->delete();
 

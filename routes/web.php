@@ -193,6 +193,7 @@ Route::middleware(['auth', 'role:admin|superadmin', 'subscription.active'])->gro
     Route::post('/admin/tenants/{tenant}/process-leave', [TenantController::class, 'processLeave'])->name('admin.tenants.processLeave');
     Route::get('/admin/tenants/{tenant}/edit', [TenantController::class, 'edit'])->name('admin.tenants.edit');
     Route::put('/admin/tenants/{tenant}', [TenantController::class, 'update'])->name('admin.tenants.update');
+    Route::delete('/admin/tenants/{tenant}/documents/{attachment}', [TenantController::class, 'destroyDocument'])->name('admin.tenants.destroy_document');
     Route::get('/admin/tenants/{tenant}', [TenantController::class, 'show'])->name('admin.tenants.show');
 
     // Fiscal Period Management Routes
@@ -272,6 +273,7 @@ Route::middleware(['auth', 'role:admin|superadmin', 'subscription.active'])->gro
         // Business Fixed & Variable Expenses
         Route::post('/admin/revenue-expense/business-expense', [RevenueExpenseController::class, 'storeBusinessExpense'])->name('admin.revenue_expense.store_business_expense');
         Route::delete('/admin/revenue-expense/business-expense/{businessExpense}', [RevenueExpenseController::class, 'deleteBusinessExpense'])->name('admin.revenue_expense.delete_business_expense');
+        Route::delete('/admin/revenue-expense/business-expense/{businessExpense}/attachments/{attachment}', [RevenueExpenseController::class, 'deleteBusinessExpenseAttachment'])->name('admin.revenue_expense.delete_business_expense_attachment');
 
         // Fixed Expense Management
         Route::get('/admin/revenue-expense/fixed-expenses', [RevenueExpenseController::class, 'fixedExpenses'])->name('admin.revenue_expense.fixed_expenses');
@@ -309,6 +311,7 @@ Route::middleware(['auth', 'role:supervisor|admin|superadmin', 'subscription.act
     Route::get('/tenants/{tenant}/edit', [SupervisorTenantController::class, 'edit'])->name('supervisor.tenants.edit');
     Route::put('/tenants/{tenant}', [SupervisorTenantController::class, 'update'])->name('supervisor.tenants.update');
     Route::delete('/tenants/{tenant}', [SupervisorTenantController::class, 'destroy'])->name('supervisor.tenants.destroy');
+    Route::delete('/tenants/{tenant}/documents/{attachment}', [SupervisorTenantController::class, 'destroyDocument'])->name('supervisor.tenants.destroy_document');
     Route::get('/tenants/{tenant}/leave', [SupervisorTenantController::class, 'leave'])->name('supervisor.tenants.leave');
     Route::post('/tenants/{tenant}/process-leave', [SupervisorTenantController::class, 'processLeave'])->name('supervisor.tenants.processLeave');
     Route::get('/tenants/{tenant}', [SupervisorTenantController::class, 'show'])->name('supervisor.tenants.show');
@@ -342,6 +345,7 @@ Route::middleware(['auth', 'role:supervisor|admin|superadmin', 'subscription.act
         Route::delete('/revenue-expense/other-expense/{expense}', [SupervisorRevenueExpenseController::class, 'deleteOtherExpense'])->name('supervisor.revenue_expense.delete_other_expense');
         Route::post('/revenue-expense/business-expense', [SupervisorRevenueExpenseController::class, 'storeBusinessExpense'])->name('supervisor.revenue_expense.store_business_expense');
         Route::delete('/revenue-expense/business-expense/{businessExpense}', [SupervisorRevenueExpenseController::class, 'deleteBusinessExpense'])->name('supervisor.revenue_expense.delete_business_expense');
+        Route::delete('/revenue-expense/business-expense/{businessExpense}/attachments/{attachment}', [SupervisorRevenueExpenseController::class, 'deleteBusinessExpenseAttachment'])->name('supervisor.revenue_expense.delete_business_expense_attachment');
         Route::get('/revenue-expense/fixed-expenses', [SupervisorRevenueExpenseController::class, 'fixedExpenses'])->name('supervisor.revenue_expense.fixed_expenses');
         Route::post('/revenue-expense/fixed-expenses', [SupervisorRevenueExpenseController::class, 'storeFixedExpense'])->name('supervisor.revenue_expense.store_fixed_expense');
         Route::patch('/revenue-expense/fixed-expenses/{fixedExpense}/toggle', [SupervisorRevenueExpenseController::class, 'toggleFixedExpense'])->name('supervisor.revenue_expense.toggle_fixed_expense');

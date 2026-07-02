@@ -7,11 +7,13 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Tenants\ProcessTenantLeaveRequest;
 use App\Models\Accounts;
 use App\Models\Apartments;
+use App\Models\Attachment;
 use App\Models\FiscalPeriods;
 use App\Models\Payments;
 use App\Models\Rentals;
 use App\Models\Tenants;
 use App\Models\User;
+use App\Services\Attachments\AttachmentService;
 use App\Services\Tenants\TenantLeaveProcessor;
 use App\Services\Tenants\TenantPendingChargesQuery;
 use App\Services\Tenants\TenantRentProgressCalculator;
@@ -166,7 +168,7 @@ class TenantController extends Controller
     {
         // Property-scoped to the supervisor's assigned properties (admins see all).
         $query = $this->scopedArchivedTenants()
-            ->with(['apartment.floor', 'leaves.apartment.floor']);
+            ->with(['apartment.floor', 'leaves.apartment.floor', 'attachments']);
 
         if ($search = $request->input('search')) {
             $query->where(function (Builder $q) use ($search) {
@@ -209,7 +211,7 @@ class TenantController extends Controller
     public function show(Tenants $tenant): View
     {
         $this->authorizeTenant($tenant);
-        $tenant->load(['apartment.floor', 'rentals.apartment', 'rentals.payments', 'utilities']);
+        $tenant->load(['apartment.floor', 'rentals.apartment', 'rentals.payments', 'utilities', 'attachments']);
 
         return view('supervisor.tenants.show', compact('tenant'));
     }
@@ -230,7 +232,7 @@ class TenantController extends Controller
     /**
      * Store a new tenant.
      */
-    public function store(Request $request): RedirectResponse
+    public function store(Request $request, AttachmentService $attachments): RedirectResponse
     {
         $minBirthDate = now()->subYears(18)->toDateString();
         $minMoveInDate = now()->subDays(3)->toDateString();
@@ -252,6 +254,8 @@ class TenantController extends Controller
             'status' => 'required|in:pending,active,inactive',
             'deposit' => 'nullable|numeric|min:0',
             'photo' => 'nullable|file|mimes:jpeg,jpg,png,gif,webp,heic,heif|max:10240',
+            'documents' => 'nullable|array|max:4',
+            'documents.*' => 'file|mimes:pdf,jpg,jpeg,png,heic,heif|max:10240',
             'notes' => 'nullable|string',
         ], [
             'phone.unique' => __('messages.validation_phone_taken'),
@@ -288,6 +292,10 @@ class TenantController extends Controller
         $validated['user_id'] = $tenantUser->id;
         $tenant = Tenants::create($validated);
 
+        if ($request->hasFile('documents')) {
+            $attachments->storeMany($tenant, $request->file('documents'), Attachment::KIND_TENANT_DOCUMENT, 'tenants/documents');
+        }
+
         // Update apartment status to occupied
         $apartment->update(['status' => 'occupied']);
 
@@ -296,7 +304,7 @@ class TenantController extends Controller
             'apartment_id' => $apartment->id,
             'tenant_id' => $tenant->id,
             'start_date' => Carbon::parse($validated['move_in_date']),
-            'end_date' => $validated['move_out_date'] ? Carbon::parse($validated['move_out_date']) : null,
+            'end_date' => ($validated['move_out_date'] ?? null) ? Carbon::parse($validated['move_out_date']) : null,
             'rent_amount' => $apartment->monthly_rent,
             'deposit' => $validated['deposit'] ?? 0,
         ]);
@@ -630,7 +638,7 @@ class TenantController extends Controller
     /**
      * Update a tenant.
      */
-    public function update(Request $request, Tenants $tenant): RedirectResponse
+    public function update(Request $request, Tenants $tenant, AttachmentService $attachments): RedirectResponse
     {
         $this->authorizeTenant($tenant);
 
@@ -647,6 +655,8 @@ class TenantController extends Controller
             'status' => 'required|in:pending,active',
             'deposit' => 'nullable|numeric|min:0',
             'photo' => 'nullable|file|mimes:jpeg,jpg,png,gif,webp,heic,heif|max:10240',
+            'documents' => 'nullable|array|max:4',
+            'documents.*' => 'file|mimes:pdf,jpg,jpeg,png,heic,heif|max:10240',
             'notes' => 'nullable|string',
         ], [
             'phone.unique' => __('messages.validation_phone_taken'),
@@ -706,6 +716,10 @@ class TenantController extends Controller
 
         $tenant->update($validated);
 
+        if ($request->hasFile('documents')) {
+            $attachments->storeMany($tenant, $request->file('documents'), Attachment::KIND_TENANT_DOCUMENT, 'tenants/documents');
+        }
+
         return redirect()->route('supervisor.tenants.show', $tenant->id)
             ->with('success', __('messages.flash_tenant_updated'));
     }
@@ -713,7 +727,7 @@ class TenantController extends Controller
     /**
      * Delete (soft-delete) a tenant.
      */
-    public function destroy(Tenants $tenant): RedirectResponse
+    public function destroy(Tenants $tenant, AttachmentService $attachments): RedirectResponse
     {
         $this->authorizeTenant($tenant);
 
@@ -735,9 +749,25 @@ class TenantController extends Controller
             'archived_at' => now(),
         ]);
 
+        $attachments->deleteAllFor($tenant);
+
         $tenant->delete();
 
         return redirect()->route('supervisor.tenants.index')
             ->with('success', __('messages.flash_tenant_removed'));
+    }
+
+    public function destroyDocument(Tenants $tenant, Attachment $attachment, AttachmentService $attachments): RedirectResponse
+    {
+        $this->authorizeTenant($tenant);
+
+        abort_unless(
+            $attachment->attachable_type === Tenants::class && $attachment->attachable_id === $tenant->id,
+            404
+        );
+
+        $attachments->delete($attachment);
+
+        return redirect()->back()->with('success', __('messages.flash_attachment_removed'));
     }
 }

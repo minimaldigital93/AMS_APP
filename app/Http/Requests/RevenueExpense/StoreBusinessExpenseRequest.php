@@ -25,7 +25,8 @@ class StoreBusinessExpenseRequest extends FormRequest
             'expense_date' => 'required|date',
             'is_recurring' => 'nullable|boolean',
             'note' => 'nullable|string|max:1000',
-            'attachment' => 'nullable|file|mimes:pdf|max:10240',
+            'attachments' => 'nullable|array|max:3',
+            'attachments.*' => 'file|mimes:pdf,jpg,jpeg,png,heic,heif|max:10240',
         ];
     }
 }

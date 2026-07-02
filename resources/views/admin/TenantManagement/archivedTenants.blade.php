@@ -120,7 +120,7 @@
                                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
                                             </svg>
                                         </button>
-                                        @if($tenant->document_path)
+                                        @if($tenant->attachments->isNotEmpty())
                                             <button type="button" onclick="viewTenantDocument('{{ $tenant->id }}', '{{ addslashes($tenant->name) }}')" title="{{ __('messages.view_document') }}" class="inline-flex items-center justify-center h-8 w-8 rounded-md text-red-600 bg-red-50 hover:bg-red-100 transition" aria-label="Document">
                                                 <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
                                                     <path d="M4 2h7l5 5v11a2 2 0 01-2 2H4a2 2 0 01-2-2V4a2 2 0 012-2z" />
@@ -177,7 +177,7 @@
                                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path></svg>
                                 {{ __('messages.view_settlement') }}
                             </button>
-                            @if($tenant->document_path)
+                            @if($tenant->attachments->isNotEmpty())
                                 <button type="button" onclick="viewTenantDocument('{{ $tenant->id }}', '{{ addslashes($tenant->name) }}')" class="inline-flex items-center justify-center gap-1.5 h-9 px-4 rounded-lg text-red-700 bg-red-50 active:bg-red-100 text-sm font-medium transition">
                                     <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path d="M4 2h7l5 5v11a2 2 0 01-2 2H4a2 2 0 01-2-2V4a2 2 0 012-2z" /></svg>
                                     {{ __('messages.document') }}
@@ -291,7 +291,7 @@ let allArchivedTenants = [
             deposit: {{ $tenant->deposit ?? 0 }},
             stay_days: {{ $tenant->leaves->last()?->stay_days ?? 0 }},
             photo_path: '{{ $tenant->photo_path ?? "" }}',
-            document_path: '{{ $tenant->document_path ?? "" }}'
+            documents: @json($tenant->attachments->map(fn ($a) => ['url' => $a->url(), 'name' => $a->original_name])->all())
         },
     @endforeach
 ];
@@ -379,7 +379,7 @@ function viewTenantSettlement(tenantId, tenantName) {
                     <p class="text-sm font-medium text-gray-600">{{ __('messages.additional_notes') }}</p>
                     <p class="mt-2 text-sm text-gray-700">${t.notes}</p>
                 </div>` : ''}
-                ${t.document_path ? `<div class="mt-4"><button type="button" onclick="viewTenantDocument('${t.id}', '${t.name.replace(/'/g, "\\'")}')" class="inline-flex items-center px-3 py-2 bg-gray-50 text-gray-700 rounded-lg border border-gray-200 hover:bg-gray-100" title="{{ __('messages.view_document') }}"><svg class="w-4 h-4 mr-2 text-red-600" fill="currentColor" viewBox="0 0 20 20"><path d="M4 2h7l5 5v11a2 2 0 01-2 2H4a2 2 0 01-2-2V4a2 2 0 012-2z"/></svg>{{ __('messages.view_document') }}</button></div>` : '' }
+                ${t.documents && t.documents.length ? `<div class="mt-4"><button type="button" onclick="viewTenantDocument('${t.id}', '${t.name.replace(/'/g, "\\'")}')" class="inline-flex items-center px-3 py-2 bg-gray-50 text-gray-700 rounded-lg border border-gray-200 hover:bg-gray-100" title="{{ __('messages.view_document') }}"><svg class="w-4 h-4 mr-2 text-red-600" fill="currentColor" viewBox="0 0 20 20"><path d="M4 2h7l5 5v11a2 2 0 01-2 2H4a2 2 0 01-2-2V4a2 2 0 012-2z"/></svg>{{ __('messages.view_document') }}</button></div>` : '' }
 
                 <button onclick="closeViewTenantModal()" class="w-full px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition font-medium">{{ __('messages.close') }}</button>
             </div>
@@ -399,27 +399,33 @@ function closeViewTenantModal() {
 
 function viewTenantDocument(tenantId, tenantName) {
     const tenant = allArchivedTenants.find(t => t.id == tenantId);
-    if (!tenant || !tenant.document_path) { alert('{{ __('messages.no_document_attached') }}'); return; }
+    if (!tenant || !tenant.documents || !tenant.documents.length) { alert('{{ __('messages.no_document_attached') }}'); return; }
 
-    const url = tenant.document_path.startsWith('/') ? tenant.document_path : ('{{ asset('storage') }}/' + tenant.document_path);
-    const ext = (tenant.document_path.split('.').pop() || '').toLowerCase();
     const body = document.getElementById('documentViewerBody');
+    const preview = (doc) => {
+        const ext = (doc.name.split('.').pop() || '').toLowerCase();
+        if (['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp', 'svg'].includes(ext)) {
+            return `<img src="${doc.url}" alt="${doc.name}" class="max-w-full max-h-[60vh] object-contain rounded shadow-sm bg-white mx-auto">`;
+        }
+        if (ext === 'pdf') {
+            return `<iframe src="${doc.url}" class="w-full h-[60vh] bg-white rounded shadow-sm" frameborder="0"></iframe>`;
+        }
+        return `<div class="text-center py-8"><svg class="w-16 h-16 mx-auto text-red-300 mb-4" fill="currentColor" viewBox="0 0 20 20"><path d="M4 2h7l5 5v11a2 2 0 01-2 2H4a2 2 0 01-2-2V4a2 2 0 012-2z"/></svg><p class="text-sm text-gray-600">${ext.toUpperCase()}</p></div>`;
+    };
 
-    if (['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp', 'svg'].includes(ext)) {
-        body.innerHTML = `<img src="${url}" alt="${tenantName}" class="max-w-full max-h-[75vh] object-contain rounded shadow-sm bg-white">`;
-    } else if (ext === 'pdf') {
-        body.innerHTML = `<iframe src="${url}" class="w-full h-[75vh] bg-white rounded shadow-sm" frameborder="0"></iframe>`;
-    } else {
-        body.innerHTML = `<div class="text-center py-12">
-            <svg class="w-16 h-16 mx-auto text-red-300 mb-4" fill="currentColor" viewBox="0 0 20 20"><path d="M4 2h7l5 5v11a2 2 0 01-2 2H4a2 2 0 01-2-2V4a2 2 0 012-2z"/></svg>
-            <p class="text-sm text-gray-600">${ext.toUpperCase()} {{ __('messages.document') }}</p>
-            <p class="text-xs text-gray-400 mt-1">{{ __('messages.download') }}</p>
-        </div>`;
-    }
+    body.innerHTML = tenant.documents.map((doc) => `
+        <div class="mb-4 last:mb-0 w-full">
+            ${preview(doc)}
+            <div class="flex items-center justify-between mt-2">
+                <span class="text-xs text-gray-500 truncate">${doc.name}</span>
+                <a href="${doc.url}" download class="text-xs font-medium text-emerald-700 hover:underline">{{ __('messages.download') }}</a>
+            </div>
+        </div>
+    `).join('');
 
     document.getElementById('documentTenantName').textContent = tenantName || '';
-    document.getElementById('documentDownloadBtn').setAttribute('href', url);
-    document.getElementById('documentOpenBtn').setAttribute('href', url);
+    document.getElementById('documentDownloadBtn').setAttribute('href', tenant.documents[0].url);
+    document.getElementById('documentOpenBtn').setAttribute('href', tenant.documents[0].url);
     document.getElementById('documentViewerModal').classList.remove('hidden');
 }
 

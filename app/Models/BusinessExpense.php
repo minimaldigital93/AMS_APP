@@ -3,13 +3,13 @@
 namespace App\Models;
 
 use App\Models\Concerns\BelongsToAccount;
-use App\Models\Concerns\TracksFileSizes;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\MorphMany;
 
 class BusinessExpense extends Model
 {
-    use BelongsToAccount, TracksFileSizes;
+    use BelongsToAccount;
 
     protected $fillable = [
         'user_id',
@@ -23,7 +23,6 @@ class BusinessExpense extends Model
         'billing_year',
         'is_recurring',
         'note',
-        'attachment',
     ];
 
     protected function casts(): array
@@ -32,19 +31,15 @@ class BusinessExpense extends Model
             'amount' => 'float',
             'expense_date' => 'date',
             'is_recurring' => 'boolean',
-            'attachment_size' => 'integer',
-        ];
-    }
-
-    /** Upload path columns whose byte size is tracked (see TracksFileSizes). */
-    protected function fileSizeColumns(): array
-    {
-        return [
-            'attachment' => 'attachment_size',
         ];
     }
 
     // Relationships
+
+    public function attachments(): MorphMany
+    {
+        return $this->morphMany(Attachment::class, 'attachable')->orderBy('sort_order');
+    }
 
     public function user(): BelongsTo
     {

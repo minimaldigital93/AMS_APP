@@ -17,6 +17,7 @@ use App\Http\Requests\RevenueExpense\StoreUtilityExpenseRequest;
 use App\Models\Accounts;
 use App\Models\ApartmentFixedExpense;
 use App\Models\Apartments;
+use App\Models\Attachment;
 use App\Models\BusinessExpense;
 use App\Models\FiscalPeriods;
 use App\Models\Floors;
@@ -25,6 +26,7 @@ use App\Models\Property;
 use App\Models\Rentals;
 use App\Models\TenantLeave;
 use App\Models\Utilities;
+use App\Services\Attachments\AttachmentService;
 use App\Services\RevenueExpense\BreakEvenService;
 use App\Services\RevenueExpense\ExpenseRecordingService;
 use App\Services\RevenueExpense\IncomeRecordingService;
@@ -1258,7 +1260,8 @@ class RevenueExpenseController extends Controller
         $totalOtherExpenses = $otherExpenses->sum('amount');
 
         // Business expenses (fixed & variable) for the selected month — scoped to the active property.
-        $businessExpenses = BusinessExpense::where('user_id', Auth::id())
+        $businessExpenses = BusinessExpense::with('attachments')
+            ->where('user_id', Auth::id())
             ->forProperty($this->activePropertyId())
             ->where('fiscal_period_id', $activePeriod->id)
             ->where('billing_month', $filterMonth)
@@ -1361,7 +1364,7 @@ class RevenueExpenseController extends Controller
         return redirect()->back()->with('success', __('messages.flash_expense_removed', ['desc' => $desc]));
     }
 
-    public function storeBusinessExpense(StoreBusinessExpenseRequest $request)
+    public function storeBusinessExpense(StoreBusinessExpenseRequest $request, AttachmentService $attachments)
     {
         $activePeriod = $this->getActiveFiscalPeriod();
         if (! $activePeriod) {
@@ -1370,11 +1373,11 @@ class RevenueExpenseController extends Controller
         }
 
         $validated = $request->validated();
-        $attachmentPath = $request->hasFile('attachment')
-            ? $request->file('attachment')->store('business_expenses', 'public')
-            : null;
+        $expense = $this->expenseService($activePeriod)->recordBusinessExpense($validated);
 
-        $this->expenseService($activePeriod)->recordBusinessExpense($validated, $attachmentPath);
+        if ($request->hasFile('attachments')) {
+            $attachments->storeMany($expense, $request->file('attachments'), Attachment::KIND_BUSINESS_EXPENSE, 'business_expenses');
+        }
 
         return redirect()->back()->with(
             'success',
@@ -1390,6 +1393,18 @@ class RevenueExpenseController extends Controller
         $name = $this->expenseService()->deleteBusinessExpense($businessExpense);
 
         return redirect()->back()->with('success', __('messages.flash_business_expense_removed', ['name' => $name]));
+    }
+
+    public function deleteBusinessExpenseAttachment(BusinessExpense $businessExpense, Attachment $attachment, AttachmentService $attachments)
+    {
+        abort_unless(
+            $attachment->attachable_type === BusinessExpense::class && $attachment->attachable_id === $businessExpense->id,
+            404
+        );
+
+        $attachments->delete($attachment);
+
+        return redirect()->back()->with('success', __('messages.flash_attachment_removed'));
     }
 
     // ===========================================================================

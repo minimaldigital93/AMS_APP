@@ -8,6 +8,7 @@ use App\Models\Concerns\TracksFileSizes;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Tenants extends Model
@@ -37,7 +38,6 @@ class Tenants extends Model
         'status',
         'deposit',
         'photo_path',
-        'document_path',
         'notes',
         'archived_at',
     ];
@@ -52,7 +52,6 @@ class Tenants extends Model
             'deleted_at' => 'datetime',
             'deposit' => 'float',
             'photo_size' => 'integer',
-            'document_size' => 'integer',
         ];
     }
 
@@ -61,11 +60,15 @@ class Tenants extends Model
     {
         return [
             'photo_path' => 'photo_size',
-            'document_path' => 'document_size',
         ];
     }
 
     // Relationships
+
+    public function attachments(): MorphMany
+    {
+        return $this->morphMany(Attachment::class, 'attachable')->orderBy('sort_order');
+    }
 
     public function apartment(): BelongsTo
     {

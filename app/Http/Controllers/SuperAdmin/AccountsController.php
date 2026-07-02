@@ -4,7 +4,7 @@ namespace App\Http\Controllers\SuperAdmin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Apartments;
-use App\Models\BusinessExpense;
+use App\Models\Attachment;
 use App\Models\FiscalPeriods;
 use App\Models\Floors;
 use App\Models\MerchantPaymentSetting;
@@ -87,9 +87,9 @@ class AccountsController extends Controller
      * Total on-disk size (bytes) of every uploaded file each account owns,
      * keyed by account id. Every upload in the app lands on the `public` disk.
      *
-     * The high-volume sources — tenant photos + ID documents and business-expense
-     * attachments — store each file's byte size next to its path (kept in sync by
-     * the TracksFileSizes model hook, backfilled by migration), so they total in
+     * The high-volume sources — tenant photos (TracksFileSizes-tracked scalar
+     * column) and the polymorphic `attachments` table (tenant ID documents +
+     * business-expense receipts, size captured once at upload time) — total in
      * one grouped SUM() query each. That keeps this page's cost proportional to
      * the number of accounts shown rather than the number of files they hold.
      *
@@ -109,23 +109,24 @@ class AccountsController extends Controller
 
         $usage = array_fill_keys($accountIds, 0);
 
-        // Tenant photos + ID documents. withTrashed: soft-deleted tenants still
-        // leave their uploaded files on disk, so they count toward usage.
+        // Tenant photos. withTrashed: soft-deleted tenants still leave their
+        // uploaded files on disk, so they count toward usage.
         $tenantBytes = Tenants::withoutAccountScope()->withTrashed()
             ->whereIn('account_id', $accountIds)
-            ->selectRaw('account_id, COALESCE(SUM(photo_size), 0) + COALESCE(SUM(document_size), 0) as bytes')
+            ->selectRaw('account_id, COALESCE(SUM(photo_size), 0) as bytes')
             ->groupBy('account_id')
             ->pluck('bytes', 'account_id');
 
-        // Business-expense attachments.
-        $expenseBytes = BusinessExpense::withoutAccountScope()
+        // Multi-file attachments: tenant ID documents + business-expense
+        // receipts live in the same table, so one query covers both kinds.
+        $attachmentBytes = Attachment::withoutAccountScope()
             ->whereIn('account_id', $accountIds)
-            ->selectRaw('account_id, COALESCE(SUM(attachment_size), 0) as bytes')
+            ->selectRaw('account_id, COALESCE(SUM(size), 0) as bytes')
             ->groupBy('account_id')
             ->pluck('bytes', 'account_id');
 
         foreach ($accountIds as $id) {
-            $usage[$id] += (int) ($tenantBytes[$id] ?? 0) + (int) ($expenseBytes[$id] ?? 0);
+            $usage[$id] += (int) ($tenantBytes[$id] ?? 0) + (int) ($attachmentBytes[$id] ?? 0);
         }
 
         // At-most-one-per-account files stat-ed directly (they never scale with

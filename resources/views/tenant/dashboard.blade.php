@@ -168,37 +168,37 @@
         {{-- Document --}}
         <div class="bg-white rounded-xl border border-slate-100 shadow-sm p-4 sm:p-6">
             <h2 class="text-sm font-semibold text-gray-900 uppercase tracking-wide mb-4">{{ __('messages.document') }}</h2>
-            @if($tenant->document_path)
-                @php
-                    $ext = pathinfo($tenant->document_path, PATHINFO_EXTENSION);
-                    $docUrl = asset('storage/' . $tenant->document_path);
-                @endphp
-                @php $isImageDoc = in_array(strtolower($ext), ['jpg', 'jpeg', 'png', 'webp']); @endphp
-                <div class="flex flex-col items-center gap-4">
-                    @if($isImageDoc)
-                        <img src="{{ $docUrl }}"
-                             alt="{{ __('messages.document') }}"
-                             @click="openViewer('{{ $docUrl }}', true, '{{ __('messages.document') }}')"
-                             class="w-full max-h-48 object-contain rounded-lg border border-slate-100 cursor-pointer hover:opacity-90 transition">
-                    @else
-                        <button type="button"
-                            @click="openViewer('{{ $docUrl }}', false, '{{ __('messages.document') }}')"
-                            class="w-full flex flex-col items-center justify-center py-8 bg-indigo-50 rounded-lg border border-indigo-100 hover:bg-indigo-100 transition">
-                            <svg class="w-12 h-12 text-indigo-300 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"/>
-                            </svg>
-                            <p class="text-xs text-indigo-400 uppercase font-medium">{{ __('messages.file_label', ['ext' => strtoupper($ext)]) }}</p>
-                        </button>
-                    @endif
-                    <button type="button"
-                       @click="openViewer('{{ $docUrl }}', {{ $isImageDoc ? 'true' : 'false' }}, '{{ __('messages.document') }}')"
-                       class="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-medium text-indigo-700 bg-indigo-50 hover:bg-indigo-100 active:bg-indigo-200 rounded-lg transition border border-indigo-100" title="{{ __('messages.view_download') }}">
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
-                        </svg>
-                        <span>{{ __('messages.view_download') }}</span>
-                    </button>
+            @if($tenant->attachments->isNotEmpty())
+                <div class="space-y-3">
+                    @foreach($tenant->attachments as $doc)
+                        @php $isImageDoc = $doc->isImage(); @endphp
+                        <div class="flex flex-col items-center gap-2 pb-3 border-b border-slate-50 last:border-0 last:pb-0">
+                            @if($isImageDoc)
+                                <img src="{{ $doc->url() }}"
+                                     alt="{{ $doc->original_name }}"
+                                     @click="openViewer('{{ $doc->url() }}', true, '{{ $doc->original_name }}')"
+                                     class="w-full max-h-48 object-contain rounded-lg border border-slate-100 cursor-pointer hover:opacity-90 transition">
+                            @else
+                                <button type="button"
+                                    @click="openViewer('{{ $doc->url() }}', false, '{{ $doc->original_name }}')"
+                                    class="w-full flex flex-col items-center justify-center py-8 bg-indigo-50 rounded-lg border border-indigo-100 hover:bg-indigo-100 transition">
+                                    <svg class="w-12 h-12 text-indigo-300 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"/>
+                                    </svg>
+                                    <p class="text-xs text-indigo-400 uppercase font-medium truncate max-w-full px-2">{{ $doc->original_name }}</p>
+                                </button>
+                            @endif
+                            <button type="button"
+                               @click="openViewer('{{ $doc->url() }}', {{ $isImageDoc ? 'true' : 'false' }}, '{{ $doc->original_name }}')"
+                               class="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-medium text-indigo-700 bg-indigo-50 hover:bg-indigo-100 active:bg-indigo-200 rounded-lg transition border border-indigo-100" title="{{ __('messages.view_download') }}">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+                                </svg>
+                                <span>{{ __('messages.view_download') }}</span>
+                            </button>
+                        </div>
+                    @endforeach
                 </div>
             @else
                 <div class="flex flex-col items-center justify-center py-10 text-center">

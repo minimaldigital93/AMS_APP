@@ -4,6 +4,8 @@ import Alpine from 'alpinejs';
 
 window.Alpine = Alpine;
 
+import './attachments';
+
 Alpine.start();
 
 // Chart.js is bundled locally (not loaded from a CDN) so dashboards render

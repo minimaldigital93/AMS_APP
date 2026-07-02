@@ -37,6 +37,14 @@
                 @error('photo')<p class="text-red-500 text-xs mt-1">{{ $message }}</p>@enderror
             </div>
 
+            <!-- ID Documents -->
+            <x-attachments-input
+                name="documents"
+                :label="__('messages.tenant_documents')"
+                :hint="__('messages.tenant_documents_hint')"
+                :max-files="4"
+                :max-bytes="10485760" />
+
             <div class="grid grid-cols-1 gap-4">
 
                 <!-- Apartment -->

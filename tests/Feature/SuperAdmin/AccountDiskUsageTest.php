@@ -35,8 +35,7 @@ it('records a file byte size when its path is set, replaced, or cleared', functi
         'photo_path' => fakeFileOfBytes('photo.jpg', 20 * 1024, 'tenants'),
     ]);
 
-    expect($tenant->photo_size)->toBe(20 * 1024)
-        ->and($tenant->document_size)->toBeNull();
+    expect($tenant->photo_size)->toBe(20 * 1024);
 
     // Replacing the file recomputes the size.
     $tenant->update(['photo_path' => fakeFileOfBytes('photo2.jpg', 50 * 1024, 'tenants')]);
@@ -55,10 +54,16 @@ it('shows each account total uploaded disk usage on the accounts index', functio
     // Create the tenant as the admin so BelongsToAccount stamps its account_id
     // (account_id is not mass-assignable).
     $this->actingAs($admin);
-    makeTenant(null, [
+    $tenant = makeTenant(null, [
         'phone' => '555-2002',
         'photo_path' => fakeFileOfBytes('photo.jpg', 40 * 1024, 'tenants'),
-        'document_path' => fakeFileOfBytes('id.pdf', 60 * 1024, 'tenants/id_documents'),
+    ]);
+    $tenant->attachments()->create([
+        'kind' => \App\Models\Attachment::KIND_TENANT_DOCUMENT,
+        'path' => fakeFileOfBytes('id.pdf', 60 * 1024, 'tenants/documents'),
+        'original_name' => 'id.pdf',
+        'mime_type' => 'application/pdf',
+        'size' => 60 * 1024,
     ]);
 
     // 40 KB + 60 KB = 100 KB → format_bytes() renders "100.0 KB".

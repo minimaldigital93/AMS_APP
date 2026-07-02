@@ -142,10 +142,12 @@
                                 class="w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 bg-white appearance-none h-10">
                         </div>
                         <div class="md:col-span-2">
-                            <label for="biz_attachment" class="block text-sm font-medium text-slate-700 mb-1">{{ __('messages.attachment_pdf') }}</label>
-                            <input type="file" name="attachment" id="biz_attachment" accept="application/pdf"
-                                class="w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 file:mr-3 file:py-1.5 file:px-3 file:rounded-md file:border-0 file:text-sm file:font-medium file:bg-orange-50 file:text-orange-700 hover:file:bg-orange-100">
-                            <p class="text-xs text-slate-400 mt-1">{{ __('messages.attachment_hint') }}</p>
+                            <x-attachments-input
+                                name="attachments"
+                                :label="__('messages.attachment_label')"
+                                :hint="__('messages.attachment_hint')"
+                                :max-files="3"
+                                :max-bytes="10485760" />
                         </div>
                     </div>
                     <div class="mt-4 flex justify-end">
@@ -586,12 +588,18 @@
                                 <span class="text-sm font-semibold text-slate-700">{{ __('messages.amount') }}</span>
                                 <span class="text-xl font-bold text-red-600" x-text="'$' + bizDetail.amount.toFixed(2)"></span>
                             </div>
-                            <template x-if="bizDetail.attachment">
-                                <a :href="bizDetail.attachment" target="_blank" rel="noopener" download
-                                    class="w-full flex items-center justify-center gap-2 py-2 text-sm font-medium text-sky-700 bg-sky-50 hover:bg-sky-100 rounded-lg transition">
-                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M12 4v8"/></svg>
-                                    {{ __('messages.download_pdf') }}
-                                </a>
+                            <template x-for="a in bizDetail.attachments" :key="a.id">
+                                <div class="w-full flex items-center gap-2">
+                                    <a :href="a.url" target="_blank" rel="noopener" download :title="a.name"
+                                        class="flex-1 min-w-0 flex items-center justify-center gap-2 py-2 text-sm font-medium text-sky-700 bg-sky-50 hover:bg-sky-100 rounded-lg transition">
+                                        <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M12 4v8"/></svg>
+                                        <span class="truncate" x-text="a.name"></span>
+                                    </a>
+                                    <form :action="a.delete_url" method="POST" data-confirm="{{ __('messages.remove_attachment_confirm') }}">
+                                        @csrf @method('DELETE')
+                                        <button type="submit" class="w-9 h-9 flex items-center justify-center rounded-lg text-red-500 hover:bg-red-50" title="{{ __('messages.delete') }}">&times;</button>
+                                    </form>
+                                </div>
                             </template>
                             <form :action="bizDetail.delete_url" method="POST" data-confirm="{{ __('messages.remove_expense_confirm') }}">
                                 @csrf @method('DELETE')
@@ -672,13 +680,13 @@
                         <td class="px-4 py-3 text-right font-semibold text-amber-600">{{ money($be->amount) }}</td>
                         <td class="px-4 py-3">
                             <div class="flex items-center justify-center gap-2">
-                                @if($be->attachment)
-                                <a href="{{ asset('storage/'.$be->attachment) }}" target="_blank" rel="noopener" download
-                                   title="{{ __('messages.download_pdf') }}" aria-label="{{ __('messages.download_pdf') }}"
+                                @foreach($be->attachments as $a)
+                                <a href="{{ $a->url() }}" target="_blank" rel="noopener" download
+                                   title="{{ $a->original_name }}" aria-label="{{ __('messages.download_pdf') }}"
                                    class="inline-flex items-center justify-center w-7 h-7 rounded text-red-500 hover:bg-red-50 hover:text-red-700">
                                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M12 4v8"/></svg>
                                 </a>
-                                @endif
+                                @endforeach
                                 <form action="{{ route('admin.revenue_expense.delete_business_expense', $be) }}" method="POST" data-confirm="{{ __('messages.remove_expense_confirm') }}">
                                     @csrf @method('DELETE')
                                     <button type="submit" class="inline-flex items-center justify-center w-7 h-7 rounded text-red-500 hover:bg-red-50 hover:text-red-700" title="{{ __('messages.delete') }}" aria-label="{{ __('messages.delete') }}">
@@ -712,7 +720,7 @@
                     'note'       => $oe->note,
                     'amount'     => (float) $oe->amount,
                     'recurring'  => false,
-                    'attachment' => null,
+                    'attachments' => [],
                     'delete_url' => route('admin.revenue_expense.delete_other_expense', $oe),
                 ];
             @endphp
@@ -738,7 +746,12 @@
                     'note'       => $be->note,
                     'amount'     => (float) $be->amount,
                     'recurring'  => (bool) $be->is_recurring,
-                    'attachment' => $be->attachment ? asset('storage/'.$be->attachment) : null,
+                    'attachments' => $be->attachments->map(fn ($a) => [
+                        'id' => $a->id,
+                        'url' => $a->url(),
+                        'name' => $a->original_name,
+                        'delete_url' => route('admin.revenue_expense.delete_business_expense_attachment', [$be, $a]),
+                    ])->all(),
                     'delete_url' => route('admin.revenue_expense.delete_business_expense', $be),
                 ];
             @endphp

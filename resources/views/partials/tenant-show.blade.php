@@ -172,23 +172,27 @@
         @endif
     </div>
 
-    {{-- 5. Attached Document --}}
+    {{-- 5. ID Documents --}}
     <div class="bg-white rounded-xl border border-slate-100 p-6">
-        <h3 class="text-sm font-medium text-slate-500 uppercase tracking-wide mb-4">{{ __('messages.attached_document') }}</h3>
-        @if($tenant->document_path)
-            @php
-                $docUrl = asset('storage/' . $tenant->document_path);
-                $docName = basename($tenant->document_path);
-                $docExt = strtolower(pathinfo($tenant->document_path, PATHINFO_EXTENSION));
-                $docIsImage = in_array($docExt, ['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp', 'svg']);
-            @endphp
-            <button type="button"
-                    onclick="openDocPreview(@js($docUrl), @js($docName), {{ $docIsImage ? 'true' : 'false' }})"
-                    title="{{ __('messages.view_document') }}"
-                    aria-label="{{ __('messages.view_document') }}"
-                    class="h-12 w-12 rounded-lg bg-red-50 hover:bg-red-100 border border-red-100 hover:border-red-200 flex items-center justify-center transition">
-                <svg class="w-6 h-6 text-red-600" fill="currentColor" viewBox="0 0 20 20"><path d="M4 2h7l5 5v11a2 2 0 01-2 2H4a2 2 0 01-2-2V4a2 2 0 012-2z"/></svg>
-            </button>
+        <h3 class="text-sm font-medium text-slate-500 uppercase tracking-wide mb-4">{{ __('messages.tenant_documents') }}</h3>
+        @if($tenant->attachments->isNotEmpty())
+            <ul class="space-y-1">
+                @foreach($tenant->attachments as $doc)
+                    @php $docIsImage = $doc->isImage(); @endphp
+                    <li class="flex items-center gap-2 text-sm bg-slate-50 rounded-lg px-3 py-1.5">
+                        <button type="button"
+                                onclick="openDocPreview(@js($doc->url()), @js($doc->original_name), {{ $docIsImage ? 'true' : 'false' }})"
+                                class="flex-1 min-w-0 flex items-center gap-2 text-left text-sky-700 hover:underline">
+                            <svg class="w-4 h-4 shrink-0" fill="currentColor" viewBox="0 0 20 20"><path d="M4 2h7l5 5v11a2 2 0 01-2 2H4a2 2 0 01-2-2V4a2 2 0 012-2z"/></svg>
+                            <span class="truncate">{{ $doc->original_name }}</span>
+                        </button>
+                        <form action="{{ route($role.'.tenants.destroy_document', [$tenant, $doc]) }}" method="POST" data-confirm="{{ __('messages.remove_attachment_confirm') }}">
+                            @csrf @method('DELETE')
+                            <button type="submit" class="text-red-500 hover:text-red-600 text-base leading-none px-1" title="{{ __('messages.delete') }}">&times;</button>
+                        </form>
+                    </li>
+                @endforeach
+            </ul>
         @else
             <p class="text-slate-400 text-sm">{{ __('messages.no_document_attached') }}</p>
         @endif
