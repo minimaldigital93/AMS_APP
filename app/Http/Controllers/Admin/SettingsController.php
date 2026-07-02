@@ -124,6 +124,7 @@ class SettingsController extends Controller
         ]);
 
         Settings::where('key', $request->key)->delete();
+        Cache::forget('setting.'.current_account_id().'.'.$request->key);
 
         return redirect()->route('admin.settings.index')
             ->with('success', __('messages.setting_deleted'));
@@ -135,8 +136,15 @@ class SettingsController extends Controller
     public function reset(): RedirectResponse
     {
         // Scoped delete (not truncate) so only this account's settings reset.
+        // Per-key cache eviction — Cache::flush() would drop every OTHER
+        // account's cached settings (and everything else in the shared store).
+        $accountId = current_account_id();
+        $keys = Settings::query()->pluck('key');
+
         Settings::query()->delete();
-        Cache::flush();
+        foreach ($keys as $key) {
+            Cache::forget("setting.{$accountId}.{$key}");
+        }
 
         return redirect()->route('admin.settings.index')
             ->with('success', __('messages.settings_reset'));

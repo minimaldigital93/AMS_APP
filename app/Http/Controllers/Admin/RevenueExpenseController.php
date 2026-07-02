@@ -1586,6 +1586,10 @@ class RevenueExpenseController extends Controller
                 ->with('warning', __('messages.flash_fp_required'));
         }
 
+        $request->validate([
+            'billing_date' => ['nullable', 'date', new \App\Rules\NotInClosedMonth],
+        ]);
+
         $billingDate = $request->input('billing_date')
             ? Carbon::parse($request->input('billing_date'))
             : now();

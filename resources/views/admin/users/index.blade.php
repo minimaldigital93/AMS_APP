@@ -101,6 +101,8 @@
                             @endif
                         </td>
                         <td class="px-4 py-3 flex items-center gap-3">
+                            {{-- Admin/superadmin rows aren't manageable here (the controller 403s) --}}
+                            @unless($user->hasAnyRole(['admin', 'superadmin']))
                             <a href="{{ route('admin.users.edit', $user) }}"
                                class="text-sky-600 hover:text-sky-700 p-2 rounded-lg bg-sky-50/20 hover:bg-sky-50/40 transition" title="{{ __('messages.edit_user') }}">
                                 <svg class="w-[18px] h-[18px]" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
@@ -116,6 +118,7 @@
                                     </svg>
                                 </button>
                             </form>
+                            @endunless
                         </td>
                     </tr>
                     @empty
@@ -163,6 +166,7 @@
                             </select>
                         </form>
                     @endif
+                    @unless($user->hasAnyRole(['admin', 'superadmin']))
                     <div class="flex items-center gap-1 flex-shrink-0">
                         <a href="{{ route('admin.users.edit', $user) }}" class="inline-flex items-center justify-center h-8 w-8 rounded-lg text-sky-600 bg-sky-50 active:bg-sky-100 transition" title="{{ __('messages.edit_user') }}">
                             <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125" /></svg>
@@ -175,6 +179,7 @@
                             </button>
                         </form>
                     </div>
+                    @endunless
                 </div>
             @empty
                 <div class="p-8 text-center text-gray-500">{{ __('messages.no_users_found') }}</div>

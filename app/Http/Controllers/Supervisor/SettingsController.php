@@ -11,6 +11,20 @@ use Illuminate\View\View;
 
 class SettingsController extends Controller
 {
+    /**
+     * The only keys the supervisor settings page manages. updateBatch/reset are
+     * pinned to this list so a crafted request can't write or wipe arbitrary
+     * account settings (locale, payment config, …) through the supervisor panel.
+     */
+    private const EDITABLE_KEYS = [
+        'company_name',
+        'company_address',
+        'company_phone',
+        'company_email',
+        'system_currency',
+        'khr_exchange_rate',
+    ];
+
     public function index(): View
     {
         $settings = Settings::orderBy('key')->get()->groupBy(function ($setting) {
@@ -49,7 +63,9 @@ class SettingsController extends Controller
         ]);
 
         foreach ($request->settings as $key => $value) {
-            Settings::set($key, $value);
+            if (in_array($key, self::EDITABLE_KEYS, true)) {
+                Settings::set($key, $value);
+            }
         }
 
         return redirect()->route('supervisor.settings.index')
@@ -58,9 +74,15 @@ class SettingsController extends Controller
 
     public function reset(): RedirectResponse
     {
-        // Scoped delete (not truncate) so only this account's settings reset.
-        Settings::query()->delete();
-        Cache::flush();
+        // Only the keys this page manages, only for this account. Per-key cache
+        // eviction — Cache::flush() would drop every account's cached settings
+        // (and everything else in the shared store).
+        $accountId = current_account_id();
+
+        Settings::whereIn('key', self::EDITABLE_KEYS)->delete();
+        foreach (self::EDITABLE_KEYS as $key) {
+            Cache::forget("setting.{$accountId}.{$key}");
+        }
 
         return redirect()->route('supervisor.settings.index')
             ->with('success', __('messages.settings_reset'));

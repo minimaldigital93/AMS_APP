@@ -103,21 +103,7 @@ class ExpenseRecordingService
     {
         $expenseDate = Carbon::parse($data['expense_date']);
 
-        $expense = BusinessExpense::create([
-            'user_id' => $this->userId,
-            'fiscal_period_id' => $this->period->id,
-            'property_id' => $this->propertyId,
-            'expense_name' => $data['expense_name'],
-            'category' => $data['category'],
-            'amount' => $data['amount'],
-            'expense_date' => $data['expense_date'],
-            'billing_month' => $expenseDate->month,
-            'billing_year' => $expenseDate->year,
-            'is_recurring' => (bool) ($data['is_recurring'] ?? false),
-            'note' => $data['note'] ?? null,
-        ]);
-
-        Accounts::create([
+        $ledgerEntry = Accounts::create([
             'fiscal_period_id' => $this->period->id,
             'property_id' => $this->propertyId,
             'payment_id' => null,
@@ -130,7 +116,22 @@ class ExpenseRecordingService
             'note' => $data['note'] ?? null,
         ]);
 
-        return $expense;
+        return BusinessExpense::create([
+            'user_id' => $this->userId,
+            'fiscal_period_id' => $this->period->id,
+            'property_id' => $this->propertyId,
+            'expense_name' => $data['expense_name'],
+            'category' => $data['category'],
+            'amount' => $data['amount'],
+            'expense_date' => $data['expense_date'],
+            'billing_month' => $expenseDate->month,
+            'billing_year' => $expenseDate->year,
+            'is_recurring' => (bool) ($data['is_recurring'] ?? false),
+            'note' => $data['note'] ?? null,
+            // Hard link to the mirror ledger row so deletion removes exactly
+            // this expense's entry (not a look-alike twin's).
+            'ledger_entry_id' => $ledgerEntry->id,
+        ]);
     }
 
     /**
@@ -141,15 +142,21 @@ class ExpenseRecordingService
     {
         $name = $businessExpense->expense_name;
 
-        Accounts::where('user_id', $this->userId)
-            ->where('fiscal_period_id', $businessExpense->fiscal_period_id)
-            ->where('account_type', Accounts::TYPE_EXPENSE)
-            ->where('category', Accounts::CAT_BUSINESS_VARIABLE)
-            ->where('amount', $businessExpense->amount)
-            ->where('transaction_date', $businessExpense->expense_date)
-            ->where('description', '[Business] '.$businessExpense->expense_name)
-            ->limit(1)
-            ->delete();
+        if ($businessExpense->ledger_entry_id !== null) {
+            Accounts::whereKey($businessExpense->ledger_entry_id)->delete();
+        } else {
+            // Legacy rows (created before ledger_entry_id existed): best-effort
+            // match on the mirror row's identifying fields.
+            Accounts::where('user_id', $this->userId)
+                ->where('fiscal_period_id', $businessExpense->fiscal_period_id)
+                ->where('account_type', Accounts::TYPE_EXPENSE)
+                ->where('category', Accounts::CAT_BUSINESS_VARIABLE)
+                ->where('amount', $businessExpense->amount)
+                ->where('transaction_date', $businessExpense->expense_date)
+                ->where('description', '[Business] '.$businessExpense->expense_name)
+                ->limit(1)
+                ->delete();
+        }
 
         $this->attachments->deleteAllFor($businessExpense);
 

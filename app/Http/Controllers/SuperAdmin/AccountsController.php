@@ -19,6 +19,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rules\Password;
 
 /**
@@ -26,9 +27,6 @@ use Illuminate\Validation\Rules\Password;
  */
 class AccountsController extends Controller
 {
-    /** Fixed default a customer account's password is reset to from the detail screen. */
-    private const RESET_PASSWORD = '12345678';
-
     public function index(): View
     {
         // Customer account owners that have actually completed signup. Owners point
@@ -322,11 +320,14 @@ class AccountsController extends Controller
     {
         abort_if($account->hasRole('superadmin'), 404);
 
-        $account->forceFill(['password' => Hash::make(self::RESET_PASSWORD)])->save();
+        // Random per reset — shown once in the flash so the operator can hand
+        // it to the customer. A fixed default was guessable platform-wide.
+        $password = Str::random(10);
+        $account->forceFill(['password' => Hash::make($password)])->save();
 
         return back()->with('success', __('messages.flash_account_password_reset', [
             'name' => $account->name,
-            'password' => self::RESET_PASSWORD,
+            'password' => $password,
         ]));
     }
 

@@ -19,7 +19,7 @@ class ProcessMonthlyBillsRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'billing_date' => 'required|date',
+            'billing_date' => ['required', 'date', new \App\Rules\NotInClosedMonth],
             'bills' => 'required|array|min:1',
             'bills.*.rental_id' => 'required|exists:rentals,id',
             'bills.*.selected' => 'nullable|boolean',

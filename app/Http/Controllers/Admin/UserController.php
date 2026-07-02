@@ -7,6 +7,7 @@ use App\Models\User;
 use App\Services\Subscription\SubscriptionService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Rules\Password;
 use Illuminate\View\View;
@@ -22,8 +23,18 @@ class UserController extends Controller
      */
     private const ASSIGNABLE_ROLES = ['supervisor', 'tenant'];
 
-    /** Default password applied when an admin resets a login. */
-    private const RESET_PASSWORD = '12345678';
+    /**
+     * The {user} route parameter binds against the GLOBAL users table (User is
+     * deliberately not account-scoped so login lookups work), so every action
+     * that mutates a bound user must assert the target is a supervisor/tenant
+     * on THIS admin's team. 404 on a foreign account (don't reveal the id
+     * exists); 403 on an admin/superadmin target (never manageable here).
+     */
+    private function authorizeTeamMember(User $user): void
+    {
+        abort_unless($user->account_id === current_account_id(), 404);
+        abort_if($user->hasAnyRole(['admin', 'superadmin']), 403);
+    }
 
     public function index(Request $request): View
     {
@@ -77,6 +88,8 @@ class UserController extends Controller
 
     public function edit(User $user): View
     {
+        $this->authorizeTeamMember($user);
+
         $roles = Role::whereIn('name', self::ASSIGNABLE_ROLES)->get();
 
         return view('admin.users.edit', compact('user', 'roles'));
@@ -116,6 +129,8 @@ class UserController extends Controller
 
     public function update(Request $request, User $user)
     {
+        $this->authorizeTeamMember($user);
+
         $validated = $request->validate([
             'name' => 'required|string|max:255',
             'phone' => ['required', 'string', 'max:255', Rule::unique('users')->ignore($user)],
@@ -154,18 +169,22 @@ class UserController extends Controller
     }
 
     /**
-     * Reset a team member's (or the admin's own) login password to the fixed
-     * default. The phone number — their login identifier — is left untouched.
+     * Reset a team member's (or the admin's own) login password to a freshly
+     * generated one-time password, shown once in the flash message so the admin
+     * can hand it over. The phone number — their login identifier — is left
+     * untouched. (A fixed default like "12345678" was guessable by anyone who
+     * knew a phone number; random-per-reset closes that.)
      */
     public function resetPassword(User $user)
     {
         $this->authorizePasswordManagement($user);
 
-        $user->forceFill(['password' => Hash::make(self::RESET_PASSWORD)])->save();
+        $password = Str::random(10);
+        $user->forceFill(['password' => Hash::make($password)])->save();
 
         return back()->with('success', __('messages.flash_account_password_reset', [
             'name' => $user->name,
-            'password' => self::RESET_PASSWORD,
+            'password' => $password,
         ]));
     }
 
@@ -188,6 +207,8 @@ class UserController extends Controller
 
     public function destroy(User $user)
     {
+        $this->authorizeTeamMember($user);
+
         $user->delete();
 
         return redirect()->route('admin.users.index')->with('success', __('messages.flash_user_deleted'));
@@ -195,6 +216,10 @@ class UserController extends Controller
 
     public function updateRole(Request $request, User $user)
     {
+        // Cross-account targets 404 (the friendlier admin-role flash below only
+        // applies to this account's own rows).
+        abort_unless($user->account_id === current_account_id(), 404);
+
         // Never allow switching/demoting an admin or superadmin via the role picker.
         if ($user->hasAnyRole(['admin', 'superadmin'])) {
             return back()->with('error', __('messages.flash_cannot_change_admin_role'));
@@ -224,6 +249,8 @@ class UserController extends Controller
 
     public function assignPermissions(Request $request, User $user)
     {
+        $this->authorizeTeamMember($user);
+
         $validated = $request->validate([
             'permissions' => 'array',
             'permissions.*' => 'exists:permissions,name',

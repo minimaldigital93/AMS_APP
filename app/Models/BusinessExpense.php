@@ -23,6 +23,7 @@ class BusinessExpense extends Model
         'billing_year',
         'is_recurring',
         'note',
+        'ledger_entry_id',
     ];
 
     protected function casts(): array

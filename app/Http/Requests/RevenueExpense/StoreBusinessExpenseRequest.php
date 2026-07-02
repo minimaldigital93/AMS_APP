@@ -22,7 +22,7 @@ class StoreBusinessExpenseRequest extends FormRequest
             'expense_name' => 'required|string|max:255',
             'category' => 'required|in:electricity,water,trash,internet,legal_fee,tax,loan_payment,salary,other',
             'amount' => 'required|numeric|min:0.01',
-            'expense_date' => 'required|date',
+            'expense_date' => ['required', 'date', new \App\Rules\NotInClosedMonth],
             'is_recurring' => 'nullable|boolean',
             'note' => 'nullable|string|max:1000',
             'attachments' => 'nullable|array|max:3',

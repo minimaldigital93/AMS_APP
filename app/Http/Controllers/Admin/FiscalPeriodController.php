@@ -144,6 +144,16 @@ class FiscalPeriodController extends Controller
     {
         $this->authorizeUser($fiscalperiod);
 
+        // A closed period is frozen history, and accounts.fiscal_period_id is
+        // ON DELETE CASCADE — deleting a period with ledger rows would silently
+        // hard-delete its entire income/expense history. Refuse both cases;
+        // only an open period with no recorded transactions can be removed.
+        if ($fiscalperiod->status === 'closed' || $fiscalperiod->accounts()->exists()) {
+            return redirect()
+                ->route('admin.fiscalperiod.index')
+                ->with('error', __('messages.flash_fp_delete_blocked'));
+        }
+
         $fiscalperiod->balanceSheets()->delete();
         $fiscalperiod->monthlyPeriods()->delete();
         $fiscalperiod->delete();

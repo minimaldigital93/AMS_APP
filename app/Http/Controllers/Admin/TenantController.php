@@ -448,7 +448,13 @@ class TenantController extends Controller
         $minMoveInDate = now()->subDays(3)->toDateString();
 
         $validated = $request->validate([
-            'apartment_id' => 'required|exists:apartments,id',
+            // The room must actually be vacant — the create form only lists
+            // available units, but the raw id is client-supplied and assigning
+            // an occupied unit would double-book it.
+            'apartment_id' => [
+                'required',
+                Rule::exists('apartments', 'id')->where('status', 'available')->whereNull('deleted_at'),
+            ],
             'name' => 'required|string|max:255',
             'gender' => 'nullable|in:male,female,other',
             'phone' => [
@@ -469,6 +475,7 @@ class TenantController extends Controller
             'documents.*' => 'file|mimes:pdf,jpg,jpeg,png,heic,heif|max:10240',
             'notes' => 'nullable|string',
         ], [
+            'apartment_id.exists' => __('messages.validation_apartment_unavailable'),
             'phone.unique' => __('messages.validation_phone_taken'),
             'phone.regex' => __('messages.phone_must_be_english'),
             'date_of_birth.before_or_equal' => __('messages.tenant_must_be_18'),
@@ -487,65 +494,74 @@ class TenantController extends Controller
             }
         }
 
-        // Create a user account for the tenant with default password
-        // Do NOT call Hash::make() here — the User model's 'hashed' cast handles it
-        $tenantUser = User::create([
-            'name' => $validated['name'],
-            'phone' => $validated['phone'],
-            'password' => '12345678',
-            'account_id' => current_account_id(),
-        ]);
-        $tenantUser->assignRole('tenant');
+        // One transaction for the whole check-in (login + tenant + occupancy +
+        // rental + deposit income): a failure partway must not leave an orphan
+        // login or an occupied room without a rental.
+        $tenant = DB::transaction(function () use ($validated) {
+            // Create a user account for the tenant with default password
+            // Do NOT call Hash::make() here — the User model's 'hashed' cast handles it
+            $tenantUser = User::create([
+                'name' => $validated['name'],
+                'phone' => $validated['phone'],
+                'password' => '12345678',
+                'account_id' => current_account_id(),
+            ]);
+            $tenantUser->assignRole('tenant');
 
-        $validated['user_id'] = $tenantUser->id;
-        $tenant = Tenants::create($validated);
+            $validated['user_id'] = $tenantUser->id;
+            $tenant = Tenants::create($validated);
 
+            // Update apartment status to occupied
+            $apartment = Apartments::findOrFail($validated['apartment_id']);
+            $apartment->update(['status' => 'occupied']);
+
+            // Auto-create Rental record
+            $rental = Rentals::create([
+                'apartment_id' => $apartment->id,
+                'tenant_id' => $tenant->id,
+                'start_date' => Carbon::parse($validated['move_in_date']),
+                'end_date' => ($validated['move_out_date'] ?? null) ? Carbon::parse($validated['move_out_date']) : null,
+                'rent_amount' => $apartment->monthly_rent,
+                'deposit' => $validated['deposit'] ?? 0,
+            ]);
+
+            // Auto-record deposit income when a deposit amount is set
+            $depositAmount = $validated['deposit'] ?? 0;
+            if ($depositAmount > 0) {
+                $activePeriod = FiscalPeriods::where('user_id', Auth::id())
+                    ->where('status', 'open')
+                    ->orderBy('opening_date', 'desc')
+                    ->first();
+
+                if ($activePeriod) {
+                    $reference = 'deposit:rental:'.$rental->id;
+
+                    Accounts::firstOrCreate(
+                        ['reference_number' => $reference],
+                        [
+                            'fiscal_period_id' => $activePeriod->id,
+                            'property_id' => $apartment->property_id ?? $apartment->floor?->property_id,
+                            'payment_id' => null,
+                            'user_id' => Auth::id(),
+                            'account_type' => Accounts::TYPE_INCOME,
+                            'category' => Accounts::CAT_DEPOSIT_INCOME,
+                            'description' => '[Apt '.$apartment->apartment_number.'] Security deposit received — '.$tenant->name,
+                            'amount' => $depositAmount,
+                            'transaction_date' => $validated['move_in_date'],
+                            'note' => 'Deposit collected on move-in',
+                            'reference_number' => $reference,
+                        ]
+                    );
+                }
+            }
+
+            return $tenant;
+        });
+
+        // File writes can't roll back, so documents are stored only after the
+        // check-in has committed.
         if ($request->hasFile('documents')) {
             $attachments->storeMany($tenant, $request->file('documents'), Attachment::KIND_TENANT_DOCUMENT, 'tenants/documents');
-        }
-
-        // Update apartment status to occupied
-        $apartment = Apartments::findOrFail($validated['apartment_id']);
-        $apartment->update(['status' => 'occupied']);
-
-        // Auto-create Rental record
-        $rental = Rentals::create([
-            'apartment_id' => $apartment->id,
-            'tenant_id' => $tenant->id,
-            'start_date' => Carbon::parse($validated['move_in_date']),
-            'end_date' => ($validated['move_out_date'] ?? null) ? Carbon::parse($validated['move_out_date']) : null,
-            'rent_amount' => $apartment->monthly_rent,
-            'deposit' => $validated['deposit'] ?? 0,
-        ]);
-
-        // Auto-record deposit income when a deposit amount is set
-        $depositAmount = $validated['deposit'] ?? 0;
-        if ($depositAmount > 0) {
-            $activePeriod = FiscalPeriods::where('user_id', Auth::id())
-                ->where('status', 'open')
-                ->orderBy('opening_date', 'desc')
-                ->first();
-
-            if ($activePeriod) {
-                $reference = 'deposit:rental:'.$rental->id;
-
-                Accounts::firstOrCreate(
-                    ['reference_number' => $reference],
-                    [
-                        'fiscal_period_id' => $activePeriod->id,
-                        'property_id' => $apartment->property_id ?? $apartment->floor?->property_id,
-                        'payment_id' => null,
-                        'user_id' => Auth::id(),
-                        'account_type' => Accounts::TYPE_INCOME,
-                        'category' => Accounts::CAT_DEPOSIT_INCOME,
-                        'description' => '[Apt '.$apartment->apartment_number.'] Security deposit received — '.$tenant->name,
-                        'amount' => $depositAmount,
-                        'transaction_date' => $validated['move_in_date'],
-                        'note' => 'Deposit collected on move-in',
-                        'reference_number' => $reference,
-                    ]
-                );
-            }
         }
 
         return redirect()->route('admin.tenants.index')
@@ -582,7 +598,14 @@ class TenantController extends Controller
     public function update(Request $request, Tenants $tenant, AttachmentService $attachments): RedirectResponse
     {
         $validated = $request->validate([
-            'apartment_id' => 'required|exists:apartments,id',
+            // Moving rooms requires the target to be vacant (keeping the
+            // tenant's current room is always allowed).
+            'apartment_id' => [
+                'required',
+                Rule::exists('apartments', 'id')->whereNull('deleted_at')->where(
+                    fn ($q) => $q->where('status', 'available')->orWhere('id', $tenant->apartment_id)
+                ),
+            ],
             'name' => 'required|string|max:255',
             'gender' => 'nullable|in:male,female,other',
             'phone' => [
@@ -600,43 +623,10 @@ class TenantController extends Controller
             'documents.*' => 'file|mimes:pdf,jpg,jpeg,png,heic,heif|max:10240',
             'notes' => 'nullable|string',
         ], [
+            'apartment_id.exists' => __('messages.validation_apartment_unavailable'),
             'phone.unique' => __('messages.validation_phone_taken'),
         ]);
         $validated = convert_money_input($validated, ['monthly_rent', 'deposit', 'apartments.*.monthly_rent']);
-
-        // Handle apartment change
-        $oldApartmentId = $tenant->apartment_id;
-        $newApartmentId = $validated['apartment_id'];
-
-        if ($oldApartmentId != $newApartmentId) {
-            // Free old apartment
-            Apartments::where('id', $oldApartmentId)->update(['status' => 'available']);
-            // Occupy new apartment
-            Apartments::where('id', $newApartmentId)->update(['status' => 'occupied']);
-
-            // Update active rental
-            $activeRental = Rentals::where('tenant_id', $tenant->id)
-                ->where('apartment_id', $oldApartmentId)
-                ->where(function ($q) {
-                    $q->whereNull('end_date')->orWhere('end_date', '>=', now());
-                })
-                ->latest()
-                ->first();
-
-            if ($activeRental) {
-                $activeRental->update(['end_date' => now()]);
-            }
-
-            $newApartment = Apartments::find($newApartmentId);
-            Rentals::create([
-                'apartment_id' => $newApartmentId,
-                'tenant_id' => $tenant->id,
-                'start_date' => Carbon::parse($validated['move_in_date']),
-                'end_date' => null,
-                'rent_amount' => $newApartment->monthly_rent,
-                'deposit' => $validated['deposit'] ?? 0,
-            ]);
-        }
 
         // Handle photo upload - SEPARATE from validation
         if ($request->hasFile('photo') && $request->file('photo')->isValid()) {
@@ -654,7 +644,44 @@ class TenantController extends Controller
             }
         }
 
-        $tenant->update($validated);
+        // Room move + tenant update in one transaction so a failure can't leave
+        // two rooms flipped with no matching rental (or vice versa).
+        DB::transaction(function () use ($tenant, $validated) {
+            $oldApartmentId = $tenant->apartment_id;
+            $newApartmentId = $validated['apartment_id'];
+
+            if ($oldApartmentId != $newApartmentId) {
+                // Free old apartment
+                Apartments::where('id', $oldApartmentId)->update(['status' => 'available']);
+                // Occupy new apartment
+                Apartments::where('id', $newApartmentId)->update(['status' => 'occupied']);
+
+                // Update active rental
+                $activeRental = Rentals::where('tenant_id', $tenant->id)
+                    ->where('apartment_id', $oldApartmentId)
+                    ->where(function ($q) {
+                        $q->whereNull('end_date')->orWhere('end_date', '>=', now());
+                    })
+                    ->latest()
+                    ->first();
+
+                if ($activeRental) {
+                    $activeRental->update(['end_date' => now()]);
+                }
+
+                $newApartment = Apartments::find($newApartmentId);
+                Rentals::create([
+                    'apartment_id' => $newApartmentId,
+                    'tenant_id' => $tenant->id,
+                    'start_date' => Carbon::parse($validated['move_in_date']),
+                    'end_date' => null,
+                    'rent_amount' => $newApartment->monthly_rent,
+                    'deposit' => $validated['deposit'] ?? 0,
+                ]);
+            }
+
+            $tenant->update($validated);
+        });
 
         if ($request->hasFile('documents')) {
             $attachments->storeMany($tenant, $request->file('documents'), Attachment::KIND_TENANT_DOCUMENT, 'tenants/documents');

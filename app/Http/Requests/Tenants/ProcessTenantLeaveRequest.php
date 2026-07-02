@@ -32,7 +32,9 @@ class ProcessTenantLeaveRequest extends FormRequest
             : '1970-01-01';
 
         return [
-            'leave_date' => 'required|date|after_or_equal:'.$moveInBoundary,
+            // NotInClosedMonth: the settlement books ledger rows dated on the
+            // leave date — never let those land inside a closed (frozen) month.
+            'leave_date' => ['required', 'date', 'after_or_equal:'.$moveInBoundary, new \App\Rules\NotInClosedMonth],
             'charge_full_month' => 'nullable|boolean',
             'charge_ids' => 'nullable|array',
             'charge_ids.*' => 'string',

@@ -21,7 +21,7 @@ class CheckoutTenantRequest extends FormRequest
         return [
             'rental_id' => 'required|exists:rentals,id',
             'payment_method' => 'required|in:cash,bank,khqr',
-            'payment_date' => 'required|date',
+            'payment_date' => ['required', 'date', new \App\Rules\NotInClosedMonth],
             'rent_amount' => 'required|numeric|min:0',
             'late_fee' => 'nullable|numeric|min:0',
             'pay_rent' => 'nullable|boolean',

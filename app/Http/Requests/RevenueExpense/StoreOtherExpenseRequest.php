@@ -32,7 +32,7 @@ class StoreOtherExpenseRequest extends FormRequest
             'category' => 'required|string|in:'.implode(',', self::ALLOWED_CATEGORIES),
             'description' => 'required|string|max:500',
             'amount' => 'required|numeric|min:0.01',
-            'transaction_date' => 'required|date',
+            'transaction_date' => ['required', 'date', new \App\Rules\NotInClosedMonth],
             'note' => 'nullable|string|max:1000',
         ];
     }

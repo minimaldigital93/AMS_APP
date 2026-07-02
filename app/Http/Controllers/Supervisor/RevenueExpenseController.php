@@ -81,6 +81,21 @@ class RevenueExpenseController extends Controller
     }
 
     /**
+     * Abort (403) when a supervisor acts on a ledger/expense row tagged to a
+     * property outside their assigned set. Rows with a NULL property_id are
+     * account-wide (recorded in the consolidated view) and stay actionable —
+     * they carry no property to isolate on. Admin/superadmin pass through.
+     */
+    private function authorizeSupervisorPropertyRow(?int $propertyId): void
+    {
+        if ($this->seesWholeAccount() || $propertyId === null) {
+            return;
+        }
+
+        abort_unless($this->supervisorPropertyIds()->contains($propertyId), 403);
+    }
+
+    /**
      * Apply the supervisor's property isolation to an Accounts query: narrow to
      * the active property when one is selected, otherwise to their assigned set.
      */
@@ -121,26 +136,10 @@ class RevenueExpenseController extends Controller
     }
 
     /**
-     * Keep only the apartment ids the supervisor may act on. Admin/superadmin
-     * previewing the panel pass through unfiltered.
-     *
-     * @param  array<int|string>  $apartmentIds
-     * @return array<int>
-     */
-    private function filterToVisibleApartmentIds(array $apartmentIds): array
-    {
-        $ids = array_map('intval', $apartmentIds);
-
-        if ($this->seesWholeAccount()) {
-            return array_values($ids);
-        }
-
-        return array_values(array_intersect($ids, $this->supervisorApartmentIds()));
-    }
-
-    /**
-     * Keep only the bill rows whose rental lives under one of the supervisor's
-     * assigned properties. Admin/superadmin previewing the panel pass through.
+     * Keep only the rows whose rental lives under one of the supervisor's
+     * assigned properties (rows carry a 'rental_id' key — used by both the
+     * monthly-bill rows and the bulk-income rows). Admin/superadmin previewing
+     * the panel pass through.
      *
      * @param  array<int, array<string, mixed>>  $bills
      * @return array<int, array<string, mixed>>
@@ -1166,12 +1165,14 @@ class RevenueExpenseController extends Controller
         }
 
         $validated = $request->validated();
-        // Drop any apartment ids outside the supervisor's assigned properties.
-        $apartmentIds = $this->filterToVisibleApartmentIds($validated['apartments']);
+        // Drop any rows whose rental lives outside the supervisor's assigned
+        // properties. The rows keep their full shape (rental_id, amount,
+        // late_fee, selected) — recordBulkRent() consumes them as-is.
+        $rows = $this->filterBillsToVisibleRentals($validated['apartments']);
         $result = $this->incomeService($activePeriod)->recordBulkRent(
             $validated['payment_date'],
             $validated['payment_method'],
-            $apartmentIds,
+            $rows,
         );
 
         if ($result['count'] === 0) {
@@ -1428,11 +1429,14 @@ class RevenueExpenseController extends Controller
 
     public function deleteOtherExpense(Accounts $expense)
     {
-        // Supervisor authorization: row must belong to the active fiscal period.
+        // Supervisor authorization: row must belong to the active fiscal period
+        // and (when it is tagged to a property) to one of the supervisor's
+        // assigned properties.
         $activePeriod = $this->getActiveFiscalPeriod();
         if (! $activePeriod || $expense->fiscal_period_id !== $activePeriod->id) {
             abort(403);
         }
+        $this->authorizeSupervisorPropertyRow($expense->property_id);
 
         $desc = $this->expenseService($activePeriod)->deleteOtherExpense($expense);
 
@@ -1465,6 +1469,10 @@ class RevenueExpenseController extends Controller
 
     public function deleteBusinessExpense(BusinessExpense $businessExpense)
     {
+        // A supervisor may only remove business expenses recorded against one
+        // of their assigned properties (admins previewing pass through).
+        $this->authorizeSupervisorPropertyRow($businessExpense->property_id);
+
         $name = $this->expenseService()->deleteBusinessExpense($businessExpense);
 
         return redirect()->back()->with('success', __('messages.flash_business_expense_removed', ['name' => $name]));
@@ -1669,6 +1677,10 @@ class RevenueExpenseController extends Controller
                 ->with('warning', __('messages.flash_fp_required'));
         }
 
+        $request->validate([
+            'billing_date' => ['nullable', 'date', new \App\Rules\NotInClosedMonth],
+        ]);
+
         $billingDate = $request->input('billing_date')
             ? Carbon::parse($request->input('billing_date'))
             : now();
@@ -1757,9 +1769,11 @@ class RevenueExpenseController extends Controller
         $startOfMonth = Carbon::create($year, $month, 1)->startOfMonth();
         $endOfMonth = $startOfMonth->copy()->endOfMonth();
 
-        // Fetch daily expenses from accounts (single source of truth)
-        $dailyAccountExpenses = Accounts::expense()
-            ->forUser($this->getAdminUserId())
+        // Fetch daily expenses from accounts (single source of truth) — scoped
+        // to the supervisor's properties like every other ledger read here.
+        $dailyAccountExpenses = $this->scopeAccountsToProperty(
+            Accounts::expense()->forUser($this->getAdminUserId())
+        )
             ->betweenDates($startOfMonth, $endOfMonth)
             ->selectRaw('DATE(transaction_date) as day, SUM(amount) as total_expense, COUNT(*) as tx_count')
             ->groupByRaw('DATE(transaction_date)')
@@ -1767,8 +1781,9 @@ class RevenueExpenseController extends Controller
             ->keyBy('day');
 
         // Fetch daily income from accounts (single source of truth)
-        $dailyAccountIncome = Accounts::income()
-            ->forUser($this->getAdminUserId())
+        $dailyAccountIncome = $this->scopeAccountsToProperty(
+            Accounts::income()->forUser($this->getAdminUserId())
+        )
             ->betweenDates($startOfMonth, $endOfMonth)
             ->selectRaw('DATE(transaction_date) as day, SUM(amount) as total_income, COUNT(*) as tx_count')
             ->groupByRaw('DATE(transaction_date)')
@@ -1939,16 +1954,21 @@ class RevenueExpenseController extends Controller
         // EXPENSES (Owner pays out)
         // ================================================
 
-        // Get all business expenses for the period
-        $businessExpenses = BusinessExpense::where('user_id', $this->getAdminUserId())
+        // Get all business expenses for the period — property-scoped so a
+        // supervisor's income statement never mixes other buildings' overheads
+        // into revenue that IS scoped to their assigned properties.
+        $businessExpenses = $this->scopeAccountsToProperty(
+            BusinessExpense::where('user_id', $this->getAdminUserId())
+        )
             ->where('fiscal_period_id', $activePeriod->id)
             ->whereBetween('expense_date', [$startDate, $endDate])
             ->get();
 
         // Get all utility expense account records for the period
         // (These are created when recording utility expenses via storeExpense())
-        $utilityAccountExpenses = Accounts::expense()
-            ->forUser($this->getAdminUserId())
+        $utilityAccountExpenses = $this->scopeAccountsToProperty(
+            Accounts::expense()->forUser($this->getAdminUserId())
+        )
             ->forPeriod($activePeriod->id)
             ->category(Accounts::CAT_UTILITIES_EXPENSE)
             ->betweenDates($startDate, $endDate)

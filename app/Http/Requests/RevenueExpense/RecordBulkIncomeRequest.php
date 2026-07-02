@@ -19,7 +19,7 @@ class RecordBulkIncomeRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'payment_date' => 'required|date',
+            'payment_date' => ['required', 'date', new \App\Rules\NotInClosedMonth],
             'payment_method' => 'required|in:cash,bank',
             'apartments' => 'required|array|min:1',
             'apartments.*.rental_id' => 'required|exists:rentals,id',
