@@ -49,11 +49,6 @@ enum PaymentStatus: string
         return in_array($this, self::open(), true);
     }
 
-    public function isTerminal(): bool
-    {
-        return ! $this->isOpen();
-    }
-
     /**
      * Legal forward transitions. Anything not listed throws in
      * KhqrPayment::transitionTo() so an out-of-order webhook/poll/cron can never

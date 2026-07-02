@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\SubscriptionStatus;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
@@ -53,7 +54,7 @@ class Subscription extends Model
 
     public function isActive(): bool
     {
-        return in_array($this->status, ['active', 'trialing'], true)
+        return in_array($this->status, SubscriptionStatus::liveValues(), true)
             && ($this->expires_at === null || $this->expires_at->isFuture());
     }
 
@@ -72,6 +73,6 @@ class Subscription extends Model
     public function isExpired(): bool
     {
         return $this->status === 'expired'
-            || (in_array($this->status, ['active', 'trialing'], true) && $this->expires_at !== null && $this->expires_at->isPast());
+            || (in_array($this->status, SubscriptionStatus::liveValues(), true) && $this->expires_at !== null && $this->expires_at->isPast());
     }
 }

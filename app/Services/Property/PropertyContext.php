@@ -2,7 +2,6 @@
 
 namespace App\Services\Property;
 
-use App\Models\Apartments;
 use App\Models\Property;
 use App\Models\Tenants;
 use App\Models\User;
@@ -15,9 +14,8 @@ use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
  * context that filters every property-related module to one building at a time.
  *
  * Mirrors the account context (current_account_id()): a request-scoped singleton
- * (bound in AppServiceProvider) whose lookups are memoized so the active property,
- * the accessible list, and the active property's apartment IDs are each resolved
- * at most once per request.
+ * (bound in AppServiceProvider) whose lookups are memoized so the active property
+ * and the accessible list are each resolved at most once per request.
  *
  * The Fiscal Period is deliberately NOT touched here — property and period are
  * independent global contexts.
@@ -40,8 +38,6 @@ class PropertyContext
     private Property|null|false $activeCache = false;
 
     private ?bool $showingAllCache = null;
-
-    private ?array $apartmentIdsCache = null;
 
     /**
      * Properties the current user is authorized to view, newest-name-first.
@@ -199,7 +195,6 @@ class PropertyContext
         // Invalidate per-request caches so the rest of this request sees the switch.
         $this->activeCache = $property;
         $this->showingAllCache = false;
-        $this->apartmentIdsCache = null;
 
         return $property;
     }
@@ -221,26 +216,6 @@ class PropertyContext
         // Invalidate per-request caches so the rest of this request sees the switch.
         $this->activeCache = null;
         $this->showingAllCache = true;
-        $this->apartmentIdsCache = null;
-    }
-
-    /** Apartment IDs under the active property — feeds dashboards and chain filters. */
-    public function apartmentIdsForActiveProperty(): array
-    {
-        if ($this->apartmentIdsCache !== null) {
-            return $this->apartmentIdsCache;
-        }
-
-        $propertyId = $this->activePropertyId();
-
-        if ($propertyId === null) {
-            return $this->apartmentIdsCache = [];
-        }
-
-        return $this->apartmentIdsCache = Apartments::whereHas(
-            'floor',
-            fn ($q) => $q->where('property_id', $propertyId)
-        )->pluck('id')->all();
     }
 
     public function hasSingleProperty(): bool
