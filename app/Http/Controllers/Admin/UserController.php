@@ -42,6 +42,25 @@ class UserController extends Controller
         $query = User::where('account_id', current_account_id())
             ->with('roles', 'permissions', 'tenants.apartment.floor');
 
+        // Follow the global active-property selection (null = "All properties",
+        // no narrowing). Admins/superadmins are account-level and appear under
+        // every property; supervisors show under their assigned properties and
+        // tenant users under the property they rent in. Users not yet attached
+        // to any property stay visible everywhere, mirroring the null-property
+        // convention in FiltersByProperty.
+        $propertyId = current_property_id();
+        if ($propertyId !== null) {
+            $query->where(function ($q) use ($propertyId) {
+                $q->whereHas('roles', fn ($r) => $r->whereIn('name', ['admin', 'superadmin']))
+                    ->orWhereHas('supervisedProperties', fn ($p) => $p->where('id', $propertyId))
+                    ->orWhereHas('tenants.apartment.floor', fn ($f) => $f->where('property_id', $propertyId))
+                    ->orWhere(function ($unattached) {
+                        $unattached->whereDoesntHave('supervisedProperties')
+                            ->whereDoesntHave('tenants.apartment');
+                    });
+            });
+        }
+
         // Filter by role
         if ($request->filled('role')) {
             $role = $request->get('role');

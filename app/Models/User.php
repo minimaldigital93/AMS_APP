@@ -89,6 +89,11 @@ class User extends Authenticatable
         return $this->hasMany(Apartments::class, 'supervisor_id');
     }
 
+    public function supervisedProperties(): HasMany
+    {
+        return $this->hasMany(Property::class, 'supervisor_id');
+    }
+
     public function tenants(): HasMany
     {
         return $this->hasMany(Tenants::class);
