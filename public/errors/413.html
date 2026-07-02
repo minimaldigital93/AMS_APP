@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>File too large · AMS</title>
+    <style>
+        * { box-sizing: border-box; }
+        body {
+            margin: 0;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+            background: #f8fafc;
+            color: #1f2937;
+            padding: 24px;
+        }
+        .card {
+            max-width: 380px;
+            text-align: center;
+        }
+        img { width: 96px; height: 96px; margin-bottom: 20px; }
+        h1 { font-size: 1.25rem; margin: 0 0 8px; }
+        p { color: #6b7280; line-height: 1.5; margin: 0 0 20px; }
+        button {
+            background: #3b82f6;
+            color: #fff;
+            border: 0;
+            border-radius: 8px;
+            padding: 10px 20px;
+            font-size: 0.95rem;
+            cursor: pointer;
+        }
+        button:hover { background: #2563eb; }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <img src="/icons/icon-192.png" alt="AMS">
+        <h1>File too large</h1>
+        <p>The file (or files) you tried to upload are too large for the server to accept. Please go back, remove a file or use a smaller photo/document, and try again.</p>
+        <button onclick="history.length > 1 ? history.back() : location.href = '/ams_app/'">Go Back</button>
+    </div>
+</body>
+</html>
