@@ -21,7 +21,8 @@
 
     <!-- Form Card -->
     <div class="bg-white rounded-xl border border-slate-100 p-5">
-        <form id="tenantForm" action="{{ route('admin.tenants.store') }}" method="POST" enctype="multipart/form-data" class="space-y-4">
+        <form id="tenantForm" action="{{ route('admin.tenants.store') }}" method="POST" enctype="multipart/form-data" class="space-y-4"
+            data-max-total-bytes="41943040" data-max-total-message="{{ __('messages.attachment_total_too_large') }}">
             @csrf
 
             <!-- Photo Upload -->

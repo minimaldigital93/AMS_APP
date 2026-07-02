@@ -44,7 +44,8 @@
         </div>
         @endif
 
-        <form method="POST" action="{{ route('supervisor.tenants.update', $tenant->id) }}" enctype="multipart/form-data" class="space-y-6">
+        <form method="POST" action="{{ route('supervisor.tenants.update', $tenant->id) }}" enctype="multipart/form-data" class="space-y-6"
+            data-max-total-bytes="41943040" data-max-total-message="{{ __('messages.attachment_total_too_large') }}">
             @csrf
             @method('PUT')
 

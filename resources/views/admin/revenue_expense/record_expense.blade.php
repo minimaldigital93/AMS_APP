@@ -111,7 +111,8 @@
 
             <div class="p-6">
                 <!-- Business Expense Form -->
-                <form action="{{ route('admin.revenue_expense.store_business_expense') }}" method="POST" enctype="multipart/form-data">
+                <form action="{{ route('admin.revenue_expense.store_business_expense') }}" method="POST" enctype="multipart/form-data"
+                    data-max-total-bytes="41943040" data-max-total-message="{{ __('messages.attachment_total_too_large') }}">
                     @csrf
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>

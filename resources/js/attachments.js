@@ -53,6 +53,35 @@ function compressImage(file, maxDimension, quality) {
     });
 }
 
+// Belt-and-braces guard: a form can combine multiple file inputs (e.g. a
+// tenant's photo + several documents) whose individual limits are each fine,
+// but which together can still exceed the server's total request-size cap.
+// Catch that client-side with a popup instead of letting the browser POST
+// straight into a raw 413 page. Opt in via `data-max-total-bytes` on the
+// <form>; requires `enctype="multipart/form-data"`.
+document.addEventListener('submit', (event) => {
+    const form = event.target;
+    if (! (form instanceof HTMLFormElement) || ! form.dataset.maxTotalBytes) {
+        return;
+    }
+
+    const maxTotalBytes = Number(form.dataset.maxTotalBytes);
+    let total = 0;
+    form.querySelectorAll('input[type="file"]').forEach((input) => {
+        Array.from(input.files ?? []).forEach((file) => {
+            total += file.size;
+        });
+    });
+
+    if (total > maxTotalBytes) {
+        event.preventDefault();
+        const message = form.dataset.maxTotalMessage ?? 'These files are too large to upload together.';
+        alert(message
+            .replace(':size', formatFileSize(total))
+            .replace(':max', formatFileSize(maxTotalBytes)));
+    }
+});
+
 document.addEventListener('alpine:init', () => {
     Alpine.data('multiAttachments', (opts = {}) => ({
         maxFiles: opts.maxFiles ?? 5,

@@ -36,7 +36,8 @@
 
         <!-- Form Card -->
         <div class="bg-white rounded-xl border border-slate-100 p-6">
-            <form action="{{ route('admin.tenants.update', $tenant->id) }}" method="POST" enctype="multipart/form-data" class="space-y-6">
+            <form action="{{ route('admin.tenants.update', $tenant->id) }}" method="POST" enctype="multipart/form-data" class="space-y-6"
+                data-max-total-bytes="41943040" data-max-total-message="{{ __('messages.attachment_total_too_large') }}">
                 @csrf
                 @method('PUT')
 

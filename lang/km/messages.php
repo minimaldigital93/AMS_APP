@@ -522,6 +522,7 @@ return [
     'click_to_upload_files' => 'ចុចដើម្បីបញ្ចូលឯកសារ',
     'attachment_too_large' => 'ឯកសារ ":name" មានទំហំ :size ដែលធំពេក។ សូមជ្រើសរើសឯកសារតូចជាង :max។',
     'attachment_too_many' => 'អ្នកអាចភ្ជាប់ឯកសារបានច្រើនបំផុត :max ។',
+    'attachment_total_too_large' => 'ឯកសារទាំងអស់សរុបមានទំហំ :size ដែលធំពេកសម្រាប់បញ្ចូលក្នុងពេលតែមួយ (កំណត់ :max)។ សូមដកឯកសារមួយចេញ ឬប្រើរូបថត/ឯកសារតូចជាងនេះ រួចព្យាយាមម្តងទៀត។',
     'flash_attachment_removed' => 'បានលុបឯកសារភ្ជាប់។',
     'remove_attachment_confirm' => 'លុបឯកសារភ្ជាប់នេះ?',
     'tenant_documents' => 'ឯកសារអត្តសញ្ញាណ',
