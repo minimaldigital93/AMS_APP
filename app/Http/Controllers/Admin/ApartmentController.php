@@ -5,11 +5,13 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Accounts;
 use App\Models\Apartments;
+use App\Models\Attachment;
 use App\Models\FiscalPeriods;
 use App\Models\Floors;
 use App\Models\Rentals;
 use App\Models\Tenants;
 use App\Models\User;
+use App\Services\Attachments\AttachmentService;
 use App\Services\Subscription\SubscriptionService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
@@ -123,7 +125,7 @@ class ApartmentController extends Controller
         return redirect()->route('admin.floors.index')->with('success', __('messages.flash_apartment_updated'));
     }
 
-    public function assignTenant(Request $request, Apartments $apartment)
+    public function assignTenant(Request $request, Apartments $apartment, AttachmentService $attachments)
     {
         $validated = $request->validate([
             'tenant_option' => 'required|in:existing,new',
@@ -155,7 +157,6 @@ class ApartmentController extends Controller
         $validated = convert_money_input($validated, ['monthly_rent', 'deposit', 'apartments.*.monthly_rent']);
 
         $tenant = null;
-        $documentPath = null;
         $photoPath = null;
 
         // Handle attached photo upload — resilient so a storage hiccup never
@@ -165,15 +166,6 @@ class ApartmentController extends Controller
                 $photoPath = $request->file('attached_photo')->store('tenants', 'public');
             } catch (\Throwable $e) {
                 Log::error('Tenant photo upload failed during assignment: '.$e->getMessage());
-            }
-        }
-
-        // Handle PDF/ID document upload
-        if ($request->hasFile('id_pdf') && $request->file('id_pdf')->isValid()) {
-            try {
-                $documentPath = $request->file('id_pdf')->store('tenants/id_documents', 'public');
-            } catch (\Throwable $e) {
-                Log::error('Tenant document upload failed during assignment: '.$e->getMessage());
             }
         }
 
@@ -215,7 +207,6 @@ class ApartmentController extends Controller
                 'address' => $validated['address'] ?? null,
                 'date_of_birth' => $validated['date_of_birth'] ?? null,
                 'photo_path' => $photoPath,
-                'document_path' => $documentPath,
                 'apartment_id' => $apartment->id,
                 'status' => 'active',
                 'user_id' => $tenantUser->id,
@@ -237,11 +228,17 @@ class ApartmentController extends Controller
             $updateData['photo_path'] = $photoPath;
         }
 
-        if ($documentPath) {
-            $updateData['document_path'] = $documentPath;
-        }
-
         $tenant->update($updateData);
+
+        // ID document upload — resilient so a storage hiccup never aborts the
+        // whole assignment (the tenant record still gets created/updated).
+        if ($request->hasFile('id_pdf') && $request->file('id_pdf')->isValid()) {
+            try {
+                $attachments->storeMany($tenant, [$request->file('id_pdf')], Attachment::KIND_TENANT_DOCUMENT, 'tenants/documents');
+            } catch (\Throwable $e) {
+                Log::error('Tenant document upload failed during assignment: '.$e->getMessage());
+            }
+        }
 
         // Update apartment status to occupied
         $apartment->update(['status' => 'occupied']);

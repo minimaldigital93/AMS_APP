@@ -6,11 +6,13 @@ use App\Http\Controllers\Concerns\ScopesToSupervisorProperties;
 use App\Http\Controllers\Controller;
 use App\Models\Accounts;
 use App\Models\Apartments;
+use App\Models\Attachment;
 use App\Models\FiscalPeriods;
 use App\Models\Floors;
 use App\Models\Rentals;
 use App\Models\Tenants;
 use App\Models\User;
+use App\Services\Attachments\AttachmentService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -139,7 +141,7 @@ class ApartmentController extends Controller
     /**
      * Assign tenant to an available apartment.
      */
-    public function assignTenant(Request $request, Apartments $apartment)
+    public function assignTenant(Request $request, Apartments $apartment, AttachmentService $attachments)
     {
         $this->authorizeApartment($apartment);
 
@@ -176,7 +178,7 @@ class ApartmentController extends Controller
         ]);
         $validated = convert_money_input($validated, ['monthly_rent', 'deposit', 'apartments.*.monthly_rent']);
 
-        return DB::transaction(function () use ($request, $apartment, $validated) {
+        return DB::transaction(function () use ($request, $apartment, $validated, $attachments) {
             // Lock the apartment row so two concurrent assignments can't both succeed.
             $apartment = Apartments::whereKey($apartment->id)->lockForUpdate()->firstOrFail();
 
@@ -185,7 +187,6 @@ class ApartmentController extends Controller
             }
 
             $photoPath = null;
-            $documentPath = null;
 
             // Only accept uploads when creating a new tenant — prevents accidental
             // overwrite of an existing tenant's photo/document via crafted requests.
@@ -195,13 +196,6 @@ class ApartmentController extends Controller
                         $photoPath = $request->file('attached_photo')->store('tenants', 'public');
                     } catch (\Throwable $e) {
                         Log::error('Tenant photo upload failed during assignment: '.$e->getMessage());
-                    }
-                }
-                if ($request->hasFile('id_pdf') && $request->file('id_pdf')->isValid()) {
-                    try {
-                        $documentPath = $request->file('id_pdf')->store('tenants/id_documents', 'public');
-                    } catch (\Throwable $e) {
-                        Log::error('Tenant document upload failed during assignment: '.$e->getMessage());
                     }
                 }
             }
@@ -240,7 +234,6 @@ class ApartmentController extends Controller
                     'address' => $validated['address'] ?? null,
                     'date_of_birth' => $validated['date_of_birth'] ?? null,
                     'photo_path' => $photoPath,
-                    'document_path' => $documentPath,
                     'apartment_id' => $apartment->id,
                     'status' => 'active',
                     'managed_by' => Auth::id(),
@@ -259,12 +252,20 @@ class ApartmentController extends Controller
             if ($photoPath) {
                 $updateData['photo_path'] = $photoPath;
             }
-            if ($documentPath) {
-                $updateData['document_path'] = $documentPath;
-            }
 
             $tenant->update($updateData);
             $apartment->update(['status' => 'occupied']);
+
+            // ID document upload — only for a newly-created tenant (matches the
+            // photo/PDF-acceptance guard above), resilient so a storage hiccup
+            // never aborts the whole assignment.
+            if ($validated['tenant_option'] === 'new' && $request->hasFile('id_pdf') && $request->file('id_pdf')->isValid()) {
+                try {
+                    $attachments->storeMany($tenant, [$request->file('id_pdf')], Attachment::KIND_TENANT_DOCUMENT, 'tenants/documents');
+                } catch (\Throwable $e) {
+                    Log::error('Tenant document upload failed during assignment: '.$e->getMessage());
+                }
+            }
 
             $moveInDate = Carbon::parse($validated['move_in_date']);
             $rental = Rentals::create([

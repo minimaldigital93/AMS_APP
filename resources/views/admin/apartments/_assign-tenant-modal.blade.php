@@ -51,7 +51,8 @@
             </div>
         </div>
 
-        <form id="assignTenantForm" method="POST" enctype="multipart/form-data" class="modal-scroll flex-1 min-h-0 overflow-y-auto flex flex-col">
+        <form id="assignTenantForm" method="POST" enctype="multipart/form-data" class="modal-scroll flex-1 min-h-0 overflow-y-auto flex flex-col"
+            data-max-total-bytes="41943040" data-max-total-message="{{ __('messages.attachment_total_too_large') }}">
             @csrf
             <input type="hidden" id="apartmentId" name="apartment_id" value="{{ old('apartment_id') }}">
             <input type="hidden" id="tenantOption" name="tenant_option" value="{{ old('tenant_option', 'existing') }}">
