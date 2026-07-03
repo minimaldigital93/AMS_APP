@@ -109,18 +109,7 @@
         </div>
     </div>
 
-    @if($selectedProperty)
-        {{-- Per-property live view: income/expenses/net and the running balance
-             are scoped to this property; the account-wide month-close, owner
-             draws and balance sheet live in the All Properties view. --}}
-        <div class="bg-sky-50 border border-sky-200 rounded-lg p-4 mb-6 flex items-start gap-3">
-            <svg class="w-5 h-5 text-sky-600 mt-0.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-            <div class="flex-1">
-                <p class="text-sm font-semibold text-sky-800">{{ __('messages.fp_showing_property', ['name' => $selectedProperty->name]) }}</p>
-                <p class="text-sm text-sky-700/90 mt-1">{{ __('messages.fp_property_scope_notice') }}</p>
-            </div>
-        </div>
-    @elseif($showingAll)
+    @if($showingAll)
         {{-- Consolidated view: figures span every property and the cash
              carry-forward / owner draws / month-close are account-wide. --}}
         <div class="bg-amber-50 border border-amber-200 rounded-lg p-4 mb-6 flex items-start gap-3">

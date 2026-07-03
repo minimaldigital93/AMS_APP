@@ -1080,6 +1080,7 @@ return [
     'no_properties' => 'No properties available',
     'property_switched' => 'Now viewing :name',
     'all_properties' => 'All Properties',
+    'all_properties_short' => 'All',
     'all_properties_consolidated' => 'All Properties (consolidated)',
     'mp_consolidated_notice' => 'These figures cover every property. The cash carry-forward, owner withdrawals and month-close are account-wide. Select a single property in the top bar to see its own live income, expenses and running balance.',
     'fp_showing_property' => 'Showing: :name',

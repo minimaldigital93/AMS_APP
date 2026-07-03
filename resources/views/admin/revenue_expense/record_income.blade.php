@@ -150,38 +150,95 @@
             class="px-3 py-1.5 rounded-lg text-sm font-medium transition flex-shrink-0 whitespace-nowrap">{{ __('messages.paid') }} {{ $paidCount }}</button>
     </div>
 
-    <!-- Tenant Billing Table -->
-    <div class="bg-white rounded-xl border border-slate-100 overflow-hidden">
-        <div class="px-4 md:px-6 py-4 border-b border-slate-100 flex items-center justify-between gap-3">
-            <h2 class="text-lg font-semibold text-slate-800 flex items-center min-w-0">
-                <svg class="w-5 h-5 mr-2 text-sky-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
-                <span class="truncate">{{ __('messages.tenant_bills') }} — {{ $selectedDate->format('F Y') }}</span>
-            </h2>
-            <!-- Floor dropdown (server-side filter) -->
-            <select onchange="window.location.href = this.value"
-                class="flex-shrink-0 h-9 pl-3 pr-8 text-sm bg-slate-50 border border-slate-200 rounded-lg text-slate-700 font-medium focus:outline-none focus:ring-2 focus:ring-slate-300 cursor-pointer">
-                <option value="{{ request()->fullUrlWithQuery(['floor' => null, 'page' => null]) }}" @selected(!request()->filled('floor'))>{{ __('messages.all_floors') }}</option>
-                @foreach($floors as $floor)
-                    <option value="{{ request()->fullUrlWithQuery(['floor' => $floor->id, 'page' => null]) }}" @selected(request('floor') == $floor->id)>{{ $floor->floor_name }}</option>
-                @endforeach
-            </select>
-        </div>
+    <!-- Tenant Bills — grouped into floor accordion cards (styled like Floors & Rooms) -->
+    <div class="flex items-center gap-2 px-1">
+        <svg class="w-5 h-5 text-sky-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
+        <h2 class="text-lg font-semibold text-slate-800 truncate">{{ __('messages.tenant_bills') }} — {{ $selectedDate->format('F Y') }}</h2>
+    </div>
 
-        @if(count($tenantBillsAll ?? $tenantBills) > 0)
-        <!-- Desktop table (hidden on mobile) -->
-        <div class="hidden md:block p-6 overflow-x-auto">
-            <table class="min-w-full table-fixed divide-y divide-gray-200">
-                <thead class="bg-gray-50">
-                    <tr>
-                        <th class="w-12 px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">{{ __('messages.no_col') }}</th>
-                        <th class="w-1/3 px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">{{ __('messages.tenant') }}</th>
-                        <th class="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">{{ __('messages.total') }}</th>
-                        <th class="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">{{ __('messages.status') }}</th>
-                        <th class="px-4 py-3 text-right text-xs font-medium text-slate-500 uppercase tracking-wider">{{ __('messages.actions') }}</th>
-                    </tr>
-                </thead>
-                <tbody class="bg-white divide-y divide-gray-200">
-                    @foreach($tenantBills as $index => $bill)
+    @php
+        // Group by property first so each building's floors stay together; the
+        // property header is only shown when more than one property is present
+        // (the consolidated "All properties" view).
+        $billsByProperty = collect($tenantBills->items())->groupBy(fn ($b) => $b['apartment']->floor->property_id ?? 0);
+        $multipleProperties = $billsByProperty->count() > 1;
+    @endphp
+    @if(count($tenantBillsAll ?? $tenantBills) > 0)
+    <div class="space-y-5">
+        @php $rowNum = $tenantBills->firstItem() ?? 1; @endphp
+        @php $mRowNum = $tenantBills->firstItem() ?? 1; @endphp
+        @foreach($billsByProperty as $propertyId => $propertyBills)
+        @if($multipleProperties)
+        @php $propertyName = $propertyBills->first()['apartment']->floor->property->name ?? __('messages.property'); @endphp
+        <div x-show="floorHasMatch({{ Illuminate\Support\Js::from($propertyBills->map(fn($b) => ['status' => $b['status'], 'tenant' => strtolower($b['tenant']->name ?? ''), 'apt' => strtolower($b['apartment']->apartment_number ?? '')])->values()) }})"
+             class="flex items-center gap-2.5 pt-3 pb-1 px-1">
+            <div class="w-8 h-8 rounded-lg bg-sky-50 flex items-center justify-center flex-shrink-0">
+                <svg class="w-5 h-5 text-sky-600" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 21h19.5m-18-18v18m10.5-18v18m6-13.5V21M6.75 6.75h.75m-.75 3h.75m-.75 3h.75m3-6h.75m-.75 3h.75m-.75 3h.75M6.75 21v-3.375c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21M3 3h12m-.75 4.5H21m-3.75 3H21m-3.75 3H21"/></svg>
+            </div>
+            <h3 class="text-base font-bold text-slate-700 truncate">{{ $propertyName }}</h3>
+        </div>
+        @endif
+        @php $groupedBills = $propertyBills->groupBy(fn ($b) => $b['apartment']->floor->id ?? 0); @endphp
+        @foreach($groupedBills as $floorId => $floorGroup)
+        @php
+            $groupFloor = $floorGroup->first()['apartment']->floor;
+            $flPaid = $floorGroup->where('status', 'paid')->count();
+            $flOverdue = $floorGroup->where('status', 'overdue')->count();
+            $flPending = $floorGroup->count() - $flPaid - $flOverdue;
+            $rowNum = 1;
+            $mRowNum = 1;
+        @endphp
+        <div x-show="floorHasMatch({{ Illuminate\Support\Js::from($floorGroup->map(fn($b) => ['status' => $b['status'], 'tenant' => strtolower($b['tenant']->name ?? ''), 'apt' => strtolower($b['apartment']->apartment_number ?? '')])->values()) }})"
+             class="bg-white rounded-xl border border-slate-100 overflow-hidden hover:border-slate-200 transition">
+            <!-- Floor summary (click toggles rooms) -->
+            <div @click="toggleFloor('{{ $floorId }}')"
+                 class="flex items-center justify-between gap-3 cursor-pointer px-4 md:px-6 py-4 hover:bg-slate-50/50 transition select-none">
+                <div class="flex items-center gap-3 min-w-0">
+                    <div class="w-9 h-9 rounded-lg bg-slate-100 flex items-center justify-center flex-shrink-0">
+                        <svg class="w-5 h-5 text-slate-500" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 21h19.5m-18-18v18m10.5-18v18m6-13.5V21M6.75 6.75h.75m-.75 3h.75m-.75 3h.75m3-6h.75m-.75 3h.75m-.75 3h.75M6.75 21v-3.375c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21M3 3h12m-.75 4.5H21m-3.75 3H21m-3.75 3H21" /></svg>
+                    </div>
+                    <h3 class="text-base font-semibold text-slate-800 truncate">{{ $groupFloor?->floor_name ?? __('messages.no_col') }}</h3>
+                </div>
+
+                <div class="flex items-center gap-3 md:gap-4 flex-shrink-0">
+                    <div class="flex items-center gap-1.5" title="{{ __('messages.total') }}">
+                        <span class="w-2 h-2 rounded-full bg-slate-300"></span>
+                        <span class="text-xs font-semibold text-slate-700">{{ $floorGroup->count() }}</span>
+                    </div>
+                    <div class="flex items-center gap-1.5" title="{{ __('messages.paid') }}">
+                        <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
+                        <span class="text-xs font-semibold text-emerald-600">{{ $flPaid }}</span>
+                    </div>
+                    @if(!$isFutureMonth)
+                    <div class="flex items-center gap-1.5" title="{{ __('messages.overdue') }}">
+                        <span class="w-2 h-2 rounded-full bg-red-400"></span>
+                        <span class="text-xs font-semibold text-red-600">{{ $flOverdue }}</span>
+                    </div>
+                    @endif
+                    <div class="flex items-center gap-1.5" title="{{ $isFutureMonth ? __('messages.upcoming') : __('messages.pending') }}">
+                        <span class="w-2 h-2 rounded-full bg-amber-400"></span>
+                        <span class="text-xs font-semibold text-amber-600">{{ $flPending }}</span>
+                    </div>
+                    <svg class="w-4 h-4 text-slate-400 transition-transform flex-shrink-0" :class="isFloorOpen('{{ $floorId }}') ? 'rotate-90' : ''" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7" /></svg>
+                </div>
+            </div>
+
+            <!-- Rooms table (desktop) -->
+            <div x-show="isFloorOpen('{{ $floorId }}')" x-cloak class="hidden md:block overflow-x-auto border-t border-slate-50">
+                <table class="w-full">
+                    <thead>
+                        <tr class="bg-slate-50/80">
+                            <th class="w-12 px-4 lg:px-6 py-4 text-left text-[11px] font-medium text-slate-400 uppercase tracking-wider">{{ __('messages.no_col') }}</th>
+                            <th class="w-[28%] px-4 lg:px-6 py-4 text-left text-[11px] font-medium text-slate-400 uppercase tracking-wider">{{ __('messages.tenant') }}</th>
+                            <th class="w-[13%] px-4 lg:px-6 py-4 text-right text-[11px] font-medium text-slate-400 uppercase tracking-wider">{{ __('messages.rent') }}</th>
+                            <th class="w-[13%] px-4 lg:px-6 py-4 text-right text-[11px] font-medium text-slate-400 uppercase tracking-wider">{{ __('messages.charges') }}</th>
+                            <th class="w-[13%] px-4 lg:px-6 py-4 text-right text-[11px] font-medium text-slate-400 uppercase tracking-wider">{{ __('messages.total') }}</th>
+                            <th class="w-[12%] px-4 lg:px-6 py-4 text-center text-[11px] font-medium text-slate-400 uppercase tracking-wider">{{ __('messages.status') }}</th>
+                            <th class="px-4 lg:px-6 py-4 text-right text-[11px] font-medium text-slate-400 uppercase tracking-wider">{{ __('messages.actions') }}</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-50">
+                        @foreach($floorGroup as $bill)
                     @php
                         $chargesJson = $bill['utilities']->map(fn($u) => [
                             'id'     => $u->id,
@@ -190,25 +247,30 @@
                             'paid'   => (bool) $u->paid_status,
                         ])->values();
                     @endphp
-                    <tr x-show="matchesFilter('{{ $bill['status'] }}', '{{ strtolower($bill['tenant']->name ?? '') }}', '{{ strtolower($bill['apartment']->apartment_number ?? '') }}')"
+                    <tr x-show="isFloorOpen('{{ $floorId }}') && matchesFilter('{{ $bill['status'] }}', '{{ strtolower($bill['tenant']->name ?? '') }}', '{{ strtolower($bill['apartment']->apartment_number ?? '') }}')"
                         class="hover:bg-gray-50 transition {{ $bill['status'] === 'overdue' ? 'bg-red-50/40' : ($bill['status'] === 'paid' ? 'bg-emerald-50/40' : ($isFutureMonth ? 'bg-sky-50/30' : '')) }}">
-                        <td class="px-4 py-4 whitespace-nowrap text-sm text-gray-600">{{ $tenantBills->firstItem() ? $tenantBills->firstItem() + $loop->index : $loop->iteration }}</td>
-                        <td class="px-4 py-4">
+                        <td class="px-4 lg:px-6 py-4 whitespace-nowrap text-sm text-gray-600">{{ $rowNum++ }}</td>
+                        <td class="px-4 lg:px-6 py-4">
                             <div class="flex items-center">
-                                <div class="h-10 w-10 rounded-lg bg-sky-50 flex items-center justify-center flex-shrink-0">
+                                <div class="h-9 w-9 rounded-lg bg-sky-50 items-center justify-center flex-shrink-0 hidden lg:flex">
                                     <svg class="w-5 h-5 text-sky-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/></svg>
                                 </div>
-                                <div class="ml-4 min-w-0">
-                                    <p class="font-semibold text-slate-800 truncate">{{ $bill['tenant']->name ?? 'N/A' }}</p>
+                                <div class="lg:ml-3 min-w-0">
+                                    <p class="font-semibold text-slate-800 text-sm truncate">{{ $bill['tenant']->name ?? 'N/A' }}</p>
                                     <p class="text-xs text-gray-500 truncate">{{ $bill['tenant']->phone ?? '—' }}</p>
                                 </div>
                             </div>
                         </td>
-                        <td class="px-4 py-4 whitespace-nowrap">
-                            <p class="text-sm font-bold {{ $bill['status'] === 'paid' ? 'text-emerald-600' : 'text-slate-800' }}">{{ money($bill['total_bill']) }}</p>
-                            <p class="text-xs text-slate-400">{{ __('messages.rent') }} {{ money($bill['monthly_rent']) }}</p>
+                        <td class="px-4 lg:px-6 py-4 whitespace-nowrap text-right">
+                            <p class="text-sm text-slate-700">{{ money($bill['monthly_rent']) }}</p>
                         </td>
-                        <td class="px-4 py-4 whitespace-nowrap">
+                        <td class="px-4 lg:px-6 py-4 whitespace-nowrap text-right">
+                            <p class="text-sm text-slate-700">{{ money($bill['total_bill'] - $bill['monthly_rent']) }}</p>
+                        </td>
+                        <td class="px-4 lg:px-6 py-4 whitespace-nowrap text-right">
+                            <p class="text-sm font-bold {{ $bill['status'] === 'paid' ? 'text-emerald-600' : 'text-slate-800' }}">{{ money($bill['total_bill']) }}</p>
+                        </td>
+                        <td class="px-4 lg:px-6 py-4 whitespace-nowrap text-center">
                             @if($bill['status'] === 'paid')
                                 <span class="inline-block px-2 py-1 text-xs font-semibold rounded-md bg-emerald-100 text-emerald-700">{{ __('messages.paid') }}</span>
                             @elseif($bill['status'] === 'overdue')
@@ -217,39 +279,39 @@
                                 <span class="inline-block px-2 py-1 text-xs font-semibold rounded-md bg-amber-100 text-amber-700">{{ $isFutureMonth ? __('messages.upcoming') : __('messages.pending') }}</span>
                             @endif
                         </td>
-                        <td class="px-4 py-4 whitespace-nowrap text-sm font-medium">
-                            <div class="flex items-center justify-end gap-2">
+                        <td class="px-4 lg:px-6 py-4 whitespace-nowrap text-sm font-medium">
+                            <div class="flex items-center justify-end gap-1">
                                 @if($bill['status'] !== 'paid')
                                 <button @click="openAddCharge({{ $bill['rental']->id }}, '{{ addslashes($bill['tenant']->name ?? __('messages.tenant')) }}', '{{ $bill['apartment']->apartment_number }}')"
-                                    class="inline-flex items-center justify-center h-8 w-8 rounded-md text-orange-600 bg-orange-50 hover:bg-orange-100 transition" title="{{ __('messages.add_charge') }}">
+                                    class="inline-flex items-center justify-center h-7 w-7 rounded-md text-orange-600 bg-orange-50 hover:bg-orange-100 transition" title="{{ __('messages.add_charge') }}">
                                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/></svg>
                                 </button>
                                 @endif
                                 <button @click="openChargesReceipt({{ $bill['rental']->id }}, '{{ addslashes($bill['tenant']->name ?? __('messages.tenant')) }}', '{{ $bill['apartment']->apartment_number }}', {{ $chargesJson->toJson() }}, {{ $bill['monthly_rent'] }}, {{ $bill['total_fixed'] }})"
-                                    class="inline-flex items-center justify-center h-8 w-8 rounded-md text-sky-600 bg-sky-50 hover:bg-sky-100 transition" title="{{ __('messages.view_charges') }}">
+                                    class="inline-flex items-center justify-center h-7 w-7 rounded-md text-sky-600 bg-sky-50 hover:bg-sky-100 transition" title="{{ __('messages.view_charges') }}">
                                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
                                 </button>
                                 <button @click="openReceipt('{{ route('admin.revenue_expense.print_receipt', ['rental' => $bill['rental']->id, 'month' => $currentMonth, 'year' => $currentYear, 'embed' => 1]) }}')"
-                                    class="inline-flex items-center justify-center h-8 w-8 rounded-md text-indigo-600 bg-indigo-50 hover:bg-indigo-100 transition" title="{{ __('messages.view_receipt') }}">
+                                    class="inline-flex items-center justify-center h-7 w-7 rounded-md text-indigo-600 bg-indigo-50 hover:bg-indigo-100 transition" title="{{ __('messages.view_receipt') }}">
                                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 3h12v18l-2-1.5-2 1.5-2-1.5-2 1.5-2-1.5L6 21z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 8h6M9 11.5h6M9 15h3.5"/></svg>
                                 </button>
                                 @if($bill['status'] !== 'paid')
                                 <button @click="openCheckout({{ $bill['rental']->id }}, '{{ addslashes($bill['tenant']->name ?? __('messages.tenant')) }}', '{{ $bill['apartment']->apartment_number }}', {{ $bill['monthly_rent'] }}, {{ $bill['total_utility_only'] }}, {{ $bill['total_other_charges'] }}, {{ $bill['total_fixed'] }}, {{ $bill['total_bill'] }})"
-                                    class="inline-flex items-center justify-center h-8 w-8 rounded-md text-emerald-600 bg-emerald-50 hover:bg-emerald-100 transition" title="{{ __('messages.checkout_pay') }}">
+                                    class="inline-flex items-center justify-center h-7 w-7 rounded-md text-emerald-600 bg-emerald-50 hover:bg-emerald-100 transition" title="{{ __('messages.checkout_pay') }}">
                                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
                                 </button>
                                 @endif
                             </div>
                         </td>
                     </tr>
-                    @endforeach
-                </tbody>
-            </table>
-        </div>
+                        @endforeach
+                    </tbody>
+                </table>
+            </div>
 
-        <!-- Mobile compact list (shown on mobile only) -->
-        <div class="md:hidden divide-y divide-slate-100">
-            @foreach($tenantBills as $index => $bill)
+            <!-- Rooms list (mobile) -->
+            <div x-show="isFloorOpen('{{ $floorId }}')" x-cloak class="md:hidden border-t border-slate-50 divide-y divide-slate-100">
+                @foreach($floorGroup as $bill)
             @php
                 $chargesJson = $bill['utilities']->map(fn($u) => [
                     'id'     => $u->id,
@@ -258,9 +320,9 @@
                     'paid'   => (bool) $u->paid_status,
                 ])->values();
             @endphp
-            <div x-show="matchesFilter('{{ $bill['status'] }}', '{{ strtolower($bill['tenant']->name ?? '') }}', '{{ strtolower($bill['apartment']->apartment_number ?? '') }}')"
+            <div x-show="isFloorOpen('{{ $floorId }}') && matchesFilter('{{ $bill['status'] }}', '{{ strtolower($bill['tenant']->name ?? '') }}', '{{ strtolower($bill['apartment']->apartment_number ?? '') }}')"
                  class="flex items-center gap-3 px-4 py-3 active:bg-slate-50 transition {{ $bill['status'] === 'overdue' ? 'bg-red-50/40' : ($bill['status'] === 'paid' ? 'bg-emerald-50/40' : ($isFutureMonth ? 'bg-sky-50/30' : '')) }}">
-                <span class="w-5 text-xs font-medium text-slate-400 text-center flex-shrink-0">{{ $tenantBills->firstItem() ? $tenantBills->firstItem() + $loop->index : $loop->iteration }}</span>
+                <span class="w-5 text-xs font-medium text-slate-400 text-center flex-shrink-0">{{ $mRowNum++ }}</span>
                 <div class="h-9 w-9 rounded-lg bg-sky-50 flex items-center justify-center flex-shrink-0">
                     <svg class="w-5 h-5 text-sky-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/></svg>
                 </div>
@@ -307,19 +369,23 @@
                     @endif
                 </div>
             </div>
-            @endforeach
+                @endforeach
+            </div>
         </div>
-        @else
-        <div class="text-center py-16">
-            <svg class="w-16 h-16 mx-auto text-slate-300 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/></svg>
-            <p class="text-slate-500 text-lg">{{ __('messages.no_active_rentals_found') }}</p>
-            <p class="text-slate-400 text-sm mt-1">{{ __('messages.tenants_appear_auto') }}</p>
-        </div>
-        @endif
-        @if((isset($tenantBills) && method_exists($tenantBills, 'links')))
-        <div class="px-6 py-4 border-t border-slate-100">{{ $tenantBills->appends(request()->query())->links() }}</div>
-        @endif
+        @endforeach
+        @endforeach
     </div>
+    @else
+    <div class="bg-white rounded-xl border border-slate-100 text-center py-16">
+        <svg class="w-16 h-16 mx-auto text-slate-300 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/></svg>
+        <p class="text-slate-500 text-lg">{{ __('messages.no_active_rentals_found') }}</p>
+        <p class="text-slate-400 text-sm mt-1">{{ __('messages.tenants_appear_auto') }}</p>
+    </div>
+    @endif
+
+    @if((isset($tenantBills) && method_exists($tenantBills, 'links')))
+    <div class="flex justify-center mt-2">{{ $tenantBills->appends(request()->query())->links() }}</div>
+    @endif
 
     <!-- ============================================ -->
     <!-- CHARGES RECEIPT MODAL                        -->
@@ -672,6 +738,14 @@ function billingManager() {
         searchOpen: false,
         searchQuery: '',
 
+        // Collapsible floor groups (accordion). Default collapsed; search auto-expands.
+        openFloors: {},
+        toggleFloor(id) { this.openFloors[id] = !this.openFloors[id]; },
+        isFloorOpen(id) {
+            if (this.searchQuery) return true;
+            return !!this.openFloors[id];
+        },
+
         // Open the printable bill in a new tab (auto-triggered on confirmed payment)
         printBill(rentalId) {
             if (!rentalId) return;
@@ -748,6 +822,11 @@ function billingManager() {
                 return tenantName.includes(query) || aptNumber.includes(query);
             }
             return true;
+        },
+
+        // Show a floor group header only when at least one of its bills passes the current filter/search
+        floorHasMatch(bills) {
+            return bills.some(b => this.matchesFilter(b.status, b.tenant, b.apt));
         },
 
         openReceipt(url) {

@@ -20,7 +20,6 @@ use App\Models\Apartments;
 use App\Models\Attachment;
 use App\Models\BusinessExpense;
 use App\Models\FiscalPeriods;
-use App\Models\Floors;
 use App\Models\Payments;
 use App\Models\Property;
 use App\Models\Rentals;
@@ -650,9 +649,10 @@ class RevenueExpenseController extends Controller
         }
 
         // Get apartments with active rentals, eager load everything needed for billing
+        // (floor.property drives the per-property grouping/headers in the view when
+        // the consolidated "All properties" view is active).
         $apartments = $this->scopeApartments()
-            ->when($request->filled('floor'), fn ($q) => $q->where('floor_id', $request->input('floor')))
-            ->with(['floor', 'activeFixedExpenses', 'rentals' => function ($q) use ($activePeriod, $currentMonth, $currentYear) {
+            ->with(['floor.property', 'activeFixedExpenses', 'rentals' => function ($q) use ($activePeriod, $currentMonth, $currentYear) {
                 $q->where(function ($sq) {
                     $sq->whereNull('end_date')->orWhere('end_date', '>=', now());
                 })
@@ -679,9 +679,6 @@ class RevenueExpenseController extends Controller
                     }]);
             }])
             ->get();
-
-        // Floors for the sort/filter dropdown (only floors that have apartments)
-        $floors = Floors::whereHas('apartments')->orderBy('id', 'asc')->get();
 
         // Build tenant billing data
         $tenantBills = [];
@@ -786,8 +783,16 @@ class RevenueExpenseController extends Controller
             }
         }
 
-        // Sort: by floor number, then apartment number within each floor
+        // Sort: by property name, then floor number, then apartment number. The
+        // property key keeps each building's floors contiguous in the consolidated
+        // "All properties" view; single-property accounts are unaffected.
         usort($tenantBills, function ($a, $b) {
+            $propA = $a['apartment']->floor->property->name ?? '';
+            $propB = $b['apartment']->floor->property->name ?? '';
+            if ($propA !== $propB) {
+                return strcasecmp($propA, $propB);
+            }
+
             $floorA = $a['apartment']->floor->floor_number ?? 0;
             $floorB = $b['apartment']->floor->floor_number ?? 0;
             if ($floorA !== $floorB) {
@@ -831,7 +836,7 @@ class RevenueExpenseController extends Controller
             'overdueCount', 'paidCount', 'pendingCount',
             'selectedDate', 'prevDate', 'nextDate',
             'isCurrentMonth', 'isFutureMonth', 'isPastMonth',
-            'currentMonth', 'currentYear', 'floors'
+            'currentMonth', 'currentYear'
         ));
     }
 
