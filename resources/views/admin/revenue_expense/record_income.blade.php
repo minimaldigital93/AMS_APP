@@ -280,7 +280,7 @@
                             @endif
                         </td>
                         <td class="px-4 lg:px-6 py-4 whitespace-nowrap text-sm font-medium">
-                            <div class="flex items-center justify-end gap-1">
+                            <div class="flex items-center justify-end gap-4">
                                 @if($bill['status'] !== 'paid')
                                 <button @click="openAddCharge({{ $bill['rental']->id }}, '{{ addslashes($bill['tenant']->name ?? __('messages.tenant')) }}', '{{ $bill['apartment']->apartment_number }}')"
                                     class="inline-flex items-center justify-center h-7 w-7 rounded-md text-orange-600 bg-orange-50 hover:bg-orange-100 transition" title="{{ __('messages.add_charge') }}">

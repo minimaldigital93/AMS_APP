@@ -61,27 +61,16 @@ class TenantController extends Controller
 
     public function index(Request $request, \App\Services\Property\PropertyContext $propertyContext): View
     {
-        // When the top-bar is on "All properties", offer a per-page property
-        // filter so the user can narrow to one building without changing the
-        // global selection. Otherwise everything stays scoped to the active one.
+        // "All properties" mode shows every building consolidated (grouped by
+        // property in the view); otherwise everything stays scoped to the active
+        // property. Null scope = no narrowing.
         $showingAll = $propertyContext->showingAllProperties();
-        $properties = collect();
-        $selectedPropertyId = null;
+        $scopeId = $showingAll ? null : current_property_id();
 
-        if ($showingAll) {
-            $properties = $propertyContext->accessibleProperties();
-            $requested = $request->integer('property') ?: null;
-
-            if ($requested !== null && $properties->contains('id', $requested)) {
-                $selectedPropertyId = $requested;
-            }
-        }
-
-        // Effective property scope: the per-page filter in "all" mode (null = no
-        // narrowing), otherwise the globally active property.
-        $scopeId = $showingAll ? $selectedPropertyId : current_property_id();
-
-        $query = Tenants::whereIn('status', ['active', 'pending'])
+        // Columns are table-qualified because the "All properties" ordering below
+        // joins apartments/floors/properties, which share column names (status,
+        // name) with tenants and would otherwise be ambiguous.
+        $query = Tenants::whereIn('tenants.status', ['active', 'pending'])
             ->with(['apartment.floor.property'])
             ->forProperty($scopeId);
 
@@ -89,32 +78,39 @@ class TenantController extends Controller
         if ($request->has('search') && ! empty($request->search)) {
             $search = $request->search;
             $query->where(function (Builder $q) use ($search) {
-                $q->where('name', 'like', "%{$search}%")
-                    ->orWhere('phone', 'like', "%{$search}%");
+                $q->where('tenants.name', 'like', "%{$search}%")
+                    ->orWhere('tenants.phone', 'like', "%{$search}%");
             });
         }
 
         // Apartment filter
         if ($request->has('apartment') && ! empty($request->apartment)) {
-            $query->where('apartment_id', $request->apartment);
+            $query->where('tenants.apartment_id', $request->apartment);
         }
 
         // Status filter
         if ($request->has('status') && ! empty($request->status)) {
-            $query->where('status', $request->status);
+            $query->where('tenants.status', $request->status);
         }
 
-        // Floor filter (filter tenants by apartment's floor)
-        if ($request->has('floor') && ! empty($request->floor)) {
-            $floorId = $request->floor;
-            $query->whereHas('apartment', function (Builder $q) use ($floorId) {
-                $q->where('floor_id', $floorId);
-            });
-        }
+        // In the consolidated "All properties" view, group tenants by property so
+        // each building stays contiguous — same ordering as Billing & Payment
+        // (property name → floor number → apartment number). Otherwise keep the
+        // newest-first ordering within the single active property.
+        if ($showingAll) {
+            $query->leftJoin('apartments', 'tenants.apartment_id', '=', 'apartments.id')
+                ->leftJoin('floors', 'apartments.floor_id', '=', 'floors.id')
+                ->leftJoin('properties', 'floors.property_id', '=', 'properties.id')
+                ->orderBy('properties.name')
+                ->orderBy('floors.floor_name')
+                ->orderBy('apartments.apartment_number')
+                ->orderBy('tenants.id', 'desc')
+                ->select('tenants.*');
 
-        $tenants = $query->orderBy('id', 'desc')->paginate(15)->withQueryString();
-        $apartments = Apartments::forProperty($scopeId)->get();
-        $floors = Floors::forProperty($scopeId)->whereHas('apartments')->orderBy('id', 'asc')->get();
+            $tenants = $query->paginate(15)->withQueryString();
+        } else {
+            $tenants = $query->orderBy('id', 'desc')->paginate(15)->withQueryString();
+        }
 
         $rentProgressMap = $this->rentProgressCalculator->map($tenants);
 
@@ -125,7 +121,7 @@ class TenantController extends Controller
         $archivedTenantCount = $this->scopeArchivedToActiveProperty(Tenants::onlyTrashed(), $scopeId)->count();
         $totalDeposits = Tenants::where('status', 'active')->forProperty($scopeId)->sum('deposit');
 
-        return view('admin.TenantManagement.activeTenants', compact('tenants', 'apartments', 'rentProgressMap', 'floors', 'activeTenantCount', 'archivedTenantCount', 'totalDeposits', 'showingAll', 'properties', 'selectedPropertyId'));
+        return view('admin.TenantManagement.activeTenants', compact('tenants', 'rentProgressMap', 'activeTenantCount', 'archivedTenantCount', 'totalDeposits', 'showingAll'));
     }
 
     /**
