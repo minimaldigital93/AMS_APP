@@ -5,9 +5,9 @@
 @section('content')
 <div class="max-w-6xl mx-auto space-y-8">
     <!-- Header -->
-    {{-- Property scoping is driven by the top-bar selector; on "All properties"
-         each floor below is tagged with its building. Rooms are listed inline
-         under each floor via the collapsible dropdown. --}}
+    {{-- Property scoping is driven by the top-bar selector; each floor below is
+         tagged with its building. Rooms are listed inline under each floor via
+         the collapsible dropdown. --}}
     <div class="flex items-center justify-between gap-3">
         <div>
             <h1 class="text-2xl font-semibold text-slate-800 tracking-tight">{{ __('messages.floors_and_rooms') }}</h1>
@@ -40,7 +40,7 @@
                         </div>
                         <div class="min-w-0">
                             <h2 class="text-base font-semibold text-slate-800 truncate">{{ $floor->floor_name }}</h2>
-                            @if($showingAll && $floor->property)
+                            @if($floor->property)
                             <span class="inline-flex items-center gap-1 text-xs text-slate-400">
                                 <span class="material-icons text-[13px] leading-none">apartment</span>
                                 {{ $floor->property->name }}

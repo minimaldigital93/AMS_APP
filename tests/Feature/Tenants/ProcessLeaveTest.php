@@ -56,3 +56,31 @@ it('rolls back the entire leave when ledger writes fail', function () {
     expect(Accounts::count())->toBe(0);
     expect(Payments::count())->toBe(0);
 });
+
+it('renders the leave form with pending charges for admin and supervisor', function () {
+    Payments::create([
+        'rental_id' => $this->rental->id,
+        'amount' => 45,
+        'due_date' => now()->subDays(10),
+        'payment_method' => 'cash',
+        'payment_status' => 'pending',
+        'payment_type' => 'utilities',
+        'late_fee' => 0,
+        'note' => 'Water bill June',
+    ]);
+
+    $this->actingAs($this->admin)
+        ->get(route('admin.tenants.leave', $this->tenant))
+        ->assertOk()
+        ->assertSee(__('messages.when_moving_out'))
+        ->assertSee(__('messages.unpaid_bills'))
+        ->assertSee('Water bill June')
+        ->assertSee(__('messages.deposit_question'))
+        ->assertSee(__('messages.settlement_summary'));
+
+    // Supervisor route renders the same shared partial (admin has preview access).
+    $this->actingAs($this->admin)
+        ->get(route('supervisor.tenants.leave', $this->tenant))
+        ->assertOk()
+        ->assertSee(__('messages.settlement_summary'));
+});

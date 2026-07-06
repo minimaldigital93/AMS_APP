@@ -8,6 +8,7 @@ use App\Models\Property;
 use App\Models\Tenants;
 use App\Services\Subscription\SubscriptionService;
 use Illuminate\Http\Request;
+use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
@@ -54,7 +55,29 @@ class FloorController extends Controller
         $floors = $query->with(['property', 'apartments' => function ($query) {
             $query->with(['supervisor', 'tenants' => fn ($q) => $q->whereNull('deleted_at')])
                 ->orderBy('apartment_number');
-        }])->withCount('apartments')->paginate(10)->withQueryString();
+        }])->withCount('apartments')->get();
+
+        // Natural sort (Floor 1, Floor 2, ... Floor 10) rather than alphabetical
+        // (which would put "Floor 10" before "Floor 2") — grouped by property
+        // first so "All properties" lists floors building by building instead of
+        // interleaving them in creation order. Free-text floor names mean this
+        // has to happen in PHP (strnatcasecmp), not the DB, so we paginate the
+        // sorted collection manually instead of Floors::paginate().
+        $sortedFloors = $floors->sort(function ($a, $b) {
+            $propertyOrder = strnatcasecmp($a->property?->name ?? '', $b->property?->name ?? '');
+
+            return $propertyOrder !== 0 ? $propertyOrder : strnatcasecmp($a->floor_name, $b->floor_name);
+        })->values();
+
+        $perPage = 10;
+        $page = LengthAwarePaginator::resolveCurrentPage();
+        $floors = new LengthAwarePaginator(
+            $sortedFloors->forPage($page, $perPage)->values(),
+            $sortedFloors->count(),
+            $perPage,
+            $page,
+            ['path' => LengthAwarePaginator::resolveCurrentPath(), 'query' => $request->query()]
+        );
 
         // Unassigned active tenants power the "Existing Tenant" tab of the shared
         // assign-tenant modal embedded on this page.
