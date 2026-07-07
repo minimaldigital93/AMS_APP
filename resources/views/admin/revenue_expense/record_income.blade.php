@@ -390,7 +390,7 @@
     <!-- ============================================ -->
     <!-- CHARGES RECEIPT MODAL                        -->
     <!-- ============================================ -->
-    <div x-show="showChargesReceipt" x-cloak class="fixed inset-0 z-50 overflow-y-auto" aria-modal="true">
+    <div x-show="showChargesReceipt" x-cloak class="fixed inset-0 z-[70] overflow-y-auto" aria-modal="true">
         <div class="flex items-center justify-center min-h-screen px-4">
             <div class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm" @click="showChargesReceipt = false"></div>
             <div class="bg-white rounded-2xl shadow-xl w-full max-w-sm relative z-10">
@@ -478,10 +478,10 @@
     <!-- ============================================ -->
     <!-- RECEIPT MODAL (in-page preview via iframe)   -->
     <!-- ============================================ -->
-    <div x-show="showReceipt" x-cloak class="fixed inset-0 z-50 overflow-y-auto" aria-modal="true">
+    <div x-show="showReceipt" x-cloak class="fixed inset-0 z-[70] overflow-y-auto" aria-modal="true">
         <div class="flex items-center justify-center min-h-screen px-4 py-6">
             <div class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm" @click="closeReceipt()"></div>
-            <div class="relative z-10 w-full max-w-sm bg-white rounded-xl shadow-2xl flex flex-col overflow-hidden" style="max-height:90vh;">
+            <div class="relative z-10 w-full max-w-sm bg-white rounded-xl shadow-2xl flex flex-col overflow-hidden" style="height:90vh;height:90dvh;max-height:90vh;">
                 <div class="px-4 py-3 border-b border-slate-100 flex items-center justify-between flex-shrink-0">
                     <h3 class="text-sm font-semibold text-slate-700">{{ __('messages.payment_receipt') }}</h3>
                     <div class="flex items-center gap-2">
@@ -493,7 +493,7 @@
                         <button @click="closeReceipt()" class="text-slate-400 hover:text-slate-600 w-7 h-7 flex items-center justify-center rounded-lg hover:bg-slate-100 transition text-lg">&times;</button>
                     </div>
                 </div>
-                <div class="bg-slate-200 flex-1" style="height:68vh;">
+                <div class="bg-slate-200 flex-1 min-h-0">
                     <template x-if="showReceipt">
                         <iframe x-ref="receiptFrame" :src="receiptUrl" class="w-full h-full border-0" title="{{ __('messages.payment_receipt') }}"></iframe>
                     </template>
@@ -503,50 +503,178 @@
     </div>
 
     <!-- ============================================ -->
-    <!-- ADD CHARGE MODAL (single form, all types)    -->
+    <!-- ADD CHARGE MODAL (tap type → enter amount)   -->
     <!-- ============================================ -->
-    <div x-show="showAddCharge" x-cloak class="fixed inset-0 z-50 overflow-y-auto" aria-modal="true">
-        <div class="flex items-center justify-center min-h-screen px-4">
-            <div class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm" @click="showAddCharge = false"></div>
-            <div class="bg-white rounded-xl shadow-2xl w-full max-w-md relative z-10">
-                <div class="px-5 py-3 border-b border-slate-100 flex items-center justify-between">
-                    <h3 class="text-sm font-semibold text-slate-800">
-                        Add Charges — <span x-text="chargeApt" class="text-sky-600"></span>
-                    </h3>
-                    <button @click="showAddCharge = false" class="text-slate-400 hover:text-slate-600">
+    @php
+        $chargeTypeMeta = [
+            'electricity' => [
+                'label'  => __('messages.electric'),
+                'icon'   => 'M13 10V3L4 14h7v7l9-11h-7z',
+                'chip'   => 'bg-yellow-50 text-yellow-600',
+                'dot'    => 'bg-yellow-400',
+                'active' => 'border-yellow-400 bg-yellow-50/70 ring-1 ring-yellow-400',
+                'text'   => 'text-yellow-700',
+                'badge'  => 'bg-yellow-500',
+            ],
+            'water' => [
+                'label'  => __('messages.water'),
+                'icon'   => 'M12 3s-6.5 7.2-6.5 11.2C5.5 17.9 8.4 21 12 21s6.5-3.1 6.5-6.8C18.5 10.2 12 3 12 3z',
+                'chip'   => 'bg-blue-50 text-blue-600',
+                'dot'    => 'bg-blue-400',
+                'active' => 'border-blue-400 bg-blue-50/70 ring-1 ring-blue-400',
+                'text'   => 'text-blue-700',
+                'badge'  => 'bg-blue-500',
+            ],
+            'internet' => [
+                'label'  => __('messages.type_internet'),
+                'icon'   => 'M8.111 16.404a5.5 5.5 0 017.778 0M12 20h.01m-7.08-7.071c3.904-3.905 10.236-3.905 14.141 0M1.394 9.393c5.857-5.858 15.355-5.858 21.213 0',
+                'chip'   => 'bg-purple-50 text-purple-600',
+                'dot'    => 'bg-purple-400',
+                'active' => 'border-purple-400 bg-purple-50/70 ring-1 ring-purple-400',
+                'text'   => 'text-purple-700',
+                'badge'  => 'bg-purple-500',
+            ],
+            'parking' => [
+                'label'  => __('messages.type_parking'),
+                'icon'   => 'M13 16V6a1 1 0 00-1-1H4a1 1 0 00-1 1v10a1 1 0 001 1h1m8-1a1 1 0 01-1 1H9m4-1V8a1 1 0 011-1h2.586a1 1 0 01.707.293l3.414 3.414a1 1 0 01.293.707V16a1 1 0 01-1 1h-1m-6 0a2 2 0 104 0m-4 0a2 2 0 11-4 0m10 0a2 2 0 104 0',
+                'chip'   => 'bg-orange-50 text-orange-600',
+                'dot'    => 'bg-orange-400',
+                'active' => 'border-orange-400 bg-orange-50/70 ring-1 ring-orange-400',
+                'text'   => 'text-orange-700',
+                'badge'  => 'bg-orange-500',
+            ],
+            'trash' => [
+                'label'  => __('messages.type_trash'),
+                'icon'   => 'M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16',
+                'chip'   => 'bg-teal-50 text-teal-600',
+                'dot'    => 'bg-teal-400',
+                'active' => 'border-teal-400 bg-teal-50/70 ring-1 ring-teal-400',
+                'text'   => 'text-teal-700',
+                'badge'  => 'bg-teal-500',
+            ],
+            'other' => [
+                'label'  => __('messages.type_other'),
+                'icon'   => 'M12 6v6m0 0v6m0-6h6m-6 0H6',
+                'chip'   => 'bg-slate-100 text-slate-500',
+                'dot'    => 'bg-slate-400',
+                'active' => 'border-slate-400 bg-slate-50 ring-1 ring-slate-400',
+                'text'   => 'text-slate-700',
+                'badge'  => 'bg-slate-500',
+            ],
+        ];
+    @endphp
+    <div x-show="showAddCharge" x-cloak x-ref="addChargeModal" class="fixed inset-0 z-[70] overflow-y-auto" aria-modal="true">
+        <div x-ref="addChargeWrap" class="flex items-center justify-center min-h-screen px-4 py-4 sm:py-10" style="min-height:100dvh;">
+            <div class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm" @click="showAddCharge = false"></div>
+            <div x-ref="addChargeCard" class="bg-white rounded-2xl shadow-2xl w-full max-w-md relative z-10 flex flex-col" style="max-height:80vh;max-height:80dvh;">
+                <!-- Header -->
+                <div class="px-5 py-4 border-b border-slate-100 flex items-center justify-between flex-shrink-0">
+                    <div class="flex items-center gap-3 min-w-0">
+                        <div class="w-9 h-9 bg-orange-50 rounded-lg flex items-center justify-center flex-shrink-0">
+                            <svg class="w-5 h-5 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/></svg>
+                        </div>
+                        <div class="min-w-0">
+                            <p class="font-semibold text-slate-800 text-sm truncate">{{ __('messages.add_charge') }} — <span class="text-sky-600" x-text="chargeApt"></span></p>
+                            <p class="text-xs text-slate-400 truncate"><span x-text="chargeTenant"></span> · {{ $selectedDate->format('F Y') }}</p>
+                        </div>
+                    </div>
+                    <button @click="showAddCharge = false" class="text-slate-400 hover:text-slate-600 w-7 h-7 flex items-center justify-center rounded-lg hover:bg-slate-100 transition flex-shrink-0">
                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
                     </button>
                 </div>
-                <form @submit.prevent="saveDone" class="p-4 space-y-3">
-                    <p class="text-xs text-slate-400">{{ __('messages.enter_amounts_hint') }}</p>
 
-                    <template x-for="(row, i) in chargeRows" :key="row.type">
-                        <div class="grid grid-cols-12 gap-2 items-center">
-                            <div class="col-span-3 text-sm text-slate-600 capitalize" x-text="typeLabels[row.type] || row.type"></div>
-                            <template x-if="row.type === 'electricity' || row.type === 'water'">
-                                <div class="col-span-6 grid grid-cols-2 gap-2">
-                                    <input type="number" x-model="row.meter_in" step="0.01" min="0" placeholder="{{ __('messages.meter_in_ph') }}"
-                                        class="w-full px-2 py-1.5 border border-slate-200 rounded-md text-sm">
-                                    <input type="number" x-model="row.meter_out" step="0.01" min="0" placeholder="{{ __('messages.meter_out_ph') }}"
-                                        class="w-full px-2 py-1.5 border border-slate-200 rounded-md text-sm">
-                                </div>
-                            </template>
-                            <template x-if="row.type !== 'electricity' && row.type !== 'water'">
-                                <div class="col-span-6"></div>
-                            </template>
-                            <input type="number" x-model="row.amount" step="0.01" min="0" placeholder="0.00"
-                                class="col-span-3 w-full px-2 py-1.5 border border-slate-200 rounded-md text-sm font-semibold text-right">
+                <form @submit.prevent="saveDone" class="flex flex-col flex-1 min-h-0">
+                    <div class="p-4 sm:p-5 space-y-4 overflow-y-auto flex-1">
+                        <!-- Type selector chips -->
+                        <div>
+                            <p class="text-xs text-slate-400 mb-2">{{ __('messages.tap_charge_types_hint') }}</p>
+                            <div class="grid grid-cols-3 gap-2">
+                                @foreach($chargeTypeMeta as $type => $meta)
+                                <button type="button" @click="toggleCharge('{{ $type }}')"
+                                    class="relative flex flex-col items-center gap-1.5 py-3 rounded-xl border transition select-none"
+                                    :class="charges.{{ $type }}.active ? '{{ $meta['active'] }}' : 'border-slate-200 hover:border-slate-300 hover:bg-slate-50'">
+                                    <span class="w-8 h-8 rounded-lg flex items-center justify-center {{ $meta['chip'] }}">
+                                        <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="{{ $meta['icon'] }}"/></svg>
+                                    </span>
+                                    <span class="text-xs font-medium leading-tight" :class="charges.{{ $type }}.active ? '{{ $meta['text'] }}' : 'text-slate-500'">{{ $meta['label'] }}</span>
+                                    <span x-show="charges.{{ $type }}.active" x-cloak
+                                        class="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full {{ $meta['badge'] }} text-white flex items-center justify-center shadow-sm">
+                                        <svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="3" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
+                                    </span>
+                                </button>
+                                @endforeach
+                            </div>
                         </div>
-                    </template>
 
-                    <div class="flex items-center justify-between pt-3 border-t border-slate-100">
-                        <span class="text-xs text-slate-500">{{ __('messages.total') }}: <span class="font-semibold text-slate-800" x-text="'$' + chargesTotal()"></span></span>
-                        <div class="flex items-center gap-2">
-                            <button type="button" @click="showAddCharge = false" class="px-3 py-1.5 text-sm text-slate-500 hover:text-slate-700">{{ __('messages.cancel') }}</button>
-                            <button type="submit" :disabled="isSubmitting"
-                                class="px-4 py-1.5 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-60 text-white rounded-md text-sm font-medium flex items-center gap-1.5">
+                        <!-- Empty state -->
+                        <div x-show="activeChargeCount() === 0" class="text-center py-8 border-2 border-dashed border-slate-100 rounded-xl">
+                            <svg class="w-8 h-8 mx-auto text-slate-200 mb-2" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 15l-2 5L9 9l11 4-5 2zm0 0l5 5M7.188 2.239l.777 2.897M5.136 7.965l-2.898-.777M13.95 4.05l-2.122 2.122m-5.657 5.656l-2.12 2.122"/></svg>
+                            <p class="text-sm text-slate-400">{{ __('messages.select_charge_hint') }}</p>
+                        </div>
+
+                        <!-- One input panel per selected type -->
+                        <div class="space-y-3">
+                            @foreach($chargeTypeMeta as $type => $meta)
+                            <div x-show="charges.{{ $type }}.active" x-cloak
+                                x-transition:enter="transition ease-out duration-150" x-transition:enter-start="opacity-0 -translate-y-1" x-transition:enter-end="opacity-100 translate-y-0"
+                                class="rounded-xl border border-slate-100 bg-slate-50/60 p-3.5 space-y-2.5">
+                                <div class="flex items-center justify-between">
+                                    <div class="flex items-center gap-2">
+                                        <span class="w-2 h-2 rounded-full {{ $meta['dot'] }}"></span>
+                                        <span class="text-sm font-semibold text-slate-700">{{ $meta['label'] }}</span>
+                                    </div>
+                                    <button type="button" @click="toggleCharge('{{ $type }}')"
+                                        class="w-6 h-6 flex items-center justify-center text-slate-300 hover:text-red-500 rounded-md hover:bg-white transition" title="{{ __('messages.cancel') }}">
+                                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+                                    </button>
+                                </div>
+
+                                @if(in_array($type, ['electricity', 'water']))
+                                <div class="grid grid-cols-2 gap-2">
+                                    <div>
+                                        <label class="block text-[11px] text-slate-400 mb-1">{{ __('messages.meter_in') }}</label>
+                                        <input type="number" x-model="charges.{{ $type }}.meter_in" step="0.01" min="0" inputmode="decimal" placeholder="0"
+                                            class="w-full px-3 py-2 text-sm bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-sky-400 focus:border-sky-400 transition">
+                                    </div>
+                                    <div>
+                                        <label class="block text-[11px] text-slate-400 mb-1">{{ __('messages.meter_out') }}</label>
+                                        <input type="number" x-model="charges.{{ $type }}.meter_out" step="0.01" min="0" inputmode="decimal" placeholder="0"
+                                            class="w-full px-3 py-2 text-sm bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-sky-400 focus:border-sky-400 transition">
+                                    </div>
+                                </div>
+                                <div x-show="chargeUsage('{{ $type }}') !== null" class="flex items-center gap-1.5 text-xs text-slate-500">
+                                    <svg class="w-3.5 h-3.5 text-emerald-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"/></svg>
+                                    {{ __('messages.usage') }}: <span class="font-semibold text-slate-700" x-text="chargeUsage('{{ $type }}')"></span>
+                                </div>
+                                <p x-show="chargeUsageInvalid('{{ $type }}')" class="text-xs text-red-500">{{ __('messages.meter_out_lt_in') }}</p>
+                                @endif
+
+                                <div>
+                                    <label class="block text-[11px] text-slate-400 mb-1">{{ __('messages.amount') }} <span class="text-red-400">*</span></label>
+                                    <div class="relative">
+                                        <span class="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm pointer-events-none">{{ currency_symbol() }}</span>
+                                        <input type="number" x-model="charges.{{ $type }}.amount" step="0.01" min="0" inputmode="decimal" placeholder="{{ currency_is_khr() ? '0' : '0.00' }}"
+                                            class="w-full pl-8 pr-3 py-2.5 text-base font-semibold text-slate-800 text-right bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-emerald-500 focus:border-emerald-500 transition">
+                                    </div>
+                                </div>
+                            </div>
+                            @endforeach
+                        </div>
+                    </div>
+
+                    <!-- Sticky footer: live total + actions -->
+                    <div class="px-4 sm:px-5 pt-4 pb-[calc(1.25rem+env(safe-area-inset-bottom))] sm:pb-4 border-t border-slate-100 flex items-center justify-between gap-3 flex-shrink-0 bg-white rounded-b-2xl">
+                        <div class="min-w-0">
+                            <p class="text-[11px] text-slate-400">{{ __('messages.total') }}<span x-show="filledChargeCount() > 1" x-text="' · ' + filledChargeCount()"></span></p>
+                            <p class="text-xl font-bold whitespace-nowrap" :class="filledChargeCount() > 0 ? 'text-emerald-600' : 'text-slate-300'">{{ currency_symbol() }}<span x-text="chargesTotal()"></span></p>
+                        </div>
+                        <div class="flex items-center gap-2 flex-shrink-0">
+                            <button type="button" @click="showAddCharge = false"
+                                class="px-4 py-2.5 text-sm font-medium text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-lg transition">{{ __('messages.cancel') }}</button>
+                            <button type="submit" :disabled="isSubmitting || filledChargeCount() === 0"
+                                class="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-40 disabled:cursor-not-allowed text-white rounded-lg text-sm font-semibold flex items-center gap-1.5 transition">
                                 <svg x-show="isSubmitting" class="w-3.5 h-3.5 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/></svg>
-                                <span x-text="isSubmitting ? 'Saving…' : 'Save'"></span>
+                                <span x-text="isSubmitting ? '{{ __('messages.saving') }}' : '{{ __('messages.save') }}'"></span>
                             </button>
                         </div>
                     </div>
@@ -558,10 +686,10 @@
     <!-- ============================================ -->
     <!-- CHECKOUT / PAY MODAL                         -->
     <!-- ============================================ -->
-    <div x-show="showCheckout" x-cloak class="fixed inset-0 z-50 overflow-y-auto" aria-modal="true">
+    <div x-show="showCheckout" x-cloak class="fixed inset-0 z-[70] overflow-y-auto" aria-modal="true">
         <div class="flex items-center justify-center min-h-screen px-4 py-6">
             <div class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm" @click="closeCheckout()"></div>
-            <div class="bg-white rounded-2xl shadow-xl w-full max-w-md relative z-10 flex flex-col" style="max-height:90dvh;max-height:90vh;">
+            <div class="bg-white rounded-2xl shadow-xl w-full max-w-md relative z-10 flex flex-col" style="max-height:90vh;max-height:90dvh;">
                 <!-- Header -->
                 <div class="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
                     <div class="flex items-center gap-3">
@@ -754,6 +882,19 @@ function billingManager() {
         },
 
         init() {
+            // x-model bindings in the Add Charge modal need every type key to exist.
+            this.charges = this.freshCharges();
+            // Pin the Add Charge sheet to the *visible* viewport while it is open —
+            // same approach as the assign-tenant modal — so the Cancel/Save footer
+            // stays reachable when the phone keyboard is up.
+            this.$watch('showAddCharge', (open) => {
+                if (open) { this.lockScroll(); } else { this.unlockScroll(); }
+                this.$nextTick(() => this.syncAddChargeViewport());
+            });
+            if (window.visualViewport) {
+                window.visualViewport.addEventListener('resize', () => this.syncAddChargeViewport());
+                window.visualViewport.addEventListener('scroll', () => this.syncAddChargeViewport());
+            }
             // After a confirmed cash/bank payment the page reloads — print the bill.
             @if(session('print_bill_rental'))
             this.printBill('{{ session('print_bill_rental') }}');
@@ -773,14 +914,18 @@ function billingManager() {
         viewRent: 0,
         viewFixed: 0,
 
-        // Add Charge Modal (single form)
+        // Add Charge Modal (tap type → enter amount)
         showAddCharge: false,
         chargeRentalId: null,
         chargeTenant: '',
         chargeApt: '',
         isSubmitting: false,
+        khrCurrency: {{ currency_is_khr() ? 'true' : 'false' }},
         chargeTypes: ['electricity','water','internet','parking','trash','other'],
-        chargeRows: [],
+        charges: {},
+        freshCharges() {
+            return Object.fromEntries(this.chargeTypes.map(t => [t, { active: false, meter_in: '', meter_out: '', amount: '' }]));
+        },
 
         // Checkout Modal
         showCheckout: false,
@@ -885,18 +1030,92 @@ function billingManager() {
             } catch(e) { window.location.reload(); }
         },
 
+        // iOS-safe body scroll lock. body{overflow:hidden} is unreliable on iOS
+        // Safari — pinning the body with position:fixed actually freezes it; the
+        // scroll position is restored on close.
+        lockedScrollY: 0,
+        lockScroll() {
+            this.lockedScrollY = window.scrollY || window.pageYOffset || 0;
+            document.body.style.position = 'fixed';
+            document.body.style.top = `-${this.lockedScrollY}px`;
+            document.body.style.left = '0';
+            document.body.style.right = '0';
+            document.body.style.width = '100%';
+        },
+        unlockScroll() {
+            document.body.style.position = '';
+            document.body.style.top = '';
+            document.body.style.left = '';
+            document.body.style.right = '';
+            document.body.style.width = '';
+            window.scrollTo(0, this.lockedScrollY);
+        },
+        // Size the sheet to the visual viewport (which shrinks when the on-screen
+        // keyboard opens) instead of the layout viewport, so the footer buttons
+        // never end up hidden behind the keyboard.
+        syncAddChargeViewport() {
+            const vv = window.visualViewport;
+            const modal = this.$refs.addChargeModal;
+            const wrap = this.$refs.addChargeWrap;
+            const card = this.$refs.addChargeCard;
+            if (!vv || !modal || !wrap || !card) return;
+            if (!this.showAddCharge) {
+                modal.style.height = '';
+                modal.style.top = '';
+                modal.style.bottom = '';
+                wrap.style.minHeight = '100dvh';
+                card.style.maxHeight = '';
+                return;
+            }
+            modal.style.height = vv.height + 'px';
+            modal.style.top = vv.offsetTop + 'px';
+            modal.style.bottom = 'auto';
+            wrap.style.minHeight = vv.height + 'px';
+            // Cap the card at 80% of the *visible* viewport so it always floats
+            // centered with clear space above and below — the footer buttons must
+            // never sit against the screen edge / browser UI.
+            card.style.maxHeight = Math.min(vv.height - 32, Math.round(vv.height * 0.8)) + 'px';
+        },
+
         openAddCharge(rentalId, tenant, apt) {
             this.chargeRentalId = rentalId;
             this.chargeTenant = tenant;
             this.chargeApt = apt;
-            this.chargeRows = this.chargeTypes.map(t => ({ type: t, meter_in: '', meter_out: '', amount: '' }));
+            this.charges = this.freshCharges();
             this.isSubmitting = false;
             this.showAddCharge = true;
         },
 
+        toggleCharge(type) {
+            const c = this.charges[type];
+            c.active = !c.active;
+            if (!c.active) { c.meter_in = ''; c.meter_out = ''; c.amount = ''; }
+        },
+
+        activeChargeCount() {
+            return this.chargeTypes.filter(t => this.charges[t].active).length;
+        },
+
+        filledChargeCount() {
+            return this.chargeTypes.filter(t => this.charges[t].active && parseFloat(this.charges[t].amount) > 0).length;
+        },
+
+        chargeUsage(type) {
+            const c = this.charges[type];
+            const inV = parseFloat(c.meter_in), outV = parseFloat(c.meter_out);
+            if (isNaN(inV) || isNaN(outV) || outV < inV) return null;
+            return (Math.round((outV - inV) * 100) / 100).toString();
+        },
+
+        chargeUsageInvalid(type) {
+            const c = this.charges[type];
+            const inV = parseFloat(c.meter_in), outV = parseFloat(c.meter_out);
+            return !isNaN(inV) && !isNaN(outV) && outV < inV;
+        },
+
         chargesTotal() {
-            const sum = this.chargeRows.reduce((s, r) => s + (parseFloat(r.amount) || 0), 0);
-            return sum.toFixed(2);
+            const sum = this.chargeTypes.reduce((s, t) => s + (this.charges[t].active ? (parseFloat(this.charges[t].amount) || 0) : 0), 0);
+            return sum.toFixed(this.khrCurrency ? 0 : 2).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
         },
 
         openCheckout(rentalId, tenant, apt, rent, utilities, otherCharges, fixed, total) {
@@ -1075,7 +1294,9 @@ function billingManager() {
         },
 
         saveDone() {
-            const filled = this.chargeRows.filter(r => parseFloat(r.amount) > 0);
+            const filled = this.chargeTypes
+                .filter(t => this.charges[t].active && parseFloat(this.charges[t].amount) > 0)
+                .map(t => ({ type: t, meter_in: this.charges[t].meter_in, meter_out: this.charges[t].meter_out, amount: this.charges[t].amount }));
             if (filled.length === 0) {
                 alert('{{ __('messages.enter_charge_alert') }}');
                 return;
