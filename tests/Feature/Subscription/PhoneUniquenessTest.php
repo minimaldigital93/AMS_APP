@@ -92,13 +92,18 @@ it('lets an owner with no live subscription re-register on the same phone, reusi
     expect($user->status)->toBe('inactive');
 });
 
-/** A number used only by another account's tenant/supervisor is not an owner — free to register. */
-it('lets a phone used only by another account\'s sub-user register as a new owner', function () {
+/**
+ * POLICY REVERSED by the 2026-07 DB audit (D2): the users table is one global
+ * login namespace — Auth::attempt() looks phones up globally, so a phone held
+ * by ANY user row (including another account's supervisor/tenant login) is
+ * taken. Previously sub-user phones were considered free for signup.
+ */
+it('rejects a phone that belongs to another account\'s sub-user', function () {
     $admin = User::factory()->create(['phone' => '0999111333', 'status' => 'active']);
     $admin->forceFill(['account_id' => $admin->id])->save();
     $admin->assignRole('admin');
 
-    // A supervisor of that admin reuses the number — active, but NOT an owner.
+    // A supervisor of that admin holds the number — not an owner, but they log in with it.
     $supervisor = User::factory()->create(['phone' => '0999111444', 'status' => 'active', 'account_id' => $admin->id]);
     $supervisor->assignRole('supervisor');
 
@@ -110,7 +115,7 @@ it('lets a phone used only by another account\'s sub-user register as a new owne
         'plan' => 'pro',
     ]);
 
-    $response->assertSessionHasNoErrors();
-    // A brand-new owner exists on that phone (account_id == id), alongside the supervisor.
-    expect(User::whereColumn('account_id', 'id')->where('phone', '0999111444')->exists())->toBeTrue();
+    $response->assertSessionHasErrors('phone');
+    // No owner row was minted on that phone.
+    expect(User::whereColumn('account_id', 'id')->where('phone', '0999111444')->exists())->toBeFalse();
 });

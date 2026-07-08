@@ -5,7 +5,6 @@ namespace App\Http\Controllers\SuperAdmin;
 use App\Http\Controllers\Controller;
 use App\Models\Apartments;
 use App\Models\Attachment;
-use App\Models\FiscalPeriods;
 use App\Models\Floors;
 use App\Models\MerchantPaymentSetting;
 use App\Models\Plan;
@@ -13,6 +12,7 @@ use App\Models\Settings;
 use App\Models\Subscription;
 use App\Models\Tenants;
 use App\Models\User;
+use App\Services\Platform\AccountPurgeService;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -247,16 +247,12 @@ class AccountsController extends Controller
     }
 
     /**
-     * Permanently delete a customer account and everything it owns.
-     *
-     * Cross-account operation (superadmin panel), so account-owned models are
-     * queried with withoutAccountScope(). Deleting the account-owned roots
-     * (floors → apartments → rentals → payments…, tenants, fiscal periods)
-     * lets the DB onDelete('cascade') chains clean up their children; the owner
-     * User delete cascades the subscription + merchant payment settings. The
-     * whole thing runs in one transaction so a failure leaves nothing orphaned.
+     * Permanently delete a customer account and everything it owns — rows and
+     * uploaded files. The heavy lifting lives in AccountPurgeService, which
+     * deletes explicitly (children first) because the soft-delete models never
+     * trigger DB cascades and the financial-history FKs are RESTRICT.
      */
-    public function destroy(User $account): RedirectResponse
+    public function destroy(User $account, AccountPurgeService $purge): RedirectResponse
     {
         // Only customer account owners are deletable here. Never let a superadmin
         // delete themselves or another platform admin through this screen.
@@ -264,22 +260,7 @@ class AccountsController extends Controller
             return back()->with('error', __('messages.flash_account_delete_forbidden'));
         }
 
-        DB::transaction(function () use ($account) {
-            $id = $account->id;
-
-            // Roots whose DB cascades fan out to apartments, rentals, payments,
-            // utilities, fiscal-period financials, etc.
-            Floors::withoutAccountScope()->where('account_id', $id)->delete();
-            Tenants::withoutAccountScope()->where('account_id', $id)->delete();
-            FiscalPeriods::withoutAccountScope()->where('account_id', $id)->delete();
-            Settings::withoutAccountScope()->where('account_id', $id)->delete();
-
-            // Member users (supervisors/tenant logins) that point at this account.
-            User::where('account_id', $id)->where('id', '!=', $id)->delete();
-
-            // Owner last — cascades subscription + merchant_payment_settings.
-            $account->delete();
-        });
+        $purge->purge($account);
 
         return redirect()->route('superadmin.accounts.index')
             ->with('success', __('messages.flash_account_deleted'));

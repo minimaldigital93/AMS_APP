@@ -250,7 +250,9 @@ class TenantController extends Controller
                 'required', 'string', 'max:20', 'regex:/^[0-9+\-\s()]+$/',
                 // Per-account uniqueness so each admin's tenants are independent.
                 Rule::unique('tenants', 'phone')->where('account_id', current_account_id())->whereNull('deleted_at'),
-                Rule::unique('users', 'phone')->where('account_id', current_account_id()),
+                // Global (not per-account): login is a single Auth::attempt() by
+                // phone, so the users table is one global login namespace.
+                Rule::unique('users', 'phone'),
             ],
             'email' => 'nullable|email|max:255',
             'id_card_number' => 'nullable|string|max:50',

@@ -45,34 +45,36 @@ class SubscriptionController extends Controller
     {
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255'],
-            // A phone is only "taken" when it belongs to a *successfully
-            // registered* account owner: someone who actually paid and is still
-            // a live customer (an active/trialing subscription that hasn't
-            // expired), or an owner the platform has deliberately suspended.
-            // Every other owner row is a failed/lapsed signup we let re-register:
-            //   - abandoned never-paid attempts (subscription still 'pending'),
-            //   - legacy rows the `status` column default left non-inactive but
-            //     that never reached a live subscription,
-            //   - accounts whose subscription has expired or was cancelled.
-            // Keying off the subscription (not `users.status`) is what fixes
-            // re-registration: a user who didn't pay in time is NOT a completed
-            // owner, so their phone stays free. Numbers used only by another
-            // account's tenants/supervisors are not owners (account_id != id)
-            // and are always free. provisionOwner() then takes over any such
-            // reusable owner row rather than minting a duplicate owner.
+            // The users table is one global login namespace (Auth::attempt()
+            // is a single lookup by phone), so a phone is "taken" when ANY
+            // user row holds it — a member login (supervisor/tenant) of any
+            // account, a platform superadmin, a suspended owner, or an owner
+            // with a live (active/trialing, unexpired) subscription.
+            //
+            // The one deliberate exception: *reusable owner rows* — failed or
+            // lapsed signups (abandoned never-paid attempts, expired/cancelled
+            // subscriptions, legacy rows that never reached a live
+            // subscription). Their phone stays free so the person can
+            // re-register; provisionOwner() then takes over that existing row
+            // rather than minting a duplicate (which the users_phone_unique
+            // index would reject anyway).
             'phone' => [
                 'required', 'string', 'max:255',
                 Rule::unique('users', 'phone')->where(fn ($q) => $q
-                    ->whereColumn('account_id', 'id')
-                    ->where(fn ($owner) => $owner
-                        ->where('status', 'suspended')
-                        ->orWhereExists(fn ($sub) => $sub
-                            ->from('subscriptions')
-                            ->whereColumn('subscriptions.account_id', 'users.id')
-                            ->whereIn('subscriptions.status', ['active', 'trialing'])
-                            ->where(fn ($exp) => $exp
-                                ->whereNull('subscriptions.expires_at')
-                                ->orWhere('subscriptions.expires_at', '>', now()))))),
+                    ->where(fn ($row) => $row
+                        ->whereNull('account_id')
+                        ->orWhereColumn('account_id', '!=', 'id')
+                        ->orWhere(fn ($owner) => $owner
+                            ->whereColumn('account_id', 'id')
+                            ->where(fn ($live) => $live
+                                ->where('status', 'suspended')
+                                ->orWhereExists(fn ($sub) => $sub
+                                    ->from('subscriptions')
+                                    ->whereColumn('subscriptions.account_id', 'users.id')
+                                    ->whereIn('subscriptions.status', ['active', 'trialing'])
+                                    ->where(fn ($exp) => $exp
+                                        ->whereNull('subscriptions.expires_at')
+                                        ->orWhere('subscriptions.expires_at', '>', now()))))))),
             ],
             'password' => ['required', 'confirmed', Password::defaults()],
             'plan' => ['required', 'exists:plans,slug'],

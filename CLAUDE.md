@@ -118,6 +118,7 @@ Supervisors are further scoped to **properties assigned to them** (`properties.s
 ```
 app/
   Http/Controllers/{Admin,Supervisor,Tenant,SuperAdmin,Auth}/
+  Http/Controllers/Shared/         ← abstract panel-shared controllers (RevenueExpense)
   Http/Controllers/Concerns/
     ScopesToSupervisorProperties   ← property-level supervisor scoping
     HasFiscalPeriodScope           ← fiscal period helpers shared by Admin + Supervisor
@@ -139,6 +140,9 @@ app/
       RefundService                ← handles refunds
       WebhookIngestService         ← processes raw webhook payloads
     Platform/PlatformFinanceService← cross-account platform finance (superadmin)
+    Platform/AccountPurgeService   ← full account deletion (rows + files);
+                                      soft-delete models never fire DB cascades and
+                                      history FKs are RESTRICT — delete children first
     RevenueExpense/                ← BreakEvenService, ExpenseRecordingService,
                                       IncomeRecordingService, KhqrCredentials,
                                       KhqrPaymentService, MonthlyBillingService,
@@ -245,6 +249,9 @@ Tests: `tests/Feature/{Auth,Payment,Subscription,SuperAdmin,FiscalPeriod,Middlew
 - User-facing strings go through `__()` / `lang/`; both `en` and `km` need entries.
 - Shared Blade layouts: `resources/views/layouts/`. Components: `resources/views/components/`. Partials: `resources/views/partials/`.
 - `AuditLogger::record()` never throws — an audit-write failure must not roll back the money action it records.
-- **Do not add a "Fixed Monthly Costs" summary card** to `break_event.blade.php` — it has been removed intentionally more than once.
+- **Do not add a "Fixed Monthly Costs" summary card** to the break-even page (`shared/revenue_expense/break_even.blade.php`) — it has been removed intentionally more than once.
 - `Subscription` is intentionally NOT `BelongsToAccount`-scoped — do not add it.
 - Payment `status` columns are VARCHAR, not DB enum — do not convert them.
+- `users.phone` is **globally unique** (one login namespace — `Auth::attempt()` looks phones up globally). Never scope a users-table phone-uniqueness rule per account. The signup flow's takeover of failed/lapsed owner rows is the only sanctioned reuse.
+- Financial-history FKs (`payments`, `utilities`, `tenant_leaves`, `khqr_payments` → rentals/tenants/apartments) are `ON DELETE RESTRICT`. Deleting a customer account goes through `AccountPurgeService` (children first, files included) — never manual deletes, and never rely on DB cascades from soft-delete models (soft deletes don't fire them).
+- The soft-delete uniques on `apartments`/`tenants` are MySQL functional indexes over `IFNULL(deleted_at, epoch)`; keep request validation in place — SQLite tests rely on it.
