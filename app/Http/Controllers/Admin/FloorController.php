@@ -144,7 +144,7 @@ class FloorController extends Controller
         // Unassigned active tenants for the "Existing Tenant" tab of the assign-tenant modal
         $availableTenants = Tenants::where('status', 'active')->whereNull('apartment_id')->get();
 
-        return view('admin.floors.plan3d', compact('floorsData', 'summary', 'availableTenants'));
+        return view('shared.apartments.plan3d', compact('floorsData', 'summary', 'availableTenants') + ['panel' => 'admin']);
     }
 
     public function edit(Floors $floor): View

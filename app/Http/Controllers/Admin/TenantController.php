@@ -121,7 +121,7 @@ class TenantController extends Controller
         $archivedTenantCount = $this->scopeArchivedToActiveProperty(Tenants::onlyTrashed(), $scopeId)->count();
         $totalDeposits = Tenants::where('status', 'active')->forProperty($scopeId)->sum('deposit');
 
-        return view('admin.TenantManagement.activeTenants', compact('tenants', 'rentProgressMap', 'activeTenantCount', 'archivedTenantCount', 'totalDeposits', 'showingAll'));
+        return view('admin.tenants.index', compact('tenants', 'rentProgressMap', 'activeTenantCount', 'archivedTenantCount', 'totalDeposits', 'showingAll'));
     }
 
     /**
@@ -159,7 +159,7 @@ class TenantController extends Controller
         $recentlyArchivedCount = $this->scopeArchivedToActiveProperty(Tenants::onlyTrashed()->where('deleted_at', '>=', now()->subDays(30)))->count();
         $totalDeposits = $this->scopeArchivedToActiveProperty(Tenants::onlyTrashed())->sum('deposit');
 
-        return view('admin.TenantManagement.archivedTenants', compact('tenants', 'floors', 'archivedTenantCount', 'recentlyArchivedCount', 'totalDeposits'));
+        return view('shared.tenants.archived', compact('tenants', 'floors', 'archivedTenantCount', 'recentlyArchivedCount', 'totalDeposits') + ['panel' => 'admin']);
     }
 
     /**
@@ -194,7 +194,7 @@ class TenantController extends Controller
 
         $pendingCharges = $this->pendingChargesQuery->forRental($rental);
 
-        return view('admin.TenantManagement.leave', compact('tenant', 'rental', 'pendingCharges'));
+        return view('shared.tenants.leave', compact('tenant', 'rental', 'pendingCharges') + ['panel' => 'admin']);
     }
 
     /**
@@ -432,7 +432,7 @@ class TenantController extends Controller
             ->with('floor')
             ->get();
 
-        return view('admin.TenantManagement.createTenant', compact('apartments'));
+        return view('shared.tenants.create', compact('apartments') + ['panel' => 'admin']);
     }
 
     /**
@@ -453,6 +453,7 @@ class TenantController extends Controller
             ],
             'name' => 'required|string|max:255',
             'gender' => 'nullable|in:male,female,other',
+            'email' => 'nullable|email|max:255',
             'phone' => [
                 'required', 'string', 'max:20', 'regex:/^[0-9+\-\s()]+$/',
                 // Per-account uniqueness so each admin's tenants are independent.
@@ -571,7 +572,7 @@ class TenantController extends Controller
     {
         $tenant->load(['apartment.floor', 'rentals.apartment', 'rentals.payments', 'utilities', 'attachments']);
 
-        return view('admin.TenantManagement.showTenant', compact('tenant'));
+        return view('shared.tenants.show', compact('tenant') + ['panel' => 'admin']);
     }
 
     /**
@@ -585,7 +586,7 @@ class TenantController extends Controller
         })
             ->get();
 
-        return view('admin.TenantManagement.editTenant', compact('tenant', 'apartments'));
+        return view('admin.tenants.edit', compact('tenant', 'apartments'));
     }
 
     /**
@@ -604,6 +605,7 @@ class TenantController extends Controller
             ],
             'name' => 'required|string|max:255',
             'gender' => 'nullable|in:male,female,other',
+            'email' => 'nullable|email|max:255',
             'phone' => [
                 'required', 'string', 'max:20',
                 Rule::unique('tenants', 'phone')->ignore($tenant->id)->where('account_id', current_account_id())->whereNull('deleted_at'),

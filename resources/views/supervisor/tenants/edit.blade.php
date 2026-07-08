@@ -133,6 +133,35 @@
                     </div>
 
                     <div>
+                        <label for="gender" class="block text-sm font-medium text-gray-700 mb-1">{{ __('messages.gender') }}</label>
+                        <select id="gender" name="gender" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent bg-white h-10">
+                            <option value="">{{ __('messages.select_gender') }}</option>
+                            <option value="male" {{ old('gender', $tenant->gender) === 'male' ? 'selected' : '' }}>{{ __('messages.male') }}</option>
+                            <option value="female" {{ old('gender', $tenant->gender) === 'female' ? 'selected' : '' }}>{{ __('messages.female') }}</option>
+                            <option value="other" {{ old('gender', $tenant->gender) === 'other' ? 'selected' : '' }}>{{ __('messages.other') }}</option>
+                        </select>
+                        @error('gender')
+                            <p class="text-red-500 text-sm mt-1">{{ $message }}</p>
+                        @enderror
+                    </div>
+
+                    <div>
+                        <label for="email" class="block text-sm font-medium text-gray-700 mb-1">{{ __('messages.email') }}</label>
+                        <input type="email" id="email" name="email" placeholder="email@example.com" value="{{ old('email', $tenant->email) }}" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent">
+                        @error('email')
+                            <p class="text-red-500 text-sm mt-1">{{ $message }}</p>
+                        @enderror
+                    </div>
+
+                    <div>
+                        <label for="id_card_number" class="block text-sm font-medium text-gray-700 mb-1">{{ __('messages.id_card_number') }}</label>
+                        <input type="text" id="id_card_number" name="id_card_number" value="{{ old('id_card_number', $tenant->id_card_number) }}" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent">
+                        @error('id_card_number')
+                            <p class="text-red-500 text-sm mt-1">{{ $message }}</p>
+                        @enderror
+                    </div>
+
+                    <div>
                         <label for="date_of_birth" class="block text-sm font-medium text-gray-700 mb-1">{{ __('messages.date_of_birth') }}</label>
                         <input type="date" id="date_of_birth" name="date_of_birth" value="{{ old('date_of_birth', $tenant->date_of_birth?->format('Y-m-d')) }}" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent bg-white appearance-none h-10">
                         @error('date_of_birth')

@@ -108,7 +108,7 @@ class ApartmentController extends Controller
 
         $availableTenants = Tenants::where('status', 'active')->whereNull('apartment_id')->get();
 
-        return view('supervisor.apartments.plan3d', compact('floorsData', 'summary', 'availableTenants'));
+        return view('shared.apartments.plan3d', compact('floorsData', 'summary', 'availableTenants') + ['panel' => 'supervisor']);
     }
 
     /**
@@ -135,7 +135,7 @@ class ApartmentController extends Controller
             $activeRental->tenant->load(['apartment.floor', 'rentals.apartment', 'rentals.payments']);
         }
 
-        return view('supervisor.apartments.show', compact('apartment', 'activeRental', 'activePeriod'));
+        return view('shared.apartments.show', compact('apartment', 'activeRental', 'activePeriod') + ['panel' => 'supervisor']);
     }
 
     /**

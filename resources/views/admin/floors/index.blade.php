@@ -393,7 +393,7 @@
     @endif
 </div>
 
-@include('admin.apartments._assign-tenant-modal')
+@include('shared.apartments._assign-tenant-modal', ['panel' => 'admin'])
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {

@@ -51,7 +51,7 @@ class ApartmentController extends Controller
             $activeRental->tenant->load(['apartment.floor', 'rentals.apartment', 'rentals.payments']);
         }
 
-        return view('admin.apartments.show', compact('apartment', 'activeRental'));
+        return view('shared.apartments.show', compact('apartment', 'activeRental') + ['panel' => 'admin']);
     }
 
     public function edit(Apartments $apartment): View

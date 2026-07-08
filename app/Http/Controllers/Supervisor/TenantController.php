@@ -196,7 +196,7 @@ class TenantController extends Controller
         $recentlyArchivedCount = $this->scopedArchivedTenants()->where('deleted_at', '>=', now()->subDays(30))->count();
         $totalDeposits = $this->scopedArchivedTenants()->sum('deposit');
 
-        return view('supervisor.tenants.archived', compact(
+        return view('shared.tenants.archived', ['panel' => 'supervisor'] + compact(
             'tenants',
             'floors',
             'archivedTenantCount',
@@ -213,7 +213,7 @@ class TenantController extends Controller
         $this->authorizeTenant($tenant);
         $tenant->load(['apartment.floor', 'rentals.apartment', 'rentals.payments', 'utilities', 'attachments']);
 
-        return view('supervisor.tenants.show', compact('tenant'));
+        return view('shared.tenants.show', compact('tenant') + ['panel' => 'supervisor']);
     }
 
     /**
@@ -226,7 +226,7 @@ class TenantController extends Controller
             ->with('floor')
             ->get();
 
-        return view('supervisor.tenants.create', compact('apartments'));
+        return view('shared.tenants.create', compact('apartments') + ['panel' => 'supervisor']);
     }
 
     /**
@@ -245,6 +245,7 @@ class TenantController extends Controller
                 Rule::exists('apartments', 'id')->where('status', 'available')->whereNull('deleted_at'),
             ],
             'name' => 'required|string|max:255',
+            'gender' => 'nullable|in:male,female,other',
             'phone' => [
                 'required', 'string', 'max:20', 'regex:/^[0-9+\-\s()]+$/',
                 // Per-account uniqueness so each admin's tenants are independent.
@@ -252,6 +253,7 @@ class TenantController extends Controller
                 Rule::unique('users', 'phone')->where('account_id', current_account_id()),
             ],
             'email' => 'nullable|email|max:255',
+            'id_card_number' => 'nullable|string|max:50',
             'address' => 'nullable|string',
             'date_of_birth' => 'nullable|date|before_or_equal:'.$minBirthDate,
             'move_in_date' => 'required|date|after_or_equal:'.$minMoveInDate,
@@ -388,7 +390,7 @@ class TenantController extends Controller
 
         $pendingCharges = $this->pendingChargesQuery->forRental($rental);
 
-        return view('supervisor.tenants.leave', compact('tenant', 'rental', 'pendingCharges'));
+        return view('shared.tenants.leave', compact('tenant', 'rental', 'pendingCharges') + ['panel' => 'supervisor']);
     }
 
     /**
@@ -667,10 +669,13 @@ class TenantController extends Controller
                 ),
             ],
             'name' => 'required|string|max:255',
+            'gender' => 'nullable|in:male,female,other',
             'phone' => [
                 'required', 'string', 'max:20',
                 Rule::unique('tenants', 'phone')->ignore($tenant->id)->where('account_id', current_account_id())->whereNull('deleted_at'),
             ],
+            'email' => 'nullable|email|max:255',
+            'id_card_number' => 'nullable|string|max:50',
             'address' => 'nullable|string',
             'date_of_birth' => 'nullable|date',
             'move_in_date' => 'required|date',

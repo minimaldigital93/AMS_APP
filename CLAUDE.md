@@ -37,6 +37,30 @@ Four roles, each with its own controller namespace, view folder, and route group
 - **Supervisor routes intentionally allow `admin|superadmin`** for preview access — do not tighten to `role:supervisor`.
 - Keep controllers within their role namespace; views mirror the controller path (`Supervisor\TenantController` → `views/supervisor/tenants/`).
 
+### Shared panel code — the Admin/Supervisor de-duplication pattern
+
+Admin and Supervisor share most of their module logic. **Never copy a page or
+controller between the two panels** — use the shared pattern:
+
+- `App\Http\Controllers\Shared\RevenueExpenseController` is the single abstract
+  implementation of Revenue & Expense; `Admin\RevenueExpenseController` and
+  `Supervisor\RevenueExpenseController` are thin subclasses that only pin hooks:
+  `panel()` ('admin'|'supervisor'), `fiscalPeriodsQuery()`, `ledgerUserId()`,
+  `khqrRoutePrefix()`, `missingPeriodRedirect()`, `authorizeOtherExpenseDelete()`.
+  All supervisor property guards live in the base and **no-op for admins** via
+  `ScopesToSupervisorProperties::seesWholeAccount()`.
+- Shared Blade views live in `resources/views/shared/{revenue_expense,tenants,apartments}/`
+  and take a `$panel` variable: `@extends('layouts.'.$panel)`,
+  `route($panel.'.revenue_expense.record_income')`. Render them with
+  `panelView()` (base controller) or `view('shared…', $data + ['panel' => …])`.
+- Tenant `index`/`edit` pages are **intentionally separate** per panel
+  (`views/admin/tenants/`, `views/supervisor/tenants/`) — the admin page has the
+  consolidated "All properties" mode, the supervisor page has income summary
+  cards. The two TenantControllers likewise stay separate; keep their
+  validation rules in sync (`gender`, `email`, `id_card_number` exist in both).
+- `tests/Feature/SharedPanelViewsTest.php` renders every shared page as both
+  roles — keep it passing when touching shared views.
+
 ---
 
 ## Multi-tenancy — the most important architectural fact

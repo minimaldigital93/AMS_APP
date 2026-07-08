@@ -354,7 +354,7 @@
     </div>
 </div>
 
-@include('supervisor.apartments._assign-tenant-modal')
+@include('shared.apartments._assign-tenant-modal', ['panel' => 'supervisor'])
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
