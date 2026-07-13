@@ -35,6 +35,22 @@ return new class extends Migration
             return;
         }
 
+        // 0. Null orphaned pointers left over from the pre-FK era so the
+        //    constraint adds below cannot fail on legacy data. For the
+        //    SET NULL columns this is exactly what the FK would have done;
+        //    for floors.property_id it keeps the row instead of deleting it.
+        $nullOrphans = function (string $table, string $column, string $refTable): void {
+            DB::table($table)
+                ->whereNotNull($column)
+                ->whereNotIn($column, DB::table($refTable)->select('id'))
+                ->update([$column => null]);
+        };
+        $nullOrphans('khqr_payments', 'subscription_id', 'subscriptions');
+        $nullOrphans('khqr_payments', 'fiscal_period_id', 'fiscal_periods');
+        $nullOrphans('khqr_payments', 'user_id', 'users');
+        $nullOrphans('properties', 'supervisor_id', 'users');
+        $nullOrphans('floors', 'property_id', 'properties');
+
         // 1. History tables: CASCADE → RESTRICT
         Schema::table('payments', function ($table) {
             $table->dropForeign('payments_rental_id_foreign');
