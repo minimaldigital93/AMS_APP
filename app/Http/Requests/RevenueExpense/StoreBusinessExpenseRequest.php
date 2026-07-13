@@ -20,9 +20,9 @@ class StoreBusinessExpenseRequest extends FormRequest
     {
         return [
             'expense_name' => 'required|string|max:255',
-            'category' => 'required|in:electricity,water,trash,internet,legal_fee,tax,loan_payment,salary,other',
-            'amount' => 'required|numeric|min:0.01',
-            'expense_date' => ['required', 'date', new \App\Rules\NotInClosedMonth],
+            'category' => 'required|in:electricity,water,internet,trash,security,tax,property_tax,salaries,legal,insurance,maintenance,loan_payment,other',
+            'amount' => 'required|numeric|min:0.01|max:99999999.99',
+            'expense_date' => ['required', 'date', new \App\Rules\NotInClosedMonth, new \App\Rules\WithinActivePeriod],
             'is_recurring' => 'nullable|boolean',
             'note' => 'nullable|string|max:1000',
             'attachments' => 'nullable|array|max:3',

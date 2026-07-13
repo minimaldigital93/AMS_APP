@@ -23,13 +23,18 @@ class User extends Authenticatable
      *
      * @var list<string>
      */
+    /**
+     * account_id (tenant-isolation boundary) and status (login gate) are
+     * deliberately NOT mass-assignable — the few legitimate writes use
+     * forceFill()/explicit assignment so a future validated-array update can
+     * never be tricked into moving a user between accounts or re-activating
+     * a suspended login (2026-07 audit G4).
+     */
     protected $fillable = [
         'name',
         'phone',
         'password',
-        'status',
         'last_login_at',
-        'account_id',
         'last_property_id',
         'theme',
     ];

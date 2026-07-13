@@ -63,7 +63,7 @@ class TestKhqrQr extends Command
             return self::FAILURE;
         }
 
-        $user = User::create([
+        $user = User::forceCreate([
             'name' => 'KHQR Test',
             'phone' => self::TEST_PHONE_PREFIX.'-'.now()->format('YmdHis'),
             'password' => Hash::make(Str::random(16)),

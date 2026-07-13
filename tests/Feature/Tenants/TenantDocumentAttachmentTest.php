@@ -26,7 +26,7 @@ function storeTenantPayload(array $overrides = []): array
 }
 
 it('stores multiple documents when creating a tenant', function () {
-    Storage::fake('public');
+    Storage::fake(\App\Models\Attachment::DISK);
     $admin = makeAdmin();
     $this->actingAs($admin);
 
@@ -42,7 +42,7 @@ it('stores multiple documents when creating a tenant', function () {
 });
 
 it('rejects an oversized document', function () {
-    Storage::fake('public');
+    Storage::fake(\App\Models\Attachment::DISK);
     $admin = makeAdmin();
     $this->actingAs($admin);
 
@@ -54,7 +54,7 @@ it('rejects an oversized document', function () {
 });
 
 it('rejects more than the max document count', function () {
-    Storage::fake('public');
+    Storage::fake(\App\Models\Attachment::DISK);
     $admin = makeAdmin();
     $this->actingAs($admin);
 
@@ -70,14 +70,14 @@ it('rejects more than the max document count', function () {
 });
 
 it('keeps existing documents when uploading a new one on update', function () {
-    Storage::fake('public');
+    Storage::fake(\App\Models\Attachment::DISK);
     $admin = makeAdmin();
     $this->actingAs($admin);
 
     $tenant = makeTenant(null, ['phone' => '012345678']);
     $tenant->attachments()->create([
         'kind' => Attachment::KIND_TENANT_DOCUMENT,
-        'path' => UploadedFile::fake()->create('existing.pdf', 100)->store('tenants/documents', 'public'),
+        'path' => UploadedFile::fake()->create('existing.pdf', 100)->store('tenants/documents', \App\Models\Attachment::DISK),
         'original_name' => 'existing.pdf',
         'mime_type' => 'application/pdf',
         'size' => 100 * 1024,
@@ -93,21 +93,21 @@ it('keeps existing documents when uploading a new one on update', function () {
 });
 
 it('deletes a single document without touching the others', function () {
-    Storage::fake('public');
+    Storage::fake(\App\Models\Attachment::DISK);
     $admin = makeAdmin();
     $this->actingAs($admin);
 
     $tenant = makeTenant();
     $kept = $tenant->attachments()->create([
         'kind' => Attachment::KIND_TENANT_DOCUMENT,
-        'path' => UploadedFile::fake()->create('kept.pdf', 100)->store('tenants/documents', 'public'),
+        'path' => UploadedFile::fake()->create('kept.pdf', 100)->store('tenants/documents', \App\Models\Attachment::DISK),
         'original_name' => 'kept.pdf',
         'mime_type' => 'application/pdf',
         'size' => 100 * 1024,
     ]);
     $removed = $tenant->attachments()->create([
         'kind' => Attachment::KIND_TENANT_DOCUMENT,
-        'path' => UploadedFile::fake()->create('removed.pdf', 100)->store('tenants/documents', 'public'),
+        'path' => UploadedFile::fake()->create('removed.pdf', 100)->store('tenants/documents', \App\Models\Attachment::DISK),
         'original_name' => 'removed.pdf',
         'mime_type' => 'application/pdf',
         'size' => 100 * 1024,
@@ -115,21 +115,21 @@ it('deletes a single document without touching the others', function () {
 
     $this->delete(route('admin.tenants.destroy_document', [$tenant, $removed]))->assertRedirect();
 
-    Storage::disk('public')->assertMissing($removed->path);
-    Storage::disk('public')->assertExists($kept->path);
+    Storage::disk(\App\Models\Attachment::DISK)->assertMissing($removed->path);
+    Storage::disk(\App\Models\Attachment::DISK)->assertExists($kept->path);
     expect(Attachment::find($removed->id))->toBeNull()
         ->and(Attachment::find($kept->id))->not->toBeNull();
 });
 
 it('prevents deleting another accounts tenant document', function () {
-    Storage::fake('public');
+    Storage::fake(\App\Models\Attachment::DISK);
     $adminA = makeAdmin();
     $this->actingAs($adminA);
 
     $tenant = makeTenant();
     $attachment = $tenant->attachments()->create([
         'kind' => Attachment::KIND_TENANT_DOCUMENT,
-        'path' => UploadedFile::fake()->create('id.pdf', 100)->store('tenants/documents', 'public'),
+        'path' => UploadedFile::fake()->create('id.pdf', 100)->store('tenants/documents', \App\Models\Attachment::DISK),
         'original_name' => 'id.pdf',
         'mime_type' => 'application/pdf',
         'size' => 100 * 1024,

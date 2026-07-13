@@ -13,9 +13,9 @@ class UpdateFiscalPeriodRequest extends FormRequest
             'name' => 'required|string|max:255',
             'opening_date' => 'required|date|before:closing_date',
             'closing_date' => 'required|date|after:opening_date',
-            'opening_assets' => 'required|numeric|min:0',
-            'opening_liabilities' => 'required|numeric|min:0',
-            'opening_equity' => 'required|numeric|min:0',
+            'opening_assets' => 'required|numeric|min:0|max:99999999.99',
+            'opening_liabilities' => 'required|numeric|min:0|max:99999999.99',
+            'opening_equity' => 'required|numeric|min:0|max:99999999.99',
         ];
     }
 
@@ -33,6 +33,23 @@ class UpdateFiscalPeriodRequest extends FormRequest
                 $validator->errors()->add(
                     'opening_assets',
                     'The opening balance sheet must balance: Assets must equal Liabilities + Equity.'
+                );
+            }
+
+            // A calendar day must belong to at most ONE of the admin's fiscal
+            // periods (see StoreFiscalPeriodRequest). Excludes the period being
+            // edited itself.
+            $current = $this->route('fiscalperiod');
+            $overlap = \App\Models\FiscalPeriods::where('user_id', $this->user()->id)
+                ->when($current, fn ($q) => $q->whereKeyNot($current->id))
+                ->where('opening_date', '<=', $this->input('closing_date'))
+                ->where('closing_date', '>=', $this->input('opening_date'))
+                ->first();
+
+            if ($overlap !== null) {
+                $validator->errors()->add(
+                    'opening_date',
+                    __('messages.validation_fp_overlap', ['name' => $overlap->name])
                 );
             }
         });

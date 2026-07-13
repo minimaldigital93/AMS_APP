@@ -30,9 +30,14 @@ Route::get('/', function () {
 // Public SaaS signup funnel (pricing modal → signup → KHQR checkout → activate).
 Route::middleware('guest')->group(function () {
     Route::get('/subscribe', [\App\Http\Controllers\SubscriptionController::class, 'create'])->name('subscribe.create');
-    Route::post('/subscribe', [\App\Http\Controllers\SubscriptionController::class, 'store'])->name('subscribe.store');
-    Route::get('/subscribe/checkout/{token}', [\App\Http\Controllers\SubscriptionController::class, 'checkout'])->name('subscribe.checkout');
-    Route::get('/subscribe/checkout/{token}/status', [\App\Http\Controllers\SubscriptionController::class, 'status'])->name('subscribe.checkout.status');
+    // Throttled: each signup creates user + subscription rows and mints a QR
+    // at the payment gateway — unthrottled it is a spam vector with real cost.
+    Route::post('/subscribe', [\App\Http\Controllers\SubscriptionController::class, 'store'])
+        ->middleware('throttle:5,1')->name('subscribe.store');
+    Route::get('/subscribe/checkout/{token}', [\App\Http\Controllers\SubscriptionController::class, 'checkout'])
+        ->middleware('throttle:30,1')->name('subscribe.checkout');
+    Route::get('/subscribe/checkout/{token}/status', [\App\Http\Controllers\SubscriptionController::class, 'status'])
+        ->middleware('throttle:30,1')->name('subscribe.checkout.status');
 });
 
 // KHQRPay webhook (signature-authenticated, CSRF-exempt — see bootstrap/app.php)
@@ -132,6 +137,12 @@ Route::middleware(['auth', 'role:superadmin'])->prefix('superadmin')->name('supe
 });
 
 Route::middleware('auth')->group(function () {
+    // Private attachment download/preview (tenant ID docs, expense receipts).
+    // Authorization matrix lives in the controller (account scope + supervisor
+    // property scope + tenant own-documents).
+    Route::get('/attachments/{attachment}', \App\Http\Controllers\AttachmentController::class)
+        ->name('attachments.show');
+
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');

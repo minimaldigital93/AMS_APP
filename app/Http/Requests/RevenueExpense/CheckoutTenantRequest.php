@@ -21,13 +21,13 @@ class CheckoutTenantRequest extends FormRequest
         return [
             'rental_id' => 'required|exists:rentals,id',
             'payment_method' => 'required|in:cash,bank,khqr',
-            'payment_date' => ['required', 'date', new \App\Rules\NotInClosedMonth],
+            'payment_date' => ['required', 'date', new \App\Rules\NotInClosedMonth, new \App\Rules\WithinActivePeriod],
             // The bill month being settled (from the record-income month
             // navigation). Defaults to the payment date's month in the service.
             'billing_month' => 'nullable|integer|between:1,12',
             'billing_year' => 'nullable|integer|between:2000,2100',
-            'rent_amount' => 'required|numeric|min:0',
-            'late_fee' => 'nullable|numeric|min:0',
+            'rent_amount' => 'required|numeric|min:0|max:99999999.99',
+            'late_fee' => 'nullable|numeric|min:0|max:99999999.99',
             'pay_rent' => 'nullable|boolean',
             'pay_utilities' => 'nullable|boolean',
             'transaction_reference' => 'nullable|string|max:255',

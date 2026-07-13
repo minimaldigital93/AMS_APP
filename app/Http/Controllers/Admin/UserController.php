@@ -133,7 +133,7 @@ class UserController extends Controller
             }
         }
 
-        $user = User::create([
+        $user = User::forceCreate([
             'name' => $validated['name'],
             'phone' => $validated['phone'],
             'password' => Hash::make($validated['password']),
@@ -180,7 +180,7 @@ class UserController extends Controller
             $updateData['password'] = Hash::make($validated['password']);
         }
 
-        $user->update($updateData);
+        $user->forceFill($updateData)->save();
 
         $user->syncRoles([$validated['role']]);
 

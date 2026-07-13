@@ -99,7 +99,7 @@ function makeFullAccount(): array
         'kind' => 'tenant_document', 'path' => 'tenants/documents/doc-a.pdf',
         'original_name' => 'doc.pdf', 'mime_type' => 'application/pdf', 'size' => 3,
     ]);
-    Storage::disk('public')->put('tenants/documents/doc-a.pdf', 'pdf');
+    Storage::disk(\App\Models\Attachment::DISK)->put('tenants/documents/doc-a.pdf', 'pdf');
 
     MerchantPaymentSetting::create(['account_id' => $admin->id, 'khqr_image_path' => 'khqr/merchant-a.png']);
     Storage::disk('public')->put('khqr/merchant-a.png', 'png');
@@ -123,6 +123,7 @@ function makeFullAccount(): array
 
 it('purges every row and file an account owns, keeps platform payment history, and leaves other accounts untouched', function () {
     Storage::fake('public');
+    Storage::fake(\App\Models\Attachment::DISK);
 
     $a = makeFullAccount();
 
@@ -171,7 +172,7 @@ it('purges every row and file an account owns, keeps platform payment history, a
 
     // Uploaded files removed from disk.
     Storage::disk('public')->assertMissing('tenants/photo-a.jpg');
-    Storage::disk('public')->assertMissing('tenants/documents/doc-a.pdf');
+    Storage::disk(\App\Models\Attachment::DISK)->assertMissing('tenants/documents/doc-a.pdf');
     Storage::disk('public')->assertMissing('khqr/merchant-a.png');
     Storage::disk('public')->assertMissing('logos/logo-a.png');
 

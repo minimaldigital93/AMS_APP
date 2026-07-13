@@ -34,14 +34,14 @@ class ProcessTenantLeaveRequest extends FormRequest
         return [
             // NotInClosedMonth: the settlement books ledger rows dated on the
             // leave date — never let those land inside a closed (frozen) month.
-            'leave_date' => ['required', 'date', 'after_or_equal:'.$moveInBoundary, new \App\Rules\NotInClosedMonth],
+            'leave_date' => ['required', 'date', 'after_or_equal:'.$moveInBoundary, new \App\Rules\NotInClosedMonth, new \App\Rules\WithinActivePeriod],
             'charge_full_month' => 'nullable|boolean',
             'charge_ids' => 'nullable|array',
             'charge_ids.*' => 'string',
             'extra_charges' => 'nullable|array',
             'extra_charges.*.description' => 'required_with:extra_charges.*.amount|string|max:255',
-            'extra_charges.*.amount' => 'required_with:extra_charges.*.description|numeric|min:0.01',
-            'notes' => 'nullable|string',
+            'extra_charges.*.amount' => 'required_with:extra_charges.*.description|numeric|min:0.01|max:99999999.99',
+            'notes' => 'nullable|string|max:65535',
             'deposit_action' => 'nullable|in:return_deposit,last_payment',
         ];
     }

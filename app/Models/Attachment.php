@@ -11,6 +11,13 @@ class Attachment extends Model
 {
     use BelongsToAccount;
 
+    /**
+     * Attachments hold sensitive files (tenant ID documents, expense receipts)
+     * and live on the PRIVATE local disk — never the public one. Reads go
+     * through the authenticated attachments.show route (2026-07 audit G2).
+     */
+    public const DISK = 'local';
+
     public const KIND_BUSINESS_EXPENSE = 'business_expense';
 
     public const KIND_TENANT_DOCUMENT = 'tenant_document';
@@ -47,7 +54,7 @@ class Attachment extends Model
 
     public function url(): string
     {
-        return asset('storage/'.$this->path);
+        return route('attachments.show', $this);
     }
 
     public function isImage(): bool

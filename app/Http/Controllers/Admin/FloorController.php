@@ -174,7 +174,7 @@ class FloorController extends Controller
                     ->where('property_id', $propertyId)
                     ->whereNull('deleted_at'),
             ],
-            'description' => 'nullable|string',
+            'description' => 'nullable|string|max:65535',
             'apartments' => 'nullable|array',
             'apartments.*.apartment_number' => [
                 'required', 'string', 'max:255', 'distinct',
@@ -184,7 +184,7 @@ class FloorController extends Controller
                 // batch from listing the same number twice. A unit "101" may still
                 // exist on other floors of this property (and in other properties).
             ],
-            'apartments.*.monthly_rent' => 'nullable|numeric|min:0',
+            'apartments.*.monthly_rent' => 'nullable|numeric|min:0|max:99999999.99',
             'apartments.*.status' => 'nullable|in:available,occupied',
         ], [
             'floor_name.unique' => __('messages.validation_floor_name_taken'),
@@ -247,7 +247,7 @@ class FloorController extends Controller
                         ->where('floor_id', $floor->id)
                         ->whereNull('deleted_at'),
                 ],
-                'monthly_rent' => 'nullable|numeric|min:0',
+                'monthly_rent' => 'nullable|numeric|min:0|max:99999999.99',
             ], [
                 'apartment_number.unique' => __('messages.validation_apartment_number_taken', ['number' => $request->input('apartment_number')]),
             ]);
@@ -294,7 +294,7 @@ class FloorController extends Controller
                     ->where('property_id', $request->input('property_id'))
                     ->whereNull('deleted_at'),
             ],
-            'description' => 'nullable|string',
+            'description' => 'nullable|string|max:65535',
         ], [
             'floor_name.unique' => __('messages.validation_floor_name_taken'),
         ]);

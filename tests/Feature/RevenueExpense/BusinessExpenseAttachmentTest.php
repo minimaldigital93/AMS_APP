@@ -21,7 +21,7 @@ function storeBusinessExpensePayload(array $overrides = []): array
 }
 
 it('stores multiple attachments on a business expense', function () {
-    Storage::fake('public');
+    Storage::fake(\App\Models\Attachment::DISK);
     $admin = makeAdmin();
     $this->actingAs($admin);
     makeFiscalPeriod($admin);
@@ -38,7 +38,7 @@ it('stores multiple attachments on a business expense', function () {
 });
 
 it('rejects an oversized attachment', function () {
-    Storage::fake('public');
+    Storage::fake(\App\Models\Attachment::DISK);
     $admin = makeAdmin();
     $this->actingAs($admin);
     makeFiscalPeriod($admin);
@@ -51,7 +51,7 @@ it('rejects an oversized attachment', function () {
 });
 
 it('rejects more than the max file count', function () {
-    Storage::fake('public');
+    Storage::fake(\App\Models\Attachment::DISK);
     $admin = makeAdmin();
     $this->actingAs($admin);
     makeFiscalPeriod($admin);
@@ -67,7 +67,7 @@ it('rejects more than the max file count', function () {
 });
 
 it('deletes a single attachment without touching the others', function () {
-    Storage::fake('public');
+    Storage::fake(\App\Models\Attachment::DISK);
     $admin = makeAdmin();
     $this->actingAs($admin);
     $fp = makeFiscalPeriod($admin);
@@ -85,14 +85,14 @@ it('deletes a single attachment without touching the others', function () {
 
     $kept = $expense->attachments()->create([
         'kind' => Attachment::KIND_BUSINESS_EXPENSE,
-        'path' => UploadedFile::fake()->create('kept.pdf', 100)->store('business_expenses', 'public'),
+        'path' => UploadedFile::fake()->create('kept.pdf', 100)->store('business_expenses', \App\Models\Attachment::DISK),
         'original_name' => 'kept.pdf',
         'mime_type' => 'application/pdf',
         'size' => 100 * 1024,
     ]);
     $removed = $expense->attachments()->create([
         'kind' => Attachment::KIND_BUSINESS_EXPENSE,
-        'path' => UploadedFile::fake()->create('removed.pdf', 100)->store('business_expenses', 'public'),
+        'path' => UploadedFile::fake()->create('removed.pdf', 100)->store('business_expenses', \App\Models\Attachment::DISK),
         'original_name' => 'removed.pdf',
         'mime_type' => 'application/pdf',
         'size' => 100 * 1024,
@@ -101,14 +101,14 @@ it('deletes a single attachment without touching the others', function () {
     $this->delete(route('admin.revenue_expense.delete_business_expense_attachment', [$expense, $removed]))
         ->assertRedirect();
 
-    Storage::disk('public')->assertMissing($removed->path);
-    Storage::disk('public')->assertExists($kept->path);
+    Storage::disk(\App\Models\Attachment::DISK)->assertMissing($removed->path);
+    Storage::disk(\App\Models\Attachment::DISK)->assertExists($kept->path);
     expect(Attachment::find($removed->id))->toBeNull()
         ->and(Attachment::find($kept->id))->not->toBeNull();
 });
 
 it('prevents deleting another accounts attachment', function () {
-    Storage::fake('public');
+    Storage::fake(\App\Models\Attachment::DISK);
     $adminA = makeAdmin();
     $this->actingAs($adminA);
     $fpA = makeFiscalPeriod($adminA);
@@ -125,7 +125,7 @@ it('prevents deleting another accounts attachment', function () {
     ]);
     $attachment = $expense->attachments()->create([
         'kind' => Attachment::KIND_BUSINESS_EXPENSE,
-        'path' => UploadedFile::fake()->create('receipt.pdf', 100)->store('business_expenses', 'public'),
+        'path' => UploadedFile::fake()->create('receipt.pdf', 100)->store('business_expenses', \App\Models\Attachment::DISK),
         'original_name' => 'receipt.pdf',
         'mime_type' => 'application/pdf',
         'size' => 100 * 1024,

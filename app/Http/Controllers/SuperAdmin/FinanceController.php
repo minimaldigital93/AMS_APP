@@ -107,7 +107,7 @@ class FinanceController extends Controller
             'period' => ['nullable', 'integer'],
             'category' => ['required', 'string', 'in:'.implode(',', array_keys(PlatformExpense::CATEGORIES))],
             'description' => ['required', 'string', 'max:255'],
-            'amount' => ['required', 'numeric', 'min:0.01'],
+            'amount' => ['required', 'numeric', 'min:0.01', 'max:99999999.99'],
             'currency' => ['nullable', 'string', 'size:3'],
             'spent_at' => ['required', 'date'],
             'is_recurring' => ['nullable', 'boolean'],
@@ -146,7 +146,7 @@ class FinanceController extends Controller
             'year' => ['required', 'integer', 'min:2000', 'max:2100'],
             'month' => ['required', 'integer', 'min:1', 'max:12'],
             'decision' => ['required', 'in:carry,withdraw'],
-            'owner_withdrawal' => ['nullable', 'numeric', 'min:0'],
+            'owner_withdrawal' => ['nullable', 'numeric', 'min:0', 'max:99999999.99'],
             'withdrawal_note' => ['nullable', 'string', 'max:255'],
         ]);
 
@@ -198,7 +198,7 @@ class FinanceController extends Controller
             'name' => ['required', 'string', 'max:255'],
             'start_date' => ['required', 'date'],
             'end_date' => ['required', 'date', 'after_or_equal:start_date'],
-            'opening_balance' => ['nullable', 'numeric', 'min:0'],
+            'opening_balance' => ['nullable', 'numeric', 'min:0', 'max:99999999.99'],
         ]);
 
         // Date ranges must not overlap another period, or the same revenue would
@@ -228,7 +228,7 @@ class FinanceController extends Controller
             'name' => ['required', 'string', 'max:255'],
             'start_date' => ['required', 'date'],
             'end_date' => ['required', 'date', 'after_or_equal:start_date'],
-            'opening_balance' => ['nullable', 'numeric', 'min:0'],
+            'opening_balance' => ['nullable', 'numeric', 'min:0', 'max:99999999.99'],
         ]);
 
         // Re-dating must not push this period onto another's range.
@@ -278,7 +278,7 @@ class FinanceController extends Controller
     public function storeWithdrawal(Request $request, PlatformFiscalPeriod $period): RedirectResponse
     {
         $validated = $request->validate([
-            'amount' => ['required', 'numeric', 'min:0.01'],
+            'amount' => ['required', 'numeric', 'min:0.01', 'max:99999999.99'],
             'note' => ['nullable', 'string', 'max:255'],
         ]);
 

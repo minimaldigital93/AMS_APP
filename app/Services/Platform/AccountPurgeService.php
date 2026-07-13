@@ -45,13 +45,12 @@ class AccountPurgeService
     {
         $id = $owner->id;
 
-        // Collect file paths before the rows disappear.
-        $files = Attachment::withoutAccountScope()
-            ->where('account_id', $id)->pluck('path')
-            ->merge(
-                Tenants::withoutAccountScope()->withTrashed()
-                    ->where('account_id', $id)->whereNotNull('photo_path')->pluck('photo_path')
-            );
+        // Collect file paths before the rows disappear. Attachments live on the
+        // PRIVATE disk (Attachment::DISK); photos/logos/KHQR images are public.
+        $privateFiles = Attachment::withoutAccountScope()
+            ->where('account_id', $id)->pluck('path');
+        $files = Tenants::withoutAccountScope()->withTrashed()
+            ->where('account_id', $id)->whereNotNull('photo_path')->pluck('photo_path');
         $merchant = MerchantPaymentSetting::forAccount($id);
         if ($merchant?->khqr_image_path) {
             $files->push($merchant->khqr_image_path);
@@ -109,6 +108,9 @@ class AccountPurgeService
         // roll back the purge.
         if ($files->isNotEmpty()) {
             Storage::disk('public')->delete($files->unique()->all());
+        }
+        if ($privateFiles->isNotEmpty()) {
+            Storage::disk(Attachment::DISK)->delete($privateFiles->unique()->all());
         }
     }
 }

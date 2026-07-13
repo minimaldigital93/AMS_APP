@@ -24,7 +24,7 @@ class AttachmentService
         $nextSort = (int) $attachable->attachments()->max('sort_order');
 
         return collect($files)->map(function (UploadedFile $file) use ($attachable, $kind, $diskFolder, &$nextSort) {
-            $path = $file->store($diskFolder, 'public');
+            $path = $file->store($diskFolder, Attachment::DISK);
 
             return $attachable->attachments()->create([
                 'kind' => $kind,
@@ -40,7 +40,7 @@ class AttachmentService
 
     public function delete(Attachment $attachment): void
     {
-        Storage::disk('public')->delete($attachment->path);
+        Storage::disk(Attachment::DISK)->delete($attachment->path);
         $attachment->delete();
     }
 

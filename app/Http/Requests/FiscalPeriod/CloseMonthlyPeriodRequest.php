@@ -12,7 +12,7 @@ class CloseMonthlyPeriodRequest extends FormRequest
             // Owner's profit withdrawal taken when closing the month. Optional —
             // defaults to 0 (no draw). The per-month "available cash" cap is
             // enforced in the controller, where the live net income is known.
-            'owner_withdrawal' => 'nullable|numeric|min:0',
+            'owner_withdrawal' => 'nullable|numeric|min:0|max:99999999.99',
             'withdrawal_note' => 'nullable|string|max:1000',
         ];
     }

@@ -26,8 +26,8 @@ class PlansController extends Controller
         $validated = $request->validate([
             'slug' => ['required', 'string', 'max:255', 'alpha_dash', Rule::unique('plans', 'slug')],
             'name' => ['required', 'string', 'max:255'],
-            'price_usd' => ['required', 'numeric', 'min:0'],
-            'price_yearly_usd' => ['nullable', 'numeric', 'min:0'],
+            'price_usd' => ['required', 'numeric', 'min:0', 'max:999999.99'],
+            'price_yearly_usd' => ['nullable', 'numeric', 'min:0', 'max:999999.99'],
             'max_properties' => ['nullable', 'integer', 'min:0'],
             'max_floors' => ['nullable', 'integer', 'min:0'],
             'max_rooms' => ['nullable', 'integer', 'min:0'],
@@ -60,8 +60,8 @@ class PlansController extends Controller
     {
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255'],
-            'price_usd' => ['required', 'numeric', 'min:0'],
-            'price_yearly_usd' => ['nullable', 'numeric', 'min:0'],
+            'price_usd' => ['required', 'numeric', 'min:0', 'max:999999.99'],
+            'price_yearly_usd' => ['nullable', 'numeric', 'min:0', 'max:999999.99'],
             'max_properties' => ['nullable', 'integer', 'min:0'],
             'max_floors' => ['nullable', 'integer', 'min:0'],
             'max_rooms' => ['nullable', 'integer', 'min:0'],

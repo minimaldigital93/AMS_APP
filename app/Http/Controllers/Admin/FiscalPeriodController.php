@@ -125,11 +125,38 @@ class FiscalPeriodController extends Controller
         $this->authorizeUser($fiscalperiod);
 
         $data = $request->validated();
+
+        $datesChanged = $fiscalperiod->opening_date->toDateString() !== $data['opening_date']
+            || $fiscalperiod->closing_date->toDateString() !== $data['closing_date'];
+
+        if ($datesChanged) {
+            // The monthly skeleton must mirror the period range. Frozen months
+            // can't be resized, and shrinking must never strand ledger rows
+            // outside every report window.
+            if ($fiscalperiod->monthlyPeriods()->where('status', '!=', 'open')->exists()) {
+                return back()->with('error', __('messages.flash_fp_dates_locked_closed_months'));
+            }
+            if ($fiscalperiod->accounts()
+                ->where(fn ($q) => $q
+                    ->where('transaction_date', '<', $data['opening_date'])
+                    ->orWhere('transaction_date', '>', $data['closing_date']))
+                ->exists()) {
+                return back()->with('error', __('messages.flash_fp_dates_strand_ledger'));
+            }
+        }
+
         $fiscalperiod->update([
             ...$data,
             // Keep the cash carry-forward seed aligned with the opening assets.
             'opening_balance' => $data['opening_assets'],
         ]);
+
+        if ($datesChanged) {
+            // All months are open (guarded above) — regenerate the skeleton to
+            // match the new range instead of leaving gaps/orphan months.
+            $fiscalperiod->monthlyPeriods()->delete();
+            $this->monthlyManager->generateForFiscalPeriod($fiscalperiod);
+        }
 
         // Re-cascade the monthly carry-forward so the months reflect the new
         // opening figures.
@@ -211,10 +238,19 @@ class FiscalPeriodController extends Controller
     {
         $this->authorizeUser($fiscalperiod);
 
-        $fiscalperiod->update([
-            'closing_balance' => $request->validated()['closing_balance'],
-            'status' => 'closed',
-        ]);
+        // Every month must be frozen first — a period closed over open months
+        // leaves un-carried balances behind, and the whole close reads from
+        // the months' chain.
+        if ($fiscalperiod->monthlyPeriods()->where('status', 'open')->exists()) {
+            return back()->with('error', __('messages.flash_fp_close_months_first'));
+        }
+
+        // The closing balance is COMPUTED from the ledger's carry-forward
+        // cascade, never taken from the form (the old client-supplied value
+        // let the frozen figure diverge from the books).
+        $this->monthlyManager->recalculateBalances($fiscalperiod);
+
+        $fiscalperiod->update(['status' => 'closed']);
 
         return redirect()
             ->route('admin.fiscalperiod.show', $fiscalperiod->id)

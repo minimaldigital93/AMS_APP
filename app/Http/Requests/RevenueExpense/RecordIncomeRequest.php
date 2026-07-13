@@ -20,12 +20,12 @@ class RecordIncomeRequest extends FormRequest
     {
         return [
             'rental_id' => 'required|exists:rentals,id',
-            'amount' => 'required|numeric|min:0.01',
+            'amount' => 'required|numeric|min:0.01|max:99999999.99',
             'payment_method' => 'required|in:cash,bank',
             'payment_type' => 'required|in:rent,utilities,deposit,other',
-            'transaction_date' => ['required', 'date', new \App\Rules\NotInClosedMonth],
+            'transaction_date' => ['required', 'date', new \App\Rules\NotInClosedMonth, new \App\Rules\WithinActivePeriod],
             'transaction_reference' => 'nullable|string|max:255',
-            'late_fee' => 'nullable|numeric|min:0',
+            'late_fee' => 'nullable|numeric|min:0|max:99999999.99',
             'note' => 'nullable|string|max:1000',
         ];
     }

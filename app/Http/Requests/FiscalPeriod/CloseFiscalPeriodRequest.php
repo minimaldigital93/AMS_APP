@@ -19,7 +19,9 @@ class CloseFiscalPeriodRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'closing_balance' => 'required|numeric',
+            // Advisory only — the close computes the balance server-side from
+            // the monthly carry-forward chain (2026-07 audit F6).
+            'closing_balance' => 'nullable|numeric|max:99999999.99',
         ];
     }
 }

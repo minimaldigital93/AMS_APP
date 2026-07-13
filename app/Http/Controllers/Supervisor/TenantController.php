@@ -261,7 +261,7 @@ class TenantController extends Controller
             'move_in_date' => 'required|date|after_or_equal:'.$minMoveInDate,
             'move_out_date' => 'nullable|date|after:move_in_date',
             'status' => 'required|in:pending,active,inactive',
-            'deposit' => 'nullable|numeric|min:0',
+            'deposit' => 'nullable|numeric|min:0|max:99999999.99',
             'photo' => 'nullable|file|mimes:jpeg,jpg,png,gif,webp,heic,heif|max:10240',
             'documents' => 'nullable|array|max:4',
             'documents.*' => 'file|mimes:pdf,jpg,jpeg,png,heic,heif|max:10240',
@@ -294,10 +294,10 @@ class TenantController extends Controller
         $tenant = DB::transaction(function () use ($validated, $apartment) {
             // Create a user account for the tenant with default password
             // Do NOT call Hash::make() here — the User model's 'hashed' cast handles it
-            $tenantUser = User::create([
+            $tenantUser = User::forceCreate([
                 'name' => $validated['name'],
                 'phone' => $validated['phone'],
-                'password' => '12345678',
+                'password' => \Illuminate\Support\Str::random(16), // handed out via the reset-password flow
                 'account_id' => current_account_id(),
             ]);
             $tenantUser->assignRole('tenant');
@@ -682,7 +682,7 @@ class TenantController extends Controller
             'date_of_birth' => 'nullable|date',
             'move_in_date' => 'required|date',
             'status' => 'required|in:pending,active',
-            'deposit' => 'nullable|numeric|min:0',
+            'deposit' => 'nullable|numeric|min:0|max:99999999.99',
             'photo' => 'nullable|file|mimes:jpeg,jpg,png,gif,webp,heic,heif|max:10240',
             'documents' => 'nullable|array|max:4',
             'documents.*' => 'file|mimes:pdf,jpg,jpeg,png,heic,heif|max:10240',

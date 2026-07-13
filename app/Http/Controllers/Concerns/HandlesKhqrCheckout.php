@@ -42,7 +42,7 @@ trait HandlesKhqrCheckout
             'late_fee' => 'nullable|numeric|min:0',
             'pay_rent' => 'nullable|boolean',
             'pay_utilities' => 'nullable|boolean',
-            'payment_date' => ['required', 'date', new \App\Rules\NotInClosedMonth],
+            'payment_date' => ['required', 'date', new \App\Rules\NotInClosedMonth, new \App\Rules\WithinActivePeriod],
             'billing_month' => 'nullable|integer|between:1,12',
             'billing_year' => 'nullable|integer|between:2000,2100',
             'note' => 'nullable|string|max:1000',

@@ -149,7 +149,7 @@ class SubscriptionController extends Controller
             ->latest('id')
             ->first() ?? new User;
 
-        $user->fill([
+        $user->forceFill([
             'name' => $validated['name'],
             'phone' => $validated['phone'],
             'password' => Hash::make($validated['password']),

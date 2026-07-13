@@ -97,7 +97,7 @@ class PropertyController extends Controller
         return $request->validate([
             'name' => 'required|string|max:255',
             'address' => 'nullable|string|max:255',
-            'description' => 'nullable|string',
+            'description' => 'nullable|string|max:65535',
             'supervisor_id' => [
                 'nullable',
                 Rule::exists('users', 'id')->where('account_id', current_account_id()),

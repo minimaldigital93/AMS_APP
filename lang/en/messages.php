@@ -1136,6 +1136,12 @@ return [
     'flash_apartment_has_active_tenant' => 'This room still has an active tenant. Move the tenant out before deleting it.',
     'flash_tenant_assigned' => 'Tenant assigned.',
     'flash_apartment_not_available' => 'This room is not available.',
+    'flash_tenant_already_housed' => 'This tenant already occupies a room. Use the tenant edit page to move rooms.',
+    'flash_fp_close_months_first' => 'Close every monthly period before closing the fiscal period.',
+    'flash_fp_dates_locked_closed_months' => 'Period dates cannot change while a month is closed. Reopen the months first.',
+    'flash_fp_dates_strand_ledger' => 'The new dates would leave recorded transactions outside the period.',
+    'validation_fp_overlap' => 'These dates overlap the fiscal period ":name".',
+    'validation_date_outside_period' => 'The date must fall inside the active fiscal period (:start – :end).',
 
     // Users
     'flash_user_created' => 'User created.',

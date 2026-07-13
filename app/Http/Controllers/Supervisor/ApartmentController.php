@@ -145,6 +145,11 @@ class ApartmentController extends Controller
     {
         $this->authorizeApartment($apartment);
 
+        // Same bounds as the tenant store flow: tenants are adults (18+)
+        // and move-in can't be backdated more than a few days.
+        $minBirthDate = now()->subYears(18)->toDateString();
+        $minMoveInDate = now()->subDays(3)->toDateString();
+
         $validated = $request->validate([
             'tenant_option' => 'required|in:existing,new',
             'tenant_id' => 'nullable|required_if:tenant_option,existing|exists:tenants,id',
@@ -155,23 +160,22 @@ class ApartmentController extends Controller
                 'string',
                 'max:20',
                 'regex:/^[0-9+\-\s()]+$/',
-                // Per-account uniqueness, only when creating a new tenant.
-                Rule::unique('users', 'phone')
-                    ->where('account_id', current_account_id())
-                    ->where(fn () => $request->input('tenant_option') === 'new'),
+                // Tenants stay per-account; the users table is one GLOBAL login
+                // namespace (users_phone_unique) — a per-account rule here would
+                // pass validation and then 500 on the insert.
                 Rule::unique('tenants', 'phone')
                     ->where('account_id', current_account_id())
-                    ->whereNull('deleted_at')
-                    ->where(fn () => $request->input('tenant_option') === 'new'),
+                    ->whereNull('deleted_at'),
+                Rule::unique('users', 'phone'),
             ],
-            'gender' => 'nullable|in:male,female',
+            'gender' => 'nullable|in:male,female,other',
             'id_card_number' => 'nullable|string|max:50',
             'address' => 'nullable|string',
-            'date_of_birth' => 'nullable|date',
+            'date_of_birth' => 'nullable|date|before_or_equal:'.$minBirthDate,
             'attached_photo' => 'nullable|file|mimes:jpeg,jpg,png,gif,webp,heic,heif,pdf|max:10240',
             'id_pdf' => 'nullable|file|mimes:pdf,jpeg,jpg,png,gif,webp,heic,heif|max:10240',
-            'move_in_date' => 'required|date',
-            'deposit' => 'required|numeric|min:0',
+            'move_in_date' => 'required|date|after_or_equal:'.$minMoveInDate,
+            'deposit' => 'required|numeric|min:0|max:99999999.99',
         ], [
             'phone.unique' => __('messages.validation_phone_taken'),
             'phone.regex' => __('messages.phone_must_be_english'),
@@ -203,22 +207,39 @@ class ApartmentController extends Controller
             if ($validated['tenant_option'] === 'existing') {
                 $tenant = Tenants::findOrFail($validated['tenant_id']);
 
+                // An existing tenant must be unhoused — assigning one who still
+                // occupies another room would leave that room flagged occupied
+                // with an open rental while the tenant lives elsewhere.
+                if ($tenant->apartment_id !== null) {
+                    return back()->with('error', __('messages.flash_tenant_already_housed'));
+                }
+
                 if (! $tenant->user_id && $tenant->phone) {
-                    // Scope to this account — the same phone may now exist under other accounts.
-                    $existingUser = User::firstOrCreate(
-                        ['phone' => $tenant->phone, 'account_id' => current_account_id()],
-                        [
+                    // Global lookup — the users table is one login namespace.
+                    // Attach only a same-account row; a phone held by another
+                    // account's login can't be reused (users_phone_unique).
+                    $existingUser = User::where('phone', $tenant->phone)->first();
+
+                    if ($existingUser && $existingUser->account_id !== current_account_id()) {
+                        Log::warning('Tenant login not created: phone belongs to another account\'s user', [
+                            'tenant_id' => $tenant->id,
+                        ]);
+                        $existingUser = null;
+                    } else {
+                        $existingUser ??= User::forceCreate([
                             'name' => $tenant->name,
+                            'phone' => $tenant->phone,
                             'password' => Str::random(16),
-                        ]
-                    );
-                    if (! $existingUser->hasRole('tenant')) {
-                        $existingUser->assignRole('tenant');
+                            'account_id' => current_account_id(),
+                        ]);
+                        if (! $existingUser->hasRole('tenant')) {
+                            $existingUser->assignRole('tenant');
+                        }
+                        $tenant->update(['user_id' => $existingUser->id]);
                     }
-                    $tenant->update(['user_id' => $existingUser->id]);
                 }
             } else {
-                $tenantUser = User::create([
+                $tenantUser = User::forceCreate([
                     'name' => $validated['name'],
                     'phone' => $validated['phone'],
                     'password' => Str::random(16),
@@ -277,19 +298,26 @@ class ApartmentController extends Controller
                 'deposit' => $validated['deposit'],
             ]);
 
-            if (! empty($validated['deposit']) && $validated['deposit'] > 0) {
-                $activePeriod = $this->activeAdminFiscalPeriod();
-
+            $activePeriod = $this->activeAdminFiscalPeriod();
+            if (! empty($validated['deposit']) && $validated['deposit'] > 0 && ! $activePeriod) {
+                // accounts.fiscal_period_id is NOT NULL — booking without an open
+                // period would 500 the whole assignment (and the old Auth::id()
+                // fallback put the row under the SUPERVISOR's ledger).
+                Log::warning('No active fiscal period — deposit income not recorded on assignment', [
+                    'rental_id' => $rental->id,
+                ]);
+            }
+            if (! empty($validated['deposit']) && $validated['deposit'] > 0 && $activePeriod) {
                 $reference = 'deposit:rental:'.$rental->id;
 
                 Accounts::firstOrCreate(
                     ['reference_number' => $reference],
                     [
-                        'fiscal_period_id' => $activePeriod?->id,
+                        'fiscal_period_id' => $activePeriod->id,
                         'property_id' => $apartment->property_id ?? $apartment->floor?->property_id,
                         'payment_id' => null,
                         // Ledger rows carry the admin's user_id (one-ledger invariant).
-                        'user_id' => $activePeriod?->user_id ?? Auth::id(),
+                        'user_id' => $activePeriod->user_id,
                         'account_type' => Accounts::TYPE_INCOME,
                         'category' => Accounts::CAT_DEPOSIT_INCOME,
                         'description' => 'Security deposit — Apt '.($apartment->apartment_number ?? 'N/A'),

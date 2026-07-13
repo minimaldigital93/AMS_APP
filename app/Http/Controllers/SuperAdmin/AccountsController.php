@@ -184,7 +184,7 @@ class AccountsController extends Controller
 
         $plan = Plan::where('slug', $validated['plan'])->firstOrFail();
 
-        $account = User::create([
+        $account = User::forceCreate([
             'name' => $validated['name'],
             'phone' => $validated['phone'],
             'password' => Hash::make($validated['password']),
@@ -237,7 +237,7 @@ class AccountsController extends Controller
     public function toggleSuspend(User $account): RedirectResponse
     {
         $suspending = $account->status !== 'suspended';
-        $account->update(['status' => $suspending ? 'suspended' : 'active']);
+        $account->forceFill(['status' => $suspending ? 'suspended' : 'active'])->save();
 
         if ($sub = $account->subscription) {
             $sub->update(['status' => $suspending ? 'cancelled' : 'active']);

@@ -1666,7 +1666,7 @@ abstract class RevenueExpenseController extends Controller
         }
 
         $request->validate([
-            'billing_date' => ['nullable', 'date', new \App\Rules\NotInClosedMonth],
+            'billing_date' => ['nullable', 'date', new \App\Rules\NotInClosedMonth, new \App\Rules\WithinActivePeriod],
         ]);
 
         $billingDate = $request->input('billing_date')
