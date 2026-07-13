@@ -132,13 +132,6 @@
             </div>
             <div class="flex items-center justify-between px-6 py-3 hover:bg-gray-50 transition">
                 <div class="flex items-center gap-3">
-                    <span class="w-8 h-8 rounded-lg bg-orange-100 flex items-center justify-center text-orange-600">🚪</span>
-                    <span class="text-gray-700">{{ __('messages.early_leave_fees') }}</span>
-                </div>
-                <span class="font-semibold text-gray-900">{{ money($earlyLeaveIncome) }}</span>
-            </div>
-            <div class="flex items-center justify-between px-6 py-3 hover:bg-gray-50 transition">
-                <div class="flex items-center gap-3">
                     <span class="w-8 h-8 rounded-lg bg-blue-100 flex items-center justify-center text-blue-600">🅿️</span>
                     <span class="text-gray-700">{{ __('messages.type_parking') }}</span>
                 </div>
@@ -331,7 +324,6 @@
                 <ul class="list-disc list-inside space-y-0.5 text-xs">
                     <li><strong>{{ __('messages.monthly_rent') }}</strong> — Rent collected from tenants</li>
                     <li><strong>{{ __('messages.late_fees') }}</strong> — Penalties for late payment</li>
-                    <li><strong>{{ __('messages.early_leave') }}</strong> — Fees when tenant breaks lease early</li>
                     <li><strong>{{ __('messages.type_parking') }}</strong> — Parking space revenue</li>
                 </ul>
             </div>

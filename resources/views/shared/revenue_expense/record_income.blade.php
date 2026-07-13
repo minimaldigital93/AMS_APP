@@ -707,6 +707,9 @@
                     @csrf
                     <input type="hidden" name="rental_id" x-model="checkoutRentalId">
                     <input type="hidden" name="rent_amount" x-model="checkoutRent">
+                    {{-- The month this bill page is showing — checkout settles THIS month's charges --}}
+                    <input type="hidden" name="billing_month" value="{{ $currentMonth }}">
+                    <input type="hidden" name="billing_year" value="{{ $currentYear }}">
                     <!-- Bill lines -->
                     <div class="space-y-1.5">
                         <div class="flex items-center justify-between py-2 px-3 rounded-lg bg-slate-50">

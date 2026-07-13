@@ -43,6 +43,8 @@ trait HandlesKhqrCheckout
             'pay_rent' => 'nullable|boolean',
             'pay_utilities' => 'nullable|boolean',
             'payment_date' => ['required', 'date', new \App\Rules\NotInClosedMonth],
+            'billing_month' => 'nullable|integer|between:1,12',
+            'billing_year' => 'nullable|integer|between:2000,2100',
             'note' => 'nullable|string|max:1000',
         ]);
 
@@ -58,16 +60,24 @@ trait HandlesKhqrCheckout
         $payUtilities = ! empty($validated['pay_utilities']);
         $lateFee = (float) ($validated['late_fee'] ?? 0);
 
+        // The bill month being settled — sent by the record-income page's month
+        // navigation so a bill viewed for March settles MARCH's charges, not
+        // whatever month the server clock happens to be in. Falls back to the
+        // payment date's month.
+        $paymentMonth = \Carbon\Carbon::parse($validated['payment_date']);
+        $billingMonth = (int) ($validated['billing_month'] ?? $paymentMonth->month);
+        $billingYear = (int) ($validated['billing_year'] ?? $paymentMonth->year);
+
         // Recompute the payable amount server-side so the QR matches exactly what
         // IncomeRecordingService::checkout() will book (rent + late fee + unpaid
-        // utilities for the current month). Never trust a client-supplied total.
+        // utilities for the billing month). Never trust a client-supplied total.
         $amount = 0.0;
         if ($payRent) {
             $amount += (float) $validated['rent_amount'] + $lateFee;
         }
         if ($payUtilities) {
             $amount += (float) Utilities::where('rental_id', $rental->id)
-                ->forMonth(now()->month, now()->year)
+                ->forMonth($billingMonth, $billingYear)
                 ->unpaid()
                 ->sum('charge_amount');
         }
@@ -82,6 +92,8 @@ trait HandlesKhqrCheckout
             'rent_amount' => (float) $validated['rent_amount'],
             'late_fee' => $lateFee,
             'payment_date' => $validated['payment_date'],
+            'billing_month' => $billingMonth,
+            'billing_year' => $billingYear,
             'note' => $validated['note'] ?? null,
         ];
 

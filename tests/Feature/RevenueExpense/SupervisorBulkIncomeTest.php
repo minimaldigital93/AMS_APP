@@ -52,6 +52,50 @@ it('records bulk rent for selected rentals in assigned properties', function () 
     expect(Payments::where('rental_id', $f['rentalA']->id)->where('payment_type', 'rent')->count())->toBe(1);
 });
 
+it('skips rentals already bulk-recorded this month on a repeated submit (idempotency)', function () {
+    $f = bulkIncomeFixture();
+
+    $post = fn () => $this->actingAs($f['sup'])
+        ->post(route('supervisor.revenue_expense.store_income_bulk'), [
+            'payment_date' => now()->toDateString(),
+            'payment_method' => 'cash',
+            'apartments' => [
+                ['rental_id' => $f['rentalA']->id, 'amount' => 500, 'late_fee' => 0, 'selected' => 1],
+            ],
+        ]);
+
+    $post(); // first submit books the rent
+    $post(); // double-submit / repeat run must be a no-op
+
+    expect(Payments::where('rental_id', $f['rentalA']->id)->where('payment_type', 'rent')->count())->toBe(1)
+        ->and(\App\Models\Accounts::where('account_type', 'income')->count())->toBe(1);
+});
+
+it('still allows a manual partial payment after a bulk run in the same month', function () {
+    $f = bulkIncomeFixture();
+
+    $this->actingAs($f['sup'])
+        ->post(route('supervisor.revenue_expense.store_income_bulk'), [
+            'payment_date' => now()->toDateString(),
+            'payment_method' => 'cash',
+            'apartments' => [
+                ['rental_id' => $f['rentalA']->id, 'amount' => 500, 'late_fee' => 0, 'selected' => 1],
+            ],
+        ]);
+
+    // A manual single payment (different note path) is not blocked by the guard.
+    $this->actingAs($f['sup'])
+        ->post(route('supervisor.revenue_expense.store_income'), [
+            'rental_id' => $f['rentalA']->id,
+            'amount' => 50,
+            'payment_type' => 'rent',
+            'payment_method' => 'cash',
+            'transaction_date' => now()->toDateString(),
+        ]);
+
+    expect(Payments::where('rental_id', $f['rentalA']->id)->where('payment_type', 'rent')->count())->toBe(2);
+});
+
 it('drops bulk rows for rentals outside the supervisors assigned properties', function () {
     $f = bulkIncomeFixture();
 

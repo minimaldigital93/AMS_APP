@@ -240,13 +240,15 @@ class RevenueExpenseQueryService
                             $start = Carbon::parse($startDate);
                             $end = Carbon::parse($endDate);
                             $uq->where(function ($q) use ($start, $end) {
+                                // year*100+month compares billing periods as one
+                                // ordered value — the old per-column comparison
+                                // broke for ranges crossing a year boundary
+                                // (month >= 11 AND month <= 2 matches nothing).
                                 $q->whereBetween('paid_at', [$start->startOfDay(), $end->copy()->endOfDay()])
-                                    ->orWhere(function ($q2) use ($start, $end) {
-                                        $q2->where('billing_year', '>=', $start->year)
-                                            ->where('billing_year', '<=', $end->year)
-                                            ->where('billing_month', '>=', $start->month)
-                                            ->where('billing_month', '<=', $end->month);
-                                    });
+                                    ->orWhereRaw('(billing_year * 100 + billing_month) BETWEEN ? AND ?', [
+                                        $start->year * 100 + $start->month,
+                                        $end->year * 100 + $end->month,
+                                    ]);
                             });
                         }
                     },

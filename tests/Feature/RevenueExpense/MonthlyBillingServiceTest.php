@@ -22,10 +22,10 @@ beforeEach(function () {
         'is_active' => true,
     ]);
 
-    $this->service = new MonthlyBillingService(userId: $this->admin->id, period: $this->period);
+    $this->service = new MonthlyBillingService;
 });
 
-it('processSelected creates one Utilities + one Accounts row per billed expense', function () {
+it('processSelected creates one Utilities charge per billed expense and NO ledger expense', function () {
     $result = $this->service->processSelected([
         [
             'rental_id' => $this->rental->id,
@@ -39,11 +39,11 @@ it('processSelected creates one Utilities + one Accounts row per billed expense'
     expect($result['count'])->toBe(1);
     expect($result['total'])->toEqual(40.0);
     expect(Utilities::count())->toBe(1);
-    expect(Accounts::where('account_type', Accounts::TYPE_EXPENSE)->count())->toBe(1);
 
-    $account = Accounts::sole();
-    expect($account->category)->toBe(Accounts::CAT_BUSINESS_FIXED);
-    expect($account->fiscal_period_id)->toBe($this->period->id);
+    // 2026-07 accounting audit: billing a tenant is a receivable, not a cost
+    // the landlord incurred — the old mirror business_fixed expense suppressed
+    // real profit and double-counted actual vendor bills. No ledger row here.
+    expect(Accounts::count())->toBe(0);
 });
 
 it('refuses to double-bill the same (rental, type, month, year) tuple', function () {
@@ -64,7 +64,6 @@ it('refuses to double-bill the same (rental, type, month, year) tuple', function
 
     expect($result['count'])->toBe(0);
     expect(Utilities::count())->toBe(1);
-    expect(Accounts::count())->toBe(1);
 });
 
 it('processAll bills every active fixed expense across the apartment scope', function () {
@@ -86,25 +85,30 @@ it('processAll bills every active fixed expense across the apartment scope', fun
     expect(Utilities::count())->toBe(2);
 });
 
-it('rolls back when a write fails mid-batch', function () {
-    \App\Models\Accounts::saving(function ($account) {
-        throw new RuntimeException('forced failure during billing');
+it('rolls back the whole batch when a write fails mid-batch', function () {
+    // Second fixed expense: the first insert succeeds, the second throws —
+    // without the transaction wrap the first Utilities row would survive.
+    ApartmentFixedExpense::create([
+        'apartment_id' => $this->apartment->id,
+        'expense_name' => 'Internet',
+        'expense_type' => 'internet',
+        'amount' => 15,
+        'is_active' => true,
+    ]);
+
+    $inserts = 0;
+    Utilities::creating(function () use (&$inserts) {
+        if (++$inserts === 2) {
+            throw new RuntimeException('forced failure during billing');
+        }
     });
 
     try {
-        $this->service->processSelected([[
-            'rental_id' => $this->rental->id,
-            'selected' => true,
-            'expenses' => [['expense_id' => $this->fixed->id, 'amount' => 40, 'selected' => true]],
-        ]], Carbon::parse('2026-05-10'));
+        $this->service->processAll(Apartments::query(), Carbon::parse('2026-05-10'));
         $this->fail('Expected exception was not thrown');
     } catch (RuntimeException) {
         // expected
     }
 
-    // The Utilities row was inserted *before* the Accounts row inside bill();
-    // if the transaction wrap is missing, the Utilities row would survive,
-    // leaving a charge with no ledger entry.
     expect(Utilities::count())->toBe(0);
-    expect(Accounts::count())->toBe(0);
 });

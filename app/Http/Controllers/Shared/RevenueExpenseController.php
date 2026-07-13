@@ -23,7 +23,6 @@ use App\Models\BusinessExpense;
 use App\Models\FiscalPeriods;
 use App\Models\Payments;
 use App\Models\Rentals;
-use App\Models\TenantLeave;
 use App\Models\Utilities;
 use App\Services\Attachments\AttachmentService;
 use App\Services\RevenueExpense\BreakEvenService;
@@ -229,13 +228,9 @@ abstract class RevenueExpenseController extends Controller
         );
     }
 
-    private function billingService(FiscalPeriods $period): MonthlyBillingService
+    private function billingService(): MonthlyBillingService
     {
-        return new MonthlyBillingService(
-            userId: $this->ledgerUserId(),
-            period: $period,
-            propertyId: $this->activePropertyId(),
-        );
+        return new MonthlyBillingService;
     }
 
     public function index()
@@ -1645,7 +1640,7 @@ abstract class RevenueExpenseController extends Controller
         $validated = $request->validated();
         // Drop any bills for rentals outside the supervisor's assigned properties.
         $bills = $this->filterBillsToVisibleRentals($validated['bills']);
-        $result = $this->billingService($activePeriod)->processSelected(
+        $result = $this->billingService()->processSelected(
             $bills,
             Carbon::parse($validated['billing_date']),
         );
@@ -1678,7 +1673,7 @@ abstract class RevenueExpenseController extends Controller
             ? Carbon::parse($request->input('billing_date'))
             : now();
 
-        $result = $this->billingService($activePeriod)->processAll($this->scopeApartments(), $billingDate);
+        $result = $this->billingService()->processAll($this->scopeApartments(), $billingDate);
 
         if ($result['count'] === 0) {
             return redirect()->back()->with('error', __('messages.flash_no_new_expenses'));
@@ -1887,28 +1882,24 @@ abstract class RevenueExpenseController extends Controller
         // REVENUE (Owner's actual income)
         // ================================================
 
-        // 1. Monthly Rent
-        $rentPayments = Payments::whereHas('rental', function ($q) use ($apartmentIds) {
-            $q->whereIn('apartment_id', $apartmentIds);
-        })
-            ->where('payment_status', 'paid')
-            ->where('payment_type', 'rent')
-            ->whereBetween('paid_at', [$startDate, $endDate])
+        // 1. Monthly Rent + late fees — from the Accounts ledger (the single
+        //    source of truth every other report reads), so this page's rent
+        //    line always matches the dashboard and the monthly close.
+        //    Settlement pro-rata rent is included here via its ledger row —
+        //    the old extra "early leave fees" line (tenant_leaves.balance_due)
+        //    double-counted it AND booked uncollected balances as revenue,
+        //    so it was removed (2026-07 accounting audit).
+        $ledgerIncome = $this->scopeAccountsToProperty(
+            Accounts::income()->forUser($this->ledgerUserId())
+        )
+            ->forPeriod($activePeriod->id)
+            ->betweenDates($startDate, $endDate)
             ->get();
 
-        $rentIncome = round($rentPayments->sum('amount'), 2);
-        $lateFees = round($rentPayments->sum('late_fee'), 2);
+        $rentIncome = round($ledgerIncome->where('category', Accounts::CAT_RENT_INCOME)->sum('amount'), 2);
+        $lateFees = round($ledgerIncome->where('category', Accounts::CAT_LATE_FEE_INCOME)->sum('amount'), 2);
 
-        // 2. Early Leave Fees (balance_due from completed tenant checkouts)
-        $earlyLeaveIncome = round(
-            TenantLeave::whereIn('apartment_id', $apartmentIds)
-                ->where('status', 'completed')
-                ->whereBetween('leave_date', [$startDate, $endDate])
-                ->sum('balance_due'),
-            2
-        );
-
-        // 3. Parking Revenue (collected from tenants)
+        // 2. Parking Revenue (collected from tenants)
         $parkingRevenue = round(
             Utilities::whereHas('rental', function ($q) use ($apartmentIds) {
                 $q->whereIn('apartment_id', $apartmentIds);
@@ -1920,7 +1911,7 @@ abstract class RevenueExpenseController extends Controller
             2
         );
 
-        $totalRevenue = $rentIncome + $lateFees + $earlyLeaveIncome + $parkingRevenue;
+        $totalRevenue = $rentIncome + $lateFees + $parkingRevenue;
 
         // ================================================
         // GROSS REVENUE (Collected from tenants → paid to vendors)
@@ -1993,8 +1984,9 @@ abstract class RevenueExpenseController extends Controller
         // Tax expense
         $taxExpense = round(
             $businessExpenses->filter(fn ($e) => in_array($e->category, ['property_tax', 'tax']))->sum('amount')
-            + Accounts::expense()
-                ->forUser($this->ledgerUserId())
+            + $this->scopeAccountsToProperty(
+                Accounts::expense()->forUser($this->ledgerUserId())
+            )
                 ->forPeriod($activePeriod->id)
                 ->whereIn('category', [Accounts::CAT_PROPERTY_TAX, 'taxes'])
                 ->betweenDates($startDate, $endDate)
@@ -2016,8 +2008,9 @@ abstract class RevenueExpenseController extends Controller
 
         // Other account expenses (not utility, not business fixed/variable, not tax)
         $otherAccountExpense = round(
-            Accounts::expense()
-                ->forUser($this->ledgerUserId())
+            $this->scopeAccountsToProperty(
+                Accounts::expense()->forUser($this->ledgerUserId())
+            )
                 ->forPeriod($activePeriod->id)
                 ->whereNotIn('category', [
                     Accounts::CAT_UTILITIES_EXPENSE,
@@ -2049,7 +2042,7 @@ abstract class RevenueExpenseController extends Controller
         return $this->panelView('income_statement', compact(
             'activePeriod', 'fiscalPeriods', 'filterMonth', 'filterYear', 'periodMonths',
             // Revenue
-            'rentIncome', 'lateFees', 'earlyLeaveIncome', 'parkingRevenue', 'totalRevenue',
+            'rentIncome', 'lateFees', 'parkingRevenue', 'totalRevenue',
             // Gross Revenue (pass-through)
             'electricityCollected', 'waterCollected', 'internetCollected',
             'totalGrossRevenue', 'totalAllCollected',

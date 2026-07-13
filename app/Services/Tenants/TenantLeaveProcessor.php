@@ -68,9 +68,17 @@ class TenantLeaveProcessor
                 ->where('paid_status', false)
                 ->get();
 
-        $utilitiesTotal = $selectedPayments->where('payment_type', 'utilities')->sum('amount')
-                       + $selectedUtilities->sum('charge_amount');
-        $otherTotal = $selectedPayments->where('payment_type', 'other')->sum('amount');
+        // Per-type buckets so the stored tenant_leaves columns say what they
+        // mean (the old code lumped ALL utilities into electricity_charge and
+        // "other" into parking_charge). Charges without a per-type breakdown —
+        // manually-recorded pending Payments rows and untyped utility rows —
+        // land in the extra bucket; only the labelling changes, never the total.
+        $utilByType = fn (string $type) => (float) $selectedUtilities
+            ->where('utility_type', $type)->sum('charge_amount');
+        $untypedUtilities = (float) $selectedUtilities
+            ->whereNotIn('utility_type', ['electricity', 'water', 'internet', 'parking'])
+            ->sum('charge_amount');
+        $selectedPaymentsTotal = (float) $selectedPayments->sum('amount');
 
         $extraCharges = $this->normalizeExtraCharges($validated['extra_charges'] ?? []);
         $extraTotal = array_sum(array_column($extraCharges, 'amount'));
@@ -81,11 +89,11 @@ class TenantLeaveProcessor
             leaveDate: $leaveDate,
             charges: [
                 'pro_rata_rent' => $proRataRent,
-                'electricity' => $utilitiesTotal,
-                'water' => 0,
-                'internet' => 0,
-                'parking' => $otherTotal,
-                'extra' => $extraTotal,
+                'electricity' => $utilByType('electricity'),
+                'water' => $utilByType('water'),
+                'internet' => $utilByType('internet'),
+                'parking' => $utilByType('parking'),
+                'extra' => $extraTotal + $untypedUtilities + $selectedPaymentsTotal,
             ],
             deposit: (float) ($tenant->deposit ?? 0),
         );

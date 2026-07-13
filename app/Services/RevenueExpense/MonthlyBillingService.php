@@ -2,9 +2,7 @@
 
 namespace App\Services\RevenueExpense;
 
-use App\Models\Accounts;
 use App\Models\ApartmentFixedExpense;
-use App\Models\FiscalPeriods;
 use App\Models\Rentals;
 use App\Models\Utilities;
 use Carbon\Carbon;
@@ -13,21 +11,15 @@ use Illuminate\Support\Facades\DB;
 
 /**
  * Monthly bill generation — converts apartment fixed-expense templates into
- * concrete Utilities rows (charges the tenant owes) and matching Accounts rows
- * for fiscal tracking.
+ * concrete Utilities rows (charges the tenant owes). Income is booked when the
+ * charge is paid (checkout); no ledger row is written at billing time.
  *
- * The (rental_id, utility_type, billing_month, billing_year) invariant from
- * CLAUDE.md sec. 6 is enforced here: if a charge already exists for that
- * combination, it's skipped (not duplicated).
+ * The (rental_id, utility_type, billing_month, billing_year) invariant is
+ * enforced here: if a charge already exists for that combination, it's
+ * skipped (not duplicated).
  */
 class MonthlyBillingService
 {
-    public function __construct(
-        private int $userId,
-        private FiscalPeriods $period,
-        private ?int $propertyId = null,
-    ) {}
-
     /**
      * Bill the (apartment, expense) pairs the user selected on the form.
      *
@@ -57,7 +49,7 @@ class MonthlyBillingService
                     $fixedExpense = ApartmentFixedExpense::findOrFail($expData['expense_id']);
                     $amount = (float) $expData['amount'];
 
-                    if ($this->bill($rental, $fixedExpense->expense_type, $fixedExpense->expense_name, $amount, $billingDate)) {
+                    if ($this->bill($rental, $fixedExpense->expense_type, $amount, $billingDate)) {
                         $recordedCount++;
                         $totalAmount += $amount;
                     }
@@ -95,7 +87,7 @@ class MonthlyBillingService
                     $rental->setRelation('apartment', $apartment);
 
                     foreach ($apartment->activeFixedExpenses as $fe) {
-                        if ($this->bill($rental, $fe->expense_type, $fe->expense_name, (float) $fe->amount, $billingDate)) {
+                        if ($this->bill($rental, $fe->expense_type, (float) $fe->amount, $billingDate)) {
                             $recordedCount++;
                             $totalAmount += (float) $fe->amount;
                         }
@@ -108,11 +100,18 @@ class MonthlyBillingService
     }
 
     /**
-     * Create the Utilities row + Accounts ledger entry for one (rental,
+     * Create the Utilities row (the charge the tenant owes) for one (rental,
      * utility_type, month, year). Returns false (and writes nothing) if the
      * pair has already been billed.
+     *
+     * Deliberately does NOT write an Accounts expense row (2026-07 accounting
+     * audit): billing a tenant is not a cost the landlord incurred. The old
+     * mirror `business_fixed` expense suppressed real profit on every recharge
+     * and double-counted whenever the actual vendor bill was also recorded.
+     * Real landlord costs enter the ledger through record-expense; the income
+     * side is booked when the charge is paid (checkout), as before.
      */
-    private function bill(Rentals $rental, string $utilityType, string $expenseName, float $amount, Carbon $billingDate): bool
+    private function bill(Rentals $rental, string $utilityType, float $amount, Carbon $billingDate): bool
     {
         $exists = Utilities::where('rental_id', $rental->id)
             ->where('utility_type', $utilityType)
@@ -135,19 +134,6 @@ class MonthlyBillingService
             'billing_year' => $billingDate->year,
             'paid_status' => false,
             'paid_at' => null,
-        ]);
-
-        Accounts::create([
-            'fiscal_period_id' => $this->period->id,
-            'property_id' => $rental->apartment?->floor?->property_id ?? $this->propertyId,
-            'payment_id' => null,
-            'user_id' => $this->userId,
-            'account_type' => Accounts::TYPE_EXPENSE,
-            'category' => Accounts::CAT_BUSINESS_FIXED,
-            'description' => '[Apt '.($rental->apartment?->apartment_number ?? 'N/A').'] '.$expenseName.' (monthly)',
-            'amount' => $amount,
-            'transaction_date' => $billingDate->toDateString(),
-            'note' => 'Auto-generated monthly fixed expense',
         ]);
 
         return true;

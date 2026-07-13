@@ -6,9 +6,11 @@ use App\Enums\PaymentStatus;
 use App\Models\FiscalPeriods;
 use App\Models\KhqrPayment;
 use App\Models\MerchantPaymentSetting;
+use App\Models\MonthlyPeriod;
 use App\Models\Rentals;
 use App\Models\Subscription;
 use App\Models\User;
+use Carbon\Carbon;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
@@ -632,6 +634,26 @@ class KhqrPaymentService
             $payload = $locked->checkout_payload;
             $payload['payment_method'] = 'khqr';
             $payload['transaction_reference'] = $locked->transaction_id;
+
+            // NotInClosedMonth was validated when the QR was generated — but a
+            // webhook can land after the month has since been closed, and a
+            // backdated ledger row would silently desync the frozen totals.
+            // Re-date the booking to today instead (withoutAccountScope: this
+            // runs from a webhook/cron with no authenticated user, and the
+            // account scope must not leak another account's months in).
+            $originalDate = Carbon::parse($payload['payment_date'] ?? now());
+            $closedMonth = MonthlyPeriod::withoutAccountScope()
+                ->where('fiscal_period_id', $period->id)
+                ->where('status', 'closed')
+                ->whereDate('start_date', '<=', $originalDate)
+                ->whereDate('end_date', '>=', $originalDate)
+                ->exists();
+            if ($closedMonth) {
+                $payload['payment_date'] = now()->toDateString();
+                $payload['note'] = trim(($payload['note'] ?? '')
+                    .' | Original payment date '.$originalDate->toDateString()
+                    .' fell in a closed month; booked on confirmation date.', ' |');
+            }
 
             (new IncomeRecordingService(userId: $locked->user_id, period: $period))
                 ->checkout($rental, $payload);

@@ -110,12 +110,30 @@ class IncomeRecordingService
             $recordedCount = 0;
             $totalAmount = 0.0;
 
+            $paidMonth = \Carbon\Carbon::parse($paymentDate);
+
             foreach ($apartments as $aptData) {
                 if (empty($aptData['selected'])) {
                     continue;
                 }
 
                 $rental = Rentals::with('apartment')->findOrFail($aptData['rental_id']);
+
+                // Idempotency guard (2026-07 audit): a double-submit of the bulk
+                // form used to book every rent twice. Skip rentals that already
+                // hold a bulk-recorded rent payment in the same month; manual
+                // payments (different note) stay unaffected so legitimate
+                // partial payments are never blocked.
+                $alreadyRecorded = Payments::where('rental_id', $rental->id)
+                    ->where('payment_type', 'rent')
+                    ->where('note', 'Auto-generated monthly rent')
+                    ->whereYear('paid_at', $paidMonth->year)
+                    ->whereMonth('paid_at', $paidMonth->month)
+                    ->exists();
+                if ($alreadyRecorded) {
+                    continue;
+                }
+
                 $amount = (float) $aptData['amount'];
                 $lateFee = (float) ($aptData['late_fee'] ?? 0);
 
@@ -312,7 +330,15 @@ class IncomeRecordingService
             }
 
             if (! empty($data['pay_utilities'])) {
-                $utilityResult = $this->settleCurrentMonthUtilities($rental, $paymentDate, $paymentMethod, $reference);
+                $paymentMonth = \Carbon\Carbon::parse($paymentDate);
+                $utilityResult = $this->settleUtilitiesForMonth(
+                    $rental,
+                    (int) ($data['billing_month'] ?? $paymentMonth->month),
+                    (int) ($data['billing_year'] ?? $paymentMonth->year),
+                    $paymentDate,
+                    $paymentMethod,
+                    $reference,
+                );
                 if ($utilityResult !== null) {
                     $totalPaid += $utilityResult['amount'];
                     $items[] = 'Utilities: $'.number_format($utilityResult['amount'], 2);
@@ -327,16 +353,19 @@ class IncomeRecordingService
     }
 
     /**
-     * Settle all unpaid utility charges for the current calendar month.
+     * Settle all unpaid utility charges for the given billing month — the month
+     * the bill page was showing when the operator checked out (previously this
+     * used now()'s month, which mismarked charges for backdated checkouts and
+     * for KHQR webhooks landing just after a month boundary).
      * Splits the resulting income into two Accounts rows (utility vs other)
      * so dashboard breakdowns work.
      *
      * @return array{amount: float}|null null when there were no unpaid charges
      */
-    private function settleCurrentMonthUtilities(Rentals $rental, string $paymentDate, string $paymentMethod, ?string $reference): ?array
+    private function settleUtilitiesForMonth(Rentals $rental, int $billingMonth, int $billingYear, string $paymentDate, string $paymentMethod, ?string $reference): ?array
     {
         $unpaid = Utilities::where('rental_id', $rental->id)
-            ->forMonth(now()->month, now()->year)
+            ->forMonth($billingMonth, $billingYear)
             ->unpaid()
             ->get();
 
@@ -385,7 +414,9 @@ class IncomeRecordingService
         foreach ($unpaid as $utility) {
             $utility->update([
                 'paid_status' => true,
-                'paid_at' => now(),
+                // Same clock as the Payments row — date-windowed reports must
+                // see the payment and the settled charge in the same period.
+                'paid_at' => $paymentDate,
             ]);
         }
 

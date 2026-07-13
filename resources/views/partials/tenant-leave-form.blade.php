@@ -365,7 +365,17 @@
                 const days = Math.ceil((new Date(this.leaveDate) - this.moveInDate) / 86400000) + 1;
                 return Math.max(days, 1);
             },
-            get proRataRent() { return this.stayDays * (this.monthlyRent / 30); },
+            // Final-month days only — earlier months were billed by the normal
+            // monthly rent flow. Mirrors TenantLeaveCalculator::finalMonthDays().
+            get finalMonthDays() {
+                if (!this.leaveDate) return 0;
+                const leave = new Date(this.leaveDate);
+                const monthStart = new Date(leave.getFullYear(), leave.getMonth(), 1);
+                const anchor = this.moveInDate > monthStart ? this.moveInDate : monthStart;
+                const days = Math.floor((leave - anchor) / 86400000) + 1;
+                return Math.min(Math.max(days, 1), 30);
+            },
+            get proRataRent() { return this.finalMonthDays * (this.monthlyRent / 30); },
             get rentCharge() { return this.fullMonth ? this.monthlyRent : this.proRataRent; },
             get billsTotal() { return this.selectedCharges.reduce((sum, id) => sum + (this.chargeAmounts[id] || 0), 0); },
             get extraTotal() { return this.extraCharges.reduce((sum, r) => sum + (parseFloat(r.amount) || 0), 0); },

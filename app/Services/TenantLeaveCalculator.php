@@ -10,24 +10,46 @@ use Carbon\Carbon;
 class TenantLeaveCalculator
 {
     /**
-     * Calculate actual stay days
+     * Total tenancy length in days (move-in → leave, inclusive). Display /
+     * record-keeping only — NOT a billing input (see calculateProRataRent).
      */
     public function calculateStayDays(Rentals $rental, Carbon $leaveDate): int
     {
         $moveInDate = Carbon::parse($rental->start_date);
 
-        return $moveInDate->diffInDays($leaveDate) + 1;
+        return (int) $moveInDate->diffInDays($leaveDate) + 1;
     }
 
     /**
-     * Calculate pro-rata rent based on actual stay days
+     * Days of the FINAL month being settled: from the start of the leave
+     * month (or the rental start, if the tenancy began inside that month)
+     * through the leave date, inclusive. Capped at 30 (a 31-day month is
+     * still one banker's month, never 31/30 of the rent).
+     */
+    public function finalMonthDays(Rentals $rental, Carbon $leaveDate): int
+    {
+        $monthStart = $leaveDate->copy()->startOfMonth();
+        $rentalStart = Carbon::parse($rental->start_date)->startOfDay();
+        $anchor = $rentalStart->greaterThan($monthStart) ? $rentalStart : $monthStart;
+
+        $days = (int) $anchor->diffInDays($leaveDate->copy()->startOfDay()) + 1;
+
+        return min(max($days, 1), 30);
+    }
+
+    /**
+     * Pro-rata rent for the final (unbilled) month only, at rent/30 per day.
+     *
+     * Earlier months were already billed through the normal monthly rent flow —
+     * the settlement must never re-charge them. (The pre-2026-07 version
+     * multiplied the WHOLE tenancy's days by the daily rate, overcharging any
+     * move-out after the first month.)
      */
     public function calculateProRataRent(Rentals $rental, Carbon $leaveDate): float
     {
-        $stayDays = $this->calculateStayDays($rental, $leaveDate);
         $dailyRate = $rental->rent_amount / 30;
 
-        return round($stayDays * $dailyRate, 2);
+        return round($this->finalMonthDays($rental, $leaveDate) * $dailyRate, 2);
     }
 
     /**
