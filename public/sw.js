@@ -1,5 +1,8 @@
-// AMS service worker — bump CACHE_VERSION to invalidate old caches on deploy.
-const CACHE_VERSION = 'ams-v7';
+// AMS service worker — CACHE_VERSION invalidates all old caches when it
+// changes. deploy.sh stamps it with the git short SHA on every deploy; bump
+// the fallback here manually when changing precached files (offline.html…)
+// on a host that serves the working tree directly.
+const CACHE_VERSION = 'ams-v8';
 const STATIC_CACHE = `${CACHE_VERSION}-static`;
 
 // Base path is derived from where THIS script is served, so the worker adapts to

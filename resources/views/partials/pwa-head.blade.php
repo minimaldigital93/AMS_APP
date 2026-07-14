@@ -1,6 +1,8 @@
 {{-- Progressive Web App: makes AMS installable on phone/tablet/desktop --}}
 <link rel="manifest" href="{{ asset('manifest.webmanifest') }}">
-<meta name="theme-color" content="#3b82f6">
+{{-- Status/title-bar color follows the active theme's topbar so the installed
+     app chrome matches the UI (falls back to the Carbon Gray topbar white). --}}
+<meta name="theme-color" content="{{ theme_service()->current()?->tokens['--topbar-bg'] ?? '#ffffff' }}">
 <meta name="mobile-web-app-capable" content="yes">
 
 {{-- iOS / iPadOS home-screen support --}}
@@ -50,6 +52,10 @@
 </style>
 
 <script>
+    // Remember the app locale for offline.html (a static file that can't call
+    // __()) so the offline fallback greets the user in their own language.
+    try { localStorage.setItem('ams_locale', @js(app()->getLocale())); } catch (e) {}
+
     if ('serviceWorker' in navigator) {
         window.addEventListener('load', function () {
             // No explicit scope: the default scope is the directory the script is
