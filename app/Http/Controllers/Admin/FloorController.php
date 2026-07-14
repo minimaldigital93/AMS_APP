@@ -51,10 +51,14 @@ class FloorController extends Controller
         }
 
         // Rooms are now listed inline under each floor (the merged "Floors And
-        // Rooms" page), so eager-load the tenants/supervisor the room table needs.
+        // Rooms" page), so eager-load everything the room rows read — tenants,
+        // rentals and their paid payments — or the view goes N+1 per room.
         $floors = $query->with(['property', 'apartments' => function ($query) {
-            $query->with(['supervisor', 'tenants' => fn ($q) => $q->whereNull('deleted_at')])
-                ->orderBy('apartment_number');
+            $query->with([
+                'supervisor',
+                'tenants' => fn ($q) => $q->whereNull('deleted_at'),
+                'rentals.payments' => fn ($q) => $q->whereNotNull('paid_at'),
+            ])->orderBy('apartment_number');
         }])->withCount('apartments')->get();
 
         // Natural sort (Floor 1, Floor 2, ... Floor 10) rather than alphabetical

@@ -325,6 +325,7 @@
 @push('scripts')
 <script>
 document.addEventListener('DOMContentLoaded', function () {
+    window.ensureChart().then(function () {
     function mk(id, cfg) {
         var el = document.getElementById(id);
         if (el) new Chart(el, cfg);
@@ -465,6 +466,7 @@ document.addEventListener('DOMContentLoaded', function () {
             },
             plugins: { legend: { display: false }, tooltip: { callbacks: { label: function (c) { return money(c.parsed.x); } } } }
         }
+    });
     });
 });
 </script>

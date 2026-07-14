@@ -81,7 +81,7 @@ class SettingsController extends Controller
 
         Settings::whereIn('key', self::EDITABLE_KEYS)->delete();
         foreach (self::EDITABLE_KEYS as $key) {
-            Cache::forget("setting.{$accountId}.{$key}");
+            Settings::forgetCached($key, $accountId);
         }
 
         return redirect()->route('supervisor.settings.index')

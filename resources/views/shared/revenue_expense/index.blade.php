@@ -1188,7 +1188,11 @@ var chartOpts = {
 };
 
 function createOrUpdateCharts() {
-    if (typeof Chart === 'undefined') return false;
+    // Chart.js is a lazy chunk now: kick off the load and re-render when ready.
+    if (typeof Chart === 'undefined') {
+        if (window.ensureChart) window.ensureChart().then(function () { createOrUpdateCharts(); });
+        return false;
+    }
     var incomeCtx = document.getElementById('incomeChart');
     var expenseCtx = document.getElementById('expenseChart');
     if (!incomeCtx || incomeCtx.clientWidth === 0) return false;

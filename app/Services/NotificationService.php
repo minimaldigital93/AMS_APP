@@ -11,6 +11,7 @@ use App\Models\Utilities;
 use App\Services\Subscription\SubscriptionService;
 use Carbon\Carbon;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Cache;
 
 class NotificationService
 {
@@ -37,12 +38,26 @@ class NotificationService
         'tenant_moved_out' => 'tenants',
     ];
 
+    /** Seconds to cache the built feed — it runs on EVERY page (topbar bell). */
+    const CACHE_TTL = 120;
+
     public function for(?User $user): Collection
     {
         if (! $user) {
             return collect();
         }
 
+        // Building the feed costs ~8 queries; the topbar composer calls this on
+        // every authenticated page load. A short per-user cache trades ≤2 min
+        // of bell freshness for one cache lookup per page. Keyed by locale —
+        // the messages are rendered translated.
+        $key = sprintf('notif.%d.%s', $user->id, app()->getLocale());
+
+        return Cache::remember($key, self::CACHE_TTL, fn () => $this->build($user));
+    }
+
+    protected function build(User $user): Collection
+    {
         if ($user->hasRole('admin')) {
             return $this->forAdmin($user);
         }

@@ -48,7 +48,7 @@
 
 <script>
 document.addEventListener('DOMContentLoaded', function () {
-    if (typeof Chart === 'undefined') return;
+    window.ensureChart().then(function () {
     Chart.defaults.font.family = 'ui-sans-serif, system-ui, sans-serif';
     Chart.defaults.color = '#9ca3af';
 
@@ -90,6 +90,7 @@ document.addEventListener('DOMContentLoaded', function () {
             }
         });
     }
+    });
 });
 </script>
 @endsection

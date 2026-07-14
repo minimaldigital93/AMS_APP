@@ -136,8 +136,8 @@
                             </td>
                             <td class="px-4 py-3">
                                 @php
-                                    $rentTenant = $apartment->tenants()->whereNull('deleted_at')->latest()->first();
-                                    $rentRental = $rentTenant ? $apartment->rentals()->where('tenant_id', $rentTenant->id)->latest()->first() : null;
+                                    // $tenant = newest non-deleted tenant, computed above from the eager-loaded relation
+                                    $rentRental = $tenant ? $apartment->rentals->where('tenant_id', $tenant->id)->sortByDesc('id')->first() : null;
                                     $rentExpected = (float) ($rentRental->rent_amount ?? $apartment->monthly_rent ?? 0);
                                 @endphp
                                 <span class="text-sm font-medium text-slate-600">{{ money($rentExpected) }}</span>
@@ -199,20 +199,16 @@
                                             $monthTextColor = 'text-sky-500';
                                         }
 
-                                        $rental = $apartment->rentals()->where('tenant_id', $tenant->id)->latest()->first();
+                                        $rental = $apartment->rentals->where('tenant_id', $tenant->id)->sortByDesc('id')->first();
                                         $expectedAmount = $rental->rent_amount ?? $apartment->monthly_rent ?? 0;
                                         $paymentPercent = 0;
 
                                         if ($expectedAmount > 0 && $rental) {
-                                            try {
-                                                $paidAmount = (float) $rental->payments()
-                                                    ->whereNotNull('paid_at')
-                                                    ->whereBetween('due_date', [$periodStart->toDateString(), $periodEnd->toDateString()])
-                                                    ->sum('amount');
-                                                $paymentPercent = min(100, max(0, round(($paidAmount / $expectedAmount) * 100, 1)));
-                                            } catch (\Exception $e) {
-                                                $paymentPercent = 0;
-                                            }
+                                            // rentals.payments is eager-loaded pre-filtered to paid rows
+                                            $paidAmount = (float) $rental->payments
+                                                ->filter(fn ($p) => $p->due_date && $p->due_date->betweenIncluded($periodStart, $periodEnd))
+                                                ->sum('amount');
+                                            $paymentPercent = min(100, max(0, round(($paidAmount / $expectedAmount) * 100, 1)));
                                         }
 
                                         $hasMonthlyPeriod = true;
@@ -289,8 +285,8 @@
                 <div class="md:hidden border-t border-slate-50 divide-y divide-slate-50">
                     @foreach($floor->apartments as $apartment)
                         @php
-                            $mTenant = $apartment->tenants()->whereNull('deleted_at')->latest()->first();
-                            $mRental = $mTenant ? $apartment->rentals()->where('tenant_id', $mTenant->id)->latest()->first() : null;
+                            $mTenant = $apartment->tenants->sortByDesc('id')->first();
+                            $mRental = $mTenant ? $apartment->rentals->where('tenant_id', $mTenant->id)->sortByDesc('id')->first() : null;
                             $mRent = (float) ($mRental->rent_amount ?? $apartment->monthly_rent ?? 0);
                             $mSupervisor = ($mTenant?->manager ?? null) ?? $apartment->supervisor;
                             $mStatusText = match($apartment->status) {

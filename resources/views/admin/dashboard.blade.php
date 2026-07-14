@@ -360,6 +360,7 @@
 @push('scripts')
     <script>
     document.addEventListener('DOMContentLoaded', function () {
+    window.ensureChart().then(function () {
 
         // ── Payment Status Donuts ──
         var paid = {{ json_encode($stats['payments']['paid'] ?? 0) }};
@@ -437,6 +438,7 @@
             if (e.target.closest('.summary-card')) return;
             hideAll();
         });
+    });
     });
     </script>
     @endpush

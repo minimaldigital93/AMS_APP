@@ -24,6 +24,11 @@ class AppServiceProvider extends ServiceProvider
 
         // The active-property context is resolved at most once per request.
         $this->app->singleton(PropertyContext::class, fn () => new PropertyContext);
+
+        // Singleton so its per-request activeSubscription memo actually holds:
+        // the middleware gate, subscription-block composer and notification
+        // due-alert all resolve this service on every page.
+        $this->app->singleton(SubscriptionService::class, fn () => new SubscriptionService);
     }
 
     /**

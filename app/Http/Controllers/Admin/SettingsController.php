@@ -124,7 +124,7 @@ class SettingsController extends Controller
         ]);
 
         Settings::where('key', $request->key)->delete();
-        Cache::forget('setting.'.current_account_id().'.'.$request->key);
+        Settings::forgetCached($request->key);
 
         return redirect()->route('admin.settings.index')
             ->with('success', __('messages.setting_deleted'));
@@ -143,7 +143,7 @@ class SettingsController extends Controller
 
         Settings::query()->delete();
         foreach ($keys as $key) {
-            Cache::forget("setting.{$accountId}.{$key}");
+            Settings::forgetCached($key, $accountId);
         }
 
         return redirect()->route('admin.settings.index')

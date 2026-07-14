@@ -26,9 +26,21 @@ use Illuminate\Contracts\Auth\Authenticatable;
  */
 class SubscriptionService
 {
+    /**
+     * Per-request memo: the middleware gate, the subscription-block composer
+     * and the notification due-alert each look this up on every page — one
+     * query instead of three. Registered as a singleton, and subscription
+     * writes in this service clear it. May hold null (no active subscription).
+     */
+    private array $activeMemo = [];
+
     public function activeSubscription(int $accountId): ?Subscription
     {
-        return Subscription::query()
+        if (array_key_exists($accountId, $this->activeMemo)) {
+            return $this->activeMemo[$accountId];
+        }
+
+        return $this->activeMemo[$accountId] = Subscription::query()
             ->where('account_id', $accountId)
             ->whereIn('status', ['active', 'trialing'])
             ->where(function ($q) {
@@ -37,6 +49,12 @@ class SubscriptionService
             ->with('plan')
             ->latest('id')
             ->first();
+    }
+
+    /** Drop the memo for an account after any subscription write. */
+    public function forgetActiveMemo(int $accountId): void
+    {
+        unset($this->activeMemo[$accountId]);
     }
 
     /**
@@ -53,6 +71,8 @@ class SubscriptionService
         if ($existing?->trialUsed()) {
             throw new \RuntimeException(__('messages.trial_already_used'));
         }
+
+        $this->forgetActiveMemo($accountId);
 
         return Subscription::updateOrCreate(
             ['account_id' => $accountId],
@@ -93,6 +113,7 @@ class SubscriptionService
             'status' => $immediate ? SubscriptionStatus::Cancelled->value : $subscription->status,
             'expires_at' => $immediate ? now() : $subscription->expires_at,
         ])->save();
+        $this->forgetActiveMemo($accountId);
 
         app(AuditLogger::class)->record('subscription.cancelled', $subscription, [
             'reason' => $reason,
