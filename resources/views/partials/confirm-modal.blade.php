@@ -145,9 +145,19 @@
     });
     document.addEventListener('keydown', function (e) {
         var modal = el();
-        if (e.key === 'Escape' && modal && !modal.classList.contains('hidden')) {
+        if (!modal || modal.classList.contains('hidden')) return;
+        if (e.key === 'Escape') {
             pendingForm = null;
             close(false);
+            return;
+        }
+        // Focus trap: keep Tab cycling between the two modal buttons.
+        if (e.key === 'Tab') {
+            var focusables = [modal.querySelector('[data-confirm-cancel]'), modal.querySelector('[data-confirm-ok]')];
+            var idx = focusables.indexOf(document.activeElement);
+            e.preventDefault();
+            if (idx === -1) { focusables[1].focus(); return; }
+            focusables[(idx + 1) % 2].focus();
         }
     });
 })();

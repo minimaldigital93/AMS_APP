@@ -9,7 +9,7 @@
         </div>
         <div class="flex items-center gap-3">
             @if(!isset($periodMonths) || count($periodMonths) === 0)
-            <button @click="showForm = !showForm" aria-label="Toggle Add Expense"
+            <button @click="showForm = !showForm" aria-label="{{ __('messages.toggle_add_expense') }}"
                 class="inline-flex items-center justify-center w-10 h-10 rounded-lg transition"
                 :class="showForm ? 'bg-slate-100 text-slate-600' : 'bg-red-600 text-white hover:bg-red-700'">
                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
@@ -80,7 +80,7 @@
             @endif
         </div>
         <div class="flex-1 flex justify-center">
-            <button @click="showForm = !showForm" aria-label="Toggle Add Expense"
+            <button @click="showForm = !showForm" aria-label="{{ __('messages.toggle_add_expense') }}"
                 class="inline-flex items-center justify-center w-10 h-10 rounded-lg transition"
                 :class="showForm ? 'bg-slate-100 text-slate-600' : 'bg-red-600 text-white hover:bg-red-700'">
                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>

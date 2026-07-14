@@ -9,16 +9,19 @@ beforeEach(function () {
 });
 
 it('seeds the full premium theme catalog', function () {
-    expect(Theme::count())->toBe(10);
+    expect(Theme::count())->toBe(11);
     expect(Theme::pluck('slug')->all())->toEqualCanonicalizing([
         // The two originals + six premium style themes …
         'carbon-gray', 'platinum-silver', 'skeuomorphism', 'neomorphism',
         'glassmorphism', 'minimal', 'brutalism', 'bento',
-        // … plus the retained light tints.
+        // … the retained light tints …
         'light-blue', 'light-green',
+        // … and the dark theme (Phase 7 U6).
+        'midnight',
     ]);
-    // All offered themes are light (dark mode is a per-theme follow-up).
-    expect(Theme::pluck('mode')->unique()->all())->toBe(['light']);
+    // Midnight is the one dark theme; everything else stays light.
+    expect(Theme::where('mode', 'dark')->pluck('slug')->all())->toBe(['midnight']);
+    expect(Theme::where('mode', 'light')->count())->toBe(10);
 });
 
 it('emits structural tokens for the style themes', function () {

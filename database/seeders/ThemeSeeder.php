@@ -317,6 +317,37 @@ class ThemeSeeder extends Seeder
             //  Generous rounded "bento box" surfaces, soft tints and airy
             //  spacing — the skin behind the bento dashboard layout.
             // ============================================================
+            // ============================================================
+            //  THEME 9 — MIDNIGHT (dark mode)
+            //  Modern dark dashboard (Linear / Vercel): near-black canvas,
+            //  elevated graphite cards, bright indigo accent. The utility
+            //  remaps that make hardcoded light Tailwind classes readable
+            //  on dark surfaces live in theme.css under [data-theme=midnight].
+            // ============================================================
+            $this->theme(
+                slug: 'midnight',
+                name: 'Midnight',
+                description: 'Dark mode — near-black canvas, graphite cards and a bright indigo accent.',
+                mode: 'dark',
+                background: '#0F1115',
+                sidebar: '#15181E',
+                topbar: '#15181E',
+                card: '#1A1E26',
+                textPrimary: '#E5E7EB',
+                textSecondary: '#98A1B3',
+                accent: '#818CF8',
+                accentContrast: '#0F1115',
+                border: 'rgba(255,255,255,0.09)',
+                hover: 'rgba(255,255,255,0.05)',
+                active: 'rgba(255,255,255,0.09)',
+                ring: 'rgba(129,140,248,0.35)',
+                shadow: '0 6px 24px rgba(0,0,0,0.45)',
+                sortOrder: 85,
+                extra: [
+                    '--shadow-lg' => '0 18px 50px -12px rgba(0,0,0,0.65)',
+                ],
+            ),
+
             $this->theme(
                 slug: 'bento',
                 name: 'Bento Grid',

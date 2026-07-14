@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <meta name="csrf-token" content="{{ csrf_token() }}">
-    <title>{{ __('messages.admin_dashboard_title') }}</title>
+    <title>@yield('title', __('messages.admin_dashboard_title'))</title>
     <link rel="icon" type="image/svg+xml" href="{{ asset('favicon.svg') }}">
     @vite(['resources/css/app.css', 'resources/js/app.js'])
     @include('partials.theme-provider')
@@ -232,7 +232,7 @@
                     <button
                         @click="mobileOpen = false"
                         class="md:hidden p-2 hover:bg-gray-100 rounded-lg"
-                        aria-label="Close menu">
+                        aria-label="{{ __('messages.close_menu') }}">
                         <svg class="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
                         </svg>
@@ -297,6 +297,10 @@
                     // Escape closes the mobile drawer
                     if (e.key === 'Escape' && this.mobileOpen) {
                         this.mobileOpen = false;
+                        return;
+                    }
+                    // Never hijack arrow keys while the user is typing in a field
+                    if (e.target && e.target.closest && e.target.closest('input, textarea, select, [contenteditable]')) {
                         return;
                     }
                     // Left/Right arrow keys toggle the desktop sidebar (md+)

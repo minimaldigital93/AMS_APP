@@ -81,7 +81,7 @@
             <div class="bg-white shadow-lg h-full flex flex-col overflow-y-auto">
                 <div class="p-4 border-b border-gray-200 flex items-center justify-between">
                     <h2 class="font-bold text-xl text-indigo-700 sidebar-label" :class="{'md:hidden': isCollapsed}">
-                        My Portal
+                        {{ __('messages.my_portal') }}
                     </h2>
                     <button @click="toggleSidebar()"
                         class="hidden md:inline-flex p-2 hover:bg-gray-100 rounded-lg transition-all duration-300"
@@ -92,7 +92,7 @@
                     </button>
                     <button @click="mobileOpen = false"
                         class="md:hidden p-2 hover:bg-gray-100 rounded-lg"
-                        aria-label="Close menu">
+                        aria-label="{{ __('messages.close_menu') }}">
                         <svg class="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
                         </svg>
@@ -121,6 +121,7 @@
 
         <!-- Main Content -->
         <main class="flex-1 p-3 sm:p-4 md:p-6 lg:p-8 overflow-auto h-full w-full min-w-0">
+            @include('partials.flash')
             @yield('content')
             @include('partials.credit')
         </main>

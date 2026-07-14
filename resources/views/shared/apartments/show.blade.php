@@ -1,6 +1,6 @@
 @extends('layouts.'.$panel)
 
-@section('title', 'View Room')
+@section('title', __('messages.view_apartment'))
 
 @section('content')
 <div class="max-w-4xl mx-auto space-y-6">

@@ -3,8 +3,10 @@
 
     Deliberately self-contained: inline CSS, no @vite / compiled-asset or app-layout
     dependency, no DB/session/route lookups. An error page must render even when the
-    thing that broke is the build, the session, or the database. Text is plain English
-    on purpose so a broken translation cache can never leave a blank/garbled page.
+    thing that broke is the build, the session, or the database. Text uses JSON-style
+    __('English sentence') keys: the English literal in the file is the guaranteed
+    fallback (a missing/broken km.json can never blank or garble the page), while
+    Khmer users get the km.json translation when it loads.
 --}}
 <!DOCTYPE html>
 <html lang="{{ str_replace('_', '-', app()->getLocale()) }}">
@@ -60,8 +62,8 @@
         <p>@yield('message')</p>
         <div class="actions">
             @section('actions')
-                <a class="btn" href="{{ url('/') }}">Go to homepage</a>
-                <button class="btn ghost" type="button" onclick="location.reload()">Try again</button>
+                <a class="btn" href="{{ url('/') }}">{{ __('Go to homepage') }}</a>
+                <button class="btn ghost" type="button" onclick="location.reload()">{{ __('Try again') }}</button>
             @show
         </div>
     </div>

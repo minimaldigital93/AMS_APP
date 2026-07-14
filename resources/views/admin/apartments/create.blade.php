@@ -1,6 +1,6 @@
 @extends('layouts.admin')
 
-@section('title', 'Add Room')
+@section('title', __('messages.add_apartment'))
 
 @section('content')
 <div class="max-w-3xl mx-auto space-y-8">

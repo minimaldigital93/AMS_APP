@@ -8,12 +8,10 @@
     "Plans": "គម្រោង",
     "Switch to property view": "ប្តូរទៅទិដ្ឋភាពអចលនទ្រព្យ",
     "Log out": "ចាកចេញ",
-
     "Open": "បើក",
     "Closed": "បានបិទ",
     "Expired": "ផុតកំណត់",
     "Available": "ទំនេរ",
-
     "MRR": "ចំណូលប្រចាំខែ (MRR)",
     "ARR": "ចំណូលប្រចាំឆ្នាំ (ARR)",
     "Revenue this month": "ចំណូលខែនេះ",
@@ -22,40 +20,32 @@
     "this month": "ខែនេះ",
     "Active subscriptions": "ការជាវសកម្ម",
     "pending": "កំពុងរង់ចាំ",
-
     "New MRR": "ចំណូលប្រចាំខែថ្មី",
     "Churned MRR": "ចំណូលប្រចាំខែបាត់បង់",
     "Net MRR movement": "ចលនាចំណូលប្រចាំខែសុទ្ធ",
     "Churn rate": "អត្រាបាត់បង់",
-
     "Revenue by plan": "ចំណូលតាមគម្រោង",
     "last 12 months": "១២ ខែចុងក្រោយ",
     "Active plans": "គម្រោងសកម្ម",
     "New accounts": "គណនីថ្មី",
-
     "Subscription status": "ស្ថានភាពការជាវ",
     "Active": "សកម្ម",
     "Pending": "កំពុងរង់ចាំ",
     "Expired / cancelled": "ផុតកំណត់ / បានបោះបង់",
-
     "Account engagement": "ការចូលរួមរបស់គណនី",
     "logged in within 30 days": "បានចូលក្នុងរយៈពេល ៣០ ថ្ងៃ",
     "Dormant": "អសកម្ម",
     "Suspended": "ផ្អាក",
-
     "Platform capacity": "សមត្ថភាពប្រព័ន្ធ",
     "managed across all accounts": "គ្រប់គ្រងលើគ្រប់គណនី",
     "apartments": "បន្ទប់",
     "floors": "ជាន់",
     "occupancy": "អត្រាការកាន់កាប់",
     "occupied": "កំពុងជួល",
-
     "Top accounts by revenue": "គណនីកំពូលតាមចំណូល",
     "No revenue yet.": "មិនទាន់មានចំណូលទេ។",
-
     "Expiring within 7 days": "ផុតកំណត់ក្នុង ៧ ថ្ងៃ",
     "Nothing expiring soon. 🎉": "គ្មានអ្វីផុតកំណត់ឆាប់ៗនេះទេ។ 🎉",
-
     "Recent subscriptions": "ការជាវថ្មីៗ",
     "Account": "គណនី",
     "Plan": "គម្រោង",
@@ -64,7 +54,6 @@
     "Started": "បានចាប់ផ្តើម",
     "No subscriptions yet.": "មិនទាន់មានការជាវទេ។",
     "No subscriptions found.": "រកមិនឃើញការជាវទេ។",
-
     "Customer accounts": "គណនីអតិថិជន",
     "Every admin account on the platform.": "គណនីអ្នកគ្រប់គ្រងទាំងអស់នៅលើប្រព័ន្ធ។",
     "No accounts yet.": "មិនទាន់មានគណនីទេ។",
@@ -74,7 +63,6 @@
     "Disk usage": "ទំហំផ្ទុក",
     "No plan": "គ្មានគម្រោង",
     "Set plan": "កំណត់គម្រោង",
-
     "Actions": "សកម្មភាព",
     "Manage": "គ្រប់គ្រង",
     "Activate": "ធ្វើឱ្យសកម្ម",
@@ -84,11 +72,27 @@
     "Apply": "អនុវត្ត",
     "Cancel": "បោះបង់",
     "Save": "រក្សាទុក",
-
     "Display name": "ឈ្មោះបង្ហាញ",
     "Price (USD / month)": "តម្លៃ (USD / ខែ)",
     "Billing period (days)": "រយៈពេលវិក្កយបត្រ (ថ្ងៃ)",
     "Max floors": "ជាន់អតិបរមា",
     "Max apartments": "បន្ទប់អតិបរមា",
-    "Leave a cap blank for unlimited.": "ទុកឱ្យទទេសម្រាប់គ្មានកំណត់។"
+    "Leave a cap blank for unlimited.": "ទុកឱ្យទទេសម្រាប់គ្មានកំណត់។",
+    "Finance": "ហិរញ្ញវត្ថុ",
+    "Payments": "ការទូទាត់",
+    "Payment Settings": "ការកំណត់ការទូទាត់",
+    "Access denied": "ការចូលប្រើត្រូវបានបដិសេធ",
+    "You don't have permission to view this page. If you believe this is a mistake, contact your administrator.": "អ្នកមិនមានសិទ្ធិមើលទំព័រនេះទេ។ ប្រសិនបើអ្នកគិតថានេះជាកំហុស សូមទាក់ទងអ្នកគ្រប់គ្រងរបស់អ្នក។",
+    "Page not found": "រកទំព័រមិនឃើញ",
+    "The page you are looking for may have been moved, renamed, or never existed.": "ទំព័រដែលអ្នកកំពុងស្វែងរក ប្រហែលជាត្រូវបានផ្លាស់ទី ប្តូរឈ្មោះ ឬមិនធ្លាប់មាន។",
+    "Your session expired": "សម័យប្រើប្រាស់របស់អ្នកបានផុតកំណត់",
+    "For your security your session timed out. Please reload the page and sign in again.": "ដើម្បីសុវត្ថិភាពរបស់អ្នក សម័យប្រើប្រាស់បានផុតកំណត់។ សូមផ្ទុកទំព័រឡើងវិញ ហើយចូលម្តងទៀត។",
+    "Too many requests": "សំណើច្រើនពេក",
+    "You've made a lot of requests in a short time. Please wait a moment and try again.": "អ្នកបានធ្វើសំណើច្រើនក្នុងរយៈពេលខ្លី។ សូមរង់ចាំបន្តិច ហើយព្យាយាមម្តងទៀត។",
+    "Something went wrong": "មានបញ្ហាកើតឡើង",
+    "An unexpected error occurred on our side. The team has been notified. Please try again in a moment.": "មានកំហុសមិនរំពឹងទុកកើតឡើងនៅខាងយើង។ ក្រុមការងារត្រូវបានជូនដំណឹង។ សូមព្យាយាមម្តងទៀតបន្តិចទៀត។",
+    "Down for maintenance": "កំពុងថែទាំប្រព័ន្ធ",
+    "We're performing some maintenance and will be back shortly. Thanks for your patience.": "យើងកំពុងធ្វើការថែទាំប្រព័ន្ធ ហើយនឹងត្រឡប់មកវិញក្នុងពេលឆាប់ៗ។ អរគុណចំពោះការអត់ធ្មត់របស់អ្នក។",
+    "Go to homepage": "ទៅទំព័រដើម",
+    "Try again": "ព្យាយាមម្តងទៀត"
 }

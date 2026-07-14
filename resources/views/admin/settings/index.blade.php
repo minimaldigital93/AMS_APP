@@ -11,6 +11,16 @@
             <h1 class="text-3xl font-bold text-gray-900 tracking-tight">{{ __('messages.settings_title') }}</h1>
         </div>
 
+        @if ($errors->any())
+            <div class="rounded-lg bg-red-50 border border-red-200 text-red-800 px-4 py-3 text-sm" role="alert">
+                <ul class="list-disc list-inside space-y-0.5">
+                    @foreach ($errors->all() as $error)
+                        <li>{{ $error }}</li>
+                    @endforeach
+                </ul>
+            </div>
+        @endif
+
         @php
             // Minimal iOS-style line icon (SVG path) per setting key
             $rowIcons = [
@@ -127,7 +137,7 @@
                 <div class="bg-white rounded-xl shadow-sm overflow-hidden divide-y divide-gray-100"@if($category === 'system') x-data="{ currency: @js(settings('system_currency', 'USD')) }"@endif>
                     @foreach($categorySettings as $key => $defaultValue)
                     @php
-                        $currentValue = $settings->flatten()->firstWhere('key', $key)->value ?? $defaultValue;
+                        $currentValue = old("settings.$key", $settings->flatten()->firstWhere('key', $key)->value ?? $defaultValue);
                         $label = \Illuminate\Support\Facades\Lang::has('messages.' . $key)
                             ? __('messages.' . $key)
                             : ucwords(str_replace('_', ' ', substr($key, strlen($category) + 1)));

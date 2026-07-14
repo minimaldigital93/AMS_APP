@@ -7,7 +7,7 @@
             @click="mobileOpen = !mobileOpen"
             class="md:hidden inline-flex items-center justify-center p-2 rounded-lg text-token hover:bg-hover focus:outline-none focus:ring-2 focus:ring-token"
             :aria-expanded="mobileOpen.toString()"
-            aria-label="Toggle navigation">
+            aria-label="{{ __('messages.toggle_navigation') }}">
             <svg x-show="!mobileOpen" class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/>
             </svg>
@@ -85,7 +85,7 @@
                 aria-label="{{ __('messages.notifications') }}">
                 <span class="material-icons text-xl sm:text-2xl">notifications</span>
                 <template x-if="unread() > 0">
-                    <span class="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] px-1 inline-flex items-center justify-center text-[10px] font-bold leading-none text-white bg-red-500 rounded-full ring-2 ring-slate-900">
+                    <span class="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] px-1 inline-flex items-center justify-center text-[10px] font-bold leading-none text-white bg-red-500 rounded-full ring-2" style="--tw-ring-color: var(--topbar-bg);">
                         <span x-text="unread() > 9 ? '9+' : unread()"></span>
                     </span>
                 </template>

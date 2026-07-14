@@ -1305,4 +1305,11 @@ return [
     'theme_demo_active' => 'សកម្ម',
     'theme_demo_pending' => 'កំពុងរង់ចាំ',
     'theme_demo_overdue' => 'ហួសកំណត់',
+
+    // UI chrome (Phase 7 UI/UX audit)
+    'my_portal' => 'ផតថលរបស់ខ្ញុំ',
+    'close_menu' => 'បិទម៉ឺនុយ',
+    'toggle_navigation' => 'បើក/បិទការរុករក',
+    'dismiss' => 'បិទ',
+    'toggle_add_expense' => 'បើក/បិទទម្រង់បន្ថែមចំណាយ',
 ];

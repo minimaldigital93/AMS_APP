@@ -1,6 +1,6 @@
 @extends('layouts.admin')
 
-@section('title', 'Edit User')
+@section('title', __('messages.edit_user'))
 
 @section('content')
 <div class="space-y-6">

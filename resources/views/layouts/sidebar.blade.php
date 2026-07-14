@@ -397,7 +397,7 @@
 
     {{-- Property Management Section --}}
     <div class="mt-4">
-        <button @click="expandedSections['Property'] = !expandedSections['Property']" 
+        <button @click="expandedSections['Property'] = !expandedSections['Property']" :aria-expanded="expandedSections['Property'].toString()" 
                 class="section-header flex items-center justify-between w-full transition sidebar-transition">
             <span class="flex items-center gap-2.5">
                 <span class="section-icon">
@@ -444,7 +444,7 @@
 
     {{-- Tenant Management Section --}}
     <div class="mt-4">
-        <button @click="expandedSections['Tenant'] = !expandedSections['Tenant']" 
+        <button @click="expandedSections['Tenant'] = !expandedSections['Tenant']" :aria-expanded="expandedSections['Tenant'].toString()" 
                 class="section-header flex items-center justify-between w-full transition sidebar-transition">
             <span class="flex items-center gap-2.5">
                 <span class="section-icon">
@@ -494,7 +494,7 @@
 
     {{-- Revenue & Expense Section --}}
     <div class="mt-4">
-        <button @click="expandedSections['Revenue'] = !expandedSections['Revenue']" 
+        <button @click="expandedSections['Revenue'] = !expandedSections['Revenue']" :aria-expanded="expandedSections['Revenue'].toString()" 
                 class="section-header flex items-center justify-between w-full transition sidebar-transition">
             <span class="flex items-center gap-2.5">
                 <span class="section-icon">
@@ -570,7 +570,7 @@
 
     {{-- Settings Section (Fiscal Period, Billing, System Settings) --}}
     <div class="mt-4">
-        <button @click="expandedSections['Settings'] = !expandedSections['Settings']"
+        <button @click="expandedSections['Settings'] = !expandedSections['Settings']" :aria-expanded="expandedSections['Settings'].toString()"
                 class="section-header flex items-center justify-between w-full transition sidebar-transition {{ request()->routeIs('admin.fiscalperiod.*', 'admin.billing.*', 'admin.settings.*') ? 'text-blue-700' : '' }}">
             <span class="flex items-center gap-2.5">
                 <span class="section-icon">

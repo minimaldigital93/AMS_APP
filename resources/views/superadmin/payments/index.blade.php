@@ -12,6 +12,15 @@
     @if (session('error'))
         <div class="rounded-lg bg-red-50 border border-red-200 text-red-800 px-4 py-3 text-sm">{{ session('error') }}</div>
     @endif
+    @if ($errors->any())
+        <div class="rounded-lg bg-red-50 border border-red-200 text-red-800 px-4 py-3 text-sm">
+            <ul class="list-disc list-inside space-y-0.5">
+                @foreach ($errors->all() as $error)
+                    <li>{{ $error }}</li>
+                @endforeach
+            </ul>
+        </div>
+    @endif
 
     {{-- Subscription payment transactions --}}
     <div class="bg-white rounded-xl shadow-sm border border-gray-100">

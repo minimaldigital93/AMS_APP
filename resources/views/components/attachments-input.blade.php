@@ -34,7 +34,7 @@
         <template x-for="(f, i) in files" :key="i">
             <li class="flex items-center gap-2 text-sm bg-slate-50 rounded-lg px-3 py-1.5">
                 <template x-if="f.isImage">
-                    <img :src="f.previewUrl" class="h-8 w-8 object-cover rounded border border-slate-200">
+                    <img :src="f.previewUrl" alt="" class="h-8 w-8 object-cover rounded border border-slate-200">
                 </template>
                 <template x-if="!f.isImage">
                     <span class="h-8 w-8 flex items-center justify-center rounded bg-orange-50 text-orange-600 text-[10px] font-semibold">PDF</span>

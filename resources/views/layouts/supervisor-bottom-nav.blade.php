@@ -9,9 +9,14 @@
 
 <div class="md:hidden" x-data="{ sheet: null, toggle(s) { this.sheet = this.sheet === s ? null : s } }">
     <style>
+        /* Supervisor panel identity: emerald accent (--bn-accent); neutrals follow
+           the active theme's tokens so non-default themes carry through on phones. */
         .bn-bar {
+            --bn-accent: #059669;
             padding-bottom: env(safe-area-inset-bottom, 0px);
             box-shadow: 0 -4px 16px rgba(15, 23, 42, 0.08);
+            background: var(--topbar-bg);
+            border-top-color: var(--border-color);
         }
         .bn-item {
             display: flex;
@@ -21,17 +26,17 @@
             gap: 2px;
             flex: 1 1 0;
             padding: 8px 0 6px;
-            color: #64748b;
+            color: var(--text-secondary);
             font-size: 10px;
             line-height: 1.1;
             font-weight: 600;
             transition: color .2s ease, transform .15s ease;
         }
         .bn-item:active { transform: scale(0.92); }
-        .bn-item.active { color: #059669; }
+        .bn-item.active { color: var(--bn-accent, #059669); }
         .bn-item.active .bn-icon {
-            background: linear-gradient(135deg, rgba(16,185,129,.18) 0%, rgba(5,150,105,.16) 100%);
-            box-shadow: inset 0 0 0 1.5px rgba(16,185,129,.35);
+            background: color-mix(in srgb, var(--bn-accent, #059669) 16%, transparent);
+            box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--bn-accent, #059669) 35%, transparent);
         }
         .bn-icon {
             display: inline-flex;
@@ -50,13 +55,13 @@
             gap: 12px;
             padding: 12px 14px;
             border-radius: 14px;
-            color: #334155;
+            color: var(--text-primary);
             font-size: 14px;
             font-weight: 500;
             transition: background .2s ease;
         }
-        .bn-sheet-link:active { background: #f1f5f9; }
-        .bn-sheet-link.active { background: linear-gradient(135deg, rgba(16,185,129,.14) 0%, rgba(5,150,105,.12) 100%); color: #059669; }
+        .bn-sheet-link:active { background: var(--hover-bg); }
+        .bn-sheet-link.active { background: color-mix(in srgb, #059669 13%, transparent); color: #059669; }
         .bn-sheet-icon {
             display: inline-flex;
             align-items: center;
@@ -65,7 +70,7 @@
             height: 40px;
             border-radius: 12px;
             flex-shrink: 0;
-            background: linear-gradient(135deg, rgba(16,185,129,.14) 0%, rgba(5,150,105,.12) 100%);
+            background: color-mix(in srgb, #059669 13%, transparent);
             color: #059669;
         }
     </style>

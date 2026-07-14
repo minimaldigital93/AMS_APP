@@ -1,6 +1,6 @@
 @extends('layouts.'.$panel)
 
-@section('title', 'Floor Layout')
+@section('title', __('messages.floor_layout'))
 
 @section('content')
 <div class="max-w-6xl mx-auto space-y-6">

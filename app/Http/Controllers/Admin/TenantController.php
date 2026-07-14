@@ -21,6 +21,8 @@ use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Pagination\LengthAwarePaginator;
+use Illuminate\Pagination\Paginator;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -106,13 +108,35 @@ class TenantController extends Controller
                 ->orderBy('apartments.apartment_number')
                 ->orderBy('tenants.id', 'desc')
                 ->select('tenants.*');
-
-            $tenants = $query->paginate(15)->withQueryString();
         } else {
-            $tenants = $query->orderBy('id', 'desc')->paginate(15)->withQueryString();
+            $query->orderBy('tenants.id', 'desc');
         }
 
-        $rentProgressMap = $this->rentProgressCalculator->map($tenants);
+        // Rent-progress filter (paid / overdue / unpaid). Progress is computed,
+        // not stored, so the filter has to run over the full scoped set and be
+        // paginated manually — paginating first would only ever filter the
+        // visible page (accounts are building-scale, so this stays cheap).
+        $rentStatus = $request->input('rent_status');
+        if (in_array($rentStatus, ['paid', 'overdue', 'unpaid'], true)) {
+            $all = $query->get();
+            $rentProgressMap = $this->rentProgressCalculator->map($all);
+            $filtered = $all->filter(
+                fn ($t) => ($rentProgressMap[$t->id]['status'] ?? 'unknown') === $rentStatus
+            )->values();
+
+            $page = Paginator::resolveCurrentPage();
+            $tenants = new LengthAwarePaginator(
+                $filtered->forPage($page, 15)->values(),
+                $filtered->count(),
+                15,
+                $page,
+                ['path' => Paginator::resolveCurrentPath()],
+            );
+            $tenants->appends($request->query());
+        } else {
+            $tenants = $query->paginate(15)->withQueryString();
+            $rentProgressMap = $this->rentProgressCalculator->map($tenants);
+        }
 
         // Statistics counts (across all records, not just current page), scoped to
         // the effective property. Archived tenants have apartment_id cleared, so they

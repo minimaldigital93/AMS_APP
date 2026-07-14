@@ -17,13 +17,13 @@
     table.rtable tfoot { display: block; width: 100%; }
     table.rtable tr {
         display: block;
-        border: 1px solid #e2e8f0;
+        border: 1px solid var(--border-color, #e2e8f0);
         border-radius: 12px;
         padding: 4px 12px;
         margin-bottom: 10px;
-        background: #fff;
+        background: var(--card-bg, #fff);
     }
-    table.rtable tfoot tr { background: #f8fafc; }
+    table.rtable tfoot tr { background: var(--hover-bg, #f8fafc); }
     table.rtable td {
         display: flex;
         align-items: center;
@@ -35,7 +35,7 @@
         border: none !important;
         white-space: normal;
     }
-    table.rtable tr td:not(:last-child) { border-bottom: 1px solid #f1f5f9 !important; }
+    table.rtable tr td:not(:last-child) { border-bottom: 1px solid var(--border-color, #f1f5f9) !important; }
     table.rtable td::before {
         content: attr(data-label);
         font-weight: 600;
@@ -43,7 +43,7 @@
         line-height: 1.2;
         text-transform: uppercase;
         letter-spacing: .03em;
-        color: #94a3b8;
+        color: var(--text-secondary, #94a3b8);
         text-align: left;
         flex-shrink: 0;
     }

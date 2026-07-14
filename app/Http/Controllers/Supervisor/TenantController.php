@@ -21,6 +21,8 @@ use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Pagination\LengthAwarePaginator;
+use Illuminate\Pagination\Paginator;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -114,10 +116,34 @@ class TenantController extends Controller
             });
         }
 
-        $tenants = $query->orderBy('id', 'desc')->paginate(15);
-        $apartments = $this->supervisorVisibleApartments()->forActiveProperty()->with('floor')->get();
+        $query->orderBy('id', 'desc');
 
-        $rentProgressMap = $this->rentProgressCalculator->map($tenants, $activePeriod);
+        // Rent-progress filter (paid / overdue / unpaid) — same shape as the
+        // admin twin: progress is computed, not stored, so filter the full
+        // scoped set and paginate manually.
+        $rentStatus = $request->input('rent_status');
+        if (in_array($rentStatus, ['paid', 'overdue', 'unpaid'], true)) {
+            $all = $query->get();
+            $rentProgressMap = $this->rentProgressCalculator->map($all, $activePeriod);
+            $filtered = $all->filter(
+                fn ($t) => ($rentProgressMap[$t->id]['status'] ?? 'unknown') === $rentStatus
+            )->values();
+
+            $page = Paginator::resolveCurrentPage();
+            $tenants = new LengthAwarePaginator(
+                $filtered->forPage($page, 15)->values(),
+                $filtered->count(),
+                15,
+                $page,
+                ['path' => Paginator::resolveCurrentPath()],
+            );
+            $tenants->appends($request->query());
+        } else {
+            $tenants = $query->paginate(15)->withQueryString();
+            $rentProgressMap = $this->rentProgressCalculator->map($tenants, $activePeriod);
+        }
+
+        $apartments = $this->supervisorVisibleApartments()->forActiveProperty()->with('floor')->get();
 
         // Income summary for the fiscal period (scoped to supervisor's apartments)
         $paymentScope = fn ($q) => $q->whereIn('apartment_id', $apartmentIds);

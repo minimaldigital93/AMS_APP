@@ -1,12 +1,20 @@
 {
   "resources/css/app.css": {
-    "file": "assets/app-DaClI-2l.css",
+    "file": "assets/app-fOL--JEK.css",
     "src": "resources/css/app.css",
     "isEntry": true,
     "name": "app",
     "names": [
       "app.css"
     ]
+  },
+  "resources/fonts/figtree-latin-ext.woff2": {
+    "file": "assets/figtree-latin-ext-C5tEHAKb.woff2",
+    "src": "resources/fonts/figtree-latin-ext.woff2"
+  },
+  "resources/fonts/figtree-latin.woff2": {
+    "file": "assets/figtree-latin-CEHu_veL.woff2",
+    "src": "resources/fonts/figtree-latin.woff2"
   },
   "resources/fonts/material-icons.woff2": {
     "file": "assets/material-icons-kAwBdRge.woff2",

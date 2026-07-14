@@ -12,6 +12,9 @@
         .bn-bar {
             padding-bottom: env(safe-area-inset-bottom, 0px);
             box-shadow: 0 -4px 16px rgba(15, 23, 42, 0.08);
+            /* Theme-token chrome (out-specifies the Tailwind bg/border utilities). */
+            background: var(--topbar-bg);
+            border-top-color: var(--border-color);
         }
         .bn-item {
             display: flex;
@@ -21,17 +24,17 @@
             gap: 2px;
             flex: 1 1 0;
             padding: 8px 0 6px;
-            color: #64748b;
+            color: var(--text-secondary);
             font-size: 10px;
             line-height: 1.1;
             font-weight: 600;
             transition: color .2s ease, transform .15s ease;
         }
         .bn-item:active { transform: scale(0.92); }
-        .bn-item.active { color: #2563eb; }
+        .bn-item.active { color: var(--accent-color); }
         .bn-item.active .bn-icon {
-            background: linear-gradient(135deg, rgba(59,130,246,.18) 0%, rgba(99,102,241,.16) 100%);
-            box-shadow: inset 0 0 0 1.5px rgba(59,130,246,.35);
+            background: color-mix(in srgb, var(--accent-color) 16%, transparent);
+            box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--accent-color) 35%, transparent);
         }
         .bn-icon {
             display: inline-flex;
@@ -50,13 +53,13 @@
             gap: 12px;
             padding: 12px 14px;
             border-radius: 14px;
-            color: #334155;
+            color: var(--text-primary);
             font-size: 14px;
             font-weight: 500;
             transition: background .2s ease;
         }
-        .bn-sheet-link:active { background: #f1f5f9; }
-        .bn-sheet-link.active { background: linear-gradient(135deg, rgba(59,130,246,.14) 0%, rgba(99,102,241,.12) 100%); color: #2563eb; }
+        .bn-sheet-link:active { background: var(--hover-bg); }
+        .bn-sheet-link.active { background: color-mix(in srgb, var(--accent-color) 13%, transparent); color: var(--accent-color); }
         .bn-sheet-icon {
             display: inline-flex;
             align-items: center;
@@ -65,8 +68,8 @@
             height: 40px;
             border-radius: 12px;
             flex-shrink: 0;
-            background: linear-gradient(135deg, rgba(59,130,246,.14) 0%, rgba(99,102,241,.12) 100%);
-            color: #2563eb;
+            background: color-mix(in srgb, var(--accent-color) 13%, transparent);
+            color: var(--accent-color);
         }
     </style>
 

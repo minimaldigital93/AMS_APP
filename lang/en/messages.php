@@ -1305,4 +1305,11 @@ return [
     'theme_demo_active' => 'Active',
     'theme_demo_pending' => 'Pending',
     'theme_demo_overdue' => 'Overdue',
+
+    // UI chrome (Phase 7 UI/UX audit)
+    'my_portal' => 'My Portal',
+    'close_menu' => 'Close menu',
+    'toggle_navigation' => 'Toggle navigation',
+    'dismiss' => 'Dismiss',
+    'toggle_add_expense' => 'Toggle add expense form',
 ];

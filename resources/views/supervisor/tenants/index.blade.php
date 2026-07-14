@@ -55,16 +55,18 @@
 
         <!-- Tenants Table -->
         <div class="bg-white rounded-xl border border-slate-100 overflow-hidden">
-            <!-- Filter Bar -->
+            <!-- Filter Bar — server-side links so the filter spans every page,
+                 not just the visible one (the list is paginated server-side). -->
+            @php $activeRentStatus = request('rent_status'); @endphp
             <div class="px-4 sm:px-6 py-4 border-b border-slate-100 flex flex-wrap items-center gap-2">
-                <button @click="filter = 'all'" :class="filter === 'all' ? 'bg-slate-800 text-white' : 'bg-slate-50 text-slate-600 hover:bg-slate-100'"
-                    class="px-3 py-1.5 rounded-lg text-sm font-medium transition">{{ __('messages.all') }}</button>
-                <button @click="filter = 'paid'" :class="filter === 'paid' ? 'bg-emerald-600 text-white' : 'bg-slate-50 text-slate-600 hover:bg-slate-100'"
-                    class="px-3 py-1.5 rounded-lg text-sm font-medium transition">{{ __('messages.paid') }}</button>
-                <button @click="filter = 'overdue'" :class="filter === 'overdue' ? 'bg-red-600 text-white' : 'bg-slate-50 text-slate-600 hover:bg-slate-100'"
-                    class="px-3 py-1.5 rounded-lg text-sm font-medium transition">{{ __('messages.overdue') }}</button>
-                <button @click="filter = 'unpaid'" :class="filter === 'unpaid' ? 'bg-gray-800 text-white' : 'bg-slate-50 text-slate-600 hover:bg-slate-100'"
-                    class="px-3 py-1.5 rounded-lg text-sm font-medium transition">{{ __('messages.unpaid') }}</button>
+                <a href="{{ request()->fullUrlWithQuery(['rent_status' => null, 'page' => null]) }}"
+                    class="px-3 py-1.5 rounded-lg text-sm font-medium transition {{ ! $activeRentStatus ? 'bg-slate-800 text-white' : 'bg-slate-50 text-slate-600 hover:bg-slate-100' }}">{{ __('messages.all') }}</a>
+                <a href="{{ request()->fullUrlWithQuery(['rent_status' => 'paid', 'page' => null]) }}"
+                    class="px-3 py-1.5 rounded-lg text-sm font-medium transition {{ $activeRentStatus === 'paid' ? 'bg-emerald-600 text-white' : 'bg-slate-50 text-slate-600 hover:bg-slate-100' }}">{{ __('messages.paid') }}</a>
+                <a href="{{ request()->fullUrlWithQuery(['rent_status' => 'overdue', 'page' => null]) }}"
+                    class="px-3 py-1.5 rounded-lg text-sm font-medium transition {{ $activeRentStatus === 'overdue' ? 'bg-red-600 text-white' : 'bg-slate-50 text-slate-600 hover:bg-slate-100' }}">{{ __('messages.overdue') }}</a>
+                <a href="{{ request()->fullUrlWithQuery(['rent_status' => 'unpaid', 'page' => null]) }}"
+                    class="px-3 py-1.5 rounded-lg text-sm font-medium transition {{ $activeRentStatus === 'unpaid' ? 'bg-gray-800 text-white' : 'bg-slate-50 text-slate-600 hover:bg-slate-100' }}">{{ __('messages.unpaid') }}</a>
 
                 <!-- Floor dropdown (server-side filter) -->
                 <div class="ms-auto">
