@@ -471,10 +471,19 @@ class FiscalPeriodController extends Controller
             function () use ($fiscalperiod, $balanceSheetItems, $summary, $periodFinancials, $scopeLabel) {
                 $file = fopen('php://output', 'w');
 
+                // Formula-injection guard: a user-entered value starting with
+                // = + - @ (or tab/CR) executes as a formula when the CSV is
+                // opened in Excel/Sheets. Prefixing with ' forces plain text.
+                $safe = function ($value) {
+                    $value = (string) $value;
+
+                    return preg_match('/^[=+\-@\t\r]/', $value) ? "'".$value : $value;
+                };
+
                 fputcsv($file, [
-                    'Fiscal Period: '.$fiscalperiod->name,
+                    'Fiscal Period: '.$safe($fiscalperiod->name),
                     'Period: '.$fiscalperiod->opening_date.' to '.$fiscalperiod->closing_date,
-                    'Property: '.$scopeLabel,
+                    'Property: '.$safe($scopeLabel),
                     'Generated: '.now()->format('Y-m-d H:i:s'),
                 ]);
 
@@ -497,11 +506,11 @@ class FiscalPeriodController extends Controller
                     fputcsv($file, [
                         ucfirst($item->item_type),
                         ucfirst(str_replace('_', ' ', $item->sub_type)),
-                        $item->name,
+                        $safe($item->name),
                         number_format($item->amount, 2, '.', ''),
                         $item->as_of_date,
-                        $item->reference_number,
-                        $item->notes,
+                        $safe($item->reference_number),
+                        $safe($item->notes),
                     ]);
                 }
 

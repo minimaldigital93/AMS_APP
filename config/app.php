@@ -78,7 +78,14 @@ return [
     |
     */
 
-    'timezone' => 'UTC',
+    /*
+     * Cambodia (ICT, UTC+7) — the business's wall clock. Under UTC every
+     * now()-derived date flipped at 7:00 AM local, so a payment recorded
+     * early on the 1st booked its ledger row into the previous month
+     * (2026-07 Phase 13 audit). Datetimes stored before 2026-07-15 were
+     * written as UTC wall-clock and display +7h since the switch.
+     */
+    'timezone' => 'Asia/Phnom_Penh',
 
     /*
     |--------------------------------------------------------------------------
