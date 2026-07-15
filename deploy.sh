@@ -30,6 +30,11 @@ echo "    CACHE_VERSION = ${SW_VERSION}"
 echo "==> Running migrations"
 php artisan migrate --force
 
+echo "==> Syncing theme catalog"
+# Upserts by slug and prunes removed slugs — safe to re-run every deploy.
+# Without this the droplet never receives new themes (e.g. Midnight, Phase 7).
+php artisan db:seed --class=ThemeSeeder --force
+
 echo "==> Rebuilding caches"
 php artisan config:cache
 php artisan route:cache
