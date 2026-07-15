@@ -45,16 +45,22 @@ Route::post('/khqr/callback', KhqrCallbackController::class)
     ->middleware('throttle:60,1')
     ->name('khqr.callback');
 
-// Language Switch Route
+// Language Switch Route — guest-accessible so the login page can be switched
+// to Khmer before signing in. Guests only get the session locale; the account
+// setting persists only when authenticated (SetLocale reads session first).
 Route::post('/language/switch', function (\Illuminate\Http\Request $request) {
     $locale = $request->input('locale');
     if (in_array($locale, ['en', 'km'])) {
         session(['locale' => $locale]);
-        \App\Models\Settings::set('app_locale', $locale);
+        if (auth()->check()) {
+            \App\Models\Settings::set('app_locale', $locale);
+        }
     }
 
-    return redirect()->back()->with('success', __('messages.language_changed'));
-})->name('language.switch')->middleware('auth');
+    return auth()->check()
+        ? redirect()->back()->with('success', __('messages.language_changed'))
+        : redirect()->back();
+})->name('language.switch')->middleware('throttle:30,1');
 
 // Global active-property context switch (top-bar selector). Authorization is
 // enforced inside PropertyContext::setActiveProperty().

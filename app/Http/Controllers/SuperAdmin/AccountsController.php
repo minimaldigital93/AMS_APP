@@ -306,7 +306,9 @@ class AccountsController extends Controller
         $password = Str::random(10);
         $account->forceFill(['password' => Hash::make($password)])->save();
 
-        return back()->with('success', __('messages.flash_account_password_reset', [
+        // Sticky: the message contains the new password — it must stay on
+        // screen until it has been copied (plain 'success' auto-dismisses).
+        return back()->with('success_sticky', __('messages.flash_account_password_reset', [
             'name' => $account->name,
             'password' => $password,
         ]));

@@ -1092,5 +1092,6 @@ return [
     'close_menu' => 'Close menu',
     'toggle_navigation' => 'Toggle navigation',
     'dismiss' => 'Dismiss',
+    'remember_me' => 'Remember me',
     'toggle_add_expense' => 'Toggle add expense form',
 ];

@@ -1,7 +1,10 @@
 {{-- Centralized flash messages. Success pops once and auto-dismisses; errors and
-     warnings persist until the user dismisses them so they can't be missed. --}}
+     warnings persist until the user dismisses them so they can't be missed.
+     success_sticky = success styling without the auto-dismiss — for messages the
+     user must copy from (e.g. a freshly reset password). --}}
 @php($flashStyles = [
     'success' => ['classes' => 'border-green-300 bg-green-50 text-green-800', 'autoDismiss' => true],
+    'success_sticky' => ['classes' => 'border-green-300 bg-green-50 text-green-800', 'autoDismiss' => false],
     'error' => ['classes' => 'border-red-300 bg-red-50 text-red-800', 'autoDismiss' => false],
     'warning' => ['classes' => 'border-yellow-300 bg-yellow-50 text-yellow-800', 'autoDismiss' => false],
 ])

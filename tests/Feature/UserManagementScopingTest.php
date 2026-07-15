@@ -105,7 +105,7 @@ it('resets a team member password to a random value, not the old fixed default',
 
     $this->actingAs($this->adminA)
         ->post(route('admin.users.reset-password', $ownSupervisor))
-        ->assertSessionHas('success');
+        ->assertSessionHas('success_sticky');
 
     expect(Hash::check('12345678', $ownSupervisor->fresh()->password))->toBeFalse();
 });

@@ -1092,5 +1092,6 @@ return [
     'close_menu' => 'បិទម៉ឺនុយ',
     'toggle_navigation' => 'បើក/បិទការរុករក',
     'dismiss' => 'បិទ',
+    'remember_me' => 'ចងចាំខ្ញុំ',
     'toggle_add_expense' => 'បើក/បិទទម្រង់បន្ថែមចំណាយ',
 ];

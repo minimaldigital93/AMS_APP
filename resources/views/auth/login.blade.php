@@ -82,6 +82,16 @@
                 </div>
             </div>
         </div>
+
+        {{-- Language toggle — guests can switch the login page to Khmer --}}
+        <form method="POST" action="{{ route('language.switch') }}"
+              class="fixed top-4 left-4 z-40 inline-flex items-center rounded-full bg-white/90 p-1 text-xs font-semibold shadow-lg ring-1 ring-black/5 backdrop-blur">
+            @csrf
+            <button type="submit" name="locale" value="en"
+                    class="rounded-full px-3 py-1.5 {{ app()->getLocale() === 'en' ? 'bg-indigo-600 text-white' : 'text-gray-500 hover:text-gray-800' }}">EN</button>
+            <button type="submit" name="locale" value="km"
+                    class="rounded-full px-3 py-1.5 {{ app()->getLocale() === 'km' ? 'bg-indigo-600 text-white' : 'text-gray-500 hover:text-gray-800' }}">ខ្មែរ</button>
+        </form>
     @endpush
 
     <!-- Session Status -->
@@ -111,7 +121,14 @@
             <x-input-error :messages="$errors->get('password')" class="mt-2" />
         </div>
 
-    
+        <!-- Remember Me — LoginRequest already honors this flag -->
+        <div class="mt-4">
+            <label for="remember_me" class="inline-flex items-center gap-2 cursor-pointer">
+                <input id="remember_me" type="checkbox" name="remember"
+                       class="rounded border-gray-300 text-indigo-600 shadow-sm focus:ring-indigo-500">
+                <span class="text-sm text-gray-600">{{ __('messages.remember_me') }}</span>
+            </label>
+        </div>
 
         <div class="flex justify-end mt-6">
             <x-primary-button class="login-btn w-full justify-center sm:w-auto rounded-xl">
