@@ -36,8 +36,10 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        // Force HTTPS in production or when FORCE_HTTPS is enabled
-        if ($this->app->environment('production') || env('FORCE_HTTPS', false)) {
+        // Force HTTPS in production or when FORCE_HTTPS is enabled. Read via
+        // config (not env()) — env() returns null under config:cache, which is
+        // how both the live host and deploy.sh run.
+        if ($this->app->environment('production') || config('app.force_https')) {
             URL::forceScheme('https');
         }
 

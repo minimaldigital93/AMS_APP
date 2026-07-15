@@ -1713,7 +1713,11 @@ abstract class RevenueExpenseController extends Controller
                 return $pdf->download($filename);
             }
         } catch (\Exception $e) {
-            // Fall through to HTML view
+            // Fall through to the printable HTML view — but leave a trace, the
+            // user asked for a PDF and got a page instead.
+            \Illuminate\Support\Facades\Log::warning('Apartment summary PDF failed, served HTML fallback', [
+                'error' => $e->getMessage(),
+            ]);
         }
 
         return response()->view($this->viewName('apartment_summary_pdf'), $this->panelViewData(compact('perApartment', 'activePeriod', 'start', 'end', 'summaryOnly', 'wholeNumbers')));

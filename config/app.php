@@ -30,6 +30,19 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Force HTTPS
+    |--------------------------------------------------------------------------
+    |
+    | Forces every generated URL onto https even outside the production
+    | environment (used behind the Cloudflare tunnel). Must live in config —
+    | env() calls outside config/ return null once config:cache has run.
+    |
+    */
+
+    'force_https' => (bool) env('FORCE_HTTPS', false),
+
+    /*
+    |--------------------------------------------------------------------------
     | Application Debug Mode
     |--------------------------------------------------------------------------
     |

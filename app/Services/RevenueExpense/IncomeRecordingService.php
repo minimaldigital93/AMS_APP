@@ -8,6 +8,7 @@ use App\Models\Payments;
 use App\Models\Rentals;
 use App\Models\Utilities;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 /**
  * Write-side service for income recording — single payments, bulk rent runs,
@@ -221,14 +222,18 @@ class IncomeRecordingService
         }
 
         // Best-effort: drop any Accounts row that referenced this charge before
-        // payment (older code path). Failure is non-fatal.
+        // payment (older code path). Failure is non-fatal but must leave a
+        // trace — this is ledger data.
         try {
             Accounts::where('reference_number', 'tenant_charge:'.$charge->id)
                 ->whereNull('payment_id')
                 ->where('user_id', $this->userId)
                 ->delete();
         } catch (\Throwable $e) {
-            // not fatal
+            Log::warning('Ledger cleanup for deleted tenant charge failed', [
+                'charge_id' => $charge->id,
+                'error' => $e->getMessage(),
+            ]);
         }
 
         $charge->delete();
@@ -253,7 +258,10 @@ class IncomeRecordingService
                         ->where('user_id', $this->userId)
                         ->delete();
                 } catch (\Throwable $e) {
-                    // not fatal
+                    Log::warning('Ledger cleanup for cleared tenant charge failed', [
+                        'charge_id' => $charge->id,
+                        'error' => $e->getMessage(),
+                    ]);
                 }
                 $charge->delete();
             }

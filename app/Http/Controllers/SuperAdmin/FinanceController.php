@@ -95,7 +95,11 @@ class FinanceController extends Controller
                 return \PDF::loadView('superadmin.finance.income-statement-pdf', $data)->download($fileName);
             }
         } catch (\Throwable $e) {
-            // Fall through to HTML view.
+            // Fall through to the printable HTML view — but leave a trace, the
+            // user asked for a PDF and got a page instead.
+            \Illuminate\Support\Facades\Log::warning('Income statement PDF failed, served HTML fallback', [
+                'error' => $e->getMessage(),
+            ]);
         }
 
         return response()->view('superadmin.finance.income-statement-pdf', $data);
