@@ -482,12 +482,12 @@ class FiscalPeriodController extends Controller
                 fputcsv($file, []);
                 fputcsv($file, ['INCOME STATEMENT (Property: '.$scopeLabel.')']);
                 fputcsv($file, ['Account', 'Amount']);
-                fputcsv($file, ['Rent Income',   number_format($periodFinancials['rent_income'], 2)]);
-                fputcsv($file, ['Late Fees',     number_format($periodFinancials['late_fees'], 2)]);
-                fputcsv($file, ['Other Income',  number_format($periodFinancials['other_income'], 2)]);
-                fputcsv($file, ['Total Revenue', number_format($periodFinancials['total_income'], 2)]);
-                fputcsv($file, ['Total Expenses', number_format($periodFinancials['total_expenses'], 2)]);
-                fputcsv($file, ['Net Income',    number_format($periodFinancials['net_income'], 2)]);
+                fputcsv($file, ['Rent Income',   number_format($periodFinancials['rent_income'], 2, '.', '')]);
+                fputcsv($file, ['Late Fees',     number_format($periodFinancials['late_fees'], 2, '.', '')]);
+                fputcsv($file, ['Other Income',  number_format($periodFinancials['other_income'], 2, '.', '')]);
+                fputcsv($file, ['Total Revenue', number_format($periodFinancials['total_income'], 2, '.', '')]);
+                fputcsv($file, ['Total Expenses', number_format($periodFinancials['total_expenses'], 2, '.', '')]);
+                fputcsv($file, ['Net Income',    number_format($periodFinancials['net_income'], 2, '.', '')]);
 
                 fputcsv($file, []);
                 fputcsv($file, ['BALANCE SHEET ITEMS (account-wide)']);
@@ -498,7 +498,7 @@ class FiscalPeriodController extends Controller
                         ucfirst($item->item_type),
                         ucfirst(str_replace('_', ' ', $item->sub_type)),
                         $item->name,
-                        number_format($item->amount, 2),
+                        number_format($item->amount, 2, '.', ''),
                         $item->as_of_date,
                         $item->reference_number,
                         $item->notes,
@@ -507,11 +507,11 @@ class FiscalPeriodController extends Controller
 
                 fputcsv($file, []);
                 fputcsv($file, ['BALANCE SHEET SUMMARY (account-wide)']);
-                fputcsv($file, ['Total Assets',     number_format($summary['total_assets'], 2)]);
-                fputcsv($file, ['Total Liabilities', number_format($summary['total_liabilities'], 2)]);
-                fputcsv($file, ['Total Equity',     number_format($summary['total_equity'], 2)]);
-                fputcsv($file, ['Opening Balance',  number_format($fiscalperiod->opening_balance, 2)]);
-                fputcsv($file, ['Closing Balance',  number_format($fiscalperiod->closing_balance, 2)]);
+                fputcsv($file, ['Total Assets',     number_format($summary['total_assets'], 2, '.', '')]);
+                fputcsv($file, ['Total Liabilities', number_format($summary['total_liabilities'], 2, '.', '')]);
+                fputcsv($file, ['Total Equity',     number_format($summary['total_equity'], 2, '.', '')]);
+                fputcsv($file, ['Opening Balance',  number_format($fiscalperiod->opening_balance, 2, '.', '')]);
+                fputcsv($file, ['Closing Balance',  number_format($fiscalperiod->closing_balance, 2, '.', '')]);
 
                 fclose($file);
             },

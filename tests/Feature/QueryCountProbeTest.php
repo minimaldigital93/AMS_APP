@@ -65,6 +65,7 @@ it('keeps page query counts free of N+1 regressions', function () {
     });
 
     $ceilings = [
+        'admin.dashboard' => 80,
         'admin.tenants.index' => 60,
         'admin.floors.index' => 25,
         'admin.properties.index' => 20,

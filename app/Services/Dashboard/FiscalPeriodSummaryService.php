@@ -83,14 +83,20 @@ class FiscalPeriodSummaryService
 
     /**
      * GROUP BY (year, month) aggregation for the embedded chart series.
+     * Driver-aware: YEAR()/MONTH() are MySQL-only and made the dashboards
+     * un-renderable (500) on the SQLite test database.
      */
     private function monthlyTotals(FiscalPeriods $period, string $type): array
     {
+        [$yearExpr, $monthExpr] = $this->scopedAccountsQuery($period)->getConnection()->getDriverName() === 'sqlite'
+            ? ["CAST(strftime('%Y', transaction_date) AS INTEGER)", "CAST(strftime('%m', transaction_date) AS INTEGER)"]
+            : ['YEAR(transaction_date)', 'MONTH(transaction_date)'];
+
         $rows = $this->scopedAccountsQuery($period)
             ->where('account_type', $type)
-            ->selectRaw('YEAR(transaction_date) as year, MONTH(transaction_date) as month, SUM(amount) as total')
-            ->groupByRaw('YEAR(transaction_date), MONTH(transaction_date)')
-            ->orderByRaw('YEAR(transaction_date), MONTH(transaction_date)')
+            ->selectRaw("{$yearExpr} as year, {$monthExpr} as month, SUM(amount) as total")
+            ->groupByRaw("{$yearExpr}, {$monthExpr}")
+            ->orderByRaw("{$yearExpr}, {$monthExpr}")
             ->get();
 
         $result = [];

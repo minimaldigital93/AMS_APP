@@ -23,9 +23,10 @@ function makeOwner(string $role): User
     return $u;
 }
 
-// Pages that don't depend on MySQL-only YEAR()/MONTH() fiscal aggregation,
-// so they're safe to assert "no server error" on the SQLite test DB.
+// Every page must render without a server error on the SQLite test DB — the
+// dashboard's month aggregation is driver-aware since the Phase 11 fixes.
 const NON_FISCAL_PAGES = [
+    '/supervisor/dashboard',
     '/supervisor/apartments',
     '/supervisor/tenants',
     '/supervisor/settings',
