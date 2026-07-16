@@ -6,7 +6,7 @@
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>@yield('title', __('messages.admin_dashboard_title'))</title>
     <link rel="icon" type="image/svg+xml" href="{{ asset('favicon.svg') }}">
-    @vite(['resources/css/app.css', 'resources/js/app.js'])
+    @vite(['resources/css/app.css', 'resources/css/print.css', 'resources/js/app.js'])
     @include('partials.theme-provider')
     <style>
         /* Sidebar animations and styling */
@@ -64,16 +64,9 @@
             .sidebar-container .sidebar-label { opacity: 1 !important; width: auto !important; overflow: visible !important; margin: inherit !important; }
         }
 
-        /* Printing: only the page content prints — app chrome is hidden and the
-           scroll containers are unclipped so multi-page documents paginate. */
-        .print-only { display: none; }
-        @media print {
-            #topbarNav, .sidebar-container, .no-print { display: none !important; }
-            body { display: block; height: auto; overflow: visible; background: #fff; }
-            body > div.overflow-hidden { display: block; overflow: visible !important; }
-            main { display: block; overflow: visible !important; height: auto !important; padding: 0 !important; }
-            .print-only { display: block; }
-        }
+        /* Print styles live in resources/css/print.css — the global A4 print
+           system (chrome hiding, pagination, table rules); it is loaded as a
+           Vite entry in the head above. */
 
         .sidebar-collapse-button {
             transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);

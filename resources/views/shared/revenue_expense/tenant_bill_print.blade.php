@@ -249,6 +249,10 @@
             .no-print {
                 display: none !important;
             }
+            /* Repeat column headers on every page; never split a row. */
+            thead { display: table-header-group; }
+            tfoot { display: table-footer-group; }
+            tr { page-break-inside: avoid; }
             @page {
                 margin: 10mm;
                 size: A4;

@@ -1707,7 +1707,7 @@ abstract class RevenueExpenseController extends Controller
         try {
             if (class_exists('\\Barryvdh\\DomPDF\\Facade') || class_exists('\\PDF')) {
                 $forPdf = true;
-                $pdf = \PDF::loadView($this->viewName('apartment_summary_pdf'), $this->panelViewData(compact('perApartment', 'activePeriod', 'start', 'end', 'summaryOnly', 'wholeNumbers', 'forPdf')));
+                $pdf = \PDF::loadView($this->viewName('apartment_summary_pdf'), $this->panelViewData(compact('perApartment', 'activePeriod', 'start', 'end', 'summaryOnly', 'wholeNumbers', 'forPdf')))->setPaper('a4');
                 $filename = 'apartment-summary-'.now()->format('Y-m-d').'.pdf';
 
                 return $pdf->download($filename);

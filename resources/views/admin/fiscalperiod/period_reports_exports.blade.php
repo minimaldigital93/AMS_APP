@@ -8,15 +8,17 @@
     $propertyScopeLabel = $selectedProperty?->name ?? __('messages.all_properties_consolidated');
 @endphp
 <div class="container mx-auto py-8" x-data="{ activeTab: 'overview' }">
-    {{-- Print letterhead: business name & contact from Settings --}}
-    <div class="print-only">
-        @include('partials.business_header')
-        <div style="text-align:center; margin-bottom:16px;">
-            <div style="font-size:16px; font-weight:700; color:#111827;">{{ __('messages.reports_exports') }} &mdash; {{ $fiscalperiod->name }}</div>
-            <div style="font-size:11px; color:#6b7280; margin-top:2px;">{{ $fiscalperiod->opening_date?->format('M j, Y') }} &mdash; {{ $fiscalperiod->closing_date?->format('M j, Y') ?? __('messages.current') }}</div>
-            <div style="font-size:11px; color:#374151; margin-top:2px; font-weight:600;">{{ __('messages.viewing_property', ['name' => $propertyScopeLabel]) }}</div>
-        </div>
-    </div>
+    {{-- Print letterhead. Landscape: the monthly income-statement matrix and
+         the cash-flow table have too many columns for portrait A4. Only the
+         active tab prints (inactive tabs carry Alpine's inline display:none). --}}
+    <x-print.report-header
+        :landscape="true"
+        :title="__('messages.reports_exports')"
+        :subtitle="$fiscalperiod->opening_date?->format('M j, Y').' — '.($fiscalperiod->closing_date?->format('M j, Y') ?? __('messages.current'))"
+        :meta="[
+            __('messages.fiscal_period') => $fiscalperiod->name,
+            __('messages.property') => $propertyScopeLabel,
+        ]" />
 
     <!-- Header -->
     <div class="flex items-start justify-between mb-6 gap-4 no-print">
@@ -30,11 +32,10 @@
                  breakdown. Exports inherit that same active-property context. --}}
             <a href="{{ route('admin.fiscalperiod.exportCSV', $fiscalperiod->id) }}" class="text-sm bg-gray-100 text-gray-700 px-3 py-2 rounded-lg hover:bg-gray-200 flex items-center gap-1.5" title="{{ __('messages.export_csv') }}">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg></a>
-            <a href="{{ route('admin.fiscalperiod.exportPDF', $fiscalperiod->id) }}" target="_blank" class="text-sm bg-gray-100 text-gray-700 px-3 py-2 rounded-lg hover:bg-gray-200 flex items-center gap-1.5" title="{{ __('messages.print_annual_summary_pdf') }}">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 13h6M9 17h3"/></svg></a>
             <button onclick="window.print()" class="text-sm bg-gray-700 text-white px-3 py-2 rounded-lg hover:bg-gray-800 flex items-center gap-1.5" title="{{ __('messages.print') }}">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg></button>
-            <a href="{{ route('admin.fiscalperiod.show', $fiscalperiod->id) }}" class="text-sm bg-gray-100 text-gray-700 px-3 py-2 rounded-lg hover:bg-gray-200">← Back</a>
+            <a href="{{ route('admin.fiscalperiod.show', $fiscalperiod->id) }}" class="text-sm bg-gray-100 text-gray-700 px-3 py-2 rounded-lg hover:bg-gray-200 flex items-center" title="{{ __('messages.back') }}">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/></svg></a>
         </div>
     </div>
 
@@ -487,7 +488,7 @@
                 <h2 class="text-xl font-bold">{{ __('messages.monthly_breakdown') }}</h2>
                 <p class="text-sm text-gray-500">{{ __('messages.month_by_month') }}</p>
             </div>
-            <a href="{{ route('admin.fiscalperiod.show', $fiscalperiod->id) }}" class="text-sky-600 text-sm font-semibold hover:underline">
+            <a href="{{ route('admin.fiscalperiod.show', $fiscalperiod->id) }}" class="text-sky-600 text-sm font-semibold hover:underline no-print">
                 Manage Monthly Periods →
             </a>
         </div>
@@ -545,10 +546,7 @@
             <div class="text-center py-8 text-gray-500">{{ __('messages.no_monthly_periods') }}</div>
         @endif
     </div>
-</div>
 
-<style media="print">
-    .no-print { display: none !important; }
-    [x-cloak] { display: block !important; }
-</style>
+    <x-print.report-footer />
+</div>
 @endsection

@@ -248,6 +248,7 @@ Tests: `tests/Feature/{Auth,Payment,Subscription,SuperAdmin,FiscalPeriod,Middlew
 - Use Eloquent relationships over raw SQL.
 - User-facing strings go through `__()` / `lang/`; both `en` and `km` need entries.
 - Shared Blade layouts: `resources/views/layouts/`. Components: `resources/views/components/`. Partials: `resources/views/partials/`.
+- **Printing**: every panel layout loads `resources/css/print.css` — the global A4 `@media print` system (hides app chrome via element selectors + `.no-print`, un-clips scroll containers, repeats `thead` per page, keeps rows/totals unsplit, undoes the `rtable` mobile card view). Report letterheads/footers come from `<x-print.report-header>` / `<x-print.report-footer>` (`resources/views/components/print/`, inline-styled so they also render in Dompdf): pass `landscape` on wide reports and `screen` in standalone printable documents. Never say `@vite` inside a Blade comment or inline CSS — Blade compiles the directive anywhere, including comments.
 - `AuditLogger::record()` never throws — an audit-write failure must not roll back the money action it records.
 - **Do not add a "Fixed Monthly Costs" summary card** to the break-even page (`shared/revenue_expense/break_even.blade.php`) — it has been removed intentionally more than once.
 - `Subscription` is intentionally NOT `BelongsToAccount`-scoped — do not add it.

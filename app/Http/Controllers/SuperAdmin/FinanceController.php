@@ -92,7 +92,7 @@ class FinanceController extends Controller
         // Use Dompdf when available; otherwise fall back to a printable HTML view.
         try {
             if (class_exists('\\Barryvdh\\DomPDF\\Facade\\Pdf') || class_exists('\\PDF')) {
-                return \PDF::loadView('superadmin.finance.income-statement-pdf', $data)->download($fileName);
+                return \PDF::loadView('superadmin.finance.income-statement-pdf', $data)->setPaper('a4')->download($fileName);
             }
         } catch (\Throwable $e) {
             // Fall through to the printable HTML view — but leave a trace, the

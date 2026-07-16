@@ -6,14 +6,14 @@
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>{{ __('Platform') }} · AMS</title>
     <link rel="icon" type="image/svg+xml" href="{{ asset('favicon.svg') }}">
-    @vite(['resources/css/app.css', 'resources/js/app.js'])
+    @vite(['resources/css/app.css', 'resources/css/print.css', 'resources/js/app.js'])
     @include('partials.theme-provider')
     <style>[x-cloak]{display:none !important;}</style>
     @include('partials.pwa-head')
 </head>
 <body class="min-h-screen bg-gray-100 text-gray-900">
     <!-- Mobile top bar (brand only — navigation lives in the bottom bar) -->
-    <div class="sticky top-0 z-40 flex items-center gap-3 bg-gray-900 px-4 py-3 text-gray-100 md:hidden">
+    <div class="no-print sticky top-0 z-40 flex items-center gap-3 bg-gray-900 px-4 py-3 text-gray-100 md:hidden">
         <span class="text-base font-bold tracking-tight">AMS <span class="text-indigo-400">Platform</span></span>
     </div>
 
@@ -54,7 +54,7 @@
             @yield('content')
             @include('partials.credit')
             {{-- Spacer so content clears the mobile bottom navigation --}}
-            <div class="h-20 md:hidden" aria-hidden="true"></div>
+            <div class="h-20 md:hidden no-print" aria-hidden="true"></div>
         </main>
     </div>
 

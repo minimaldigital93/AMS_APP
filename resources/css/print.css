@@ -1,0 +1,232 @@
+/* =============================================================================
+   Global print stylesheet — loaded by every panel layout (admin, supervisor,
+   superadmin, tenant).
+
+   Goal: printing ANY app page yields a clean A4 accounting document — only the
+   page content prints. The application shell (top bar, sidebars, bottom navs,
+   buttons, filters, pagination, modals, toasts) is stripped, scroll containers
+   are un-clipped so multi-page documents paginate, and tables get
+   accounting-grade pagination rules (repeated headers, unsplit rows).
+
+   Reports add a letterhead/footer via the <x-print.report-header> and
+   <x-print.report-footer> components (resources/views/components/print/).
+   Wide reports switch to landscape with <x-print.report-header landscape>,
+   which emits an @page override after this sheet.
+
+   Standalone printable documents (monthly-period-pdf, receipts, bills,
+   Dompdf templates) do NOT load this file — they carry their own
+   self-contained styles.
+   ============================================================================= */
+
+/* Screen: print-only blocks stay hidden until printing. */
+.print-only {
+    display: none;
+}
+
+/* A4 portrait by default; 12mm margins use the sheet efficiently while staying
+   inside every printer's non-printable border. The margin box prints page
+   numbers on browsers that support it (Chromium 131+) and is ignored safely
+   everywhere else. */
+@page {
+    size: A4;
+    margin: 12mm;
+
+    @bottom-right {
+        content: "Page " counter(page) " / " counter(pages);
+        font-size: 8pt;
+        color: #6b7280;
+    }
+}
+
+@media print {
+    /* ---- 1. Hide the application chrome ---------------------------------- */
+    #topbarNav,
+    .sidebar-container,
+    aside,
+    nav,
+    button,
+    .btn,
+    input,
+    select,
+    textarea,
+    [role="dialog"],
+    .no-print,
+    [x-cloak] {
+        display: none !important;
+    }
+
+    /* Anything still position-fixed when printing is floating UI — toasts,
+       FABs, drawers, mobile bars — never document content. Sticky headers
+       must not repaint on every page either. */
+    body .fixed {
+        display: none !important;
+    }
+
+    .sticky {
+        position: static !important;
+    }
+
+    /* ---- 2. Un-clip the app's scroll containers --------------------------- */
+    /* The panel shells are height-locked flex columns (h-screen + overflow
+       hidden/auto) so the browser sees exactly one screenful. Everything must
+       become normal block flow for pagination to work. */
+    html,
+    body {
+        display: block !important;
+        height: auto !important;
+        overflow: visible !important;
+        background: #fff !important;
+    }
+
+    body > div {
+        display: block !important;
+        height: auto !important;
+        overflow: visible !important;
+    }
+
+    main {
+        display: block !important;
+        overflow: visible !important;
+        height: auto !important;
+        width: auto !important;
+        padding: 0 !important;
+    }
+
+    main .overflow-x-auto,
+    main .overflow-y-auto,
+    main .overflow-auto,
+    main .overflow-hidden {
+        overflow: visible !important;
+    }
+
+    main .container,
+    main [class*="max-w-"] {
+        max-width: none !important;
+    }
+
+    main .container {
+        padding: 0 !important;
+    }
+
+    /* ---- 3. Document typography ------------------------------------------- */
+    main {
+        font-size: 10pt;
+        line-height: 1.45;
+        color: #111827;
+    }
+
+    main h1 { font-size: 15pt; }
+    main h2 { font-size: 12.5pt; }
+    main h3 { font-size: 11pt; }
+
+    * {
+        box-shadow: none !important;
+        text-shadow: none !important;
+    }
+
+    main [class*="bg-gradient"] {
+        background-image: none !important;
+    }
+
+    main a {
+        color: inherit !important;
+        text-decoration: none !important;
+    }
+
+    /* Print light tints (table heads, totals bands, badges) even when the
+       browser's "Background graphics" option is unchecked. */
+    main table,
+    main thead,
+    main tbody,
+    main tfoot,
+    main th,
+    main td,
+    .print-color-exact {
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+    }
+
+    /* ---- 4. Accounting-grade tables ---------------------------------------- */
+    main table {
+        width: 100% !important;
+        border-collapse: collapse !important;
+        font-size: 9pt;
+    }
+
+    main th,
+    main td {
+        padding: 3.5pt 5pt !important;
+    }
+
+    /* Repeat the header on every page; keep footers (totals) with the table. */
+    main thead { display: table-header-group; }
+    main tfoot { display: table-footer-group; }
+
+    /* Never split a row, a totals block, or a summary card across pages. */
+    main tr { page-break-inside: avoid; }
+    main tfoot tr { page-break-inside: avoid; }
+    main .grid > div { page-break-inside: avoid; }
+
+    main thead th {
+        background: #f3f4f6 !important;
+        color: #111827 !important;
+        border-bottom: 1pt solid #9ca3af !important;
+    }
+
+    main tbody td {
+        border-bottom: 0.5pt solid #e5e7eb;
+    }
+
+    main tfoot td,
+    main tfoot th {
+        border-top: 1pt solid #9ca3af !important;
+        font-weight: 700;
+    }
+
+    /* ---- 5. Undo the mobile card-table conversion -------------------------- */
+    /* partials/responsive-tables.blade.php converts tables to stacked cards
+       below 768px. A4 portrait's content box (~186mm ≈ 703px) is narrower
+       than that, so without this override tables would PRINT as phone cards. */
+    table.rtable {
+        display: table !important;
+        width: 100% !important;
+        min-width: 0 !important;
+    }
+
+    table.rtable thead { display: table-header-group !important; }
+    table.rtable tbody { display: table-row-group !important; }
+    table.rtable tfoot { display: table-footer-group !important; }
+
+    table.rtable tr {
+        display: table-row !important;
+        border: 0 !important;
+        border-radius: 0 !important;
+        padding: 0 !important;
+        margin: 0 !important;
+    }
+
+    table.rtable td {
+        display: table-cell !important;
+    }
+
+    table.rtable td::before {
+        content: none !important;
+    }
+
+    /* ---- 6. Page-flow helpers ---------------------------------------------- */
+    .print-only { display: block !important; }
+
+    .page-break-before { page-break-before: always; }
+    .page-break-after  { page-break-after: always; }
+
+    .avoid-break,
+    .print-keep-together {
+        page-break-inside: avoid !important;
+    }
+
+    main img,
+    main svg {
+        max-width: 100% !important;
+        page-break-inside: avoid;
+    }
+}

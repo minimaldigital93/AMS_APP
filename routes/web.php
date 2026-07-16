@@ -238,7 +238,6 @@ Route::middleware(['auth', 'role:admin|superadmin', 'subscription.active'])->gro
 
     // Reports & Export Routes
     Route::get('/admin/fiscalperiod/{fiscalperiod}/reports', [FiscalPeriodController::class, 'reports'])->name('admin.fiscalperiod.reports');
-    Route::get('/admin/fiscalperiod/{fiscalperiod}/export-pdf', [FiscalPeriodController::class, 'exportPDF'])->name('admin.fiscalperiod.exportPDF');
     Route::get('/admin/fiscalperiod/{fiscalperiod}/export-csv', [FiscalPeriodController::class, 'exportCSV'])->name('admin.fiscalperiod.exportCSV');
     Route::get('/admin/fiscalperiod/{fiscalperiod}/monthly-period/{monthlyPeriod}/print', [FiscalPeriodController::class, 'printMonthlyPDF'])->name('admin.fiscalperiod.monthly-period.print');
 

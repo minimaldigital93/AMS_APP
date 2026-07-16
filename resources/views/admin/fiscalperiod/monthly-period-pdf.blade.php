@@ -7,9 +7,6 @@
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: Arial, sans-serif; font-size: 13px; color: #1a1a1a; background: #fff; padding: 32px; }
-        .header { text-align: center; margin-bottom: 28px; border-bottom: 2px solid #1e40af; padding-bottom: 16px; }
-        .header h1 { font-size: 22px; font-weight: 700; color: #1e40af; }
-        .header p { color: #555; margin-top: 4px; font-size: 12px; }
         .meta { display: flex; justify-content: space-between; margin-bottom: 24px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 14px 18px; }
         .meta div { font-size: 12px; }
         .meta .label { color: #6b7280; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 2px; }
@@ -36,10 +33,15 @@
         .status-badge { display: inline-block; padding: 2px 8px; border-radius: 12px; font-size: 10px; font-weight: 700; }
         .status-open { background: #dcfce7; color: #166534; }
         .status-closed { background: #fee2e2; color: #991b1b; }
-        .footer { margin-top: 32px; padding-top: 14px; border-top: 1px solid #e5e7eb; text-align: center; font-size: 10px; color: #9ca3af; }
+        @page { size: A4; margin: 12mm; }
         @media print {
-            body { padding: 20px; }
+            body { padding: 0; }
             .no-print { display: none !important; }
+            /* Accounting-grade pagination: repeat headers, keep rows/totals whole. */
+            thead { display: table-header-group; }
+            tfoot { display: table-footer-group; }
+            tr, .flow-card, .meta { page-break-inside: avoid; }
+            .section h2 { page-break-after: avoid; }
         }
     </style>
     @include('partials.khmer_fonts')
@@ -54,18 +56,14 @@
     </div>
 </div>
 
-@include('partials.business_header')
-
-<div class="header">
-    <h1>{{ __('messages.monthly_transaction_summary') }}</h1>
-    <p>{{ $monthlyPeriod->name }} &nbsp;|&nbsp; {{ $monthlyPeriod->start_date->format('M d, Y') }} – {{ $monthlyPeriod->end_date->format('M d, Y') }}</p>
-    <p>Fiscal Period: {{ $fiscalperiod->name }}</p>
-    @if($selectedProperty)
-        <p style="color:#0369a1;font-size:11px;margin-top:6px;">{{ __('messages.fp_showing_property', ['name' => $selectedProperty->name]) }}</p>
-    @elseif(! empty($showingAll))
-        <p style="color:#b45309;font-size:11px;margin-top:6px;">{{ __('messages.all_properties_consolidated') }}</p>
-    @endif
-</div>
+<x-print.report-header
+    screen
+    :title="__('messages.monthly_transaction_summary')"
+    :subtitle="$monthlyPeriod->name.'  ·  '.$monthlyPeriod->start_date->format('M d, Y').' – '.$monthlyPeriod->end_date->format('M d, Y')"
+    :meta="[
+        __('messages.fiscal_period') => $fiscalperiod->name,
+        __('messages.property') => $selectedProperty->name ?? __('messages.all_properties_consolidated'),
+    ]" />
 
 <div class="meta">
     <div>
@@ -93,10 +91,6 @@
                 {{ money($closingBalance) }} <span style="font-size:10px;color:#6b7280;">(projected)</span>
             @endif
         </div>
-    </div>
-    <div>
-        <div class="label">{{ __('messages.generated') }}</div>
-        <div class="value">{{ now()->format('M d, Y') }}</div>
     </div>
 </div>
 
@@ -258,9 +252,7 @@
 </div>
 @endif
 
-<div class="footer">
-    <p>Generated on {{ now()->format('F d, Y \a\t H:i') }} &nbsp;|&nbsp; {{ $fiscalperiod->name }} &nbsp;|&nbsp; For official use only</p>
-</div>
+<x-print.report-footer screen />
 
 </body>
 </html>

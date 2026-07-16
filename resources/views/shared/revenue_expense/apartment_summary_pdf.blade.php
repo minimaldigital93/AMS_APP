@@ -31,7 +31,16 @@
         .summary { margin-top:12px; display:flex; justify-content:flex-end; gap:12px; align-items:center }
         .summary .tot { font-weight:700 }
         .note { font-size:11px; color:var(--muted); margin-top:10px }
-        @media print{ .page{ padding:12mm } .kpi { page-break-inside:avoid } table { page-break-inside:auto } tr { page-break-inside:avoid; page-break-after:auto } }
+        @page { size: A4; margin: 12mm; }
+        @media print{
+            .page{ padding:0 }
+            .kpi { page-break-inside:avoid }
+            table { page-break-inside:auto }
+            tr { page-break-inside:avoid; page-break-after:auto }
+            /* Repeat column headers on every page; keep totals with the table. */
+            thead { display: table-header-group; }
+            tfoot { display: table-footer-group; }
+        }
     </style>
     @include('partials.khmer_fonts')
 </head>

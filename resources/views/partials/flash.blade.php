@@ -22,7 +22,7 @@
             x-transition:leave="transition ease-in duration-200"
             x-transition:leave-start="opacity-100"
             x-transition:leave-end="opacity-0"
-            class="mb-4 flex items-start justify-between gap-3 rounded-lg border px-4 py-3 text-sm {{ $style['classes'] }}"
+            class="no-print mb-4 flex items-start justify-between gap-3 rounded-lg border px-4 py-3 text-sm {{ $style['classes'] }}"
             role="alert"
             aria-live="{{ $flash === 'success' ? 'polite' : 'assertive' }}">
             <span>{{ session($flash) }}</span>

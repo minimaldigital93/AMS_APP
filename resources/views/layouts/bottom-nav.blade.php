@@ -7,7 +7,7 @@
     $isMore     = request()->routeIs('admin.users.*', 'admin.fiscalperiod.*', 'admin.billing.*', 'admin.settings.*');
 @endphp
 
-<div class="md:hidden" x-data="{ sheet: null, toggle(s) { this.sheet = this.sheet === s ? null : s } }">
+<div class="md:hidden no-print" x-data="{ sheet: null, toggle(s) { this.sheet = this.sheet === s ? null : s } }">
     <style>
         .bn-bar {
             padding-bottom: env(safe-area-inset-bottom, 0px);

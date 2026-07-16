@@ -127,31 +127,4 @@ class BalanceSheetService
             'opening_balance' => round($fiscalPeriod->opening_balance, 2),
         ];
     }
-
-    /**
-     * Render a simple HTML table for the balance sheet. Currently used by the
-     * "Export PDF" flow as a fallback before a real PDF library is wired in.
-     *
-     * @param  \Illuminate\Support\Collection|array  $balanceSheetItems
-     */
-    public function renderHtml(FiscalPeriods $fiscalPeriod, $balanceSheetItems): string
-    {
-        $html = '<h1>'.e($fiscalPeriod->name).'</h1>';
-        $html .= '<p>Period: '.e($fiscalPeriod->opening_date).' to '.e($fiscalPeriod->closing_date).'</p>';
-        $html .= '<table border="1" cellpadding="5" width="100%">';
-        $html .= '<tr><th>Item Type</th><th>Name</th><th>Amount</th><th>As Of Date</th></tr>';
-
-        foreach ($balanceSheetItems as $item) {
-            $html .= '<tr>';
-            $html .= '<td>'.ucfirst(e($item->item_type)).'</td>';
-            $html .= '<td>'.e($item->name).'</td>';
-            $html .= '<td>'.number_format((float) $item->amount, 2).'</td>';
-            $html .= '<td>'.e($item->as_of_date).'</td>';
-            $html .= '</tr>';
-        }
-
-        $html .= '</table>';
-
-        return $html;
-    }
 }

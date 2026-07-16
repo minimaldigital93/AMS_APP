@@ -3,17 +3,13 @@
 @section('content')
 <div class="container mx-auto px-4 py-8 max-w-4xl">
 
-    {{-- Print letterhead: business name & contact from Settings --}}
-    <div class="print-only">
-        @include('partials.business_header')
-        <div style="text-align:center; margin-bottom:16px;">
-            <div style="font-size:16px; font-weight:700; color:#111827;">{{ __('messages.income_statement_title') }}</div>
-            <div style="font-size:11px; color:#6b7280; margin-top:2px;">
-                {{ $activePeriod?->name }} &middot;
-                @if($filterMonth){{ \Carbon\Carbon::create($filterYear, $filterMonth, 1)->format('F Y') }}@else{{ __('messages.all_months') }}@endif
-            </div>
-        </div>
-    </div>
+    {{-- Print letterhead (portrait — single-column statement) --}}
+    <x-print.report-header
+        :title="__('messages.income_statement_title')"
+        :meta="[
+            __('messages.fiscal_period') => $activePeriod?->name,
+            __('messages.month') => $filterMonth ? \Carbon\Carbon::create($filterYear, $filterMonth, 1)->format('F Y') : __('messages.all_months'),
+        ]" />
 
     {{-- Header --}}
     <div class="mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 no-print">
@@ -315,8 +311,8 @@
         </div>
     </div>
 
-    {{-- How it works info --}}
-    <div class="mt-6 bg-white rounded-xl shadow border border-gray-100 p-5">
+    {{-- How it works info (screen-only help — not part of the printed statement) --}}
+    <div class="mt-6 bg-white rounded-xl shadow border border-gray-100 p-5 no-print">
         <h3 class="font-semibold text-gray-800 mb-3">{{ __('messages.how_it_works') }}</h3>
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-gray-600">
             <div>
@@ -351,5 +347,6 @@
         </div>
     </div>
 
+    <x-print.report-footer />
 </div>
 @endsection

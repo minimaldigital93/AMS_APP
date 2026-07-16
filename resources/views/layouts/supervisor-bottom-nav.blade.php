@@ -7,7 +7,7 @@
     $isMore     = request()->routeIs('supervisor.settings.*');
 @endphp
 
-<div class="md:hidden" x-data="{ sheet: null, toggle(s) { this.sheet = this.sheet === s ? null : s } }">
+<div class="md:hidden no-print" x-data="{ sheet: null, toggle(s) { this.sheet = this.sheet === s ? null : s } }">
     <style>
         /* Supervisor panel identity: emerald accent (--bn-accent); neutrals follow
            the active theme's tokens so non-default themes carry through on phones. */

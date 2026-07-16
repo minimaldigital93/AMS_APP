@@ -10,7 +10,11 @@
     Opt a table out by adding the `no-rtable` class to the <table>.
 --}}
 <style>
-@media (max-width: 767px) {
+{{-- `screen and` matters: print media evaluates width queries against the A4
+     page box (~703px portrait), which is below 768px — without the qualifier
+     the card-mode styles (td width:100%, text-align:right, centered colspans)
+     leak into every printed table. print.css only undoes the display changes. --}}
+@media screen and (max-width: 767px) {
     table.rtable { display: block; width: 100%; min-width: 0 !important; }
     table.rtable thead { display: none; }
     table.rtable tbody,

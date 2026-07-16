@@ -34,6 +34,13 @@
         .breakdown .amount { text-align: right; white-space: nowrap; }
         .breakdown tfoot td { font-weight: 700; border-top: 1px solid var(--ink); }
         .footer { margin-top: 28px; padding-top: 10px; border-top: 1px solid var(--line); color: var(--muted); font-size: 10px; }
+        @page { size: A4; margin: 12mm; }
+        @media print {
+            .page { padding: 0; }
+            thead { display: table-header-group; }
+            tfoot { display: table-footer-group; }
+            tr { page-break-inside: avoid; }
+        }
     </style>
 </head>
 <body>

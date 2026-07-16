@@ -417,23 +417,6 @@ class FiscalPeriodController extends Controller
         ));
     }
 
-    public function exportPDF(FiscalPeriods $fiscalperiod, PropertyContext $propertyContext)
-    {
-        $this->authorizeUser($fiscalperiod);
-
-        $selectedProperty = $propertyContext->activeProperty();
-        $selectedPropertyId = $selectedProperty?->id;
-
-        $balanceSheetItems = $fiscalperiod->balanceSheets()->get();
-        $summary = $this->balanceSheetService->summary($fiscalperiod);
-        $html = $this->balanceSheetService->renderHtml($fiscalperiod, $balanceSheetItems);
-        $periodFinancials = $this->financials->forPeriod($fiscalperiod, $selectedPropertyId);
-
-        return view('admin.fiscalperiod.export-pdf', compact(
-            'fiscalperiod', 'balanceSheetItems', 'summary', 'html', 'periodFinancials', 'selectedProperty'
-        ));
-    }
-
     public function printMonthlyPDF(FiscalPeriods $fiscalperiod, MonthlyPeriod $monthlyPeriod, PropertyContext $propertyContext)
     {
         $this->authorizeUser($fiscalperiod);
