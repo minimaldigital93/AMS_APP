@@ -1,23 +1,18 @@
 @extends('layouts.'.$panel)
 
 @section('content')
-<div class="max-w-6xl mx-auto space-y-8" x-data="{ showForm: false, activeTab: 'apartment', showDetail: false, detail: null, openDetail(d) { this.detail = d; this.showDetail = true }, showBizDetail: false, bizDetail: null, openBizDetail(d) { this.bizDetail = d; this.showBizDetail = true } }">
+<div class="max-w-6xl mx-auto space-y-8" x-data="{ showForm: false, activeTab: 'business', showDetail: false, detail: null, openDetail(d) { this.detail = d; this.showDetail = true }, showBizDetail: false, bizDetail: null, openBizDetail(d) { this.bizDetail = d; this.showBizDetail = true } }">
     <!-- Header -->
-    <div class="flex items-center justify-between">
-        <div>
-            <h1 class="text-2xl font-semibold text-slate-800 tracking-tight">{{ __('messages.record_expense') }}</h1>
-        </div>
-        <div class="flex items-center gap-3">
-            @if(!isset($periodMonths) || count($periodMonths) === 0)
+    <div class="flex items-center justify-between gap-4">
+        <h1 class="text-2xl font-semibold text-slate-800 tracking-tight">{{ __('messages.record_expense') }}</h1>
+        <div class="flex items-center gap-3 flex-shrink-0">
             <button @click="showForm = !showForm" aria-label="{{ __('messages.toggle_add_expense') }}"
-                class="inline-flex items-center justify-center w-10 h-10 rounded-lg transition"
+                class="inline-flex items-center justify-center h-10 w-10 rounded-lg transition flex-shrink-0"
                 :class="showForm ? 'bg-slate-100 text-slate-600' : 'bg-red-600 text-white hover:bg-red-700'">
                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
             </button>
-            @endif
-
-            <a href="{{ route($panel.'.revenue_expense.index') }}" class="inline-flex items-center px-4 py-2 bg-slate-800 text-white rounded-lg hover:bg-slate-700 transition" title="{{ __('messages.back') }}">
-                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/></svg></a>
+            <a href="{{ route($panel.'.revenue_expense.index') }}" class="inline-flex items-center justify-center h-10 w-10 bg-slate-800 hover:bg-slate-700 text-white rounded-lg transition flex-shrink-0" title="{{ __('messages.back') }}">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/></svg></a>
         </div>
     </div>
 
@@ -33,8 +28,7 @@
         $prevMonth = ($currentIdx !== null && $currentIdx > 0) ? $periodMonths[$currentIdx - 1] : null;
         $nextMonth = ($currentIdx !== null && $currentIdx < count($periodMonths) - 1) ? $periodMonths[$currentIdx + 1] : null;
     @endphp
-    <div class="mb-6 flex items-center">
-        <div class="flex-1"></div>
+    <div class="mb-6 flex items-center justify-center">
         <div class="inline-flex items-center bg-white rounded-xl border border-slate-100 px-2 py-1.5 gap-1">
             @if($prevMonth)
             <a href="{{ route($panel.'.revenue_expense.record_expense', ['month' => $prevMonth['month'], 'year' => $prevMonth['year']]) }}"
@@ -78,13 +72,6 @@
                 <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg></a>
             @endif
             @endif
-        </div>
-        <div class="flex-1 flex justify-center">
-            <button @click="showForm = !showForm" aria-label="{{ __('messages.toggle_add_expense') }}"
-                class="inline-flex items-center justify-center w-10 h-10 rounded-lg transition"
-                :class="showForm ? 'bg-slate-100 text-slate-600' : 'bg-red-600 text-white hover:bg-red-700'">
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
-            </button>
         </div>
     </div>
     @endif
@@ -172,7 +159,7 @@
         $sumOther   = $allExp->sum('other');
         $sumFixed   = $allExp->sum('fixed_total');
     @endphp
-    <div class="grid grid-cols-2 gap-3 md:gap-4">
+    <div class="grid grid-cols-2 md:grid-cols-3 gap-3 md:gap-4">
         <div x-data="{ expanded: false }" @click="expanded = !expanded"
             class="bg-white rounded-xl border border-emerald-100 p-4 md:p-5 cursor-pointer transition hover:shadow-sm">
             <div class="flex flex-col items-start gap-2 md:flex-row md:items-center md:gap-3 mb-3">
@@ -242,33 +229,33 @@
                 </div>
             </div>
         </div>
-    </div>
 
-    <div x-data="{ expanded: false }" @click="expanded = !expanded"
-        class="bg-white rounded-xl border {{ $expenseNet >= 0 ? 'border-emerald-100' : 'border-orange-100' }} p-5 cursor-pointer transition hover:shadow-sm">
-        <div class="flex items-center gap-3 mb-3">
-            <div class="w-10 h-10 rounded-lg {{ $expenseNet >= 0 ? 'bg-emerald-50' : 'bg-orange-50' }} flex items-center justify-center">
-                <svg class="w-5 h-5 {{ $expenseNet >= 0 ? 'text-emerald-600' : 'text-orange-600' }}" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-            </div>
-            <div>
-                <p class="text-xs text-slate-400 font-medium">{{ $expenseNet >= 0 ? __('messages.expense_revenue').' — '.__('messages.added_to_revenue') : __('messages.remaining_business_expense') }}</p>
-                <p class="text-xl font-bold {{ $expenseNet >= 0 ? 'text-emerald-600' : 'text-orange-600' }}">{{ $expenseNet < 0 ? '-' : '+' }}{{ money(abs($expenseNet)) }}</p>
-            </div>
-            <div class="ml-auto text-right text-xs text-slate-500"></div>
-        </div>
-        <div x-show="expanded" x-cloak class="mt-4">
-            <div class="rounded-xl bg-slate-50 p-4 border border-slate-100 space-y-2">
-                <div class="flex items-center justify-between text-sm text-slate-600">
-                    <span>{{ __('messages.business_expenses') }}</span>
-                    <span class="font-semibold text-orange-600">-{{ money($businessTotal) }}</span>
+        <div x-data="{ expanded: false }" @click="expanded = !expanded"
+            class="bg-white rounded-xl border {{ $expenseNet >= 0 ? 'border-emerald-100' : 'border-orange-100' }} p-4 md:p-5 cursor-pointer transition hover:shadow-sm">
+            <div class="flex flex-col items-start gap-2 md:flex-row md:items-center md:gap-3 mb-3">
+                <div class="w-10 h-10 rounded-lg {{ $expenseNet >= 0 ? 'bg-emerald-50' : 'bg-orange-50' }} flex items-center justify-center flex-shrink-0">
+                    <svg class="w-5 h-5 {{ $expenseNet >= 0 ? 'text-emerald-600' : 'text-orange-600' }}" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
                 </div>
-                <div class="flex items-center justify-between text-sm text-slate-600">
-                    <span>{{ __('messages.tenants_expense_collected') }}</span>
-                    <span class="font-semibold text-emerald-600">+{{ money($tenantsExpenseCollected) }}</span>
+                <div class="min-w-0">
+                    <p class="text-xs text-slate-400 font-medium">{{ $expenseNet >= 0 ? __('messages.expense_revenue').' — '.__('messages.added_to_revenue') : __('messages.remaining_business_expense') }}</p>
+                    <p class="text-lg md:text-xl font-bold {{ $expenseNet >= 0 ? 'text-emerald-600' : 'text-orange-600' }}">{{ $expenseNet < 0 ? '-' : '+' }}{{ money(abs($expenseNet)) }}</p>
                 </div>
-                <div class="flex items-center justify-between text-sm pt-2 border-t border-slate-200 {{ $expenseNet >= 0 ? 'text-emerald-700' : 'text-orange-700' }}">
-                    <span class="font-medium">{{ $expenseNet >= 0 ? __('messages.expense_revenue') : __('messages.remaining_business_expense') }}</span>
-                    <span class="font-bold">{{ $expenseNet < 0 ? '-' : '+' }}{{ money(abs($expenseNet)) }}</span>
+                <div class="ml-auto text-right text-xs text-slate-500"></div>
+            </div>
+            <div x-show="expanded" x-cloak class="mt-4">
+                <div class="rounded-xl bg-slate-50 p-4 border border-slate-100 space-y-2">
+                    <div class="flex items-center justify-between text-sm text-slate-600">
+                        <span>{{ __('messages.business_expenses') }}</span>
+                        <span class="font-semibold text-orange-600">-{{ money($businessTotal) }}</span>
+                    </div>
+                    <div class="flex items-center justify-between text-sm text-slate-600">
+                        <span>{{ __('messages.tenants_expense_collected') }}</span>
+                        <span class="font-semibold text-emerald-600">+{{ money($tenantsExpenseCollected) }}</span>
+                    </div>
+                    <div class="flex items-center justify-between text-sm pt-2 border-t border-slate-200 {{ $expenseNet >= 0 ? 'text-emerald-700' : 'text-orange-700' }}">
+                        <span class="font-medium">{{ $expenseNet >= 0 ? __('messages.expense_revenue') : __('messages.remaining_business_expense') }}</span>
+                        <span class="font-bold">{{ $expenseNet < 0 ? '-' : '+' }}{{ money(abs($expenseNet)) }}</span>
+                    </div>
                 </div>
             </div>
         </div>
@@ -276,27 +263,22 @@
 
     <!-- Tab Bar -->
     <div class="bg-white rounded-xl border border-slate-100 p-1.5 flex gap-1">
-        <button @click="activeTab = 'apartment'"
-            :class="activeTab === 'apartment' ? 'bg-amber-600 text-white shadow-sm' : 'text-slate-600 hover:bg-slate-50'"
-            class="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition">
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/></svg>
-            {{ __('messages.expense_collected') }}
-        </button>
         <button @click="activeTab = 'business'"
             :class="activeTab === 'business' ? 'bg-orange-600 text-white shadow-sm' : 'text-slate-600 hover:bg-slate-50'"
             class="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
             {{ __('messages.business_expenses') }}
         </button>
+        <button @click="activeTab = 'apartment'"
+            :class="activeTab === 'apartment' ? 'bg-amber-600 text-white shadow-sm' : 'text-slate-600 hover:bg-slate-50'"
+            class="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/></svg>
+            {{ __('messages.expense_collected') }}
+        </button>
     </div>
 
     <!-- Apartment Expenses — grouped by floor -->
     <div x-show="activeTab === 'apartment'" x-cloak class="space-y-5">
-        <div class="flex items-center gap-2 px-1">
-            <svg class="w-5 h-5 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/></svg>
-            <h2 class="text-lg font-semibold text-slate-800">Room Expenses — {{ \Carbon\Carbon::create($filterYear, $filterMonth, 1)->format('F Y') }}</h2>
-        </div>
-
         @php
             $expensesByFloor = collect($apartmentExpensesAll)
                 ->groupBy(fn($e) => optional($e['apartment']->floor)->id ?? 0)

@@ -1,4 +1,4 @@
-<nav class="space-y-1" x-data="{ expandedSections: { 'Property': false, 'Tenant': false, 'Revenue': false, 'FiscalPeriod': false, 'Settings': {{ request()->routeIs('admin.fiscalperiod.*', 'admin.billing.*', 'admin.settings.*') ? 'true' : 'false' }} } }">
+<nav class="space-y-1" x-data="{ expandedSections: { 'Property': false, 'Tenant': false, 'Revenue': {{ request()->routeIs('admin.fiscalperiod.*') ? 'true' : 'false' }}, 'Settings': {{ request()->routeIs('admin.billing.*', 'admin.settings.*') ? 'true' : 'false' }} } }">
     <style>
         /* Modern sidebar styling */
         .sidebar-transition {
@@ -565,13 +565,23 @@
                 </span>
                 <span class="nav-text truncate sidebar-label">{{ __('messages.break_even') }}</span>
             </a>
+
+            {{-- Fiscal Period --}}
+            <a href="{{ route('admin.fiscalperiod.index') }}" class="submenu-item nav-link flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm {{ request()->routeIs('admin.fiscalperiod.*') ? 'text-blue-700 active' : 'text-gray-700 hover:text-blue-700' }} transition-all sidebar-transition">
+                <span class="nav-icon sidebar-transition">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                    </svg>
+                </span>
+                <span class="nav-text truncate sidebar-label">{{ __('messages.fiscal_period') }}</span>
+            </a>
         </div>
     </div>
 
-    {{-- Settings Section (Fiscal Period, Billing, System Settings) --}}
+    {{-- Settings Section (Billing, System Settings) --}}
     <div class="mt-4">
         <button @click="expandedSections['Settings'] = !expandedSections['Settings']" :aria-expanded="expandedSections['Settings'].toString()"
-                class="section-header flex items-center justify-between w-full transition sidebar-transition {{ request()->routeIs('admin.fiscalperiod.*', 'admin.billing.*', 'admin.settings.*') ? 'text-blue-700' : '' }}">
+                class="section-header flex items-center justify-between w-full transition sidebar-transition {{ request()->routeIs('admin.billing.*', 'admin.settings.*') ? 'text-blue-700' : '' }}">
             <span class="flex items-center gap-2.5">
                 <span class="section-icon">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
@@ -593,16 +603,6 @@
              x-transition:leave-start="opacity-100 translate-y-0"
              x-transition:leave-end="opacity-0 -translate-y-2"
              class="submenu-container mt-2 space-y-1">
-
-            {{-- Fiscal Period --}}
-            <a href="{{ route('admin.fiscalperiod.index') }}" class="submenu-item nav-link flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm {{ request()->routeIs('admin.fiscalperiod.*') ? 'text-blue-700 active' : 'text-gray-700 hover:text-blue-700' }} transition-all sidebar-transition">
-                <span class="nav-icon sidebar-transition">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                    </svg>
-                </span>
-                <span class="nav-text truncate sidebar-label">{{ __('messages.fiscal_period') }}</span>
-            </a>
 
             {{-- Billing --}}
             <a href="{{ route('admin.billing.index') }}" class="submenu-item nav-link flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm {{ request()->routeIs('admin.billing.*') ? 'text-blue-700 active' : 'text-gray-700 hover:text-blue-700' }} transition-all sidebar-transition">

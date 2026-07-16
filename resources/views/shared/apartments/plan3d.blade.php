@@ -16,7 +16,7 @@
                class="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium text-white bg-rose-600 hover:bg-rose-700 transition shadow-sm" title="{{ __('messages.record_expense') }}">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 12H4"/></svg></a>
             <a href="{{ route($panel.'.dashboard') }}"
-               class="inline-flex items-center justify-center h-10 w-10 bg-slate-800 hover:bg-slate-700 text-white rounded-lg transition flex-shrink-0" title="{{ __('messages.back') }}">
+               class="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium text-white bg-slate-800 hover:bg-slate-700 transition shadow-sm" title="{{ __('messages.back') }}">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/></svg></a>
         </div>
     </div>
@@ -49,24 +49,6 @@
             @endif
         </div>
     @else
-        {{-- Overall occupancy progress --}}
-        @php
-            $occupancyRate = $summary['total'] > 0 ? round(($summary['occupied'] / $summary['total']) * 100) : 0;
-            $availablePct = $summary['total'] > 0 ? ($summary['available'] / $summary['total']) * 100 : 0;
-            $occupiedPct = $summary['total'] > 0 ? ($summary['occupied'] / $summary['total']) * 100 : 0;
-        @endphp
-        <div class="bg-white rounded-xl border border-slate-100 p-5">
-            <div class="flex items-center justify-between mb-2">
-                <p class="text-sm font-semibold text-slate-700">{{ __('messages.building_occupancy') }}</p>
-                <p class="text-sm font-bold {{ $occupancyRate >= 90 ? 'text-rose-600' : 'text-slate-800' }}">{{ $occupancyRate }}%</p>
-            </div>
-            <div class="w-full flex bg-slate-100 rounded-full h-2.5 overflow-hidden">
-                <div class="h-2.5 transition-all bg-emerald-500" style="width: {{ $availablePct }}%"></div>
-                <div class="h-2.5 transition-all bg-blue-500" style="width: {{ $occupiedPct }}%"></div>
-            </div>
-            <p class="text-xs text-slate-400 mt-2">{{ $summary['occupied'] }} occupied · {{ $summary['available'] }} available of {{ $summary['total'] }} units</p>
-        </div>
-
         {{-- Legend (dot style) --}}
         <div class="flex flex-wrap items-center gap-4 text-xs text-slate-500">
             <span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-emerald-500"></span> {{ __('messages.available') }}</span>

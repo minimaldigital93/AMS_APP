@@ -3,8 +3,8 @@
     $isHome     = request()->routeIs('admin.dashboard');
     $isProperty = request()->routeIs('admin.properties.*', 'admin.floors.*', 'admin.apartments.*');
     $isTenant   = request()->routeIs('admin.tenants.*');
-    $isRevenue  = request()->routeIs('admin.revenue_expense.*');
-    $isMore     = request()->routeIs('admin.users.*', 'admin.fiscalperiod.*', 'admin.billing.*', 'admin.settings.*');
+    $isRevenue  = request()->routeIs('admin.revenue_expense.*', 'admin.fiscalperiod.*');
+    $isMore     = request()->routeIs('admin.users.*', 'admin.billing.*', 'admin.settings.*');
 @endphp
 
 <div class="md:hidden no-print" x-data="{ sheet: null, toggle(s) { this.sheet = this.sheet === s ? null : s } }">
@@ -164,6 +164,12 @@
                             </span>
                             <span>{{ __('messages.break_even') }}</span>
                         </a>
+                        <a href="{{ route('admin.fiscalperiod.index') }}" class="bn-sheet-link {{ request()->routeIs('admin.fiscalperiod.*') ? 'active' : '' }}">
+                            <span class="bn-sheet-icon">
+                                <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+                            </span>
+                            <span>{{ __('messages.fiscal_period') }}</span>
+                        </a>
                     </div>
                 </div>
 
@@ -176,12 +182,6 @@
                                 <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 8.646 4 4 0 010-8.646M3 20.394A9.963 9.963 0 0112 21c4.304 0 8.196-1.702 11-4.504"/></svg>
                             </span>
                             <span>{{ __('messages.user_management') }}</span>
-                        </a>
-                        <a href="{{ route('admin.fiscalperiod.index') }}" class="bn-sheet-link {{ request()->routeIs('admin.fiscalperiod.*') ? 'active' : '' }}">
-                            <span class="bn-sheet-icon">
-                                <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
-                            </span>
-                            <span>{{ __('messages.fiscal_period') }}</span>
                         </a>
                         <a href="{{ route('admin.billing.index') }}" class="bn-sheet-link {{ request()->routeIs('admin.billing.*') ? 'active' : '' }}">
                             <span class="bn-sheet-icon">
