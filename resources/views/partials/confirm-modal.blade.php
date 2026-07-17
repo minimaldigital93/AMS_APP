@@ -1,13 +1,15 @@
 {{-- Shared delete / sensitive-action confirmation modal.
      Replaces native window.confirm() for delete operations across the app.
 
-     Two ways to use it:
+     Three ways to use it:
      1. Declaratively on any <form>:
           - any form with @method('DELETE') is intercepted automatically
           - or add  data-confirm="Your message"  to any form
           - optional: data-confirm-title="..."  data-confirm-ok="Delete"
      2. Programmatically (for fetch / JS driven actions):
           if (await window.confirmAction({ message: '...', okLabel: 'Delete' })) { ... }
+     3. As a notice popup replacing native window.alert() (single OK button):
+          window.amsAlert('Your message');  // optional: amsAlert(msg, { title: '...' })
 --}}
 <div id="confirm-modal"
      class="hidden fixed inset-0 z-[10000] items-center justify-center p-4"
@@ -18,7 +20,7 @@
                 transform transition-all">
         <div class="p-6">
             <div class="flex items-start gap-4">
-                <div class="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full bg-red-100">
+                <div data-confirm-icon class="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full bg-red-100">
                     <svg class="h-6 w-6 text-red-600" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round"
                               d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" />
@@ -59,6 +61,8 @@
     var DEFAULT_TITLE = @json(__('messages.confirm_delete_title'));
     var DEFAULT_MESSAGE = @json(__('messages.confirm_delete_default'));
     var DEFAULT_OK = @json(__('messages.confirm'));
+    var DEFAULT_ALERT_TITLE = @json(__('messages.notice'));
+    var DEFAULT_ALERT_OK = @json(__('messages.ok'));
 
     var pendingForm = null;
     var pendingResolve = null;
@@ -68,11 +72,27 @@
 
     function open(opts) {
         var modal = el();
-        if (!modal) { return Promise.resolve(window.confirm(opts.message || DEFAULT_MESSAGE)); }
+        if (!modal) {
+            if (opts.alert) { window.alert(opts.message || ''); return Promise.resolve(true); }
+            return Promise.resolve(window.confirm(opts.message || DEFAULT_MESSAGE));
+        }
 
-        modal.querySelector('#confirm-modal-title').textContent = opts.title || DEFAULT_TITLE;
+        var isAlert = !!opts.alert;
+        modal.querySelector('#confirm-modal-title').textContent = opts.title || (isAlert ? DEFAULT_ALERT_TITLE : DEFAULT_TITLE);
         modal.querySelector('#confirm-modal-message').textContent = opts.message || DEFAULT_MESSAGE;
-        modal.querySelector('[data-confirm-ok]').textContent = opts.okLabel || DEFAULT_OK;
+
+        // Alert mode: single OK button, amber notice styling instead of the
+        // red destructive-confirm styling.
+        modal.querySelector('[data-confirm-cancel]').classList.toggle('hidden', isAlert);
+        var icon = modal.querySelector('[data-confirm-icon]');
+        icon.classList.toggle('bg-red-100', !isAlert);
+        icon.classList.toggle('bg-amber-100', isAlert);
+        icon.querySelector('svg').classList.toggle('text-red-600', !isAlert);
+        icon.querySelector('svg').classList.toggle('text-amber-600', isAlert);
+        var ok = modal.querySelector('[data-confirm-ok]');
+        ok.textContent = opts.okLabel || (isAlert ? DEFAULT_ALERT_OK : DEFAULT_OK);
+        ['bg-red-600', 'hover:bg-red-700', 'focus:ring-red-500'].forEach(function (c) { ok.classList.toggle(c, !isAlert); });
+        ['bg-slate-800', 'hover:bg-slate-700', 'focus:ring-slate-500'].forEach(function (c) { ok.classList.toggle(c, isAlert); });
 
         lastFocused = document.activeElement;
         modal.classList.remove('hidden');
@@ -99,6 +119,13 @@
 
     // Public API for JS / fetch driven actions.
     window.confirmAction = function (opts) { return open(opts || {}); };
+
+    // Styled replacement for window.alert() — notice popup with a single OK
+    // button, consistent with the rest of the AMS dialogs.
+    window.amsAlert = function (message, opts) {
+        opts = opts || {};
+        return open({ alert: true, message: message, title: opts.title, okLabel: opts.okLabel });
+    };
 
     // Capture-phase submit interceptor. Registered during parse so it runs
     // before the layout's spinner handler (which is bound on DOMContentLoaded).
@@ -151,13 +178,15 @@
             close(false);
             return;
         }
-        // Focus trap: keep Tab cycling between the two modal buttons.
+        // Focus trap: keep Tab cycling between the visible modal buttons
+        // (alert mode hides Cancel, leaving only OK).
         if (e.key === 'Tab') {
-            var focusables = [modal.querySelector('[data-confirm-cancel]'), modal.querySelector('[data-confirm-ok]')];
+            var focusables = [modal.querySelector('[data-confirm-cancel]'), modal.querySelector('[data-confirm-ok]')]
+                .filter(function (btn) { return btn && !btn.classList.contains('hidden'); });
             var idx = focusables.indexOf(document.activeElement);
             e.preventDefault();
-            if (idx === -1) { focusables[1].focus(); return; }
-            focusables[(idx + 1) % 2].focus();
+            if (idx === -1) { focusables[focusables.length - 1].focus(); return; }
+            focusables[(idx + 1) % focusables.length].focus();
         }
     });
 })();

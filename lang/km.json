@@ -94,5 +94,9 @@
     "Down for maintenance": "កំពុងថែទាំប្រព័ន្ធ",
     "We're performing some maintenance and will be back shortly. Thanks for your patience.": "យើងកំពុងធ្វើការថែទាំប្រព័ន្ធ ហើយនឹងត្រឡប់មកវិញក្នុងពេលឆាប់ៗ។ អរគុណចំពោះការអត់ធ្មត់របស់អ្នក។",
     "Go to homepage": "ទៅទំព័រដើម",
-    "Try again": "ព្យាយាមម្តងទៀត"
+    "Try again": "ព្យាយាមម្តងទៀត",
+    "Upload too large": "ឯកសារផ្ទុកឡើងធំពេក",
+    "The uploaded file exceeds the server upload limit. Please go back and choose a smaller file.": "ឯកសារដែលបានផ្ទុកឡើងលើសពីដែនកំណត់របស់ម៉ាស៊ីនមេ។ សូមត្រឡប់ក្រោយ ហើយជ្រើសរើសឯកសារតូចជាងនេះ។",
+    "The uploaded file exceeds the server upload limit. Please choose a smaller file and try again.": "ឯកសារដែលបានផ្ទុកឡើងលើសពីដែនកំណត់របស់ម៉ាស៊ីនមេ។ សូមជ្រើសរើសឯកសារតូចជាងនេះ ហើយព្យាយាមម្តងទៀត។",
+    "Go back": "ត្រឡប់ក្រោយ"
 }

@@ -49,6 +49,25 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->statefulApi();
     })
     ->withExceptions(function (Exceptions $exceptions): void {
+        // A POST body over php.ini's post_max_size throws before the session
+        // middleware runs, so a flash-redirect is usually impossible — render
+        // the friendly 413 page instead of the framework error page. When a
+        // session IS present (exception raised later in the stack), bounce the
+        // user back to the form with a normal error flash.
+        $exceptions->render(function (\Illuminate\Http\Exceptions\PostTooLargeException $e, Request $request) {
+            $message = __('The uploaded file exceeds the server upload limit. Please choose a smaller file and try again.');
+
+            if ($request->expectsJson()) {
+                return response()->json(['message' => $message], 413);
+            }
+
+            if ($request->hasSession()) {
+                return redirect(url()->previous())->with('error', $message);
+            }
+
+            return response()->view('errors.413', [], 413);
+        });
+
         // Attach identifying context to every reported exception so production
         // errors can be traced back to a user / account / request. This runs on
         // every log write, so it is fully defensive and must never throw — a

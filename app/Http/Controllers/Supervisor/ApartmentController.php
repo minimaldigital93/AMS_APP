@@ -4,22 +4,14 @@ namespace App\Http\Controllers\Supervisor;
 
 use App\Http\Controllers\Concerns\ScopesToSupervisorProperties;
 use App\Http\Controllers\Controller;
-use App\Models\Accounts;
+use App\Http\Requests\Tenants\AssignTenantRequest;
 use App\Models\Apartments;
-use App\Models\Attachment;
 use App\Models\FiscalPeriods;
-use App\Models\Floors;
 use App\Models\Rentals;
 use App\Models\Tenants;
-use App\Models\User;
-use App\Services\Attachments\AttachmentService;
-use Carbon\Carbon;
+use App\Services\Tenants\AssignTenantException;
+use App\Services\Tenants\TenantAssignmentService;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Str;
-use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 
 class ApartmentController extends Controller
@@ -139,199 +131,36 @@ class ApartmentController extends Controller
     }
 
     /**
-     * Assign tenant to an available apartment.
+     * Assign tenant to an available apartment. AssignTenantRequest authorizes
+     * the room (assigned properties only) before validating; the deposit books
+     * into the ADMIN's open period — supervisor writes land in the admin's books.
      */
-    public function assignTenant(Request $request, Apartments $apartment, AttachmentService $attachments)
+    public function assignTenant(AssignTenantRequest $request, Apartments $apartment, TenantAssignmentService $assigner)
     {
-        $this->authorizeApartment($apartment);
+        $validated = $request->validated();
 
-        // Same bounds as the tenant store flow: tenants are adults (18+)
-        // and move-in can't be backdated more than a few days.
-        $minBirthDate = now()->subYears(18)->toDateString();
-        $minMoveInDate = now()->subDays(3)->toDateString();
+        // Only accept uploads when creating a new tenant — prevents accidental
+        // overwrite of an existing tenant's photo/document via crafted requests.
+        $isNewTenant = $validated['tenant_option'] === 'new';
 
-        $validated = $request->validate([
-            'tenant_option' => 'required|in:existing,new',
-            'tenant_id' => 'nullable|required_if:tenant_option,existing|exists:tenants,id',
-            'name' => 'nullable|required_if:tenant_option,new|string|max:255',
-            'phone' => [
-                'nullable',
-                'required_if:tenant_option,new',
-                'string',
-                'max:20',
-                'regex:/^[0-9+\-\s()]+$/',
-                // Tenants stay per-account; the users table is one GLOBAL login
-                // namespace (users_phone_unique) — a per-account rule here would
-                // pass validation and then 500 on the insert.
-                Rule::unique('tenants', 'phone')
-                    ->where('account_id', current_account_id())
-                    ->whereNull('deleted_at'),
-                Rule::unique('users', 'phone'),
-            ],
-            'gender' => 'nullable|in:male,female,other',
-            'id_card_number' => 'nullable|string|max:50',
-            'address' => 'nullable|string',
-            'date_of_birth' => 'nullable|date|before_or_equal:'.$minBirthDate,
-            'attached_photo' => 'nullable|file|mimes:jpeg,jpg,png,gif,webp,heic,heif,pdf|max:10240',
-            'id_pdf' => 'nullable|file|mimes:pdf,jpeg,jpg,png,gif,webp,heic,heif|max:10240',
-            'move_in_date' => 'required|date|after_or_equal:'.$minMoveInDate,
-            'deposit' => 'required|numeric|min:0|max:99999999.99',
-        ], [
-            'phone.unique' => __('messages.validation_phone_taken'),
-            'phone.regex' => __('messages.phone_must_be_english'),
-        ]);
-        $validated = convert_money_input($validated, ['monthly_rent', 'deposit', 'apartments.*.monthly_rent']);
+        try {
+            $assigner->assign(
+                $apartment,
+                $validated,
+                $isNewTenant ? $request->file('attached_photo') : null,
+                $isNewTenant ? $request->file('id_pdf') : null,
+                $this->activeAdminFiscalPeriod(),
+            );
+        } catch (AssignTenantException $e) {
+            return back()->withInput()->with('error', $e->getMessage());
+        } catch (\Throwable $e) {
+            report($e);
 
-        return DB::transaction(function () use ($request, $apartment, $validated, $attachments) {
-            // Lock the apartment row so two concurrent assignments can't both succeed.
-            $apartment = Apartments::whereKey($apartment->id)->lockForUpdate()->firstOrFail();
+            return back()->withInput()->with('error', __('messages.flash_assignment_failed'));
+        }
 
-            if ($apartment->status !== 'available') {
-                return back()->with('error', __('messages.flash_apartment_not_available'));
-            }
-
-            $photoPath = null;
-
-            // Only accept uploads when creating a new tenant — prevents accidental
-            // overwrite of an existing tenant's photo/document via crafted requests.
-            if ($validated['tenant_option'] === 'new') {
-                if ($request->hasFile('attached_photo') && $request->file('attached_photo')->isValid()) {
-                    try {
-                        $photoPath = $request->file('attached_photo')->store('tenants', 'public');
-                    } catch (\Throwable $e) {
-                        Log::error('Tenant photo upload failed during assignment: '.$e->getMessage());
-                    }
-                }
-            }
-
-            if ($validated['tenant_option'] === 'existing') {
-                $tenant = Tenants::findOrFail($validated['tenant_id']);
-
-                // An existing tenant must be unhoused — assigning one who still
-                // occupies another room would leave that room flagged occupied
-                // with an open rental while the tenant lives elsewhere.
-                if ($tenant->apartment_id !== null) {
-                    return back()->with('error', __('messages.flash_tenant_already_housed'));
-                }
-
-                if (! $tenant->user_id && $tenant->phone) {
-                    // Global lookup — the users table is one login namespace.
-                    // Attach only a same-account row; a phone held by another
-                    // account's login can't be reused (users_phone_unique).
-                    $existingUser = User::where('phone', $tenant->phone)->first();
-
-                    if ($existingUser && $existingUser->account_id !== current_account_id()) {
-                        Log::warning('Tenant login not created: phone belongs to another account\'s user', [
-                            'tenant_id' => $tenant->id,
-                        ]);
-                        $existingUser = null;
-                    } else {
-                        $existingUser ??= User::forceCreate([
-                            'name' => $tenant->name,
-                            'phone' => $tenant->phone,
-                            'password' => Str::random(16),
-                            'account_id' => current_account_id(),
-                        ]);
-                        if (! $existingUser->hasRole('tenant')) {
-                            $existingUser->assignRole('tenant');
-                        }
-                        $tenant->update(['user_id' => $existingUser->id]);
-                    }
-                }
-            } else {
-                $tenantUser = User::forceCreate([
-                    'name' => $validated['name'],
-                    'phone' => $validated['phone'],
-                    'password' => Str::random(16),
-                    'account_id' => current_account_id(),
-                ]);
-                $tenantUser->assignRole('tenant');
-
-                $tenant = Tenants::create([
-                    'name' => $validated['name'],
-                    'phone' => $validated['phone'],
-                    'gender' => $validated['gender'] ?? null,
-                    'id_card_number' => $validated['id_card_number'] ?? null,
-                    'address' => $validated['address'] ?? null,
-                    'date_of_birth' => $validated['date_of_birth'] ?? null,
-                    'photo_path' => $photoPath,
-                    'apartment_id' => $apartment->id,
-                    'status' => 'active',
-                    'managed_by' => Auth::id(),
-                    'user_id' => $tenantUser->id,
-                ]);
-            }
-
-            $updateData = [
-                'apartment_id' => $apartment->id,
-                'move_in_date' => $validated['move_in_date'],
-                'deposit' => $validated['deposit'],
-                'status' => 'active',
-                'managed_by' => Auth::id(),
-            ];
-
-            if ($photoPath) {
-                $updateData['photo_path'] = $photoPath;
-            }
-
-            $tenant->update($updateData);
-            $apartment->update(['status' => 'occupied']);
-
-            // ID document upload — only for a newly-created tenant (matches the
-            // photo/PDF-acceptance guard above), resilient so a storage hiccup
-            // never aborts the whole assignment.
-            if ($validated['tenant_option'] === 'new' && $request->hasFile('id_pdf') && $request->file('id_pdf')->isValid()) {
-                try {
-                    $attachments->storeMany($tenant, [$request->file('id_pdf')], Attachment::KIND_TENANT_DOCUMENT, 'tenants/documents');
-                } catch (\Throwable $e) {
-                    Log::error('Tenant document upload failed during assignment: '.$e->getMessage());
-                }
-            }
-
-            $moveInDate = Carbon::parse($validated['move_in_date']);
-            $rental = Rentals::create([
-                'apartment_id' => $apartment->id,
-                'tenant_id' => $tenant->id,
-                'start_date' => $moveInDate,
-                'end_date' => null,
-                'rent_amount' => $apartment->monthly_rent,
-                'deposit' => $validated['deposit'],
-            ]);
-
-            $activePeriod = $this->activeAdminFiscalPeriod();
-            if (! empty($validated['deposit']) && $validated['deposit'] > 0 && ! $activePeriod) {
-                // accounts.fiscal_period_id is NOT NULL — booking without an open
-                // period would 500 the whole assignment (and the old Auth::id()
-                // fallback put the row under the SUPERVISOR's ledger).
-                Log::warning('No active fiscal period — deposit income not recorded on assignment', [
-                    'rental_id' => $rental->id,
-                ]);
-            }
-            if (! empty($validated['deposit']) && $validated['deposit'] > 0 && $activePeriod) {
-                $reference = 'deposit:rental:'.$rental->id;
-
-                Accounts::firstOrCreate(
-                    ['reference_number' => $reference],
-                    [
-                        'fiscal_period_id' => $activePeriod->id,
-                        'property_id' => $apartment->property_id ?? $apartment->floor?->property_id,
-                        'payment_id' => null,
-                        // Ledger rows carry the admin's user_id (one-ledger invariant).
-                        'user_id' => $activePeriod->user_id,
-                        'account_type' => Accounts::TYPE_INCOME,
-                        'category' => Accounts::CAT_DEPOSIT_INCOME,
-                        'description' => 'Security deposit — Apt '.($apartment->apartment_number ?? 'N/A'),
-                        'amount' => $validated['deposit'],
-                        'transaction_date' => now()->toDateString(),
-                        'note' => 'Initial deposit collected on tenant assignment',
-                        'reference_number' => $reference,
-                    ]
-                );
-            }
-
-            return redirect()->route('supervisor.apartments.index')
-                ->with('success', __('messages.flash_tenant_assigned'));
-        });
+        return redirect()->route('supervisor.apartments.index')
+            ->with('success', __('messages.flash_tenant_assigned'));
     }
 
     private function activeAdminFiscalPeriod(): ?FiscalPeriods

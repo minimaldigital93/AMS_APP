@@ -10,6 +10,24 @@ function formatFileSize(bytes) {
     return Math.max(1, Math.round(bytes / 1024)) + ' KB';
 }
 
+// Styled popup when the shared confirm-modal partial is on the page,
+// native alert() otherwise.
+function notify(message) {
+    (window.amsAlert || window.alert)(message);
+}
+
+// Undo the layout's global submit UX (disabled buttons + spinner). Needed when
+// a submit listener blocks the POST *after* the layout's capture-phase handler
+// already engaged — without this the form's buttons stay dead.
+function restoreSubmitUx(form) {
+    delete form.dataset.submitting;
+    form.querySelectorAll('button[type="submit"], input[type="submit"]').forEach((btn) => {
+        btn.disabled = false;
+        btn.removeAttribute('aria-disabled');
+        btn.querySelector('.spinner')?.remove();
+    });
+}
+
 function compressImage(file, maxDimension, quality) {
     return new Promise((resolve) => {
         const img = new Image();
@@ -59,6 +77,7 @@ function compressImage(file, maxDimension, quality) {
 // photo over the per-file limit would either be wiped or trip a raw 413.
 window.amsCompressImage = compressImage;
 window.amsFormatFileSize = formatFileSize;
+window.amsRestoreSubmitUx = restoreSubmitUx;
 
 // Belt-and-braces guard: a form can combine multiple file inputs (e.g. a
 // tenant's photo + several documents) whose individual limits are each fine,
@@ -82,8 +101,9 @@ document.addEventListener('submit', (event) => {
 
     if (total > maxTotalBytes) {
         event.preventDefault();
+        restoreSubmitUx(form);
         const message = form.dataset.maxTotalMessage ?? 'These files are too large to upload together.';
-        alert(message
+        notify(message
             .replace(':size', formatFileSize(total))
             .replace(':max', formatFileSize(maxTotalBytes)));
     }
@@ -112,12 +132,12 @@ document.addEventListener('alpine:init', () => {
 
             let slots = this.maxFiles - this.files.length;
             if (slots <= 0) {
-                alert(this.tooManyMessage.replace(':max', this.maxFiles));
+                notify(this.tooManyMessage.replace(':max', this.maxFiles));
                 event.target.value = '';
                 return;
             }
             if (picked.length > slots) {
-                alert(this.tooManyMessage.replace(':max', this.maxFiles));
+                notify(this.tooManyMessage.replace(':max', this.maxFiles));
             }
 
             for (const original of picked.slice(0, slots)) {
@@ -126,7 +146,7 @@ document.addEventListener('alpine:init', () => {
                     : original;
 
                 if (file.size > this.maxBytes) {
-                    alert(this.tooLargeMessage
+                    notify(this.tooLargeMessage
                         .replace(':name', original.name)
                         .replace(':size', formatFileSize(file.size))
                         .replace(':max', formatFileSize(this.maxBytes)));
