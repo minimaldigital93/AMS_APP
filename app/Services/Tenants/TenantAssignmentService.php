@@ -10,6 +10,7 @@ use App\Models\Rentals;
 use App\Models\Tenants;
 use App\Models\User;
 use App\Services\Attachments\AttachmentService;
+use App\Services\Contracts\ContractGenerator;
 use Carbon\Carbon;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Auth;
@@ -33,7 +34,10 @@ class TenantAssignmentService
     /** @var array<int, array{disk: string, path: string}> files written this run, deleted again on failure */
     private array $storedFiles = [];
 
-    public function __construct(private AttachmentService $attachments) {}
+    public function __construct(
+        private AttachmentService $attachments,
+        private ContractGenerator $contracts,
+    ) {}
 
     /**
      * @param  array<string, mixed>  $data  validated AssignTenantRequest data
@@ -44,9 +48,10 @@ class TenantAssignmentService
     public function assign(Apartments $apartment, array $data, ?UploadedFile $photo, ?UploadedFile $idDocument, ?FiscalPeriods $activePeriod): void
     {
         $this->storedFiles = [];
+        $rental = null;
 
         try {
-            DB::transaction(function () use ($apartment, $data, $photo, $idDocument, $activePeriod) {
+            DB::transaction(function () use ($apartment, $data, $photo, $idDocument, $activePeriod, &$rental) {
                 // Lock the apartment row so two concurrent assignments can't both succeed.
                 $apartment = Apartments::whereKey($apartment->id)->lockForUpdate()->firstOrFail();
 
@@ -88,14 +93,25 @@ class TenantAssignmentService
                     $this->storeIdDocument($tenant, $idDocument);
                 }
 
+                $moveIn = Carbon::parse($data['move_in_date']);
+
                 $rental = Rentals::create([
                     'apartment_id' => $apartment->id,
                     'tenant_id' => $tenant->id,
-                    'start_date' => Carbon::parse($data['move_in_date']),
+                    'start_date' => $moveIn,
                     'end_date' => null,
                     'rent_amount' => $apartment->monthly_rent,
                     'deposit' => $data['deposit'],
+                    // Sensible default: rent falls due on the move-in day each
+                    // month. Utility prices default to 0 (fill-in on the contract).
+                    'payment_due_day' => $moveIn->day,
+                    'created_by' => Auth::id(),
                 ]);
+
+                // Reserve the contract number inside the transaction so the
+                // committed lease always has one, even if the (post-commit) PDF
+                // render fails.
+                $this->contracts->ensureContractNumber($rental);
 
                 $this->recordDepositIncome($apartment, $rental, (float) $data['deposit'], $activePeriod);
             });
@@ -103,6 +119,27 @@ class TenantAssignmentService
             $this->deleteStoredFiles();
 
             throw $e;
+        }
+
+        // The lease is committed. Generate the contract PDF as a best-effort
+        // post-step: a render failure must never roll back the assignment — the
+        // admin can Regenerate from the tenant page.
+        $this->generateContractQuietly($rental);
+    }
+
+    private function generateContractQuietly(?Rentals $rental): void
+    {
+        if (! $rental) {
+            return;
+        }
+
+        try {
+            $this->contracts->generate($rental);
+        } catch (\Throwable $e) {
+            Log::error('Rental contract generation failed after assignment', [
+                'rental_id' => $rental->id,
+                'error' => $e->getMessage(),
+            ]);
         }
     }
 

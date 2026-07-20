@@ -23,11 +23,23 @@ class Rentals extends Model
     protected $fillable = [
         'apartment_id',
         'tenant_id',
+        'contract_number',
         'start_date',
         'end_date',
         'rent_amount',
+        'electricity_price',
+        'water_price',
+        'parking_fee',
+        'internet_fee',
+        'garbage_fee',
+        'late_fee',
+        'payment_due_day',
         'deposit',
+        'created_by',
     ];
+
+    // contract_path / contract_generated_at are system-managed (written only by
+    // the ContractGenerator), so they stay out of $fillable on purpose.
 
     protected function casts(): array
     {
@@ -35,7 +47,15 @@ class Rentals extends Model
             'start_date' => 'date',
             'end_date' => 'date',
             'rent_amount' => 'float',
+            'electricity_price' => 'float',
+            'water_price' => 'float',
+            'parking_fee' => 'float',
+            'internet_fee' => 'float',
+            'garbage_fee' => 'float',
+            'late_fee' => 'float',
+            'payment_due_day' => 'integer',
             'deposit' => 'float',
+            'contract_generated_at' => 'datetime',
         ];
     }
 
@@ -49,6 +69,11 @@ class Rentals extends Model
     public function tenant(): BelongsTo
     {
         return $this->belongsTo(Tenants::class, 'tenant_id');
+    }
+
+    public function creator(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'created_by');
     }
 
     public function payments(): HasMany
@@ -71,6 +96,15 @@ class Rentals extends Model
         return $query->where(function ($q) {
             $q->whereNull('end_date')->orWhere('end_date', '>=', now());
         });
+    }
+
+    // Contract helpers
+
+    /** True once a contract PDF has been generated and is on disk. */
+    public function hasContract(): bool
+    {
+        return filled($this->contract_path)
+            && \Illuminate\Support\Facades\Storage::disk('local')->exists($this->contract_path);
     }
 
     // Derived attributes

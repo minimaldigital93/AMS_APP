@@ -23,6 +23,8 @@
     $unpaid = $history->where('paid', false);
     $totalDue = $unpaid->sum('rent_amount');
     $hasPhoto = $tenant->photo_path && ! \Illuminate\Support\Str::endsWith($tenant->photo_path, '.pdf');
+    // The lease this tenant's contract belongs to: the open one, else the latest.
+    $contractRental = $tenant->rentals->firstWhere('end_date', null) ?? $tenant->rentals->sortByDesc('start_date')->first();
     $rawStatus = method_exists($tenant, 'trashed') && $tenant->trashed() ? 'departed' : $tenant->status;
     $statusDisplay = status_label($rawStatus);
 @endphp
@@ -197,6 +199,53 @@
             <p class="text-slate-400 text-sm">{{ __('messages.no_document_attached') }}</p>
         @endif
     </div>
+
+    {{-- 6. Lease Contract (admin panel only — superadmin + admin) --}}
+    @if($role === 'admin' && $contractRental)
+        @php $hasContract = $contractRental->hasContract(); @endphp
+        <div class="bg-white rounded-xl border border-slate-100 p-6">
+            <div class="flex items-center justify-between mb-4">
+                <h3 class="text-sm font-medium text-slate-500 uppercase tracking-wide">{{ __('messages.lease_contract') }}</h3>
+                @if($hasContract)
+                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-50 text-emerald-600">{{ __('messages.contract_generated') }}</span>
+                @else
+                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-amber-50 text-amber-600">{{ __('messages.contract_not_generated') }}</span>
+                @endif
+            </div>
+
+            <div class="grid grid-cols-2 sm:grid-cols-3 gap-4 mb-5">
+                <div>
+                    <p class="text-xs text-slate-400 uppercase tracking-wide">{{ __('messages.contract_number') }}</p>
+                    <p class="text-sm font-semibold text-slate-800 mt-0.5">{{ $contractRental->contract_number ?? '—' }}</p>
+                </div>
+                <div>
+                    <p class="text-xs text-slate-400 uppercase tracking-wide">{{ __('messages.contract_generated_on') }}</p>
+                    <p class="text-sm font-medium text-slate-800 mt-0.5">{{ $contractRental->contract_generated_at ? $contractRental->contract_generated_at->format('M d, Y') : '—' }}</p>
+                </div>
+                <div>
+                    <p class="text-xs text-slate-400 uppercase tracking-wide">{{ __('messages.status') }}</p>
+                    <p class="text-sm font-medium text-slate-800 mt-0.5">{{ $hasContract ? __('messages.contract_generated') : __('messages.contract_not_generated') }}</p>
+                </div>
+            </div>
+
+            <div class="flex flex-wrap items-center gap-2">
+                <a href="{{ route('admin.contracts.preview', $contractRental) }}" target="_blank" rel="noopener"
+                   class="inline-flex items-center gap-2 px-3 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+                    {{ __('messages.preview') }}
+                </a>
+                <form action="{{ route('admin.contracts.regenerate', $contractRental) }}" method="POST" class="inline"
+                      data-confirm="{{ __('messages.contract_regenerate_confirm') }}">
+                    @csrf
+                    <button type="submit"
+                            class="inline-flex items-center gap-2 px-3 py-2 text-sm font-medium text-amber-700 bg-amber-50 border border-amber-200 hover:bg-amber-100 rounded-lg transition">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+                        {{ __('messages.regenerate_contract') }}
+                    </button>
+                </form>
+            </div>
+        </div>
+    @endif
 </div>
 
 {{-- Document Preview Modal --}}

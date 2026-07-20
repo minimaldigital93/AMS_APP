@@ -13,6 +13,18 @@ use Illuminate\View\View;
 class SettingsController extends Controller
 {
     /**
+     * Money settings — stored in USD, typed in the display currency, and
+     * printed on the rental contract.
+     */
+    public const PRICE_KEYS = [
+        'utility_electricity_price',
+        'utility_water_price',
+        'utility_parking_fee',
+        'utility_internet_fee',
+        'utility_garbage_fee',
+    ];
+
+    /**
      * Display the settings page
      */
     public function index(): View
@@ -33,6 +45,26 @@ class SettingsController extends Controller
                 'company_phone' => '',
                 'company_email' => '',
                 'company_website' => '',
+            ],
+            // Party "ក" on the printed rental contract. The company block above is
+            // branding; the owner is the natural person who signs, so the contract
+            // needs their gender and ID-card number too. Blank owner fields fall
+            // back to the company ones — see ContractGenerator::viewData().
+            'owner' => [
+                'owner_name' => '',
+                'owner_gender' => '',
+                'owner_id_card' => '',
+                'owner_phone' => '',
+                'owner_address' => '',
+            ],
+            // Default monthly charges printed in ប្រការ១ of the contract. A lease
+            // that carries its own price overrides these; see ContractGenerator.
+            'utility' => [
+                'utility_electricity_price' => '',
+                'utility_water_price' => '',
+                'utility_parking_fee' => '',
+                'utility_internet_fee' => '',
+                'utility_garbage_fee' => '',
             ],
             'system' => [
                 'system_currency' => 'USD',
@@ -68,13 +100,27 @@ class SettingsController extends Controller
             'settings' => 'required|array',
             'settings.*' => 'nullable|string',
             'settings.khr_exchange_rate' => 'nullable|numeric|min:1',
+            'settings.owner_gender' => 'nullable|in:male,female,other',
+            // These land verbatim on a legal document, so keep them numeric.
+            'settings.utility_electricity_price' => 'nullable|numeric|min:0',
+            'settings.utility_water_price' => 'nullable|numeric|min:0',
+            'settings.utility_parking_fee' => 'nullable|numeric|min:0',
+            'settings.utility_internet_fee' => 'nullable|numeric|min:0',
+            'settings.utility_garbage_fee' => 'nullable|numeric|min:0',
             'company_logo' => 'nullable|image|mimes:jpeg,jpg,png,webp|max:2048',
         ], [
             'settings.khr_exchange_rate.numeric' => __('messages.exchange_rate_invalid'),
             'settings.khr_exchange_rate.min' => __('messages.exchange_rate_invalid'),
         ]);
 
-        foreach ($request->settings as $key => $value) {
+        // Prices are typed in the display currency but stored in USD like every
+        // other money column — see convert_money_input() / money_input().
+        $settings = convert_money_input(
+            ['settings' => $request->settings],
+            array_map(fn ($k) => "settings.$k", self::PRICE_KEYS)
+        )['settings'];
+
+        foreach ($settings as $key => $value) {
             Settings::set($key, $value);
         }
 

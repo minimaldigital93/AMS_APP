@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Admin\ApartmentController;
+use App\Http\Controllers\Admin\ContractController;
 use App\Http\Controllers\Admin\DashboardController;
 use App\Http\Controllers\Admin\FiscalPeriodController;
 use App\Http\Controllers\Admin\FloorController;
@@ -212,6 +213,13 @@ Route::middleware(['auth', 'role:admin|superadmin', 'subscription.active'])->gro
     Route::put('/admin/tenants/{tenant}', [TenantController::class, 'update'])->name('admin.tenants.update');
     Route::delete('/admin/tenants/{tenant}/documents/{attachment}', [TenantController::class, 'destroyDocument'])->name('admin.tenants.destroy_document');
     Route::get('/admin/tenants/{tenant}', [TenantController::class, 'show'])->name('admin.tenants.show');
+
+    // Rental Contract Routes — PDF preview / download / print / regenerate for a
+    // lease (a rentals row). Admin + superadmin only (RentalsPolicy enforces it).
+    Route::get('/admin/rentals/{rental}/contract/preview', [ContractController::class, 'preview'])->name('admin.contracts.preview');
+    Route::get('/admin/rentals/{rental}/contract/download', [ContractController::class, 'download'])->name('admin.contracts.download');
+    Route::get('/admin/rentals/{rental}/contract/print', [ContractController::class, 'print'])->name('admin.contracts.print');
+    Route::post('/admin/rentals/{rental}/contract/regenerate', [ContractController::class, 'regenerate'])->name('admin.contracts.regenerate');
 
     // Fiscal Period Management Routes
     Route::get('/admin/fiscalperiod', [FiscalPeriodController::class, 'index'])->name('admin.fiscalperiod.index');
