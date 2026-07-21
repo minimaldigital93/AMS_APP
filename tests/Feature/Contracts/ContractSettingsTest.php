@@ -2,15 +2,17 @@
 
 use App\Models\Rentals;
 use App\Models\Settings;
+use App\Services\Contracts\ContractGenerator;
 use Illuminate\Support\Facades\Storage;
 
 /**
  * Owner information and the default utility prices: configured once in
  * Settings, then printed on every generated rental contract.
  *
- * Assertions run against the print (HTML) route rather than the stored PDF —
- * the PDF byte stream is compressed, so the text is not greppable there. The
- * two paths share ContractGenerator::viewData(), so this covers both.
+ * Assertions run against the rendered contract Blade rather than the stored PDF —
+ * the PDF byte stream is compressed, so the text is not greppable there. Both the
+ * stored PDF and this render share ContractGenerator::viewData(), so this covers
+ * the data resolution for both.
  */
 beforeEach(function () {
     Storage::fake('public');
@@ -32,6 +34,16 @@ function leaseWithContract(mixed $test, mixed $apartment, string $phone): Rental
     );
 
     return Rentals::sole();
+}
+
+/**
+ * Render the contract Blade to HTML for a lease, exactly as ContractGenerator
+ * feeds mPDF (forPdf: false so the greppable web-font markup is used). Reads the
+ * owner/price settings via current_account_id(), so the admin must be logged in.
+ */
+function contractHtml(Rentals $rental): string
+{
+    return view('pdf.contract', app(ContractGenerator::class)->viewData($rental, forPdf: false))->render();
 }
 
 it('shows the owner and utility groups on the settings page', function () {
@@ -94,14 +106,48 @@ it('prints the configured owner and utility prices on the contract', function ()
 
     $rental = leaseWithContract($this, $this->vacant, '0963330001');
 
-    $this->actingAs($this->admin)
-        ->get(route('admin.contracts.print', $rental))
-        ->assertOk()
-        ->assertSee('Chan Sophea', false)
-        ->assertSee('098765432', false)
-        ->assertSee('ស្រី', false)      // owner gender, Khmer
-        ->assertSee('$0.50', false)     // water, from settings
-        ->assertSee('$2.00', false);    // garbage, from settings
+    auth()->login($this->admin);
+    expect(contractHtml($rental))
+        ->toContain('Chan Sophea')
+        ->toContain('098765432')
+        ->toContain('ស្រី')     // owner gender, Khmer
+        ->toContain('$0.50')    // water, from settings
+        ->toContain('$2.00');   // garbage, from settings
+});
+
+it('drops a utility (label and all) when its price resolves to zero', function () {
+    auth()->login($this->admin);
+    // Only water is priced; the rest are left unset (→ resolve to null/zero).
+    settings(['utility_water_price' => '0.50']);
+    auth()->logout();
+
+    $rental = leaseWithContract($this, $this->vacant, '0963330005');
+
+    auth()->login($this->admin);
+    $html = contractHtml($rental);
+
+    expect($html)
+        ->toContain('តម្លៃទឹក')         // water label — priced, so shown
+        ->toContain('$0.50')
+        ->not->toContain('តម្លៃភ្លើង')   // electricity label — unset, dropped
+        ->not->toContain('តម្លៃចំណតរថយន្ត') // parking — dropped
+        ->not->toContain('តម្លៃអុីនធីណេត')  // internet — dropped
+        ->not->toContain('តម្លៃសំរាម');   // garbage — dropped
+});
+
+it('prints the late-fee percentage per day in the penalty article', function () {
+    auth()->login($this->admin);
+    settings(['late_fee_percent' => '3.5']);
+    auth()->logout();
+
+    $rental = leaseWithContract($this, $this->vacant, '0963330004');
+
+    auth()->login($this->admin);
+    // ប្រការ៥ renders the account-wide late_fee_percent as "3.5%" (trailing
+    // zeros trimmed), followed by "of the rent per day" in Khmer.
+    expect(contractHtml($rental))
+        ->toContain('3.5%')
+        ->toContain('នៃថ្លៃឈ្នួលក្នុងមួយថ្ងៃ');
 });
 
 it('lets a lease price override the account default', function () {
@@ -112,11 +158,10 @@ it('lets a lease price override the account default', function () {
     $rental = leaseWithContract($this, $this->vacant, '0963330002');
     $rental->forceFill(['water_price' => 1.25])->save();
 
-    $this->actingAs($this->admin)
-        ->get(route('admin.contracts.print', $rental))
-        ->assertOk()
-        ->assertSee('$1.25', false)
-        ->assertDontSee('$0.50', false);
+    auth()->login($this->admin);
+    expect(contractHtml($rental))
+        ->toContain('$1.25')
+        ->not->toContain('$0.50');
 });
 
 it('falls back to the company block when owner fields are blank', function () {
@@ -130,9 +175,8 @@ it('falls back to the company block when owner fields are blank', function () {
 
     $rental = leaseWithContract($this, $this->vacant, '0963330003');
 
-    $this->actingAs($this->admin)
-        ->get(route('admin.contracts.print', $rental))
-        ->assertOk()
-        ->assertSee('Sokha Residence', false)
-        ->assertSee('Toul Kork, Phnom Penh', false);
+    auth()->login($this->admin);
+    expect(contractHtml($rental))
+        ->toContain('Sokha Residence')
+        ->toContain('Toul Kork, Phnom Penh');
 });

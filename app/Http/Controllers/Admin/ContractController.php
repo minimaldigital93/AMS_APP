@@ -58,15 +58,23 @@ class ContractController extends Controller
     }
 
     /**
-     * Browser-print view: renders the same contract template as HTML with the
-     * web font path and an auto-print trigger, so the browser prints at full
-     * fidelity (and can "Save as PDF" too).
+     * On-screen "view + print" page. It embeds the stored PDF (which mPDF has
+     * already shaped AND justified — a browser rendering the contract HTML
+     * directly cannot justify Khmer) and prints that, so preview and print give
+     * identical, correctly-justified output on every device. See the blade.
      */
-    public function print(Rentals $rental): Response
+    public function view(Rentals $rental): Response|RedirectResponse
     {
         Gate::authorize('manageContract', $rental);
 
-        return response()->view('pdf.contract', $this->contracts->viewData($rental, forPdf: false) + ['autoPrint' => true]);
+        if (! $this->ensurePdf($rental)) {
+            return back()->with('error', __('messages.contract_generate_failed'));
+        }
+
+        return response()->view('pdf.contract_viewer', [
+            'rental' => $rental,
+            'contractNumber' => $this->contracts->ensureContractNumber($rental),
+        ]);
     }
 
     /** Regenerate the PDF from current data, keeping the same contract number. */

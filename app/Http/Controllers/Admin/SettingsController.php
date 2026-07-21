@@ -66,6 +66,11 @@ class SettingsController extends Controller
                 'utility_internet_fee' => '',
                 'utility_garbage_fee' => '',
             ],
+            // Late-payment penalty: percent of the monthly rent charged per day
+            // overdue. Auto-fills the late-fee field on the rent-collection page.
+            'late' => [
+                'late_fee_percent' => '',
+            ],
             'system' => [
                 'system_currency' => 'USD',
                 'khr_exchange_rate' => '4100',
@@ -107,6 +112,8 @@ class SettingsController extends Controller
             'settings.utility_parking_fee' => 'nullable|numeric|min:0',
             'settings.utility_internet_fee' => 'nullable|numeric|min:0',
             'settings.utility_garbage_fee' => 'nullable|numeric|min:0',
+            // Percent of rent charged per overdue day — not a money field.
+            'settings.late_fee_percent' => 'nullable|numeric|min:0|max:100',
             'company_logo' => 'nullable|image|mimes:jpeg,jpg,png,webp|max:2048',
         ], [
             'settings.khr_exchange_rate.numeric' => __('messages.exchange_rate_invalid'),

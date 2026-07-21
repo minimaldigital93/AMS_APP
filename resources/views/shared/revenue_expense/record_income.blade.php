@@ -278,7 +278,7 @@
                                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 3h12v18l-2-1.5-2 1.5-2-1.5-2 1.5-2-1.5L6 21z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 8h6M9 11.5h6M9 15h3.5"/></svg>
                                 </button>
                                 @if($bill['status'] !== 'paid')
-                                <button @click="openCheckout({{ $bill['rental']->id }}, '{{ addslashes($bill['tenant']->name ?? __('messages.tenant')) }}', '{{ $bill['apartment']->apartment_number }}', {{ $bill['monthly_rent'] }}, {{ $bill['total_utility_only'] }}, {{ $bill['total_other_charges'] }}, {{ $bill['total_fixed'] }}, {{ $bill['total_bill'] }})"
+                                <button @click="openCheckout({{ $bill['rental']->id }}, '{{ addslashes($bill['tenant']->name ?? __('messages.tenant')) }}', '{{ $bill['apartment']->apartment_number }}', {{ $bill['monthly_rent'] }}, {{ $bill['total_utility_only'] }}, {{ $bill['total_other_charges'] }}, {{ $bill['total_fixed'] }}, {{ $bill['total_bill'] }}, {{ $bill['late_fee_suggested'] ?? 0 }}, {{ $bill['overdue_days'] ?? 0 }})"
                                     class="inline-flex items-center justify-center h-7 w-7 rounded-md text-emerald-600 bg-emerald-50 hover:bg-emerald-100 transition" title="{{ __('messages.checkout_pay') }}">
                                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
                                 </button>
@@ -342,7 +342,7 @@
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 3h12v18l-2-1.5-2 1.5-2-1.5-2 1.5-2-1.5L6 21z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 8h6M9 11.5h6M9 15h3.5"/></svg>
                     </button>
                     @if($bill['status'] !== 'paid')
-                    <button @click="openCheckout({{ $bill['rental']->id }}, '{{ addslashes($bill['tenant']->name ?? __('messages.tenant')) }}', '{{ $bill['apartment']->apartment_number }}', {{ $bill['monthly_rent'] }}, {{ $bill['total_utility_only'] }}, {{ $bill['total_other_charges'] }}, {{ $bill['total_fixed'] }}, {{ $bill['total_bill'] }})"
+                    <button @click="openCheckout({{ $bill['rental']->id }}, '{{ addslashes($bill['tenant']->name ?? __('messages.tenant')) }}', '{{ $bill['apartment']->apartment_number }}', {{ $bill['monthly_rent'] }}, {{ $bill['total_utility_only'] }}, {{ $bill['total_other_charges'] }}, {{ $bill['total_fixed'] }}, {{ $bill['total_bill'] }}, {{ $bill['late_fee_suggested'] ?? 0 }}, {{ $bill['overdue_days'] ?? 0 }})"
                         class="inline-flex items-center justify-center h-8 w-8 rounded-lg text-emerald-600 bg-emerald-50 active:bg-emerald-100 transition" title="{{ __('messages.checkout_pay') }}">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
                     </button>
@@ -726,6 +726,8 @@
                             <input type="number" name="late_fee" x-model="checkoutLateFee" step="0.01" min="0" value="0"
                                 class="w-20 text-right text-sm border border-slate-200 rounded-lg px-2 py-1 focus:ring-1 focus:ring-emerald-500 focus:border-emerald-500">
                         </div>
+                        <p x-show="lateFeePercent > 0 && checkoutOverdueDays > 0" x-cloak class="text-[11px] text-slate-400 -mt-1 px-3"
+                            x-text="'{{ __('messages.late_fee_auto_hint') }}'.replace(':percent', lateFeePercent).replace(':days', checkoutOverdueDays)"></p>
                         <div class="flex items-center justify-between pt-2 px-1 border-t border-slate-200">
                             <span class="font-bold text-slate-700">{{ __('messages.total') }}</span>
                             <span class="text-xl font-bold text-emerald-600" x-text="'$' + calculateCheckoutTotal()"></span>
@@ -908,6 +910,14 @@ function billingManager() {
         khrCurrency: {{ currency_is_khr() ? 'true' : 'false' }},
         chargeTypes: ['electricity','water','internet','parking','trash','other'],
         charges: {},
+        // Default monthly fees from Settings (stored in USD, shown in the display
+        // currency). Only flat-fee types have a default; electricity/water are
+        // metered and "other" has no configured fee. Blank when unset.
+        chargeDefaults: @js([
+            'internet' => filled(settings('utility_internet_fee')) ? money_input(settings('utility_internet_fee')) : '',
+            'parking'  => filled(settings('utility_parking_fee')) ? money_input(settings('utility_parking_fee')) : '',
+            'trash'    => filled(settings('utility_garbage_fee')) ? money_input(settings('utility_garbage_fee')) : '',
+        ]),
         freshCharges() {
             return Object.fromEntries(this.chargeTypes.map(t => [t, { active: false, meter_in: '', meter_out: '', amount: '' }]));
         },
@@ -923,6 +933,8 @@ function billingManager() {
         checkoutFixed: 0,
         checkoutTotal: 0,
         checkoutLateFee: 0,
+        checkoutOverdueDays: 0,
+        lateFeePercent: {{ (float) settings('late_fee_percent', 0) }},
         checkoutMethod: 'cash',
         payRent: true,
         payUtilities: true,
@@ -1074,7 +1086,13 @@ function billingManager() {
         toggleCharge(type) {
             const c = this.charges[type];
             c.active = !c.active;
-            if (!c.active) { c.meter_in = ''; c.meter_out = ''; c.amount = ''; }
+            if (c.active) {
+                // Prefill the configured default fee (internet/parking/trash) when
+                // the amount is still empty; the user can override before saving.
+                if (!c.amount && this.chargeDefaults[type]) { c.amount = this.chargeDefaults[type]; }
+            } else {
+                c.meter_in = ''; c.meter_out = ''; c.amount = '';
+            }
         },
 
         activeChargeCount() {
@@ -1103,7 +1121,7 @@ function billingManager() {
             return sum.toFixed(this.khrCurrency ? 0 : 2).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
         },
 
-        openCheckout(rentalId, tenant, apt, rent, utilities, otherCharges, fixed, total) {
+        openCheckout(rentalId, tenant, apt, rent, utilities, otherCharges, fixed, total, lateFee = 0, overdueDays = 0) {
             this.checkoutRentalId = rentalId;
             this.checkoutTenant = tenant;
             this.checkoutApt = apt;
@@ -1112,7 +1130,8 @@ function billingManager() {
             this.checkoutOtherCharges = otherCharges;
             this.checkoutFixed = fixed;
             this.checkoutTotal = total;
-            this.checkoutLateFee = 0;
+            this.checkoutLateFee = lateFee;
+            this.checkoutOverdueDays = overdueDays;
             this.checkoutMethod = 'cash';
             this.payRent = true;
             this.payUtilities = true;

@@ -160,6 +160,11 @@ return [
     'utility_internet_fee' => 'Internet',
     'utility_garbage_fee' => 'Garbage',
 
+    'late_fee_settings' => 'Late Fee',
+    'late_fee_percent' => 'Late Fee (% / day)',
+    'late_fee_percent_hint' => 'Percent of the monthly rent charged for each day a payment is overdue. Set to 0 to disable. Auto-fills the late fee when collecting rent.',
+    'late_fee_auto_hint' => 'Auto: :percent% of rent × :days overdue day(s)',
+
     'upload_logo' => 'Upload Logo',
     'change_logo' => 'Change Logo',
     'remove_logo' => 'Remove Logo',

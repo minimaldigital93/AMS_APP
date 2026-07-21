@@ -218,7 +218,7 @@ Route::middleware(['auth', 'role:admin|superadmin', 'subscription.active'])->gro
     // lease (a rentals row). Admin + superadmin only (RentalsPolicy enforces it).
     Route::get('/admin/rentals/{rental}/contract/preview', [ContractController::class, 'preview'])->name('admin.contracts.preview');
     Route::get('/admin/rentals/{rental}/contract/download', [ContractController::class, 'download'])->name('admin.contracts.download');
-    Route::get('/admin/rentals/{rental}/contract/print', [ContractController::class, 'print'])->name('admin.contracts.print');
+    Route::get('/admin/rentals/{rental}/contract/view', [ContractController::class, 'view'])->name('admin.contracts.view');
     Route::post('/admin/rentals/{rental}/contract/regenerate', [ContractController::class, 'regenerate'])->name('admin.contracts.regenerate');
 
     // Fiscal Period Management Routes

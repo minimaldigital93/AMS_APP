@@ -89,16 +89,19 @@ it('lets an admin download the contract as a PDF attachment', function () {
     expect($res->headers->get('content-disposition'))->toContain($rental->contract_number);
 });
 
-it('renders the print view as Khmer HTML with the contract number', function () {
+it('renders the contract viewer that embeds the justified PDF for preview and print', function () {
     $this->actingAs($this->admin)->post(route('admin.apartments.assignTenant', $this->vacant), contractAssignPayload(['phone' => '0962220006']));
     $rental = Rentals::sole();
 
+    // The viewer is a thin HTML wrapper that embeds the mPDF-rendered PDF (which
+    // is what carries the correctly-justified Khmer) and prints THAT — a browser
+    // cannot justify spaceless Khmer, so the contract is never printed as HTML.
     $this->actingAs($this->admin)
-        ->get(route('admin.contracts.print', $rental))
+        ->get(route('admin.contracts.view', $rental))
         ->assertOk()
-        ->assertSee('ព្រះរាជាណាចក្រកម្ពុជា', false) // Kingdom of Cambodia (Khmer)
-        ->assertSee('កិច្ចសន្យាជួល', false)          // Rental contract title (Khmer)
-        ->assertSee($rental->contract_number, false);
+        ->assertSee('កិច្ចសន្យាជួល', false)                                 // Rental contract title (Khmer)
+        ->assertSee($rental->contract_number, false)
+        ->assertSee(route('admin.contracts.preview', $rental), false);      // embedded PDF source
 });
 
 it('regenerates the PDF while keeping the same contract number', function () {

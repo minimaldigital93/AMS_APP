@@ -765,6 +765,9 @@ abstract class RevenueExpenseController extends Controller
         $paidCount = 0;
         $pendingCount = 0;
 
+        // Late fee = percent of monthly rent per day overdue (0 = feature off).
+        $lateFeePercent = (float) settings('late_fee_percent', 0);
+
         foreach ($apartments as $apartment) {
             foreach ($apartment->rentals as $rental) {
                 $collected = $rental->payments->sum('amount');
@@ -830,6 +833,13 @@ abstract class RevenueExpenseController extends Controller
                 $lateFeeAmount = (! $paidThisMonth && $referenceNow->gt($dueDate)) ? ($rental->payments->isEmpty() ? 0 : $lateFees) : 0;
                 $totalBill = $rental->rent_amount + $totalUtilities + $totalFixed;
 
+                // Suggested late fee to prefill on the checkout form: percent of
+                // rent per day past the due date. Editable by the collector.
+                $overdueDays = $referenceNow->gt($dueDate) ? $dueDate->diffInDays($referenceNow) : 0;
+                $suggestedLateFee = ($lateFeePercent > 0 && $overdueDays > 0 && ! $paidThisMonth)
+                    ? round($rental->rent_amount * ($lateFeePercent / 100) * $overdueDays, 2)
+                    : 0;
+
                 if (! $paidThisMonth) {
                     $totalPending += $totalBill;
                 }
@@ -853,6 +863,8 @@ abstract class RevenueExpenseController extends Controller
                     'total_bill' => $totalBill,
                     'collected' => $collected,
                     'late_fees' => $lateFees,
+                    'late_fee_suggested' => $suggestedLateFee,
+                    'overdue_days' => $overdueDays,
                     'total_collected' => $collected + $lateFees,
                     'payment_count' => $rental->payments->count(),
                 ];

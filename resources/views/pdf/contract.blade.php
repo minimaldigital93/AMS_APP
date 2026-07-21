@@ -10,10 +10,13 @@
     article 3). That is reproduced as-is deliberately so the generated contract
     matches the paper one article-for-article. Do not "fix" the sequence.
 
-    Rendered two ways from ContractController / ContractGenerator:
-      * mPDF    (stored PDF, preview, download)  → $forPdf = true  (public_path fonts)
-      * Browser (the Print action)               → $forPdf = false (asset() fonts),
-                                                   $autoPrint = true opens the dialog
+    This is rendered by mPDF (ContractGenerator → KhmerPdf, $forPdf = true), which
+    both shapes AND justifies Khmer. That stored PDF is what every action shows —
+    preview, download, and the on-screen "view + print" page (pdf.contract_viewer),
+    which embeds the PDF and prints it. Do NOT print this template as browser HTML:
+    no browser can justify spaceless Khmer via CSS, so the paragraphs come out
+    ragged. The $forPdf = false / $autoPrint browser path is kept only as a
+    fallback and is no longer wired to any route.
 
     Vars: $rental $tenant $apartment $floor $property $landlord[] $rates[]
           $contractNumber $generatedAt $forPdf $autoPrint
@@ -57,6 +60,12 @@
     $price = fn ($v, int $n = 12) => ($v !== null && (float) $v > 0)
         ? ' <span style="white-space: nowrap">'.e(money($v)).'</span> '
         : $dots($n);
+    // Late-fee penalty (ប្រការ៥) is a percentage of the rent per overdue day,
+    // not a money amount. nowrap so mPDF keeps "3.5%" on one line, and trailing
+    // zeros are trimmed so 2.00 → "2" and 3.50 → "3.5".
+    $pct = fn ($v, int $n = 6) => ($v !== null && (float) $v > 0)
+        ? ' <span style="white-space: nowrap">'.e(rtrim(rtrim(number_format((float) $v, 2, '.', ''), '0'), '.')).'%</span> '
+        : $dots($n);
 
     $genderLabels = ['male' => 'ប្រុស', 'female' => 'ស្រី', 'other' => 'ផ្សេងៗ'];
     $genderVal = fn (?string $g, int $n = 8) => $g
@@ -72,6 +81,51 @@
 
     $start = $rental->start_date ? Carbon::parse($rental->start_date) : null;
     $genDate = Carbon::parse($generatedAt);
+
+    // Khmer numerals + month names for the "made on" date line.
+    // NOTE: the array form of strtr — the three-arg string form maps byte-for-byte
+    // and would splice the 3-byte Khmer digits into invalid UTF-8, which then hangs
+    // mPDF's purify_utf8() sanitiser for 30s+.
+    $khNum = fn ($v) => strtr((string) $v, [
+        '0' => '០', '1' => '១', '2' => '២', '3' => '៣', '4' => '៤',
+        '5' => '៥', '6' => '៦', '7' => '៧', '8' => '៨', '9' => '៩',
+    ]);
+    $khMonths = [
+        1 => 'មករា', 2 => 'កុម្ភៈ', 3 => 'មីនា', 4 => 'មេសា',
+        5 => 'ឧសភា', 6 => 'មិថុនា', 7 => 'កក្កដា', 8 => 'សីហា',
+        9 => 'កញ្ញា', 10 => 'តុលា', 11 => 'វិច្ឆិកា', 12 => 'ធ្នូ',
+    ];
+
+    // Khmer-numeral / Khmer-month fills for the lease dates, keeping $val's
+    // dotted-blank fallback when no start date is set.
+    $khDay = fn (?Carbon $d, int $n = 6) => $d ? ' '.$khNum($d->format('d')).' ' : $dots($n);
+    $khMonthName = fn (?Carbon $d, int $n = 8) => $d ? ' '.$khMonths[(int) $d->format('n')].' ' : $dots($n);
+    $khYear = fn (?Carbon $d, int $n = 8) => $d ? ' '.$khNum($d->format('Y')).' ' : $dots($n);
+
+    // ប្រការ១ lists the monthly charges. A utility whose resolved rate is null —
+    // neither the lease nor the account default sets a positive price, i.e. it is
+    // unused or explicitly set to 0 — is dropped entirely, label and all, rather
+    // than printed as a blank fill-in line. Rent always prints (dotted if unset).
+    // "និង" (and) is welded onto whichever utility ends up last so the sentence
+    // still reads, and if every utility is hidden the line is just the rent.
+    $utilities = array_filter([
+        'តម្លៃទឹក' => $rates['water'],
+        'តម្លៃភ្លើង' => $rates['electricity'],
+        'តម្លៃចំណតរថយន្ត' => $rates['parking'],
+        'តម្លៃអុីនធីណេត' => $rates['internet'],
+        'តម្លៃសំរាម' => $rates['garbage'],
+    ], fn ($rate) => $rate !== null);
+
+    $renderUtilities = function () use ($utilities, $kw, $price) {
+        $out = '';
+        $lastLabel = array_key_last($utilities);
+        foreach ($utilities as $label => $rate) {
+            $prefix = $label === $lastLabel ? 'និង' : '';
+            $out .= $kw($prefix.$label).$price($rate);
+        }
+
+        return $out;
+    };
 @endphp
 <!doctype html>
 <html lang="km">
@@ -144,7 +198,7 @@
     <htmlpagefooter name="contractfooter">
         <table class="footer" width="100%"><tr>
             <td>{{ $contractNumber }}</td>
-            <td class="c">{{ $genDate->format('d/m/Y') }}</td>
+            <td class="c">{{ $khNum($genDate->format('d/m/Y')) }}</td>
             <td class="r">{PAGENO} / {nbpg}</td>
         </tr></table>
     </htmlpagefooter>
@@ -162,10 +216,9 @@
 {{-- Party A — the owner, from Settings → Owner Information --}}
 <div class="parties">
     <p>
-        {!! $kw('ឈ្មោះ') !!}{!! $val($landlord['name'] ?? null, 26) !!}{!! $kw('ភេទ') !!}{!! $genderVal($landlord['gender'] ?? null, 10) !!}{!! $kw('កាន់អត្តសញ្ញាណប័ណ្ណលេខ') !!}{!! $val($landlord['id_card'] ?? null, 28) !!}
-    </p>
-    <p>
-        {!! $kw('លេខទូរស័ព្ទ') !!}{!! $val($landlord['phone'] ?? null, 16) !!}{!! $kw('ជាម្ចាស់ផ្ទះជួលនៅអាស័យដ្ឋាន') !!} {!! $val($landlord['address'] ?? null, 46) !!}
+        {!! $kw('ឈ្មោះ') !!}{!! $val($landlord['name'] ?? null, 26) !!}{!! $kw('ភេទ') !!}{!! $genderVal($landlord['gender'] ?? null, 10) !!}{!! $kw('កាន់អត្តសញ្ញាណប័ណ្ណលេខ') !!}{!! $val($landlord['id_card'] ?? null, 28) !!}{!! $kw('លេខទូរស័ព្ទ') !!}{!! $val($landlord['phone'] ?? null, 16) !!}
+        {!! $kw('ជាម្ចាស់ផ្ទះជួលនៅអាស័យដ្ឋាន') !!}
+        {!! $val($landlord['address'] ?? null, 46) !!}
         {!! $kw('ហៅកាត់ថា') !!} {!! $kw('ភាគី “ក”។') !!}
     </p>
 
@@ -173,9 +226,7 @@
 
     <p>
         {!! $kw('អ្នកជួលបន្ទប់ឈ្មោះ') !!}{!! $val($tenant?->name, 22) !!}{!! $kw('ភេទ') !!}{!! $genderVal($tenant?->gender) !!}{!! $kw('កាន់អត្តសញ្ញាណប័ណ្ណលេខ') !!}{!! $val($tenant?->id_card_number, 20) !!}
-    </p>
-    <p>
-        {!! $kw('លេខទូរស័ព្ទ') !!}{!! $val($tenant?->phone, 20) !!} {!! $kw('ហៅកាត់ថា') !!} {!! $kw('ភាគី “ខ” ។') !!}
+         {!! $kw('លេខទូរស័ព្ទ') !!}{!! $val($tenant?->phone, 20) !!} {!! $kw('ហៅកាត់ថា') !!} {!! $kw('ភាគី “ខ” ។') !!}
     </p>
 </div>
 
@@ -184,13 +235,12 @@
 <div class="article">
     <span class="n">ប្រការ១៖</span>
     ភាគី“ក” បានយល់ព្រមជួលបន្ទប់ដែលមានលេខ{!! $val($apartment?->apartment_number, 6) !!}ស្ថិតនៅអាស័យដ្ឋានផ្ទះជួលខាងលើទៅឱ្យ ភាគី“ខ”
-    {!! $kw('ក្នុងតម្លៃ') !!}{!! $price($rates['rent']) !!}{!! $kw('តម្លៃទឹក') !!}{!! $price($rates['water']) !!}{!! $kw('តម្លៃភ្លើង') !!}{!! $price($rates['electricity']) !!}{!! $kw('តម្លៃចំណតរថយន្ត') !!}{!! $price($rates['parking']) !!}{!! $kw('តម្លៃអុីនធីណេត') !!}{!! $price($rates['internet']) !!}
-    {!! $kw('និងតម្លៃសំរាម') !!}{!! $price($rates['garbage']) !!}។
+    {!! $kw('ក្នុងតម្លៃ') !!}{!! $price($rates['rent']) !!}{!! $renderUtilities() !!}។
 </div>
 
 <div class="article">
     <span class="n">ប្រការ២៖</span>
-    ភាគី“ខ” យល់ព្រមជួលបន្ទប់ដែលមានលេខ និងតម្លៃយល់ព្រមក្នុងប្រការ១ {!! $kw('ដោយគិតពីថ្ងៃទី') !!}{!! $val($start?->format('d'), 6) !!}{!! $kw('ខែ') !!}{!! $val($start?->format('m'), 8) !!}{!! $kw('ឆ្នាំ') !!}{!! $val($start?->format('Y'), 8) !!}
+    ភាគី“ខ” យល់ព្រមជួលបន្ទប់ដែលមានលេខ និងតម្លៃយល់ព្រមក្នុងប្រការ១ {!! $kw('ដោយគិតពីថ្ងៃទី') !!}{!! $khDay($start) !!}{!! $kw('ខែ') !!}{!! $khMonthName($start) !!}{!! $kw('ឆ្នាំ') !!}{!! $khYear($start) !!}
     ដល់ថ្ងៃដែលភាគីទាំងពីរយល់ព្រមបញ្ចប់កិច្ចសន្យា និងតម្រូវឱ្យបង់ប្រាក់កក់ថ្លៃបន្ទប់ចំនួន ០១ខែ
     ដើម្បីជាការធានាលើការខូតខាតផ្សេងៗរបស់ម្ចាស់ផ្ទះ។
 </div>
@@ -198,12 +248,12 @@
 <div class="article">
     <span class="n">ប្រការ៤៖</span>
     ភាគី“ខ” យល់ព្រមបង់ថ្លៃបន្ទប់ស្នាក់នៅប្រចាំខែក្នុងតម្លៃយល់ព្រម ថ្លៃចំណត ថ្លៃទឹក អគ្គិសនី សំរាម នៅខែបន្តបន្ទប់
-    {!! $kw('រៀងរាល់ថ្ងៃទី') !!}{!! $val($rental->payment_due_day, 6) !!} {!! $kw('នៃខែនីមួយៗ') !!}អំឡុងពេលស្នាក់នៅរហូតដល់កិច្ចសន្យាត្រូវបានបញ្ចប់។
+    {!! $kw('រៀងរាល់ថ្ងៃទី') !!}{!! $rental->payment_due_day ? ' '.$khNum($rental->payment_due_day).' ' : $dots(6) !!} {!! $kw('នៃខែនីមួយៗ') !!}អំឡុងពេលស្នាក់នៅរហូតដល់កិច្ចសន្យាត្រូវបានបញ្ចប់។
 </div>
 
 <div class="article">
     <span class="n">ប្រការ៥៖</span>
-    ភាគី“ខ” យល់ព្រមទទួលការផាកពិន័យចំនួន {!! $price($rates['late']) !!} ក្នុងករណីភាគី“ខ” ខកខានបង់ប្រាក់ថ្លៃបន្ទប់ ចំណត និងថ្លៃផ្សេងៗ
+    ភាគី“ខ” យល់ព្រមទទួលការផាកពិន័យចំនួន {!! $pct($rates['late_percent']) !!}{!! $kw('នៃថ្លៃឈ្នួលក្នុងមួយថ្ងៃ') !!} ក្នុងករណីភាគី“ខ” ខកខានបង់ប្រាក់ថ្លៃបន្ទប់ ចំណត និងថ្លៃផ្សេងៗ
     ក្រោយរយៈពេល ០៣ថ្ងៃដែលបានព្រមព្រៀងនៅក្នុងកិច្ចសន្យានេះ។
 </div>
 
@@ -270,7 +320,7 @@
 </div>
 
 <div class="made-on">
-    ធ្វើនៅរាជធានីភ្នំពេញថ្ងៃទី {!! $dots(6) !!} ខែ {!! $dots(6) !!} ឆ្នាំ{{ $genDate->format('Y') }}
+    ធ្វើនៅរាជធានីភ្នំពេញថ្ងៃទី {{ $khNum($genDate->format('d')) }} ខែ {{ $khMonths[(int) $genDate->format('n')] }} ឆ្នាំ{{ $khNum($genDate->format('Y')) }}
 </div>
 
 <table class="signatures">

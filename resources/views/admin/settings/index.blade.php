@@ -38,6 +38,7 @@
                 'utility_parking_fee'       => 'M5 17a2 2 0 104 0m6 0a2 2 0 104 0M3 13l2-6a2 2 0 011.9-1.4h10.2A2 2 0 0119 7l2 6v4a1 1 0 01-1 1H4a1 1 0 01-1-1v-4z',
                 'utility_internet_fee'      => 'M8.111 16.404a5.5 5.5 0 017.778 0M12 20h.01m-7.08-7.071c3.904-3.905 10.236-3.905 14.141 0M1.394 9.393c5.857-5.857 15.355-5.857 21.213 0',
                 'utility_garbage_fee'       => 'M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16',
+                'late_fee_percent'          => 'M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z',
                 'system_currency' => 'M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z',
             ];
             $defaultRowIcon = 'M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z M15 12a3 3 0 11-6 0 3 3 0 016 0z';
@@ -45,6 +46,7 @@
                 'company' => __('messages.company_information'),
                 'owner'   => __('messages.owner_information'),
                 'utility' => __('messages.default_utility_prices'),
+                'late'    => __('messages.late_fee_settings'),
                 'system'  => __('messages.system_preferences'),
             ];
             // Money rows render as a currency-prefixed number input. Values are
@@ -200,6 +202,14 @@
                                 class="w-28 bg-transparent border-0 p-0 text-right text-gray-500 focus:text-gray-900 focus:ring-0 focus:outline-none"
                                 placeholder="0">
                         </span>
+                        @elseif($key === 'late_fee_percent')
+                        <span class="ml-auto inline-flex items-center gap-1 text-[15px] text-gray-400">
+                            <input type="number" min="0" max="100" step="any" name="settings[{{ $key }}]" id="{{ $key }}"
+                                value="{{ $currentValue }}"
+                                class="w-20 bg-transparent border-0 p-0 text-right text-gray-500 focus:text-gray-900 focus:ring-0 focus:outline-none"
+                                placeholder="0">
+                            <span>%</span>
+                        </span>
                         @elseif($key === 'khr_exchange_rate')
                         <span class="ml-auto inline-flex items-center gap-1 text-[15px] text-gray-400">
                             <span>1 $ =</span>
@@ -217,6 +227,9 @@
                     </div>
                     @endforeach
                 </div>
+                @if($category === 'late')
+                <p class="px-4 mt-2 text-[13px] text-gray-500">{{ __('messages.late_fee_percent_hint') }}</p>
+                @endif
             </div>
             @endforeach
 

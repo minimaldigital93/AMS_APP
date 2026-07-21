@@ -164,7 +164,13 @@ class ContractGenerator
             'parking' => $resolve('parking_fee', 'utility_parking_fee'),
             'internet' => $resolve('internet_fee', 'utility_internet_fee'),
             'garbage' => $resolve('garbage_fee', 'utility_garbage_fee'),
-            'late' => $resolve('late_fee'),
+            // The late-payment penalty is a percentage of the monthly rent per
+            // overdue day (the account-wide `late_fee_percent` setting), not a
+            // fixed sum — the same value the rent-collection page auto-fills.
+            // Null when unset so ប្រការ៥ prints a dotted fill-in line.
+            'late_percent' => (float) settings('late_fee_percent') > 0
+                ? (float) settings('late_fee_percent')
+                : null,
         ];
     }
 }
