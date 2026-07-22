@@ -10,16 +10,25 @@
     PDF for preview and prints THAT, giving identical, correctly-justified output
     on every device.
 
-    Preview      → the PDF is shown in an <iframe> (desktop) / the "Open" button
-                   hands off to the device's native PDF viewer (mobile).
-    Print        → prints the embedded PDF directly (same-origin), falling back to
-                   opening the PDF when a browser refuses to print the frame.
-    Download     → the stored PDF as an attachment.
+    Never-strand rule (installed PWA): a standalone PWA window has no browser
+    chrome, so a *bare* PDF page is a dead end — no back button, no app nav. So no
+    control here ever navigates the window to the raw PDF:
+      Preview  → the PDF is shown in an <iframe> (desktop). On mobile, where a
+                 browser won't render a PDF in a frame, the "Back to system" bar
+                 stays put and Download is the reliable way to open/print it in the
+                 device's native viewer (which has its own controls).
+      Print    → prints the embedded PDF directly (same-origin); if a browser
+                 refuses, it falls back to the download URL (an attachment — it
+                 saves the file, it does NOT navigate the window away).
+      Download → the stored PDF as an attachment.
+      Back     → always visible in the sticky bar; returns into the app.
 
     Vars: $rental $contractNumber
 --}}
 @php
     $pdfUrl = route('admin.contracts.preview', $rental);
+    $downloadUrl = route('admin.contracts.download', $rental);
+    $backUrl = route('admin.tenants.show', $rental->tenant_id);
 @endphp
 <!doctype html>
 <html lang="{{ str_replace('_', '-', app()->getLocale()) }}">
@@ -38,7 +47,11 @@
             font-family: 'Khmer OS Siemreap', system-ui, -apple-system, Segoe UI, sans-serif;
         }
 
+        /* Sticky so "Back to system" is reachable at all times, on every device. */
         .bar {
+            position: sticky;
+            top: 0;
+            z-index: 10;
             display: flex;
             align-items: center;
             flex-wrap: wrap;
@@ -46,6 +59,7 @@
             padding: .6rem .9rem;
             background: #0f172a;
             color: #fff;
+            box-shadow: 0 2px 8px rgba(0,0,0,.25);
         }
         .bar .doc {
             margin-right: auto;
@@ -76,13 +90,18 @@
         .btn-primary:hover { background: #1d4ed8; }
         .btn-ghost { background: rgba(255,255,255,.12); color: #fff; }
         .btn-ghost:hover { background: rgba(255,255,255,.22); }
+        /* The escape hatch — kept visually distinct so it always reads as "leave". */
+        .btn-back { background: #10b981; color: #fff; }
+        .btn-back:hover { background: #059669; }
 
         .viewer { flex: 1; min-height: 0; position: relative; }
         .viewer iframe { width: 100%; height: 100%; border: 0; display: block; }
 
-        /* Mobile browsers (notably iOS Safari) will not render a PDF inside an
-           iframe. Hide the frame there and show the "open in the PDF viewer"
-           panel instead, which can preview, print and share the file. */
+        /* Mobile browsers (notably iOS Safari, and installed PWAs) will not render
+           a PDF inside an iframe. Hide the frame there and show the download panel
+           instead — Download opens the file in the native PDF viewer (its own
+           print/share controls), and the sticky bar's "Back to system" stays put,
+           so the user is never stranded on a chrome-less PDF page. */
         .mobile-hint { display: none; }
         @media (max-width: 640px), (hover: none) and (pointer: coarse) {
             .viewer iframe { display: none; }
@@ -112,17 +131,13 @@
             <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 9V2h12v7M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2M6 14h12v8H6v-8z"/></svg>
             {{ __('messages.print') }}
         </button>
-        <a class="btn btn-ghost" href="{{ route('admin.contracts.download', $rental) }}">
+        <a class="btn btn-ghost" href="{{ $downloadUrl }}">
             <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
             {{ __('messages.download') }}
         </a>
-        <a class="btn btn-ghost" href="{{ $pdfUrl }}" target="_blank" rel="noopener">
-            <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>
-            {{ __('messages.view') }}
-        </a>
-        <a class="btn btn-ghost" href="{{ route('admin.tenants.show', $rental->tenant_id) }}">
+        <a class="btn btn-back" href="{{ $backUrl }}">
             <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M10 19l-7-7m0 0l7-7m-7 7h18"/></svg>
-            {{ __('messages.back') }}
+            {{ __('messages.back_to_system') }}
         </a>
     </div>
 
@@ -130,27 +145,34 @@
         <iframe id="pdf" src="{{ $pdfUrl }}#toolbar=1&view=FitH" title="{{ __('messages.lease_contract') }} {{ $contractNumber }}"></iframe>
         <div class="mobile-hint">
             <p>{{ __('messages.lease_contract') }} · {{ $contractNumber }}</p>
-            <a class="btn btn-primary" href="{{ $pdfUrl }}" target="_blank" rel="noopener">
-                <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>
-                {{ __('messages.preview') }} / {{ __('messages.print') }}
+            <a class="btn btn-primary" href="{{ $downloadUrl }}">
+                <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+                {{ __('messages.download') }}
+            </a>
+            <a class="btn btn-back" href="{{ $backUrl }}">
+                <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M10 19l-7-7m0 0l7-7m-7 7h18"/></svg>
+                {{ __('messages.back_to_system') }}
             </a>
         </div>
     </div>
 
     <script>
-        var pdfUrl = @json($pdfUrl);
+        var downloadUrl = @json($downloadUrl);
 
         // Print the embedded PDF itself (correctly justified), not this wrapper.
         // Same-origin frame printing works on desktop Chrome/Firefox/Edge; where a
-        // browser refuses (or never rendered the frame, e.g. mobile), open the PDF
-        // so the native viewer can print/share it.
+        // browser refuses (or never rendered the frame, e.g. mobile / installed
+        // PWA), fall back to the DOWNLOAD url. A download is served as an
+        // attachment, so it saves the file for the native viewer to print — it
+        // never navigates this window to a chrome-less PDF page (which, in a
+        // standalone PWA, would strand the user with no way back to the app).
         function printContract() {
             var frame = document.getElementById('pdf');
             try {
                 frame.contentWindow.focus();
                 frame.contentWindow.print();
             } catch (e) {
-                window.open(pdfUrl, '_blank', 'noopener');
+                window.location.assign(downloadUrl);
             }
         }
     </script>

@@ -16,6 +16,7 @@ return [
     'edit' => 'Edit',
     'create' => 'Create',
     'back' => 'Back',
+    'back_to_system' => 'Back to system',
     'search' => 'Search',
     'actions' => 'Actions',
     'no' => 'No',
