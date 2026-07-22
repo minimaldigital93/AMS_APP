@@ -76,40 +76,42 @@
                 <button type="button" @click="cycle = 'yearly'" :class="cycle === 'yearly' ? 'bg-white text-gray-900 shadow' : 'text-gray-500'" class="rounded-full px-4 py-1.5">{{ __('messages.yearly') }}</button>
             </div>
         </div>
-        @php($planGridCols = match(true) {
-            $plans->count() <= 1 => 'max-w-sm',
-            $plans->count() === 2 => 'sm:grid-cols-2 max-w-2xl',
-            $plans->count() === 3 => 'sm:grid-cols-2 lg:grid-cols-3 max-w-4xl',
-            $plans->count() === 4 => 'sm:grid-cols-2 lg:grid-cols-4 max-w-5xl',
-            default => 'sm:grid-cols-2 lg:grid-cols-5',
-        })
-        {{-- Columns track the number of active plans so the layout fits whatever
-             plan set the superadmin has created. --}}
-        <div class="mt-4 grid gap-5 mx-auto {{ $planGridCols }}">
+        {{-- List view: one row per plan so the layout stays readable regardless
+             of how many plans the superadmin has created. --}}
+        <div class="mt-4 divide-y divide-gray-200 rounded-2xl border border-gray-200 bg-white shadow-sm">
             @foreach ($plans as $p)
                 @php($current = $plan && $plan->id === $p->id)
-                <div class="flex flex-col rounded-2xl border p-6 {{ $current ? 'border-indigo-500 ring-1 ring-indigo-500' : 'border-gray-200' }} bg-white shadow-sm">
-                    <h3 class="text-base font-semibold text-gray-900">{{ $p->name }}</h3>
-                    <p class="mt-2">
-                        <span class="text-3xl font-extrabold text-gray-900" x-show="cycle === 'monthly'">${{ rtrim(rtrim(number_format($p->price_usd, 2), '0'), '.') }}</span>
-                        <span class="text-sm text-gray-500" x-show="cycle === 'monthly'">/{{ __('mo') }}</span>
-                        <span class="text-3xl font-extrabold text-gray-900" x-show="cycle === 'yearly'" x-cloak>${{ rtrim(rtrim(number_format($p->hasYearly() ? $p->price_yearly_usd : $p->price_usd, 2), '0'), '.') }}</span>
-                        <span class="text-sm text-gray-500" x-show="cycle === 'yearly'" x-cloak>/{{ __('messages.year') }}</span>
-                    </p>
-                    <ul class="mt-4 space-y-2 text-sm text-gray-600">
-                        <li>{{ $p->max_properties === null ? __('messages.unlimited_properties') : $p->max_properties.' '.__('messages.properties') }}</li>
-                        <li>{{ $p->max_rooms === null ? __('messages.unlimited_rooms') : $p->max_rooms.' '.__('messages.rooms') }}</li>
-                        <li>{{ __('messages.unlimited_floors') }}</li>
-                        <li>{{ $p->max_staff === null ? __('messages.unlimited_staff') : $p->max_staff.' '.__('messages.staff') }}</li>
-                    </ul>
-                    <form method="POST" action="{{ route('admin.billing.renew') }}" class="mt-5">
-                        @csrf
-                        <input type="hidden" name="plan" value="{{ $p->slug }}">
-                        <input type="hidden" name="billing_cycle" x-model="cycle">
-                        <button type="submit" class="w-full rounded-xl px-4 py-2.5 text-sm font-semibold {{ $current ? 'bg-indigo-600 text-white hover:bg-indigo-500' : 'bg-gray-900 text-white hover:bg-gray-700' }}">
-                            {{ $current ? __('Renew via KHQR') : __('Switch via KHQR') }}
-                        </button>
-                    </form>
+                <div class="flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:justify-between {{ $current ? 'bg-indigo-50/50' : '' }}">
+                    <div class="min-w-0 flex-1">
+                        <div class="flex items-center gap-2">
+                            <h3 class="text-base font-semibold text-gray-900">{{ $p->name }}</h3>
+                            @if ($current)
+                                <span class="inline-flex rounded-full bg-indigo-100 px-2.5 py-0.5 text-xs font-semibold text-indigo-700">{{ __('Current plan') }}</span>
+                            @endif
+                        </div>
+                        <ul class="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-sm text-gray-600">
+                            <li>{{ $p->max_properties === null ? __('messages.unlimited_properties') : $p->max_properties.' '.__('messages.properties') }}</li>
+                            <li>{{ $p->max_rooms === null ? __('messages.unlimited_rooms') : $p->max_rooms.' '.__('messages.rooms') }}</li>
+                            <li>{{ __('messages.unlimited_floors') }}</li>
+                            <li>{{ $p->max_staff === null ? __('messages.unlimited_staff') : $p->max_staff.' '.__('messages.staff') }}</li>
+                        </ul>
+                    </div>
+                    <div class="flex items-center gap-4 sm:justify-end">
+                        <div class="text-right">
+                            <span class="text-2xl font-extrabold text-gray-900" x-show="cycle === 'monthly'">${{ rtrim(rtrim(number_format($p->price_usd, 2), '0'), '.') }}</span>
+                            <span class="text-sm text-gray-500" x-show="cycle === 'monthly'">/{{ __('mo') }}</span>
+                            <span class="text-2xl font-extrabold text-gray-900" x-show="cycle === 'yearly'" x-cloak>${{ rtrim(rtrim(number_format($p->hasYearly() ? $p->price_yearly_usd : $p->price_usd, 2), '0'), '.') }}</span>
+                            <span class="text-sm text-gray-500" x-show="cycle === 'yearly'" x-cloak>/{{ __('messages.year') }}</span>
+                        </div>
+                        <form method="POST" action="{{ route('admin.billing.renew') }}">
+                            @csrf
+                            <input type="hidden" name="plan" value="{{ $p->slug }}">
+                            <input type="hidden" name="billing_cycle" x-model="cycle">
+                            <button type="submit" class="rounded-xl px-4 py-2.5 text-sm font-semibold whitespace-nowrap {{ $current ? 'bg-indigo-600 text-white hover:bg-indigo-500' : 'bg-gray-900 text-white hover:bg-gray-700' }}">
+                                {{ $current ? __('Renew via KHQR') : __('Switch via KHQR') }}
+                            </button>
+                        </form>
+                    </div>
                 </div>
             @endforeach
         </div>

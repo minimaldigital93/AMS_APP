@@ -30,7 +30,7 @@
                     <h3 id="confirm-modal-title" class="text-base font-semibold text-slate-900">
                         {{ __('messages.confirm_delete_title') }}
                     </h3>
-                    <p id="confirm-modal-message" class="mt-1 text-sm text-slate-600">
+                    <p id="confirm-modal-message" class="mt-1 text-sm text-slate-600 whitespace-pre-line">
                         {{ __('messages.confirm_delete_default') }}
                     </p>
                 </div>

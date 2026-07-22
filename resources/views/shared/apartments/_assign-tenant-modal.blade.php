@@ -180,8 +180,9 @@
         assign: @json(__('messages.assign_tenant')),
     };
 
-    function notify(message) {
-        (window.amsAlert || window.alert)(message);
+    function notify(message, opts) {
+        if (typeof window.amsAlert === 'function') { window.amsAlert(message, opts); }
+        else { window.alert(message); }
     }
 
     function formatFileSize(bytes) {
@@ -427,6 +428,12 @@
             var apartmentId = @json(old('apartment_id'));
             form.action = assignBase + '/' + apartmentId + '/assign-tenant';
             openModal();
+            // Also surface the failure as a popup reminder — the inline red list is
+            // easy to miss above the fold on a long form / small screen.
+            var errors = @json($errors->all());
+            if (errors.length) {
+                notify(errors.join('\n'), { title: @json(__('messages.please_fix_errors')) });
+            }
         })();
         @endif
     });
