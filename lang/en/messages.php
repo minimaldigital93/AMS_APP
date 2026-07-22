@@ -160,6 +160,8 @@ return [
     'utility_parking_fee' => 'Parking',
     'utility_internet_fee' => 'Internet',
     'utility_garbage_fee' => 'Garbage',
+    'utility_meter_auto_calc' => 'Auto-calculate metered charges',
+    'metered_price_hint' => 'When auto-calculate is on, the electricity and water prices act as the per-unit rate: the charge is usage (meter out − meter in) × this rate.',
 
     'late_fee_settings' => 'Late Fee',
     'late_fee_percent' => 'Late Fee (% / day)',
@@ -530,6 +532,9 @@ return [
     'paid_lower' => 'paid',
     'meter_in' => 'Meter In',
     'meter_out' => 'Meter Out',
+    'meter_in_only_hint' => 'Saves the opening reading only — no charge yet. Add the meter out reading next month to bill the usage.',
+    'charge_auto_from_meter' => 'Auto',
+    'flash_opening_reading_saved' => 'Opening meter reading saved.',
     'next' => 'Next',
     // Revenue/Expense index dashboard
     'overview' => 'Overview',

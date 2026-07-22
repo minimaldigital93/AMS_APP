@@ -160,6 +160,8 @@ return [
     'utility_parking_fee' => 'ចំណតរថយន្ត',
     'utility_internet_fee' => 'អ៊ីនធឺណិត',
     'utility_garbage_fee' => 'សំរាម',
+    'utility_meter_auto_calc' => 'គណនាថ្លៃមីទ័រដោយស្វ័យប្រវត្តិ',
+    'metered_price_hint' => 'ពេលបើកការគណនាស្វ័យប្រវត្តិ តម្លៃអគ្គិសនី និងទឹកនឹងក្លាយជាតម្លៃក្នុងមួយឯកតា៖ ថ្លៃ = ការប្រើប្រាស់ (មីទ័រចេញ − មីទ័រចូល) × តម្លៃនេះ។',
 
     'late_fee_settings' => 'ថ្លៃពិន័យយឺត',
     'late_fee_percent' => 'ថ្លៃពិន័យយឺត (% / ថ្ងៃ)',
@@ -530,6 +532,9 @@ return [
     'paid_lower' => 'បានបង់',
     'meter_in' => 'មីទ័រចូល',
     'meter_out' => 'មីទ័រចេញ',
+    'meter_in_only_hint' => 'រក្សាទុកតែលេខមីទ័រចាប់ផ្តើម — មិនទាន់គិតថ្លៃទេ។ បញ្ចូលមីទ័រចេញនៅខែក្រោយ ដើម្បីគិតថ្លៃការប្រើប្រាស់។',
+    'charge_auto_from_meter' => 'ស្វ័យប្រវត្តិ',
+    'flash_opening_reading_saved' => 'បានរក្សាទុកលេខមីទ័រចាប់ផ្តើម។',
     'next' => 'បន្ទាប់',
     // Revenue/Expense index dashboard
     'overview' => 'ទិដ្ឋភាពទូទៅ',

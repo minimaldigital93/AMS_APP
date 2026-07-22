@@ -919,13 +919,67 @@ abstract class RevenueExpenseController extends Controller
             ->take(10)
             ->get();
 
+        // ===== METER CONTEXT (electricity/water roll-over prefill) =====
+        // For each rental+metered type, the "meter in" the Add-Charge modal should
+        // pre-fill with: this month's opening reading if a row already exists, else
+        // the most recent prior month's closing reading (a continuous meter).
+        $meteredTypes = IncomeRecordingService::METERED_TYPES;
+        $rentalIds = collect($tenantBillsAll)->pluck('rental.id')->filter()->all();
+
+        $priorOut = [];
+        if (! empty($rentalIds)) {
+            $priorRows = Utilities::whereIn('rental_id', $rentalIds)
+                ->whereIn('utility_type', $meteredTypes)
+                ->whereNotNull('meter_reading_out')
+                ->where(function ($q) use ($currentMonth, $currentYear) {
+                    $q->where('billing_year', '<', $currentYear)
+                        ->orWhere(function ($q2) use ($currentMonth, $currentYear) {
+                            $q2->where('billing_year', $currentYear)
+                                ->where('billing_month', '<', $currentMonth);
+                        });
+                })
+                ->orderBy('billing_year')
+                ->orderBy('billing_month')
+                ->orderBy('id')
+                ->get();
+
+            // Ascending order → the last write for a (rental, type) wins = latest reading.
+            foreach ($priorRows as $row) {
+                $priorOut[$row->rental_id][$row->utility_type] = (float) $row->meter_reading_out;
+            }
+        }
+
+        $meterContext = [];
+        foreach ($tenantBillsAll as $bill) {
+            $rentalId = $bill['rental']->id;
+            $currentUtilities = $bill['utilities'];
+            foreach ($meteredTypes as $type) {
+                $row = $currentUtilities->firstWhere('utility_type', $type);
+                $start = ($row && $row->meter_reading_in !== null)
+                    ? (float) $row->meter_reading_in
+                    : ($priorOut[$rentalId][$type] ?? null);
+                $out = ($row && $row->meter_reading_out !== null) ? (float) $row->meter_reading_out : null;
+
+                $meterContext[$rentalId][$type] = [
+                    'start' => $start !== null ? (string) $start : '',
+                    'out' => $out !== null ? (string) $out : '',
+                    'has_open' => (bool) $row,
+                ];
+            }
+        }
+
+        $meterAutoCalc = filter_var(settings('utility_meter_auto_calc'), FILTER_VALIDATE_BOOLEAN);
+        $electricityRate = money_input((float) settings('utility_electricity_price', 0));
+        $waterRate = money_input((float) settings('utility_water_price', 0));
+
         return $this->panelView('record_income', compact(
             'activePeriod', 'apartments', 'apartmentSummary', 'tenantBills', 'tenantBillsAll', 'recentIncome',
             'totalRentExpected', 'totalRentCollected', 'totalPending',
             'overdueCount', 'paidCount', 'pendingCount',
             'selectedDate', 'prevDate', 'nextDate',
             'isCurrentMonth', 'isFutureMonth', 'isPastMonth',
-            'currentMonth', 'currentYear'
+            'currentMonth', 'currentYear',
+            'meterContext', 'meterAutoCalc', 'electricityRate', 'waterRate'
         ));
     }
 
@@ -942,11 +996,19 @@ abstract class RevenueExpenseController extends Controller
             $this->incomeService($period)->addTenantCharge($rental, $validated);
         }
 
-        $successMsg = __('messages.flash_charge_added', [
-            'type' => ucfirst($validated['charge_type']),
-            'amount' => number_format($validated['charge_amount'], 2),
-            'name' => $rental->tenant->name ?? __('messages.tenant'),
-        ]);
+        // An opening reading (metered type, meter-in only, no closing reading and
+        // no amount) gets a dedicated message — "$0.00 added" would read wrongly.
+        $isOpeningReading = in_array($validated['charge_type'], IncomeRecordingService::METERED_TYPES, true)
+            && empty($validated['meter_reading_out'])
+            && empty($validated['charge_amount']);
+
+        $successMsg = $isOpeningReading
+            ? __('messages.flash_opening_reading_saved')
+            : __('messages.flash_charge_added', [
+                'type' => ucfirst($validated['charge_type']),
+                'amount' => number_format((float) ($validated['charge_amount'] ?? 0), 2),
+                'name' => $rental->tenant->name ?? __('messages.tenant'),
+            ]);
 
         if ($request->expectsJson()) {
             return response()->json(['success' => true, 'message' => $successMsg]);

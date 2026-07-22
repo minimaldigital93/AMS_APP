@@ -27,6 +27,9 @@ use Illuminate\Support\Facades\Log;
  */
 class IncomeRecordingService
 {
+    /** Types billed off a continuous meter (usage = out − in). */
+    public const METERED_TYPES = ['electricity', 'water'];
+
     public function __construct(
         private int $userId,
         private FiscalPeriods $period,
@@ -191,25 +194,121 @@ class IncomeRecordingService
     /**
      * Add an ad-hoc charge to a tenant's bill. Stored as an unpaid Utilities row;
      * Accounts entry is created later, on payment (see checkout()).
+     *
+     * Electricity/water follow a metered lifecycle (opening reading → closing
+     * reading → charge) and upsert a single continuous row per billing month;
+     * every other type simply appends a flat-fee row.
      */
     public function addTenantCharge(Rentals $rental, array $data): Utilities
     {
-        $billingMonth = $data['billing_month'] ?? now()->month;
-        $billingYear = $data['billing_year'] ?? now()->year;
+        $type = $data['charge_type'];
+        $billingMonth = (int) ($data['billing_month'] ?? now()->month);
+        $billingYear = (int) ($data['billing_year'] ?? now()->year);
+
+        $meterIn = $this->readingValue($data['meter_reading_in'] ?? null);
+        $meterOut = $this->readingValue($data['meter_reading_out'] ?? null);
+
+        if (in_array($type, self::METERED_TYPES, true)) {
+            return $this->recordMeteredCharge($rental, $type, $billingMonth, $billingYear, $meterIn, $meterOut, $data);
+        }
 
         return Utilities::create([
             'tenant_id' => $rental->tenant_id,
             'rental_id' => $rental->id,
-            'utility_type' => $data['charge_type'],
+            'utility_type' => $type,
             'meter_number' => null,
-            'meter_reading_in' => $data['meter_reading_in'] ?? 0,
-            'meter_reading_out' => $data['meter_reading_out'] ?? 0,
+            'meter_reading_in' => $meterIn,
+            'meter_reading_out' => $meterOut,
             'charge_amount' => $data['charge_amount'],
             'billing_month' => $billingMonth,
             'billing_year' => $billingYear,
             'paid_status' => false,
             'paid_at' => null,
         ]);
+    }
+
+    /**
+     * Upsert the continuous metered row for a (rental, type, month). The amount is
+     * recomputed authoritatively here — in auto-calc mode the client value is
+     * ignored and the charge is usage × the account's unit price. A row that has
+     * already been paid is never mutated; a fresh row is created alongside it.
+     */
+    private function recordMeteredCharge(Rentals $rental, string $type, int $month, int $year, ?float $in, ?float $out, array $data): Utilities
+    {
+        $attrs = [
+            'tenant_id' => $rental->tenant_id,
+            'rental_id' => $rental->id,
+            'utility_type' => $type,
+            'meter_number' => null,
+            'meter_reading_in' => $in,
+            'meter_reading_out' => $out,
+            'charge_amount' => $this->resolveMeteredCharge($type, $in, $out, $data),
+            'billing_month' => $month,
+            'billing_year' => $year,
+            'paid_status' => false,
+            'paid_at' => null,
+        ];
+
+        $existing = Utilities::where('rental_id', $rental->id)
+            ->where('utility_type', $type)
+            ->where('billing_month', $month)
+            ->where('billing_year', $year)
+            ->where('paid_status', false)
+            ->latest('id')
+            ->first();
+
+        if ($existing) {
+            $existing->update($attrs);
+
+            return $existing;
+        }
+
+        return Utilities::create($attrs);
+    }
+
+    /**
+     * The charge for a metered row:
+     *  - opening reading only (no meter_out) → 0 (no charge yet);
+     *  - auto-calc on + both readings → usage × unit price (client amount ignored);
+     *  - otherwise → the operator-typed amount.
+     */
+    private function resolveMeteredCharge(string $type, ?float $in, ?float $out, array $data): float
+    {
+        if ($out === null) {
+            return 0.0;
+        }
+
+        if ($this->meterAutoCalcEnabled() && $in !== null) {
+            $usage = max($out - $in, 0.0);
+
+            return round($usage * $this->meterUnitRate($type), 2);
+        }
+
+        return (float) ($data['charge_amount'] ?? 0);
+    }
+
+    /** Is metered auto-calculation switched on for this account? */
+    private function meterAutoCalcEnabled(): bool
+    {
+        return filter_var(settings('utility_meter_auto_calc'), FILTER_VALIDATE_BOOLEAN);
+    }
+
+    /** Per-unit price (stored in USD) for a metered utility type. */
+    private function meterUnitRate(string $type): float
+    {
+        $key = $type === 'water' ? 'utility_water_price' : 'utility_electricity_price';
+
+        return (float) settings($key, 0);
+    }
+
+    /** Normalise a raw meter-reading input to a float, treating blank as null. */
+    private function readingValue(mixed $value): ?float
+    {
+        if ($value === null || $value === '') {
+            return null;
+        }
+
+        return is_numeric($value) ? (float) $value : null;
     }
 
     /**

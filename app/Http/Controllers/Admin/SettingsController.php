@@ -65,6 +65,11 @@ class SettingsController extends Controller
                 'utility_parking_fee' => '',
                 'utility_internet_fee' => '',
                 'utility_garbage_fee' => '',
+                // When on, the electricity/water charge on the record-income page is
+                // computed from the meter readings (usage × the unit prices above)
+                // and the amount field is locked. Off = operator types the amount,
+                // meters still roll over. Stored as '1'/'0'.
+                'utility_meter_auto_calc' => '0',
             ],
             // Late-payment penalty: percent of the monthly rent charged per day
             // overdue. Auto-fills the late-fee field on the rent-collection page.
@@ -114,6 +119,8 @@ class SettingsController extends Controller
             'settings.utility_garbage_fee' => 'nullable|numeric|min:0',
             // Percent of rent charged per overdue day — not a money field.
             'settings.late_fee_percent' => 'nullable|numeric|min:0|max:100',
+            // Auto-calculate metered electricity/water charges toggle ('1'/'0').
+            'settings.utility_meter_auto_calc' => 'nullable|in:0,1',
             'company_logo' => 'nullable|image|mimes:jpeg,jpg,png,webp|max:2048',
         ], [
             'settings.khr_exchange_rate.numeric' => __('messages.exchange_rate_invalid'),

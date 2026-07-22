@@ -611,16 +611,17 @@
                                     </button>
                                 </div>
 
-                                @if(in_array($type, ['electricity', 'water']))
+                                @php $isMetered = in_array($type, ['electricity', 'water']); @endphp
+                                @if($isMetered)
                                 <div class="grid grid-cols-2 gap-2">
                                     <div>
                                         <label class="block text-[11px] text-slate-400 mb-1">{{ __('messages.meter_in') }}</label>
-                                        <input type="number" x-model="charges.{{ $type }}.meter_in" step="0.01" min="0" inputmode="decimal" placeholder="0"
+                                        <input type="number" x-model="charges.{{ $type }}.meter_in" @input="syncMeterAmount('{{ $type }}')" step="0.01" min="0" inputmode="decimal" placeholder="0"
                                             class="w-full px-3 py-2 text-sm bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-sky-400 focus:border-sky-400 transition">
                                     </div>
                                     <div>
                                         <label class="block text-[11px] text-slate-400 mb-1">{{ __('messages.meter_out') }}</label>
-                                        <input type="number" x-model="charges.{{ $type }}.meter_out" step="0.01" min="0" inputmode="decimal" placeholder="0"
+                                        <input type="number" x-model="charges.{{ $type }}.meter_out" @input="syncMeterAmount('{{ $type }}')" step="0.01" min="0" inputmode="decimal" placeholder="0"
                                             class="w-full px-3 py-2 text-sm bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-sky-400 focus:border-sky-400 transition">
                                     </div>
                                 </div>
@@ -629,14 +630,24 @@
                                     {{ __('messages.usage') }}: <span class="font-semibold text-slate-700" x-text="chargeUsage('{{ $type }}')"></span>
                                 </div>
                                 <p x-show="chargeUsageInvalid('{{ $type }}')" class="text-xs text-red-500">{{ __('messages.meter_out_lt_in') }}</p>
+                                <p x-show="charges.{{ $type }}.meter_in !== '' && charges.{{ $type }}.meter_out === ''" x-cloak class="text-[11px] text-slate-400">{{ __('messages.meter_in_only_hint') }}</p>
                                 @endif
 
                                 <div>
-                                    <label class="block text-[11px] text-slate-400 mb-1">{{ __('messages.amount') }} <span class="text-red-400">*</span></label>
+                                    <label class="block text-[11px] text-slate-400 mb-1">
+                                        {{ __('messages.amount') }}
+                                        @if($isMetered)
+                                        <span x-show="meterAutoCalc" x-cloak class="ml-1 inline-flex items-center gap-0.5 text-[10px] font-medium text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded">{{ __('messages.charge_auto_from_meter') }}</span>
+                                        <span x-show="!meterAutoCalc" class="text-red-400">*</span>
+                                        @else
+                                        <span class="text-red-400">*</span>
+                                        @endif
+                                    </label>
                                     <div class="relative">
                                         <span class="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm pointer-events-none">{{ currency_symbol() }}</span>
                                         <input type="number" x-model="charges.{{ $type }}.amount" step="0.01" min="0" inputmode="decimal" placeholder="{{ currency_is_khr() ? '0' : '0.00' }}"
-                                            class="w-full pl-8 pr-3 py-2.5 text-base font-semibold text-slate-800 text-right bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-emerald-500 focus:border-emerald-500 transition">
+                                            @if($isMetered) :readonly="meterAutoCalc" @endif
+                                            class="w-full pl-8 pr-3 py-2.5 text-base font-semibold text-slate-800 text-right bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-emerald-500 focus:border-emerald-500 transition @if($isMetered) read-only:bg-slate-100 read-only:text-slate-500 read-only:cursor-not-allowed @endif">
                                     </div>
                                 </div>
                             </div>
@@ -918,8 +929,43 @@ function billingManager() {
             'parking'  => filled(settings('utility_parking_fee')) ? money_input(settings('utility_parking_fee')) : '',
             'trash'    => filled(settings('utility_garbage_fee')) ? money_input(settings('utility_garbage_fee')) : '',
         ]),
+        // Metered billing (electricity/water). When on, the amount is computed from
+        // the readings (usage × unit rate) and locked; the rates are display-currency
+        // and the final charge is recomputed server-side. meterContext carries the
+        // per-rental roll-over prefill: {rentalId: {type: {start, out, has_open}}}.
+        meteredTypes: ['electricity', 'water'],
+        meterAutoCalc: {{ $meterAutoCalc ? 'true' : 'false' }},
+        meterRates: { electricity: {{ (float) $electricityRate }}, water: {{ (float) $waterRate }} },
+        meterContext: @js($meterContext),
         freshCharges() {
             return Object.fromEntries(this.chargeTypes.map(t => [t, { active: false, meter_in: '', meter_out: '', amount: '' }]));
+        },
+        isMetered(type) {
+            return this.meteredTypes.includes(type);
+        },
+        // Auto-calc is only meaningful for a metered type once both readings exist.
+        autoAmount(type) {
+            const usage = this.chargeUsage(type);
+            if (usage === null) return null;
+            return (parseFloat(usage) * (this.meterRates[type] || 0));
+        },
+        autoAmountDisplay(type) {
+            const amt = this.autoAmount(type);
+            if (amt === null) return '';
+            return amt.toFixed(this.khrCurrency ? 0 : 2);
+        },
+        // Keep the (locked) amount field in sync with the readings in auto mode.
+        syncMeterAmount(type) {
+            if (!this.meterAutoCalc || !this.isMetered(type)) return;
+            const disp = this.autoAmountDisplay(type);
+            this.charges[type].amount = disp;
+        },
+        // A row can be saved if it carries a real amount OR (for metered types) a
+        // standalone opening reading — recording just the starting number.
+        chargeSaveable(type) {
+            const c = this.charges[type];
+            if (parseFloat(c.amount) > 0) return true;
+            return this.isMetered(type) && c.meter_in !== '' && c.meter_out === '';
         },
 
         // Checkout Modal
@@ -1074,11 +1120,25 @@ function billingManager() {
             card.style.maxHeight = Math.min(vv.height - 32, Math.round(vv.height * 0.8)) + 'px';
         },
 
+        // The roll-over context for the rental whose modal is open.
+        meterCtx(type) {
+            const byType = this.meterContext[this.chargeRentalId] || {};
+            return byType[type] || { start: '', out: '', has_open: false };
+        },
+
         openAddCharge(rentalId, tenant, apt) {
             this.chargeRentalId = rentalId;
             this.chargeTenant = tenant;
             this.chargeApt = apt;
             this.charges = this.freshCharges();
+            // Seed metered readings from the roll-over context (this month's opening
+            // reading, or last month's closing reading carried forward).
+            this.meteredTypes.forEach(t => {
+                const ctx = this.meterCtx(t);
+                this.charges[t].meter_in = ctx.start ?? '';
+                this.charges[t].meter_out = ctx.out ?? '';
+                this.syncMeterAmount(t);
+            });
             this.isSubmitting = false;
             this.showAddCharge = true;
         },
@@ -1087,9 +1147,17 @@ function billingManager() {
             const c = this.charges[type];
             c.active = !c.active;
             if (c.active) {
-                // Prefill the configured default fee (internet/parking/trash) when
-                // the amount is still empty; the user can override before saving.
-                if (!c.amount && this.chargeDefaults[type]) { c.amount = this.chargeDefaults[type]; }
+                if (this.isMetered(type)) {
+                    // (Re)seed the continuous meter reading when re-opening the panel.
+                    const ctx = this.meterCtx(type);
+                    if (c.meter_in === '') c.meter_in = ctx.start ?? '';
+                    if (c.meter_out === '') c.meter_out = ctx.out ?? '';
+                    this.syncMeterAmount(type);
+                } else if (!c.amount && this.chargeDefaults[type]) {
+                    // Prefill the configured default fee (internet/parking/trash) when
+                    // the amount is still empty; the user can override before saving.
+                    c.amount = this.chargeDefaults[type];
+                }
             } else {
                 c.meter_in = ''; c.meter_out = ''; c.amount = '';
             }
@@ -1100,7 +1168,7 @@ function billingManager() {
         },
 
         filledChargeCount() {
-            return this.chargeTypes.filter(t => this.charges[t].active && parseFloat(this.charges[t].amount) > 0).length;
+            return this.chargeTypes.filter(t => this.charges[t].active && this.chargeSaveable(t)).length;
         },
 
         chargeUsage(type) {
@@ -1298,8 +1366,12 @@ function billingManager() {
         },
 
         saveDone() {
+            // Block a metered close whose usage is negative (out < in).
+            const invalid = this.chargeTypes.find(t => this.charges[t].active && this.chargeUsageInvalid(t));
+            if (invalid) { alert('{{ __('messages.meter_out_lt_in') }}'); return; }
+
             const filled = this.chargeTypes
-                .filter(t => this.charges[t].active && parseFloat(this.charges[t].amount) > 0)
+                .filter(t => this.charges[t].active && this.chargeSaveable(t))
                 .map(t => ({ type: t, meter_in: this.charges[t].meter_in, meter_out: this.charges[t].meter_out, amount: this.charges[t].amount }));
             if (filled.length === 0) {
                 alert('{{ __('messages.enter_charge_alert') }}');
@@ -1323,7 +1395,10 @@ function billingManager() {
                 form.append('charge_type', charge.type);
                 form.append('meter_reading_in', charge.meter_in || '');
                 form.append('meter_reading_out', charge.meter_out || '');
-                form.append('charge_amount', parseFloat(charge.amount).toFixed(2));
+                // Opening readings carry no amount; send blank so the server records
+                // them as a $0 opening row instead of NaN.
+                const amt = parseFloat(charge.amount);
+                form.append('charge_amount', amt > 0 ? amt.toFixed(2) : '');
                 form.append('note', '');
 
                 try {
