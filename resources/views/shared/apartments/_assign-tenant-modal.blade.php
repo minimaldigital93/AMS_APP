@@ -178,7 +178,27 @@
         phoneEnglish: @json(__('messages.phone_must_be_english')),
         uploading: @json(__('messages.uploading')),
         assign: @json(__('messages.assign_tenant')),
+        mustBe18: @json(__('messages.tenant_must_be_18')),
+        moveInMin: @json(__('messages.move_in_date_min')),
     };
+
+    // Native date-picker min/max is honoured on desktop but iOS/iPadOS Safari
+    // frequently ignores it, letting the user pick any date. Enforce the same
+    // bounds in JS so every device rejects out-of-range dates identically.
+    var DATE_BOUNDS = {
+        date_of_birth: { max: @json($maxBirthDate), message: @json(__('messages.tenant_must_be_18')) },
+        move_in_date: { min: @json($minMoveInDate), message: @json(__('messages.move_in_date_min')) },
+    };
+
+    // Returns an error message if the field's value violates its bound, else ''.
+    function dateBoundError(input) {
+        if (!input || !input.value) return '';
+        var b = DATE_BOUNDS[input.id];
+        if (!b) return '';
+        if (b.max && input.value > b.max) return b.message;
+        if (b.min && input.value < b.min) return b.message;
+        return '';
+    }
 
     function notify(message) {
         (window.amsAlert || window.alert)(message);
@@ -254,6 +274,19 @@
 
         var tenantOption = document.getElementById('tenantOption');
         var submitLabel = document.getElementById('submitBtnLabel');
+
+        // Date bounds, enforced for every tenant type (iOS ignores the native
+        // picker's min/max — see DATE_BOUNDS above).
+        var dateFields = [document.getElementById('date_of_birth'), document.getElementById('move_in_date')];
+        for (var i = 0; i < dateFields.length; i++) {
+            var err = dateBoundError(dateFields[i]);
+            if (err) {
+                block();
+                notify(err);
+                if (dateFields[i].focus) dateFields[i].focus();
+                return;
+            }
+        }
 
         if (tenantOption && tenantOption.value === 'new') {
             // A just-picked photo may still be compressing — don't POST the raw
@@ -365,6 +398,19 @@
             if (el) el.addEventListener('change', async function () {
                 await compressInput(el);
                 validateFileInput(el);
+            });
+        });
+
+        // Immediate feedback when a date outside the allowed range is picked
+        // (the iOS picker lets it through). Warn and clear the invalid value.
+        ['date_of_birth', 'move_in_date'].forEach(function (id) {
+            var el = document.getElementById(id);
+            if (el) el.addEventListener('change', function () {
+                var err = dateBoundError(el);
+                if (err) {
+                    notify(err);
+                    el.value = '';
+                }
             });
         });
 
