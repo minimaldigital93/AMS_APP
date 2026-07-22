@@ -21,7 +21,16 @@
     $ringCls = $isSup ? 'focus:ring-emerald-500 focus:border-emerald-500' : 'focus:ring-blue-500 focus:border-blue-500';
     $history = $tenant->paymentHistory();
     $unpaid = $history->where('paid', false);
-    $totalDue = $unpaid->sum('rent_amount');
+    // Combined outstanding debt: unpaid rent months + unpaid utility charges,
+    // both carried forward until settled (see Tenants::outstandingCharges()).
+    $outstanding = $tenant->outstandingCharges();
+    $totalDue = $outstanding['total_due'];
+    $unpaidUtilities = $outstanding['unpaid_utilities'];
+    // Whether to show the "Collect Outstanding" action: admin/supervisor only,
+    // active tenant, with debt owed.
+    $canCollect = in_array($role, ['admin', 'supervisor'], true)
+        && ! (method_exists($tenant, 'trashed') && $tenant->trashed())
+        && $totalDue > 0;
     $hasPhoto = $tenant->photo_path && ! \Illuminate\Support\Str::endsWith($tenant->photo_path, '.pdf');
     // The lease this tenant's contract belongs to: the open one, else the latest.
     $contractRental = $tenant->rentals->firstWhere('end_date', null) ?? $tenant->rentals->sortByDesc('start_date')->first();
@@ -140,15 +149,123 @@
     </div>
 
     {{-- 4. Payment Information & History --}}
-    <div class="bg-white rounded-xl border border-slate-100 p-6">
-        <div class="flex items-center justify-between mb-4">
+    <div class="bg-white rounded-xl border border-slate-100 p-6" @if($canCollect) x-data="{ collectOpen: false }" @endif>
+        <div class="flex items-start justify-between gap-3 mb-4">
             <h3 class="text-sm font-medium text-slate-500 uppercase tracking-wide">{{ __('messages.payment_history') }}</h3>
             @if($totalDue > 0)
-                <div class="flex items-center gap-2 text-xs">
-                    <span class="px-2.5 py-1 rounded-full bg-red-50 text-red-600 font-medium">{{ __('messages.outstanding') }} {{ money($totalDue) }}</span>
+                <div class="flex flex-col items-end gap-2">
+                    <div class="flex flex-wrap items-center justify-end gap-1.5 text-xs">
+                        <span class="px-2.5 py-1 rounded-full bg-red-50 text-red-600 font-semibold">{{ __('messages.outstanding') }} {{ money($totalDue) }}</span>
+                        @if($outstanding['rent_due'] > 0 && $outstanding['utilities_due'] > 0)
+                            <span class="px-2 py-1 rounded-full bg-slate-50 text-slate-500 font-medium">{{ __('messages.rent') }} {{ money($outstanding['rent_due']) }}</span>
+                            <span class="px-2 py-1 rounded-full bg-slate-50 text-slate-500 font-medium">{{ __('messages.utilities') }} {{ money($outstanding['utilities_due']) }}</span>
+                        @endif
+                    </div>
+                    @if($canCollect)
+                        <button type="button" @click="collectOpen = true"
+                                class="inline-flex items-center gap-1.5 bg-emerald-600 text-white px-3 py-1.5 rounded-lg hover:bg-emerald-700 transition text-xs font-semibold">
+                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                            {{ __('messages.collect_outstanding') }}
+                        </button>
+                    @endif
                 </div>
             @endif
         </div>
+
+        @if($canCollect)
+            @php
+                // Combined selectable debt items (rent months + utility charges).
+                $collectItems = collect();
+                foreach ($outstanding['unpaid_months'] as $m) {
+                    $collectItems->push([
+                        'id' => 'rent_'.$m['rental_id'].'_'.$m['year'].'_'.$m['month'],
+                        'group' => __('messages.rent'),
+                        'label' => $m['label'],
+                        'amount' => (float) $m['rent_amount'],
+                    ]);
+                }
+                foreach ($unpaidUtilities as $u) {
+                    $collectItems->push([
+                        'id' => 'utility_'.$u->id,
+                        'group' => status_label($u->type),
+                        'label' => $u->label,
+                        'amount' => (float) $u->amount,
+                    ]);
+                }
+                $collectAmounts = $collectItems->mapWithKeys(fn ($i) => [$i['id'] => $i['amount']]);
+                $collectIds = $collectItems->pluck('id')->values();
+            @endphp
+            {{-- Collect-outstanding modal: pick which unpaid rent months / charges to settle. --}}
+            <div x-show="collectOpen" x-cloak
+                 x-data="{ amounts: @js($collectAmounts), selected: @js($collectIds),
+                           get total() { return this.selected.reduce((s, id) => s + (this.amounts[id] || 0), 0); },
+                           allChecked: true,
+                           toggleAll() { this.selected = this.allChecked ? Object.keys(this.amounts) : []; } }"
+                 class="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/40 p-4 sm:items-center"
+                 @keydown.escape.window="collectOpen = false">
+                <div class="bg-white rounded-xl shadow-xl w-full max-w-md my-auto" @click.outside="collectOpen = false">
+                    <form method="POST" action="{{ route($role.'.revenue_expense.collect_outstanding', $tenant) }}">
+                        @csrf
+                        <div class="px-6 py-4 border-b">
+                            <h3 class="text-lg font-semibold text-slate-800">{{ __('messages.collect_outstanding') }}</h3>
+                            <p class="text-sm text-slate-500 mt-1">{{ __('messages.collect_outstanding_pick', ['name' => $tenant->name]) }}</p>
+                        </div>
+                        <div class="px-6 py-4 space-y-4">
+                            {{-- Item checklist --}}
+                            <div>
+                                <label class="flex items-center justify-between gap-2 pb-2 mb-1 border-b border-slate-100 text-xs font-semibold text-slate-500 uppercase tracking-wide cursor-pointer">
+                                    <span class="flex items-center gap-2">
+                                        <input type="checkbox" x-model="allChecked" @change="toggleAll()"
+                                               class="rounded border-slate-300 text-emerald-600 focus:ring-emerald-500">
+                                        {{ __('messages.select_all') }}
+                                    </span>
+                                </label>
+                                <div class="max-h-52 overflow-y-auto divide-y divide-slate-100">
+                                    @foreach($collectItems as $item)
+                                        <label class="flex items-center justify-between gap-3 py-2 cursor-pointer">
+                                            <span class="flex items-center gap-2 min-w-0">
+                                                <input type="checkbox" name="selection[]" value="{{ $item['id'] }}"
+                                                       x-model="selected"
+                                                       @change="allChecked = selected.length === Object.keys(amounts).length"
+                                                       class="rounded border-slate-300 text-emerald-600 focus:ring-emerald-500 shrink-0">
+                                                <span class="truncate text-sm text-slate-700">
+                                                    <span class="text-slate-400">{{ $item['group'] }} ·</span> {{ $item['label'] }}
+                                                </span>
+                                            </span>
+                                            <span class="text-sm font-semibold text-slate-700 shrink-0">{{ money($item['amount']) }}</span>
+                                        </label>
+                                    @endforeach
+                                </div>
+                            </div>
+
+                            <div>
+                                <label class="block text-sm font-medium text-slate-700 mb-1">{{ __('messages.payment_method') }}</label>
+                                <select name="payment_method" required
+                                        class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 {{ $ringCls }}">
+                                    <option value="cash">{{ __('messages.cash') }}</option>
+                                    <option value="bank">{{ __('messages.bank_transfer') }}</option>
+                                    <option value="khqr">KHQR</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-slate-700 mb-1">{{ __('messages.payment_date') }}</label>
+                                <input type="date" name="payment_date" value="{{ now()->toDateString() }}" max="{{ now()->toDateString() }}"
+                                       class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 {{ $ringCls }}">
+                            </div>
+                            <p class="text-xs text-slate-500">{{ __('messages.collect_outstanding_note') }}</p>
+                        </div>
+                        <div class="px-6 py-4 border-t flex justify-end gap-2">
+                            <button type="button" @click="collectOpen = false"
+                                    class="px-4 py-2 rounded-lg bg-slate-100 text-slate-700 hover:bg-slate-200 text-sm font-semibold">{{ __('messages.cancel') }}</button>
+                            <button type="submit" :disabled="selected.length === 0"
+                                    class="px-4 py-2 rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 text-sm font-semibold disabled:opacity-50 disabled:cursor-not-allowed">
+                                {{ __('messages.collect') }} <span x-text="'{{ currency_symbol() }}' + total.toFixed(2)"></span>
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        @endif
 
         @if($history->isEmpty())
             <p class="text-slate-400 text-sm">{{ __('messages.no_rental_period') }}</p>
@@ -170,6 +287,22 @@
                         @endif
                     </div>
                 @endforeach
+            </div>
+        @endif
+
+        {{-- Unpaid utility/other charges carried forward (any month, until settled). --}}
+        @if($unpaidUtilities->isNotEmpty())
+            <div class="mt-5 pt-4 border-t border-slate-100">
+                <h4 class="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">{{ __('messages.unpaid_charges') }}</h4>
+                <div class="divide-y divide-slate-100">
+                    @foreach($unpaidUtilities as $charge)
+                        <div class="flex items-center justify-between gap-3 py-2 text-sm">
+                            <span class="text-slate-500 w-20 shrink-0">{{ $charge->label }}</span>
+                            <span class="text-slate-700 flex-1 capitalize">{{ status_label($charge->type) }}</span>
+                            <span class="font-semibold text-red-600 shrink-0">{{ money($charge->amount) }}</span>
+                        </div>
+                    @endforeach
+                </div>
             </div>
         @endif
     </div>

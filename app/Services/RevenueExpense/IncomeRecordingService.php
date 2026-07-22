@@ -6,6 +6,7 @@ use App\Models\Accounts;
 use App\Models\FiscalPeriods;
 use App\Models\Payments;
 use App\Models\Rentals;
+use App\Models\Tenants;
 use App\Models\Utilities;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -361,6 +362,107 @@ class IncomeRecordingService
     }
 
     /**
+     * Settle ALL of a tenant's carried-forward debt in one transaction:
+     * every unpaid rent month (from Tenants::outstandingCharges()) plus every
+     * unpaid utility charge, regardless of which month they belong to.
+     *
+     * Arrears dating (see CLAUDE.md fiscal-period rules): the income is always
+     * recognised on $paymentDate in the CURRENT open period ($this->period) —
+     * closed months are never written into. For rent, the Payments row's
+     * paid_at is anchored in the OWED month so the tenant's derived debt for
+     * that month clears, while its ledger Accounts row is dated $paymentDate.
+     * "We received that month's rent today."
+     *
+     * Item identifiers (for $selection): rent months are "rent_{rentalId}_{year}_{month}",
+     * utility charges are "utility_{utilityId}". Pass null to settle everything.
+     *
+     * @param  array<int, string>|null  $selection  item ids to settle, or null for all
+     * @return array{rent_count: int, utilities_count: int, total: float}
+     */
+    public function settleOutstandingForTenant(Tenants $tenant, string $paymentDate, string $paymentMethod, ?string $reference = null, ?array $selection = null): array
+    {
+        return DB::transaction(function () use ($tenant, $paymentDate, $paymentMethod, $reference, $selection) {
+            $selected = $selection === null ? null : array_flip($selection);
+            $wants = fn (string $id) => $selected === null || isset($selected[$id]);
+
+            $outstanding = $tenant->outstandingCharges();
+            $rentalsById = $tenant->rentals->keyBy('id');
+
+            $rentCount = 0;
+            $utilCount = 0;
+            $total = 0.0;
+
+            // --- Unpaid rent, one paid Payments row per owed month. ---
+            foreach ($outstanding['unpaid_months'] as $month) {
+                $rental = $rentalsById->get($month['rental_id']);
+                $amount = (float) $month['rent_amount'];
+                if (! $rental || $amount <= 0) {
+                    continue;
+                }
+                if (! $wants('rent_'.$month['rental_id'].'_'.$month['year'].'_'.$month['month'])) {
+                    continue;
+                }
+                $rental->loadMissing('apartment.floor');
+
+                $payment = Payments::create([
+                    'rental_id' => $rental->id,
+                    'amount' => $amount,
+                    'due_date' => $month['pay_date'],
+                    'paid_at' => $month['pay_date'], // anchor in the owed month
+                    'payment_method' => $paymentMethod,
+                    'payment_status' => 'paid',
+                    'payment_type' => 'rent',
+                    'transaction_reference' => $reference,
+                    'late_fee' => 0,
+                    'note' => 'Outstanding rent settled ('.$month['label'].')',
+                ]);
+
+                Accounts::create([
+                    'fiscal_period_id' => $this->period->id,
+                    'property_id' => $this->propertyIdFor($rental),
+                    'payment_id' => $payment->id,
+                    'user_id' => $this->userId,
+                    'account_type' => Accounts::TYPE_INCOME,
+                    'category' => Accounts::CAT_RENT_INCOME,
+                    'description' => '[Apt '.($rental->apartment?->apartment_number ?? 'N/A').'] Outstanding rent — '.$month['label'],
+                    'amount' => $amount,
+                    'transaction_date' => $paymentDate, // recognised today, open period
+                    'reference_number' => $reference,
+                    'note' => 'Back-rent for '.$month['label'].' collected on '.$paymentDate,
+                ]);
+
+                $rentCount++;
+                $total += $amount;
+            }
+
+            // --- Unpaid utilities, settled per (rental, billing month), keeping
+            // only the selected charges. One Payments row per month-batch. ---
+            foreach ($tenant->rentals as $rental) {
+                $rental->loadMissing('apartment.floor');
+
+                $unpaid = Utilities::where('rental_id', $rental->id)
+                    ->where('paid_status', false)
+                    ->get()
+                    ->filter(fn ($u) => $wants('utility_'.$u->id));
+
+                foreach ($unpaid->groupBy(fn ($u) => $u->billing_year.'-'.$u->billing_month) as $rows) {
+                    $result = $this->settleUtilityRows($rental, $rows->values(), $paymentDate, $paymentMethod, $reference);
+                    if ($result !== null) {
+                        $utilCount += $rows->count();
+                        $total += $result['amount'];
+                    }
+                }
+            }
+
+            return [
+                'rent_count' => $rentCount,
+                'utilities_count' => $utilCount,
+                'total' => round($total, 2),
+            ];
+        });
+    }
+
+    /**
      * Settle all unpaid utility charges for the given billing month — the month
      * the bill page was showing when the operator checked out (previously this
      * used now()'s month, which mismarked charges for backdated checkouts and
@@ -377,6 +479,19 @@ class IncomeRecordingService
             ->unpaid()
             ->get();
 
+        return $this->settleUtilityRows($rental, $unpaid, $paymentDate, $paymentMethod, $reference);
+    }
+
+    /**
+     * Settle a specific set of unpaid Utilities rows for one rental (one paid
+     * Payments row + income split by type). Used by the month-scoped checkout
+     * path and by selective outstanding collection.
+     *
+     * @param  \Illuminate\Support\Collection<int, Utilities>  $unpaid
+     * @return array{amount: float}|null null when the set is empty
+     */
+    private function settleUtilityRows(Rentals $rental, \Illuminate\Support\Collection $unpaid, string $paymentDate, string $paymentMethod, ?string $reference): ?array
+    {
         if ($unpaid->isEmpty()) {
             return null;
         }

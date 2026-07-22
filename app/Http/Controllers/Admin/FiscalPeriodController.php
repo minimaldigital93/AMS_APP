@@ -14,6 +14,7 @@ use App\Models\MonthlyPeriod;
 use App\Services\FiscalPeriod\BalanceSheetService;
 use App\Services\FiscalPeriod\FiscalPeriodFinancialsService;
 use App\Services\FiscalPeriod\FiscalPeriodReportsService;
+use App\Services\FiscalPeriod\MonthClosePreflight;
 use App\Services\FiscalPeriod\MonthlyPeriodManager;
 use App\Services\Property\PropertyContext;
 use Illuminate\Support\Facades\Auth;
@@ -25,6 +26,7 @@ class FiscalPeriodController extends Controller
         private BalanceSheetService $balanceSheetService,
         private MonthlyPeriodManager $monthlyManager,
         private FiscalPeriodReportsService $reportsService,
+        private MonthClosePreflight $closePreflight,
     ) {}
 
     // ============================================================
@@ -284,9 +286,17 @@ class FiscalPeriodController extends Controller
 
         $balanceSheet = $this->balanceSheetService->summaryAsOf($fiscalperiod, $monthlyPeriod);
 
+        // Pre-close check: who still owes rent/utilities for this month. Only
+        // needed on the consolidated (whole-account) view where the close
+        // button lives, and only while the month is still open.
+        $unpaidPreflight = ($consolidated && $monthlyPeriod->canClose())
+            ? $this->closePreflight->unpaidFor($monthlyPeriod)
+            : null;
+
         return view('admin.fiscalperiod.monthly_period_show', compact(
             'fiscalperiod', 'monthlyPeriod', 'financials', 'previousMonth', 'nextMonth', 'balanceSheet',
-            'consolidated', 'showingAll', 'selectedProperty', 'openingBalance', 'closingBalance', 'closingIsFirm'
+            'consolidated', 'showingAll', 'selectedProperty', 'openingBalance', 'closingBalance', 'closingIsFirm',
+            'unpaidPreflight'
         ));
     }
 

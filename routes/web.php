@@ -279,6 +279,7 @@ Route::middleware(['auth', 'role:admin|superadmin', 'subscription.active'])->gro
         Route::delete('/admin/revenue-expense/remove-charge/{charge}', [RevenueExpenseController::class, 'removeTenantCharge'])->name('admin.revenue_expense.remove_charge');
         Route::delete('/admin/revenue-expense/clear-charges/{rental}', [RevenueExpenseController::class, 'clearTenantCharges'])->name('admin.revenue_expense.clear_charges');
         Route::post('/admin/revenue-expense/checkout', [RevenueExpenseController::class, 'checkoutTenant'])->name('admin.revenue_expense.checkout');
+        Route::post('/admin/revenue-expense/collect-outstanding/{tenant}', [RevenueExpenseController::class, 'collectOutstanding'])->name('admin.revenue_expense.collect_outstanding');
         // KHQR (KHQRPay) dynamic-QR payment
         Route::post('/admin/revenue-expense/khqr/generate', [RevenueExpenseController::class, 'khqrGenerate'])->name('admin.revenue_expense.khqr_generate');
         Route::get('/admin/revenue-expense/khqr/status/{transaction}', [RevenueExpenseController::class, 'khqrStatus'])->name('admin.revenue_expense.khqr_status');
@@ -356,6 +357,7 @@ Route::middleware(['auth', 'role:supervisor|admin|superadmin', 'subscription.act
         Route::delete('/revenue-expense/remove-charge/{charge}', [SupervisorRevenueExpenseController::class, 'removeTenantCharge'])->name('supervisor.revenue_expense.remove_charge');
         Route::delete('/revenue-expense/clear-charges/{rental}', [SupervisorRevenueExpenseController::class, 'clearTenantCharges'])->name('supervisor.revenue_expense.clear_charges');
         Route::post('/revenue-expense/checkout', [SupervisorRevenueExpenseController::class, 'checkoutTenant'])->name('supervisor.revenue_expense.checkout');
+        Route::post('/revenue-expense/collect-outstanding/{tenant}', [SupervisorRevenueExpenseController::class, 'collectOutstanding'])->name('supervisor.revenue_expense.collect_outstanding');
         // KHQR (KHQRPay) dynamic-QR payment
         Route::post('/revenue-expense/khqr/generate', [SupervisorRevenueExpenseController::class, 'khqrGenerate'])->name('supervisor.revenue_expense.khqr_generate');
         Route::get('/revenue-expense/khqr/status/{transaction}', [SupervisorRevenueExpenseController::class, 'khqrStatus'])->name('supervisor.revenue_expense.khqr_status');

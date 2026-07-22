@@ -23,6 +23,7 @@ use App\Models\BusinessExpense;
 use App\Models\FiscalPeriods;
 use App\Models\Payments;
 use App\Models\Rentals;
+use App\Models\Tenants;
 use App\Models\Utilities;
 use App\Services\Attachments\AttachmentService;
 use App\Services\RevenueExpense\BreakEvenService;
@@ -1028,6 +1029,52 @@ abstract class RevenueExpenseController extends Controller
                     'items' => implode(', ', $result['items']),
                 ])
             );
+    }
+
+    /**
+     * Collect a tenant's entire carried-forward debt (all unpaid rent months +
+     * all unpaid utilities) in one go, from the tenant detail page. Income is
+     * recognised today in the active period; owed months are cleared. See
+     * IncomeRecordingService::settleOutstandingForTenant() for the dating rules.
+     */
+    public function collectOutstanding(Request $request, Tenants $tenant)
+    {
+        $activePeriod = $this->getActiveFiscalPeriod();
+        if (! $activePeriod) {
+            return $this->missingPeriodRedirect();
+        }
+
+        // Property-scope guard: supervisors may only collect for tenants under
+        // their assigned properties (admins/superadmins pass through).
+        $tenant->loadMissing('apartment.floor', 'rentals.apartment.floor');
+        if ($tenant->apartment) {
+            $this->authorizeSupervisorApartment($tenant->apartment);
+        }
+
+        $validated = $request->validate([
+            'payment_method' => 'required|in:cash,bank,khqr',
+            'payment_date' => 'nullable|date',
+            'transaction_reference' => 'nullable|string|max:255',
+            'selection' => 'nullable|array',
+            'selection.*' => 'string',
+        ]);
+
+        $result = $this->incomeService($activePeriod)->settleOutstandingForTenant(
+            $tenant,
+            $validated['payment_date'] ?? now()->toDateString(),
+            $validated['payment_method'],
+            $validated['transaction_reference'] ?? null,
+            $validated['selection'] ?? null,
+        );
+
+        if ($result['total'] <= 0) {
+            return back()->with('error', __('messages.flash_no_outstanding'));
+        }
+
+        return back()->with('success', __('messages.flash_outstanding_collected', [
+            'amount' => number_format($result['total'], 2),
+            'name' => $tenant->name,
+        ]));
     }
 
     /**

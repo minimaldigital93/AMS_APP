@@ -2,7 +2,7 @@
 
 @section('content')
 <div class="container mx-auto py-8 max-w-4xl"
-     x-data="{ closeOpen: false, withdrawal: '', available: {{ $openingBalance + $financials['net_income'] }} }">
+     x-data="{ closeOpen: false, withdrawal: '', ack: false, available: {{ $openingBalance + $financials['net_income'] }} }">
     {{-- Header with navigation --}}
     <div class="flex items-start justify-between mb-6 gap-4">
         <div>
@@ -19,7 +19,7 @@
         <div class="flex flex-wrap gap-2 justify-end">
             @if($consolidated && $monthlyPeriod->canClose())
                 {{-- Close Month (opens withdrawal modal) --}}
-                <button type="button" @click="closeOpen = true; withdrawal = ''"
+                <button type="button" @click="closeOpen = true; withdrawal = ''; ack = false"
                         class="text-sm bg-amber-600 text-white px-3 py-2 rounded-lg hover:bg-amber-700 flex items-center" title="{{ __('messages.close_month') }}">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
                 </button>
@@ -228,6 +228,49 @@
                 </div>
 
                 <div class="px-6 py-4 space-y-4">
+                    @if($unpaidPreflight && $unpaidPreflight['has_unpaid'])
+                        {{-- Warn (never block): tenants who still owe rent/utilities for this month.
+                             Closing is allowed — unpaid rent simply books no income (cash basis) and
+                             unpaid utility charges carry forward as open Utilities rows. --}}
+                        <div class="rounded-lg border border-amber-300 bg-amber-50 p-3">
+                            <div class="flex items-start gap-2">
+                                <svg class="w-5 h-5 text-amber-600 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01M4.93 19h14.14c1.54 0 2.5-1.67 1.73-3L13.73 4a2 2 0 00-3.46 0L3.2 16c-.77 1.33.19 3 1.73 3z"/></svg>
+                                <div class="min-w-0">
+                                    <p class="text-sm font-semibold text-amber-800">
+                                        {{ __('messages.close_unpaid_warning_title', ['count' => $unpaidPreflight['total_count']]) }}
+                                    </p>
+                                    <p class="text-xs text-amber-700 mt-0.5">{{ __('messages.close_unpaid_warning_help') }}</p>
+                                </div>
+                            </div>
+
+                            <div class="mt-3 max-h-40 overflow-y-auto rounded-md bg-white/60 divide-y divide-amber-100 text-xs">
+                                @foreach($unpaidPreflight['rent'] as $row)
+                                    <div class="flex items-center justify-between gap-2 px-2.5 py-1.5">
+                                        <span class="truncate text-gray-700">
+                                            <span class="text-gray-400">{{ __('messages.close_unpaid_rent') }} ·</span>
+                                            {{ $row->tenant_name }} <span class="text-gray-400">(#{{ $row->apartment }})</span>
+                                        </span>
+                                        <span class="shrink-0 font-semibold text-amber-700">{{ money($row->shortfall) }}</span>
+                                    </div>
+                                @endforeach
+                                @foreach($unpaidPreflight['utilities'] as $row)
+                                    <div class="flex items-center justify-between gap-2 px-2.5 py-1.5">
+                                        <span class="truncate text-gray-700">
+                                            <span class="text-gray-400">{{ __('messages.close_unpaid_utilities') }} ·</span>
+                                            {{ $row->tenant_name }} <span class="text-gray-400">(#{{ $row->apartment }})</span>
+                                        </span>
+                                        <span class="shrink-0 font-semibold text-amber-700">{{ money($row->amount) }}</span>
+                                    </div>
+                                @endforeach
+                            </div>
+
+                            <label class="mt-3 flex items-start gap-2 text-xs text-amber-800 cursor-pointer">
+                                <input type="checkbox" x-model="ack" class="mt-0.5 rounded border-amber-400 text-amber-600 focus:ring-amber-500">
+                                <span>{{ __('messages.close_unpaid_ack') }}</span>
+                            </label>
+                        </div>
+                    @endif
+
                     <div class="grid grid-cols-2 gap-3 text-sm">
                         <div class="bg-gray-50 rounded-lg p-3">
                             <p class="text-xs text-gray-500">{{ __('messages.net_income_profit') }}</p>
@@ -268,8 +311,9 @@
                 <div class="px-6 py-4 border-t flex justify-end gap-2">
                     <button type="button" @click="closeOpen = false"
                             class="px-4 py-2 rounded-lg bg-gray-100 text-gray-700 hover:bg-gray-200 text-sm font-semibold">{{ __('messages.cancel') }}</button>
+                    @php($requiresAck = $unpaidPreflight && $unpaidPreflight['has_unpaid'])
                     <button type="submit"
-                            :disabled="parseFloat(withdrawal || 0) > available"
+                            :disabled="parseFloat(withdrawal || 0) > available || ({{ $requiresAck ? 'true' : 'false' }} && !ack)"
                             class="px-4 py-2 rounded-lg bg-amber-600 text-white hover:bg-amber-700 text-sm font-semibold disabled:opacity-50 disabled:cursor-not-allowed">
                         {{ __('messages.close_month') }}
                     </button>

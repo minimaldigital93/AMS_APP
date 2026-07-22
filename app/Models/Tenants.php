@@ -169,4 +169,52 @@ class Tenants extends Model
             ->sortByDesc(fn ($r) => $r['year'] * 100 + $r['month'])
             ->values();
     }
+
+    /**
+     * The tenant's total outstanding debt, carried forward across months.
+     *
+     * Combines two independently-derived sources (no stored "debt" rows):
+     *   - Unpaid rent: months from paymentHistory() with no settled rent payment.
+     *   - Unpaid utilities: open Utilities rows (paid_status = false) for any month.
+     *
+     * Both persist automatically until settled, so a charge left unpaid when a
+     * month closes keeps showing here in every later month.
+     *
+     * @return array{
+     *     rent_due: float,
+     *     utilities_due: float,
+     *     total_due: float,
+     *     unpaid_months: \Illuminate\Support\Collection<int, array<string, mixed>>,
+     *     unpaid_utilities: \Illuminate\Support\Collection<int, object>,
+     * }
+     */
+    public function outstandingCharges(): array
+    {
+        $unpaidMonths = $this->paymentHistory()->where('paid', false)->values();
+        $rentDue = (float) $unpaidMonths->sum('rent_amount');
+
+        $unpaidUtilities = Utilities::whereIn('rental_id', $this->rentals->pluck('id'))
+            ->where('paid_status', false)
+            ->orderBy('billing_year')
+            ->orderBy('billing_month')
+            ->get()
+            ->map(fn (Utilities $u) => (object) [
+                'id' => $u->id,
+                'type' => $u->utility_type,
+                'amount' => (float) $u->charge_amount,
+                'billing_month' => (int) $u->billing_month,
+                'billing_year' => (int) $u->billing_year,
+                'label' => \Carbon\Carbon::create($u->billing_year, $u->billing_month)->format('M Y'),
+            ]);
+
+        $utilitiesDue = round((float) $unpaidUtilities->sum('amount'), 2);
+
+        return [
+            'rent_due' => round($rentDue, 2),
+            'utilities_due' => $utilitiesDue,
+            'total_due' => round($rentDue + $utilitiesDue, 2),
+            'unpaid_months' => $unpaidMonths,
+            'unpaid_utilities' => $unpaidUtilities,
+        ];
+    }
 }
