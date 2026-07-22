@@ -33,8 +33,11 @@
     $pdfUrl = route('admin.contracts.preview', $rental);
     $downloadUrl = route('admin.contracts.download', $rental);
     $backUrl = route('admin.tenants.show', $rental->tenant_id);
-    $pdfjsUrl = asset('vendor/pdfjs/pdf.min.mjs');
-    $pdfjsWorkerUrl = asset('vendor/pdfjs/pdf.worker.min.mjs');
+    // Vendored as .js (not .mjs) so nginx/PHP serve them with a JavaScript MIME
+    // type — a .mjs served as application/octet-stream makes the browser refuse
+    // to execute the ES module. They are still ES modules (loaded via import()).
+    $pdfjsUrl = asset('vendor/pdfjs/pdf.min.js');
+    $pdfjsWorkerUrl = asset('vendor/pdfjs/pdf.worker.min.js');
 @endphp
 <!doctype html>
 <html lang="{{ str_replace('_', '-', app()->getLocale()) }}">
@@ -266,6 +269,7 @@
             try {
                 pdfjsLib = await import(PDFJS_URL);
             } catch (e) {
+                console.error('[contract] pdf.js failed to load', e);
                 showFailed();
                 return;
             }
@@ -274,8 +278,9 @@
 
             let pdf;
             try {
-                pdf = await pdfjsLib.getDocument({ url: PDF_URL }).promise;
+                pdf = await pdfjsLib.getDocument({ url: PDF_URL, withCredentials: true }).promise;
             } catch (e) {
+                console.error('[contract] PDF could not be opened', e);
                 showFailed();
                 return;
             }

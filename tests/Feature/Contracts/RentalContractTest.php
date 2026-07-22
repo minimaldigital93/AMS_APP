@@ -104,7 +104,7 @@ it('renders the contract viewer that loads the justified PDF for preview and pri
         ->assertSee('កិច្ចសន្យាជួល', false)                                 // Rental contract title (Khmer)
         ->assertSee($rental->contract_number, false)
         ->assertSee(route('admin.contracts.preview', $rental), false)       // PDF source pdf.js loads
-        ->assertSee('pdf.min.mjs', false);                                  // pdf.js renderer
+        ->assertSee('pdf.min.js', false);                                   // pdf.js renderer
 });
 
 it('regenerates the PDF while keeping the same contract number', function () {
