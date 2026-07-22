@@ -89,19 +89,22 @@ it('lets an admin download the contract as a PDF attachment', function () {
     expect($res->headers->get('content-disposition'))->toContain($rental->contract_number);
 });
 
-it('renders the contract viewer that embeds the justified PDF for preview and print', function () {
+it('renders the contract viewer that loads the justified PDF for preview and print', function () {
     $this->actingAs($this->admin)->post(route('admin.apartments.assignTenant', $this->vacant), contractAssignPayload(['phone' => '0962220006']));
     $rental = Rentals::sole();
 
-    // The viewer is a thin HTML wrapper that embeds the mPDF-rendered PDF (which
-    // is what carries the correctly-justified Khmer) and prints THAT — a browser
-    // cannot justify spaceless Khmer, so the contract is never printed as HTML.
+    // The viewer renders the mPDF-produced PDF (which carries the correctly-
+    // justified Khmer) with pdf.js onto <canvas>, so the preview shows and prints
+    // on every device — including iOS/PWA where an <iframe> won't render a PDF —
+    // and the contract is never printed as browser HTML (no browser can justify
+    // spaceless Khmer).
     $this->actingAs($this->admin)
         ->get(route('admin.contracts.view', $rental))
         ->assertOk()
         ->assertSee('កិច្ចសន្យាជួល', false)                                 // Rental contract title (Khmer)
         ->assertSee($rental->contract_number, false)
-        ->assertSee(route('admin.contracts.preview', $rental), false);      // embedded PDF source
+        ->assertSee(route('admin.contracts.preview', $rental), false)       // PDF source pdf.js loads
+        ->assertSee('pdf.min.mjs', false);                                  // pdf.js renderer
 });
 
 it('regenerates the PDF while keeping the same contract number', function () {

@@ -13,7 +13,7 @@
     This is rendered by mPDF (ContractGenerator → KhmerPdf, $forPdf = true), which
     both shapes AND justifies Khmer. That stored PDF is what every action shows —
     preview, download, and the on-screen "view + print" page (pdf.contract_viewer),
-    which embeds the PDF and prints it. Do NOT print this template as browser HTML:
+    which renders the PDF with pdf.js and prints it. Do NOT print this template as browser HTML:
     no browser can justify spaceless Khmer via CSS, so the paragraphs come out
     ragged. The $forPdf = false / $autoPrint browser path is kept only as a
     fallback and is no longer wired to any route.

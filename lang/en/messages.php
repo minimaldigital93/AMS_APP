@@ -1154,6 +1154,9 @@ return [
     'contract_regenerate_confirm' => 'Regenerate the contract PDF from the latest data? The contract number stays the same.',
     'contract_regenerated' => 'Contract regenerated successfully.',
     'contract_generate_failed' => 'Unable to generate contract.',
+    'loading_preview' => 'Loading preview…',
+    'preview_unavailable' => 'Preview could not be displayed on this device.',
+    'open_pdf' => 'Open PDF',
 
     // Fixed lease term (3/6/12 months)
     'contract_term' => 'Contract Term',
