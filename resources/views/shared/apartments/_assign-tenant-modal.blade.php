@@ -3,8 +3,13 @@
     // Native date-picker bounds so every device only offers valid dates:
     // tenants are 18+ (DOB no later than 18 years ago) and move-in can't be
     // backdated more than a few days. Mirrors AssignTenantRequest.
+    // iOS/iPadOS Safari only constrains the native date picker when BOTH min and
+    // max are present — a single-bounded input is ignored there (desktop honours
+    // it). So pair every bound with a sensible outer limit.
+    $minBirthDate = now()->subYears(120)->toDateString();
     $maxBirthDate = now()->subYears(18)->toDateString();
     $minMoveInDate = now()->subDays(3)->toDateString();
+    $maxMoveInDate = now()->addYears(5)->toDateString();
 @endphp
 <!-- Assign Tenant Modal (shared by apartments index & 3D view) -->
 <style>
@@ -96,7 +101,7 @@
                         </div>
                         <div class="col-span-2">
                             <label for="date_of_birth" class="block text-xs font-medium text-slate-500 mb-1 uppercase tracking-wide">{{ __('messages.date_of_birth') }}</label>
-                            <input type="date" id="date_of_birth" name="date_of_birth" value="{{ old('date_of_birth') }}" max="{{ $maxBirthDate }}" class="w-full px-3.5 py-2 text-sm border border-slate-200 rounded-lg bg-slate-50/50 text-slate-600 focus:outline-none focus:ring-2 focus:ring-slate-300 focus:border-slate-300 transition bg-white appearance-none h-10">
+                            <input type="date" id="date_of_birth" name="date_of_birth" value="{{ old('date_of_birth') }}" min="{{ $minBirthDate }}" max="{{ $maxBirthDate }}" class="w-full px-3.5 py-2 text-sm border border-slate-200 rounded-lg bg-slate-50/50 text-slate-600 focus:outline-none focus:ring-2 focus:ring-slate-300 focus:border-slate-300 transition bg-white appearance-none h-10">
                         </div>
                         <div class="col-span-2">
                             <label for="attached_photo" class="block text-xs font-medium text-slate-500 mb-1 uppercase tracking-wide">{{ __('messages.attached_photo') }}</label>
@@ -125,7 +130,7 @@
                     <div class="grid grid-cols-2 gap-3">
                         <div>
                             <label for="move_in_date" class="block text-xs font-medium text-slate-500 mb-1 uppercase tracking-wide">{{ __('messages.move_in_date') }} <span class="text-red-400">*</span></label>
-                            <input type="date" id="move_in_date" name="move_in_date" value="{{ old('move_in_date') }}" min="{{ $minMoveInDate }}" required class="w-full px-3.5 py-2 text-sm border {{ $errors->has('move_in_date') ? 'border-red-300' : 'border-slate-200' }} rounded-lg bg-slate-50/50 text-slate-600 focus:outline-none focus:ring-2 focus:ring-slate-300 focus:border-slate-300 transition bg-white appearance-none h-10">
+                            <input type="date" id="move_in_date" name="move_in_date" value="{{ old('move_in_date') }}" min="{{ $minMoveInDate }}" max="{{ $maxMoveInDate }}" required class="w-full px-3.5 py-2 text-sm border {{ $errors->has('move_in_date') ? 'border-red-300' : 'border-slate-200' }} rounded-lg bg-slate-50/50 text-slate-600 focus:outline-none focus:ring-2 focus:ring-slate-300 focus:border-slate-300 transition bg-white appearance-none h-10">
                         </div>
                         <div>
                             <label for="deposit" class="block text-xs font-medium text-slate-500 mb-1 uppercase tracking-wide">{{ __('messages.deposit') }} <span class="text-red-400">*</span></label>
