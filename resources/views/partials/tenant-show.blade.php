@@ -34,11 +34,43 @@
     $hasPhoto = $tenant->photo_path && ! \Illuminate\Support\Str::endsWith($tenant->photo_path, '.pdf');
     // The lease this tenant's contract belongs to: the open one, else the latest.
     $contractRental = $tenant->rentals->firstWhere('end_date', null) ?? $tenant->rentals->sortByDesc('start_date')->first();
+    // Fixed-term (3/6/12-month) contract detail + overdue state for this lease.
+    $termMonths = $contractRental?->contract_term_months;
+    $contractStart = $contractRental?->start_date;
+    $contractEnd = $contractRental?->contractEndDate();
+    $contractOverdue = (bool) ($contractRental?->contractIsOverdue());
+    $contractMonthsOverdue = (int) ($contractRental?->contractMonthsOverdue() ?? 0);
+    // Progress through the fixed lease term (null for open-ended leases). Percent
+    // of the start→end window elapsed, plus days remaining / days overdue.
+    $contractProgress = null;
+    if ($termMonths && $contractStart && $contractEnd) {
+        $cpStart = \Illuminate\Support\Carbon::parse($contractStart)->startOfDay();
+        $cpToday = now()->startOfDay();
+        $cpTotalDays = max(1, (int) $cpStart->diffInDays($contractEnd));
+        $cpElapsedDays = max(0, (int) $cpStart->diffInDays($cpToday));
+        $contractProgress = [
+            'percent' => (int) max(0, min(100, round(($cpElapsedDays / $cpTotalDays) * 100))),
+            'days_left' => max(0, (int) $cpToday->diffInDays($contractEnd, false)),
+            'days_overdue' => $contractOverdue ? (int) $contractEnd->diffInDays($cpToday) : 0,
+        ];
+    }
     $rawStatus = method_exists($tenant, 'trashed') && $tenant->trashed() ? 'departed' : $tenant->status;
     $statusDisplay = status_label($rawStatus);
 @endphp
 
 <div class="max-w-4xl mx-auto space-y-6">
+
+    {{-- Overdue contract alert: the fixed lease term has lapsed without a move-out
+         or renewal. Surfaced to both admin and supervisor. --}}
+    @if($contractOverdue)
+    <div class="flex items-start gap-3 bg-red-50 border border-red-200 rounded-xl px-4 py-3">
+        <svg class="w-5 h-5 text-red-500 shrink-0 mt-0.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/></svg>
+        <div>
+            <p class="text-sm font-semibold text-red-700">{{ __('messages.contract_overdue') }}</p>
+            <p class="text-xs text-red-600 mt-0.5">{{ __('messages.contract_overdue_detail', ['months' => $termMonths, 'date' => $contractEnd?->format('M d, Y'), 'overdue' => $contractMonthsOverdue]) }}</p>
+        </div>
+    </div>
+    @endif
 
     {{-- Header (hidden when embedded inside another page) --}}
     @if($showHeader)
@@ -144,6 +176,17 @@
             <div>
                 <p class="text-xs text-slate-400 uppercase tracking-wide">{{ __('messages.move_out') }}</p>
                 <p class="text-sm font-medium text-slate-800 mt-0.5">{{ $tenant->move_out_date ? $tenant->move_out_date->format('M d, Y') : __('messages.not_set') }}</p>
+            </div>
+            <div>
+                <p class="text-xs text-slate-400 uppercase tracking-wide">{{ __('messages.contract_term') }}</p>
+                <p class="text-sm font-medium text-slate-800 mt-0.5">{{ $termMonths ? __('messages.term_n_months', ['n' => $termMonths]) : __('messages.open_ended') }}</p>
+            </div>
+            <div>
+                <p class="text-xs text-slate-400 uppercase tracking-wide">{{ __('messages.contract_ends') }}</p>
+                <p class="text-sm font-medium mt-0.5 {{ $contractOverdue ? 'text-red-600' : 'text-slate-800' }}">
+                    {{ $contractEnd ? $contractEnd->format('M d, Y') : '—' }}
+                    @if($contractOverdue)<span class="ml-1 inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-semibold bg-red-50 text-red-600">{{ __('messages.overdue') }}</span>@endif
+                </p>
             </div>
         </div>
     </div>
@@ -346,7 +389,7 @@
                 @endif
             </div>
 
-            <div class="grid grid-cols-2 sm:grid-cols-3 gap-4 mb-8">
+            <div class="grid grid-cols-2 sm:grid-cols-3 gap-4 mb-6">
                 <div>
                     <p class="text-xs text-slate-400 uppercase tracking-wide">{{ __('messages.contract_number') }}</p>
                     <p class="text-sm font-semibold text-slate-800 mt-0.5">{{ $contractRental->contract_number ?? '—' }}</p>
@@ -361,7 +404,31 @@
                 </div>
             </div>
 
-            <div class="flex flex-wrap items-center gap-2">
+            {{-- Contract-term progress bar: how far the fixed lease term has run
+                 (start_date → term end). Only shown for fixed-term leases. --}}
+            @if($contractProgress)
+                <div class="mb-8">
+                    <div class="flex items-center justify-between text-xs mb-2">
+                        <span class="font-medium text-slate-500 uppercase tracking-wide">{{ __('messages.contract_progress') }}</span>
+                        @if($contractOverdue)
+                            <span class="font-semibold text-red-600">{{ __('messages.contract_days_overdue', ['days' => $contractProgress['days_overdue']]) }}</span>
+                        @else
+                            <span class="font-semibold text-slate-600">{{ __('messages.days_left', ['days' => $contractProgress['days_left']]) }}</span>
+                        @endif
+                    </div>
+                    <div class="h-2.5 w-full rounded-full bg-slate-100 overflow-hidden">
+                        <div class="h-full rounded-full transition-all {{ $contractOverdue ? 'bg-red-500' : ($contractProgress['percent'] >= 80 ? 'bg-amber-500' : 'bg-emerald-500') }}"
+                             style="width: {{ max($contractProgress['percent'], 2) }}%"></div>
+                    </div>
+                    <div class="flex items-center justify-between text-[11px] text-slate-400 mt-1.5">
+                        <span>{{ $contractStart->format('M d, Y') }}</span>
+                        <span>{{ __('messages.contract_percent_elapsed', ['percent' => $contractProgress['percent']]) }}</span>
+                        <span class="{{ $contractOverdue ? 'text-red-500 font-medium' : '' }}">{{ $contractEnd->format('M d, Y') }}</span>
+                    </div>
+                </div>
+            @endif
+
+            <div class="flex flex-wrap items-center gap-2" x-data="{ renewOpen: false }">
                 <a href="{{ route('admin.contracts.view', $contractRental) }}" target="_blank" rel="noopener"
                    class="inline-flex items-center gap-2 px-3 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
@@ -372,15 +439,57 @@
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
                     {{ __('messages.download') }}
                 </a>
-                <form action="{{ route('admin.contracts.regenerate', $contractRental) }}" method="POST" class="inline"
-                      data-confirm="{{ __('messages.contract_regenerate_confirm') }}">
-                    @csrf
-                    <button type="submit"
-                            class="inline-flex items-center gap-2 px-3 py-2 text-sm font-medium text-amber-700 bg-amber-50 border border-amber-200 hover:bg-amber-100 rounded-lg transition">
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
-                        {{ __('messages.regenerate_contract') }}
-                    </button>
-                </form>
+                <button type="button" @click="renewOpen = true"
+                        class="inline-flex items-center gap-2 px-3 py-2 text-sm font-medium text-amber-700 bg-amber-50 border border-amber-200 hover:bg-amber-100 rounded-lg transition">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+                    {{ __('messages.regenerate_or_renew') }}
+                </button>
+
+                {{-- Regenerate / Renew dialog: optionally extend the fixed term by
+                     3/6/12 months, then rebuild the PDF (same contract number). --}}
+                <div x-show="renewOpen" x-cloak
+                     x-data="{ months: '' }"
+                     class="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/40 p-4 sm:items-center"
+                     @keydown.escape.window="renewOpen = false">
+                    <div class="bg-white rounded-xl shadow-xl w-full max-w-md my-auto" @click.outside="renewOpen = false">
+                        <form method="POST" action="{{ route('admin.contracts.regenerate', $contractRental) }}">
+                            @csrf
+                            <div class="px-6 py-4 border-b">
+                                <h3 class="text-lg font-semibold text-slate-800">{{ __('messages.renew_contract') }}</h3>
+                                <p class="text-sm text-slate-500 mt-1">{{ __('messages.renew_contract_prompt') }}</p>
+                            </div>
+                            <div class="px-6 py-4 space-y-3">
+                                @if($contractEnd)
+                                    <p class="text-xs text-slate-500">
+                                        {{ __('messages.contract_ends') }}:
+                                        <span class="font-semibold {{ $contractOverdue ? 'text-red-600' : 'text-slate-700' }}">{{ $contractEnd->format('M d, Y') }}</span>
+                                    </p>
+                                @endif
+                                <div class="grid grid-cols-3 gap-2">
+                                    @foreach([3, 6, 12] as $m)
+                                        <label class="flex items-center justify-center gap-2 px-3 py-2.5 text-sm border rounded-lg cursor-pointer transition"
+                                               :class="months === '{{ $m }}' ? 'border-amber-500 bg-amber-50 text-amber-700 font-semibold' : 'border-slate-200 bg-slate-50/50 text-slate-600 hover:border-slate-300'">
+                                            <input type="radio" name="renew_months" value="{{ $m }}" x-model="months" class="sr-only">
+                                            {{ __('messages.renew_plus_months', ['n' => $m]) }}
+                                        </label>
+                                    @endforeach
+                                </div>
+                                <label class="flex items-center gap-2 px-3 py-2.5 text-sm border rounded-lg cursor-pointer transition"
+                                       :class="months === '' ? 'border-slate-400 bg-slate-50 text-slate-700 font-medium' : 'border-slate-200 text-slate-500 hover:border-slate-300'">
+                                    <input type="radio" name="renew_months" value="" x-model="months" class="text-slate-600 focus:ring-slate-400">
+                                    {{ __('messages.keep_current_term') }}
+                                </label>
+                            </div>
+                            <div class="px-6 py-4 border-t flex justify-end gap-2">
+                                <button type="button" @click="renewOpen = false"
+                                        class="px-4 py-2 rounded-lg bg-slate-100 text-slate-700 hover:bg-slate-200 text-sm font-semibold">{{ __('messages.cancel') }}</button>
+                                <button type="submit"
+                                        class="px-4 py-2 rounded-lg bg-amber-600 text-white hover:bg-amber-700 text-sm font-semibold"
+                                        x-text="months === '' ? '{{ __('messages.regenerate_contract') }}' : '{{ __('messages.renew_contract') }}'"></button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
             </div>
         </div>
     @endif

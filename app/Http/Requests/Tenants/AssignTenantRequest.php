@@ -96,6 +96,9 @@ class AssignTenantRequest extends FormRequest
             'id_pdf' => "nullable|file|mimes:{$documentTypes}|extensions:{$documentTypes}|max:".self::DOCUMENT_MAX_KB,
             'move_in_date' => 'required|date|after_or_equal:'.$minMoveInDate,
             'deposit' => 'required|numeric|min:0|max:99999999.99',
+            // Fixed lease term chosen on the form (3/6/12 months); optional so an
+            // open-ended tenancy is still allowed.
+            'contract_term_months' => 'nullable|integer|in:3,6,12',
         ];
     }
 

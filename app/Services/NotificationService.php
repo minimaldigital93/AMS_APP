@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\BusinessExpense;
 use App\Models\Payments;
+use App\Models\Rentals;
 use App\Models\TenantLeave;
 use App\Models\Tenants;
 use App\Models\User;
@@ -36,6 +37,7 @@ class NotificationService
         'expense' => 'expenses',
         'new_tenant' => 'tenants',
         'tenant_moved_out' => 'tenants',
+        'contract_overdue' => 'tenants',
     ];
 
     /** Seconds to cache the built feed — it runs on EVERY page (topbar bell). */
@@ -201,6 +203,38 @@ class NotificationService
                 ]),
                 'time' => $p->due_date,
                 'url' => $tenant ? $tenantUrl($tenant->id) : null,
+            ]);
+        }
+
+        // Contract: fixed-term lease overdue for renewal (term lapsed, no move-out).
+        // The end date is start_date + term months, computed per row, so candidates
+        // are filtered in PHP rather than SQL (keeps SQLite/MySQL date math out).
+        $overdueContracts = Rentals::with('tenant')
+            ->whereNotNull('contract_term_months')
+            ->whereNull('end_date')
+            ->get()
+            ->filter(fn ($r) => $r->contractIsOverdue())
+            ->sortBy(fn ($r) => $r->contractEndDate())
+            ->take(5);
+
+        foreach ($overdueContracts as $r) {
+            $tenant = $r->tenant;
+            if (! $tenant) {
+                continue;
+            }
+            $end = $r->contractEndDate();
+            $items->push([
+                'type' => 'contract_overdue',
+                'icon' => 'assignment_late',
+                'color' => 'red',
+                'title' => __('messages.notif_contract_overdue'),
+                'message' => __('messages.notif_contract_overdue_msg', [
+                    'name' => $tenant->name ?? __('messages.tenant'),
+                    'months' => $r->contract_term_months,
+                    'date' => $end?->format('M d, Y'),
+                ]),
+                'time' => $end,
+                'url' => $tenantUrl($tenant->id),
             ]);
         }
 

@@ -1,4 +1,11 @@
-@php $assignBase = $assignBase ?? url('/'.$panel.'/apartments'); @endphp
+@php
+    $assignBase = $assignBase ?? url('/'.$panel.'/apartments');
+    // Native date-picker bounds so every device only offers valid dates:
+    // tenants are 18+ (DOB no later than 18 years ago) and move-in can't be
+    // backdated more than a few days. Mirrors AssignTenantRequest.
+    $maxBirthDate = now()->subYears(18)->toDateString();
+    $minMoveInDate = now()->subDays(3)->toDateString();
+@endphp
 <!-- Assign Tenant Modal (shared by apartments index & 3D view) -->
 <style>
     /* iOS zooms the whole page when a focused field is <16px — keep inputs at 16px on phones. */
@@ -39,23 +46,12 @@
             </button>
         </div>
 
-        <!-- Tab Navigation -->
-        <div id="tabNavigation" class="px-5 sm:px-6 pt-3 border-b border-slate-100 flex-shrink-0">
-            <div class="flex gap-4">
-                <button type="button" id="existingTenantTab" class="tab-button px-3 py-2 text-sm font-medium text-slate-400 border-b-2 border-transparent hover:text-slate-600">
-                    {{ __('messages.existing_tenant') }}
-                </button>
-                <button type="button" id="newTenantTab" class="tab-button active px-3 py-2 text-sm font-medium text-slate-800 border-b-2 border-slate-800 hover:text-slate-900">
-                    {{ __('messages.create_new_tenant') }}
-                </button>
-            </div>
-        </div>
-
         <form id="assignTenantForm" method="POST" enctype="multipart/form-data" class="modal-scroll flex-1 min-h-0 overflow-y-auto flex flex-col"
             data-max-total-bytes="41943040" data-max-total-message="{{ __('messages.attachment_total_too_large') }}">
             @csrf
             <input type="hidden" id="apartmentId" name="apartment_id" value="{{ old('apartment_id') }}">
-            <input type="hidden" id="tenantOption" name="tenant_option" value="{{ old('tenant_option', 'new') }}">
+            {{-- Assignment always creates a new tenant now (the Existing-tenant tab was removed). --}}
+            <input type="hidden" id="tenantOption" name="tenant_option" value="new">
 
             <div class="flex-1 p-5 sm:p-6 space-y-4">
             @if($errors->any())
@@ -68,23 +64,7 @@
                 </div>
             @endif
 
-            <!-- Existing Tenant Tab -->
-            <div id="existingTenantContent" class="tab-content space-y-4 hidden">
-                <div>
-                    <label for="tenant_id" class="block text-xs font-medium text-slate-500 mb-1.5 uppercase tracking-wide">{{ __('messages.select_tenant') }}</label>
-                    <select id="tenant_id" name="tenant_id" class="w-full px-3.5 py-2 text-sm border {{ $errors->has('tenant_id') ? 'border-red-300' : 'border-slate-200' }} rounded-lg bg-slate-50/50 focus:outline-none focus:ring-2 focus:ring-slate-300 focus:border-slate-300 transition">
-                        <option value="">{{ __('messages.choose_unassigned_tenant') }}</option>
-                        @foreach(($availableTenants ?? collect()) as $tenant)
-                            <option value="{{ $tenant->id }}" {{ (string) old('tenant_id') === (string) $tenant->id ? 'selected' : '' }}>{{ $tenant->name }} ({{ $tenant->phone }})</option>
-                        @endforeach
-                    </select>
-                    @if(($availableTenants ?? collect())->isEmpty())
-                        <p class="text-xs text-amber-600 mt-1.5">{{ __('messages.no_unassigned_tenants') }}</p>
-                    @endif
-                </div>
-            </div>
-
-            <!-- New Tenant Tab -->
+            <!-- New Tenant -->
             <div id="newTenantContent" class="tab-content space-y-5">
                 <!-- Personal Information -->
                 <div class="space-y-3">
@@ -116,7 +96,7 @@
                         </div>
                         <div class="col-span-2">
                             <label for="date_of_birth" class="block text-xs font-medium text-slate-500 mb-1 uppercase tracking-wide">{{ __('messages.date_of_birth') }}</label>
-                            <input type="date" id="date_of_birth" name="date_of_birth" value="{{ old('date_of_birth') }}" class="w-full px-3.5 py-2 text-sm border border-slate-200 rounded-lg bg-slate-50/50 text-slate-600 focus:outline-none focus:ring-2 focus:ring-slate-300 focus:border-slate-300 transition bg-white appearance-none h-10">
+                            <input type="date" id="date_of_birth" name="date_of_birth" value="{{ old('date_of_birth') }}" max="{{ $maxBirthDate }}" class="w-full px-3.5 py-2 text-sm border border-slate-200 rounded-lg bg-slate-50/50 text-slate-600 focus:outline-none focus:ring-2 focus:ring-slate-300 focus:border-slate-300 transition bg-white appearance-none h-10">
                         </div>
                         <div class="col-span-2">
                             <label for="attached_photo" class="block text-xs font-medium text-slate-500 mb-1 uppercase tracking-wide">{{ __('messages.attached_photo') }}</label>
@@ -145,11 +125,26 @@
                     <div class="grid grid-cols-2 gap-3">
                         <div>
                             <label for="move_in_date" class="block text-xs font-medium text-slate-500 mb-1 uppercase tracking-wide">{{ __('messages.move_in_date') }} <span class="text-red-400">*</span></label>
-                            <input type="date" id="move_in_date" name="move_in_date" value="{{ old('move_in_date') }}" required class="w-full px-3.5 py-2 text-sm border {{ $errors->has('move_in_date') ? 'border-red-300' : 'border-slate-200' }} rounded-lg bg-slate-50/50 text-slate-600 focus:outline-none focus:ring-2 focus:ring-slate-300 focus:border-slate-300 transition bg-white appearance-none h-10">
+                            <input type="date" id="move_in_date" name="move_in_date" value="{{ old('move_in_date') }}" min="{{ $minMoveInDate }}" required class="w-full px-3.5 py-2 text-sm border {{ $errors->has('move_in_date') ? 'border-red-300' : 'border-slate-200' }} rounded-lg bg-slate-50/50 text-slate-600 focus:outline-none focus:ring-2 focus:ring-slate-300 focus:border-slate-300 transition bg-white appearance-none h-10">
                         </div>
                         <div>
                             <label for="deposit" class="block text-xs font-medium text-slate-500 mb-1 uppercase tracking-wide">{{ __('messages.deposit') }} <span class="text-red-400">*</span></label>
                             <input type="number" id="deposit" name="deposit" value="{{ old('deposit') }}" min="0" step="0.01" required class="w-full px-3.5 py-2 text-sm border {{ $errors->has('deposit') ? 'border-red-300' : 'border-slate-200' }} rounded-lg bg-slate-50/50 placeholder-slate-300 focus:outline-none focus:ring-2 focus:ring-slate-300 focus:border-slate-300 transition" placeholder="0.00">
+                        </div>
+                        <div class="col-span-2">
+                            <label class="block text-xs font-medium text-slate-500 mb-1.5 uppercase tracking-wide">{{ __('messages.contract_term') }}</label>
+                            {{-- Single-select "checkboxes": picking one clears the others (JS below).
+                                 Optional — leaving all unchecked keeps the tenancy open-ended. --}}
+                            <div class="grid grid-cols-3 gap-2" id="contractTermGroup">
+                                @foreach([3, 6, 12] as $term)
+                                    <label class="contract-term-option flex items-center justify-center gap-2 px-3 py-2 text-sm border border-slate-200 rounded-lg bg-slate-50/50 text-slate-600 cursor-pointer hover:border-slate-300 transition has-[:checked]:border-slate-800 has-[:checked]:bg-slate-800 has-[:checked]:text-white">
+                                        <input type="checkbox" name="contract_term_months" value="{{ $term }}"
+                                            {{ (string) old('contract_term_months') === (string) $term ? 'checked' : '' }}
+                                            class="contract-term-checkbox rounded border-slate-300 text-slate-800 focus:ring-slate-300">
+                                        {{ __('messages.term_n_months', ['n' => $term]) }}
+                                    </label>
+                                @endforeach
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -340,35 +335,22 @@
         var assignBase = modal.dataset.assignBase || @json($assignBase);
         var form = document.getElementById('assignTenantForm');
         var apartmentIdInput = document.getElementById('apartmentId');
-        var tenantOptionInput = document.getElementById('tenantOption');
 
-        var existingTenantTab = document.getElementById('existingTenantTab');
-        var newTenantTab = document.getElementById('newTenantTab');
-        var existingTenantContent = document.getElementById('existingTenantContent');
-        var newTenantContent = document.getElementById('newTenantContent');
-        var tabButtons = document.querySelectorAll('.tab-button');
         var submitLabel = document.getElementById('submitBtnLabel');
 
-        function switchToExistingTab() {
-            tenantOptionInput.value = 'existing';
-            existingTenantContent.classList.remove('hidden');
-            newTenantContent.classList.add('hidden');
-            tabButtons.forEach(function (btn) { btn.classList.remove('text-slate-800', 'border-slate-800'); btn.classList.add('text-slate-400', 'border-transparent'); });
-            existingTenantTab.classList.add('text-slate-800', 'border-slate-800');
-            existingTenantTab.classList.remove('text-slate-400', 'border-transparent');
-        }
-
-        function switchToNewTab() {
-            tenantOptionInput.value = 'new';
-            existingTenantContent.classList.add('hidden');
-            newTenantContent.classList.remove('hidden');
-            tabButtons.forEach(function (btn) { btn.classList.remove('text-slate-800', 'border-slate-800'); btn.classList.add('text-slate-400', 'border-transparent'); });
-            newTenantTab.classList.add('text-slate-800', 'border-slate-800');
-            newTenantTab.classList.remove('text-slate-400', 'border-transparent');
-        }
-
-        existingTenantTab.addEventListener('click', switchToExistingTab);
-        newTenantTab.addEventListener('click', switchToNewTab);
+        // Contract term "checkboxes" behave as a single-select group: ticking one
+        // clears the others, and a second click on the ticked one clears it (so the
+        // term stays optional). Only one contract_term_months value is ever posted.
+        var termCheckboxes = document.querySelectorAll('.contract-term-checkbox');
+        termCheckboxes.forEach(function (cb) {
+            cb.addEventListener('change', function () {
+                if (cb.checked) {
+                    termCheckboxes.forEach(function (other) {
+                        if (other !== cb) other.checked = false;
+                    });
+                }
+            });
+        });
 
         // Validate (and compress) files the moment they're picked, so the user
         // hears about an oversized or wrong-type file immediately — not after
@@ -416,7 +398,6 @@
                 form.action = assignBase + '/' + apartmentId + '/assign-tenant';
                 document.getElementById('apartmentNumberDisplay').textContent = apartmentNumber;
                 clearForm();
-                switchToNewTab();
                 openModal();
             });
         });
@@ -440,11 +421,6 @@
         (function reopenOnError() {
             var apartmentId = @json(old('apartment_id'));
             form.action = assignBase + '/' + apartmentId + '/assign-tenant';
-            if (@json(old('tenant_option')) === 'existing') {
-                switchToExistingTab();
-            } else {
-                switchToNewTab();
-            }
             openModal();
         })();
         @endif

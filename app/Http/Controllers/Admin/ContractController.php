@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Rentals;
 use App\Services\Contracts\ContractGenerator;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Log;
@@ -77,12 +78,26 @@ class ContractController extends Controller
         ]);
     }
 
-    /** Regenerate the PDF from current data, keeping the same contract number. */
-    public function regenerate(Rentals $rental): RedirectResponse
+    /**
+     * Regenerate the PDF from current data, keeping the same contract number.
+     *
+     * The "Regenerate / Renew" dialog may also pass `renew_months` (3/6/12) to
+     * extend the fixed lease term before the PDF is rebuilt — a plain regenerate
+     * when it is absent.
+     */
+    public function regenerate(Request $request, Rentals $rental): RedirectResponse
     {
         Gate::authorize('manageContract', $rental);
 
+        $data = $request->validate([
+            'renew_months' => 'nullable|integer|in:3,6,12',
+        ]);
+        $renewMonths = $data['renew_months'] ?? null;
+
         try {
+            if ($renewMonths) {
+                $rental->renewTerm((int) $renewMonths);
+            }
             $this->contracts->generate($rental);
         } catch (\Throwable $e) {
             Log::error('Contract regeneration failed', ['rental_id' => $rental->id, 'error' => $e->getMessage()]);
@@ -90,7 +105,7 @@ class ContractController extends Controller
             return back()->with('error', __('messages.contract_generate_failed'));
         }
 
-        return back()->with('success', __('messages.contract_regenerated'));
+        return back()->with('success', __($renewMonths ? 'messages.contract_renewed' : 'messages.contract_regenerated'));
     }
 
     /**

@@ -105,6 +105,9 @@ class TenantAssignmentService
                     // Sensible default: rent falls due on the move-in day each
                     // month. Utility prices default to 0 (fill-in on the contract).
                     'payment_due_day' => $moveIn->day,
+                    // Fixed lease term (3/6/12 months) when chosen on the form;
+                    // null keeps the tenancy open-ended.
+                    'contract_term_months' => $data['contract_term_months'] ?? null,
                     'created_by' => Auth::id(),
                 ]);
 

@@ -1153,4 +1153,25 @@ return [
     'contract_regenerate_confirm' => 'Regenerate the contract PDF from the latest data? The contract number stays the same.',
     'contract_regenerated' => 'Contract regenerated successfully.',
     'contract_generate_failed' => 'Unable to generate contract.',
+
+    // Fixed lease term (3/6/12 months)
+    'contract_term' => 'Contract Term',
+    'term_n_months' => ':n months',
+    'contract_ends' => 'Contract Ends',
+    'open_ended' => 'Open-ended',
+    'contract_overdue' => 'Contract overdue',
+    'contract_overdue_detail' => 'The :months-month contract ended on :date and is now :overdue month(s) overdue for renewal.',
+    'notif_contract_overdue' => 'Contract overdue',
+    'notif_contract_overdue_msg' => ":name's :months-month contract ended on :date and needs renewing.",
+
+    // Contract progress bar + renewal (tenant detail lease card)
+    'contract_progress' => 'Contract Progress',
+    'contract_percent_elapsed' => ':percent% elapsed',
+    'contract_days_overdue' => ':days day(s) overdue',
+    'regenerate_or_renew' => 'Regenerate / Renew',
+    'renew_contract' => 'Renew Contract',
+    'renew_contract_prompt' => 'Renew the contract for how many months? The new term is added on from the current end date.',
+    'renew_plus_months' => '+:n months',
+    'keep_current_term' => 'Keep current term (just regenerate the PDF)',
+    'contract_renewed' => 'Contract renewed successfully.',
 ];

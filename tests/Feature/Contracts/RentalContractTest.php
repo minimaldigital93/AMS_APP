@@ -123,6 +123,43 @@ it('regenerates the PDF while keeping the same contract number', function () {
     Storage::disk(ContractGenerator::DISK)->assertExists($rental->contract_path);
 });
 
+it('renews the fixed term and regenerates when renew_months is posted', function () {
+    // 6-month lease starting today → ends in 6 months. Renewing by 6 extends the
+    // total term to 12 months while keeping the same contract number and file.
+    $this->actingAs($this->admin)->post(route('admin.apartments.assignTenant', $this->vacant), contractAssignPayload([
+        'phone' => '0962220010',
+        'contract_term_months' => 6,
+    ]));
+    $rental = Rentals::sole();
+    $originalNumber = $rental->contract_number;
+
+    $this->actingAs($this->admin)
+        ->from(route('admin.tenants.show', $rental->tenant_id))
+        ->post(route('admin.contracts.regenerate', $rental), ['renew_months' => 6])
+        ->assertRedirect(route('admin.tenants.show', $rental->tenant_id))
+        ->assertSessionHas('success');
+
+    $rental->refresh();
+    expect($rental->contract_term_months)->toBe(12)
+        ->and($rental->contract_number)->toBe($originalNumber);
+    Storage::disk(ContractGenerator::DISK)->assertExists($rental->contract_path);
+});
+
+it('rejects a renew term that is not 3, 6 or 12', function () {
+    $this->actingAs($this->admin)->post(route('admin.apartments.assignTenant', $this->vacant), contractAssignPayload([
+        'phone' => '0962220011',
+        'contract_term_months' => 6,
+    ]));
+    $rental = Rentals::sole();
+
+    $this->actingAs($this->admin)
+        ->from(route('admin.tenants.show', $rental->tenant_id))
+        ->post(route('admin.contracts.regenerate', $rental), ['renew_months' => 5])
+        ->assertSessionHasErrors('renew_months');
+
+    expect($rental->fresh()->contract_term_months)->toBe(6); // unchanged
+});
+
 it('embeds the Khmer fonts in the generated PDF', function () {
     // Regression guard for the engine swap. Dompdf produced a PDF that *looked*
     // fine to assertOk() while rendering Khmer with the coeng unstacked and the

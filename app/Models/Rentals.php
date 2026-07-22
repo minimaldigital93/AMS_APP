@@ -34,6 +34,7 @@ class Rentals extends Model
         'garbage_fee',
         'late_fee',
         'payment_due_day',
+        'contract_term_months',
         'deposit',
         'created_by',
     ];
@@ -54,6 +55,7 @@ class Rentals extends Model
             'garbage_fee' => 'float',
             'late_fee' => 'float',
             'payment_due_day' => 'integer',
+            'contract_term_months' => 'integer',
             'deposit' => 'float',
             'contract_generated_at' => 'datetime',
         ];
@@ -105,6 +107,67 @@ class Rentals extends Model
     {
         return filled($this->contract_path)
             && \Illuminate\Support\Facades\Storage::disk('local')->exists($this->contract_path);
+    }
+
+    // Contract term (fixed 3/6/12-month lease agreed at assignment)
+
+    /**
+     * The date the agreed lease term runs out: start_date + contract_term_months.
+     * Null when no start date or no fixed term was recorded (open-ended lease).
+     */
+    public function contractEndDate(): ?Carbon
+    {
+        if (! $this->start_date || ! $this->contract_term_months) {
+            return null;
+        }
+
+        return Carbon::parse($this->start_date)->addMonthsNoOverflow($this->contract_term_months)->startOfDay();
+    }
+
+    /**
+     * True once a fixed-term contract's end date has passed while the lease is
+     * still open (no move-out) — i.e. the term lapsed and needs renewing.
+     */
+    public function contractIsOverdue(): bool
+    {
+        $end = $this->contractEndDate();
+
+        return $end !== null && $this->end_date === null && $end->isPast();
+    }
+
+    /** Whole months the fixed-term contract is overdue by (0 when not overdue). */
+    public function contractMonthsOverdue(): int
+    {
+        $end = $this->contractEndDate();
+
+        if ($end === null || ! $this->contractIsOverdue()) {
+            return 0;
+        }
+
+        return (int) $end->diffInMonths(now());
+    }
+
+    /**
+     * Renew the fixed lease term by $months. The new term is added on from
+     * wherever the current term ends — or from today when the lease is
+     * open-ended or the term has already lapsed — and is stored back as whole
+     * months from start_date, so contractEndDate()'s "start_date + term" model
+     * stays intact. Persists the new term and returns it.
+     */
+    public function renewTerm(int $months): int
+    {
+        $start = $this->start_date
+            ? Carbon::parse($this->start_date)->startOfDay()
+            : now()->startOfDay();
+
+        $currentEnd = $this->contractEndDate();
+        $base = $currentEnd && $currentEnd->isFuture() ? $currentEnd->copy() : now()->startOfDay();
+        $newEnd = $base->addMonthsNoOverflow($months);
+
+        $this->contract_term_months = max(1, (int) round($start->diffInMonths($newEnd)));
+        $this->save();
+
+        return $this->contract_term_months;
     }
 
     // Derived attributes

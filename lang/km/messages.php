@@ -1153,4 +1153,25 @@ return [
     'contract_regenerate_confirm' => 'បង្កើតឯកសារកិច្ចសន្យាឡើងវិញពីទិន្នន័យថ្មីបំផុតឬ? លេខកិច្ចសន្យានៅដដែល។',
     'contract_regenerated' => 'បានបង្កើតកិច្ចសន្យាឡើងវិញដោយជោគជ័យ។',
     'contract_generate_failed' => 'មិនអាចបង្កើតកិច្ចសន្យាបានទេ។',
+
+    // Fixed lease term (3/6/12 months)
+    'contract_term' => 'រយៈពេលកិច្ចសន្យា',
+    'term_n_months' => ':n ខែ',
+    'contract_ends' => 'កិច្ចសន្យាបញ្ចប់',
+    'open_ended' => 'គ្មានកំណត់',
+    'contract_overdue' => 'កិច្ចសន្យាផុតកំណត់',
+    'contract_overdue_detail' => 'កិច្ចសន្យារយៈពេល :months ខែ បានផុតកំណត់នៅថ្ងៃ :date ហើយហួសកំណត់ :overdue ខែ ត្រូវធ្វើបន្ត។',
+    'notif_contract_overdue' => 'កិច្ចសន្យាផុតកំណត់',
+    'notif_contract_overdue_msg' => 'កិច្ចសន្យារយៈពេល :months ខែ របស់ :name បានផុតកំណត់នៅ :date ត្រូវធ្វើបន្ត។',
+
+    // Contract progress bar + renewal (tenant detail lease card)
+    'contract_progress' => 'វឌ្ឍនភាពកិច្ចសន្យា',
+    'contract_percent_elapsed' => 'កន្លងផុត :percent%',
+    'contract_days_overdue' => 'ហួសកំណត់ :days ថ្ងៃ',
+    'regenerate_or_renew' => 'បង្កើតឡើងវិញ / បន្ត',
+    'renew_contract' => 'បន្តកិច្ចសន្យា',
+    'renew_contract_prompt' => 'បន្តកិច្ចសន្យារយៈពេលប៉ុន្មានខែ? រយៈពេលថ្មីត្រូវបានបូកបន្ថែមចាប់ពីថ្ងៃបញ្ចប់បច្ចុប្បន្ន។',
+    'renew_plus_months' => '+:n ខែ',
+    'keep_current_term' => 'រក្សារយៈពេលដដែល (បង្កើតឯកសារឡើងវិញតែប៉ុណ្ណោះ)',
+    'contract_renewed' => 'បានបន្តកិច្ចសន្យាដោយជោគជ័យ។',
 ];

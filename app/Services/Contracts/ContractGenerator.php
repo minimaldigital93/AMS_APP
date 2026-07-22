@@ -112,6 +112,10 @@ class ContractGenerator
             'generatedAt' => $rental->contract_generated_at ?? now(),
             'landlord' => $this->landlord(),
             'rates' => $this->rates($rental),
+            // Fixed lease term (3/6/12 months) and its computed end date, both
+            // null for an open-ended tenancy → the Blade omits the duration line.
+            'termMonths' => $rental->contract_term_months,
+            'termEnd' => $rental->contractEndDate(),
         ];
     }
 
