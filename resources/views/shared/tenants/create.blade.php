@@ -113,8 +113,6 @@
                 <div>
                     <label for="move_in_date" class="block text-xs font-medium text-slate-500 mb-1.5">{{ __('messages.move_in_date') }} <span class="text-red-400">*</span></label>
                     <input type="date" id="move_in_date" name="move_in_date" required value="{{ old('move_in_date') }}"
-                        min="{{ now()->subDays(3)->toDateString() }}"
-                        max="{{ now()->addYears(5)->toDateString() }}"
                         style="max-width:100%;box-sizing:border-box;"
                         class="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:ring-1 focus:ring-slate-400 focus:border-slate-400 bg-white {{ $errors->has('move_in_date') ? 'border-red-400' : '' }}">
                     @error('move_in_date')<p class="text-red-500 text-xs mt-1">{{ $message }}</p>@enderror
@@ -133,8 +131,6 @@
                 <div>
                     <label for="date_of_birth" class="block text-xs font-medium text-slate-500 mb-1.5">{{ __('messages.date_of_birth') }} <span class="text-slate-300">({{ __('messages.optional') }})</span></label>
                     <input type="date" id="date_of_birth" name="date_of_birth" value="{{ old('date_of_birth') }}"
-                        min="{{ now()->subYears(120)->toDateString() }}"
-                        max="{{ now()->subYears(18)->toDateString() }}"
                         style="max-width:100%;box-sizing:border-box;"
                         class="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:ring-1 focus:ring-slate-400 focus:border-slate-400 bg-white {{ $errors->has('date_of_birth') ? 'border-red-400' : '' }}">
                     @error('date_of_birth')<p class="text-red-500 text-xs mt-1">{{ $message }}</p>@enderror
@@ -262,39 +258,38 @@ document.getElementById('tenantForm').addEventListener('submit', function (e) {
 
     // Date of birth must be 18 years or older.
     const dob = document.getElementById('date_of_birth').value;
-    if (dob) {
-        const maxDob = document.getElementById('date_of_birth').max;
-        if (dob > maxDob) {
-            e.preventDefault();
-            alert(@json(__('messages.tenant_must_be_18')));
-            return;
-        }
+    if (dob && dob > DATE_LIMITS.date_of_birth.max) {
+        e.preventDefault();
+        alert(DATE_LIMITS.date_of_birth.msg);
+        return;
     }
 
     // Move-in date cannot be more than 3 days in the past.
     const moveIn = document.getElementById('move_in_date').value;
-    const minMoveIn = document.getElementById('move_in_date').min;
-    if (moveIn && moveIn < minMoveIn) {
+    if (moveIn && moveIn < DATE_LIMITS.move_in_date.min) {
         e.preventDefault();
-        alert(@json(__('messages.move_in_date_min')));
+        alert(DATE_LIMITS.move_in_date.msg);
         return;
     }
 });
 
-// Immediate feedback the moment an out-of-range date is picked — iOS/iPadOS
-// Safari often ignores the input's min/max and lets any date through, so we
-// re-check against the same bounds here and clear the invalid value.
-[
-    { id: 'date_of_birth', bound: 'max', msg: @json(__('messages.tenant_must_be_18')) },
-    { id: 'move_in_date', bound: 'min', msg: @json(__('messages.move_in_date_min')) },
-].forEach(function (f) {
-    var el = document.getElementById(f.id);
+// Date rules live only in JS now (no native min/max on the inputs — iOS/iPadOS
+// Safari honours those inconsistently). We pop up a message when an out-of-range
+// date is picked or on submit; the server rules remain the authoritative guard.
+const DATE_LIMITS = {
+    date_of_birth: { max: @json(now()->subYears(18)->toDateString()), msg: @json(__('messages.tenant_must_be_18')) },
+    move_in_date: { min: @json(now()->subDays(3)->toDateString()), msg: @json(__('messages.move_in_date_min')) },
+};
+
+// Immediate feedback the moment an out-of-range date is picked — warn and clear.
+Object.keys(DATE_LIMITS).forEach(function (id) {
+    var el = document.getElementById(id);
     if (!el) return;
+    var lim = DATE_LIMITS[id];
     el.addEventListener('change', function () {
-        var limit = el.getAttribute(f.bound);
-        if (!el.value || !limit) return;
-        if ((f.bound === 'max' && el.value > limit) || (f.bound === 'min' && el.value < limit)) {
-            alert(f.msg);
+        if (!el.value) return;
+        if ((lim.max && el.value > lim.max) || (lim.min && el.value < lim.min)) {
+            alert(lim.msg);
             el.value = '';
         }
     });
