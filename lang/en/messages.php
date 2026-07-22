@@ -750,7 +750,7 @@ return [
     'freeze_month_help' => "Freeze this month's totals and carry the closing balance forward.",
     'owner_draw_help' => "Recorded as an owner's draw: it lowers the carried-forward cash balance but is not a business expense and does not change net income.",
     'close_unpaid_warning_title' => '{count} tenant(s) have not fully paid this month',
-    'close_unpaid_warning_help' => "You can still close. Unpaid rent simply books no income, and unpaid utility charges stay outstanding and carry forward.",
+    'close_unpaid_warning_help' => 'You can still close. Unpaid rent simply books no income, and unpaid utility charges stay outstanding and carry forward.',
     'close_unpaid_rent' => 'Rent',
     'close_unpaid_utilities' => 'Utilities',
     'close_unpaid_ack' => 'I understand some tenants have not paid — close this month anyway.',

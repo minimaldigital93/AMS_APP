@@ -26,19 +26,6 @@ beforeEach(function () {
     auth()->logout();
 });
 
-function contractAssignPayload(array $overrides = []): array
-{
-    return array_merge([
-        'tenant_option' => 'new',
-        'name' => 'Contract Tenant',
-        'phone' => '096'.random_int(1000000, 9999999),
-        'gender' => 'male',
-        'id_card_number' => '012345678',
-        'move_in_date' => now()->toDateString(),
-        'deposit' => 100,
-    ], $overrides);
-}
-
 it('auto-generates a stored contract with a number and creator when a tenant is assigned', function () {
     $this->actingAs($this->admin)
         ->post(route('admin.apartments.assignTenant', $this->vacant), contractAssignPayload(['phone' => '0962220001']))

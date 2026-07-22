@@ -129,3 +129,22 @@ function makeRental(Tenants $tenant, ?Apartments $apartment = null, array $overr
         'deposit' => 500,
     ], $overrides));
 }
+
+/**
+ * Payload for the assign-tenant endpoint that also triggers rental-contract
+ * generation. Shared across the Contracts test files, so it lives here rather
+ * than in a single test file (Pest only autoloads a file's helpers when that
+ * file runs — under the parallel runner that made cross-file use flaky).
+ */
+function contractAssignPayload(array $overrides = []): array
+{
+    return array_merge([
+        'tenant_option' => 'new',
+        'name' => 'Contract Tenant',
+        'phone' => '096'.random_int(1000000, 9999999),
+        'gender' => 'male',
+        'id_card_number' => '012345678',
+        'move_in_date' => now()->toDateString(),
+        'deposit' => 100,
+    ], $overrides);
+}
