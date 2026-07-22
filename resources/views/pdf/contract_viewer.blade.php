@@ -131,10 +131,10 @@
             <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 9V2h12v7M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2M6 14h12v8H6v-8z"/></svg>
             {{ __('messages.print') }}
         </button>
-        <a class="btn btn-ghost" href="{{ $downloadUrl }}">
+        <button type="button" class="btn btn-ghost" onclick="downloadContract()">
             <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
             {{ __('messages.download') }}
-        </a>
+        </button>
         <a class="btn btn-back" href="{{ $backUrl }}">
             <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M10 19l-7-7m0 0l7-7m-7 7h18"/></svg>
             {{ __('messages.back_to_system') }}
@@ -145,10 +145,10 @@
         <iframe id="pdf" src="{{ $pdfUrl }}#toolbar=1&view=FitH" title="{{ __('messages.lease_contract') }} {{ $contractNumber }}"></iframe>
         <div class="mobile-hint">
             <p>{{ __('messages.lease_contract') }} · {{ $contractNumber }}</p>
-            <a class="btn btn-primary" href="{{ $downloadUrl }}">
+            <button type="button" class="btn btn-primary" onclick="downloadContract()">
                 <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
                 {{ __('messages.download') }}
-            </a>
+            </button>
             <a class="btn btn-back" href="{{ $backUrl }}">
                 <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M10 19l-7-7m0 0l7-7m-7 7h18"/></svg>
                 {{ __('messages.back_to_system') }}
@@ -159,20 +159,34 @@
     <script>
         var downloadUrl = @json($downloadUrl);
 
+        // Fetch the PDF as an attachment WITHOUT navigating this window. A plain
+        // `location = downloadUrl` (or an <a> the browser chooses to render) would,
+        // in a standalone PWA, replace this page with a chrome-less PDF and strand
+        // the user with no way back. A synthetic <a download target="_blank"> keeps
+        // this window — and its sticky "Back to system" bar — exactly where it is.
+        function downloadContract() {
+            var a = document.createElement('a');
+            a.href = downloadUrl;
+            a.download = '';
+            a.target = '_blank';
+            a.rel = 'noopener';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+        }
+
         // Print the embedded PDF itself (correctly justified), not this wrapper.
         // Same-origin frame printing works on desktop Chrome/Firefox/Edge; where a
         // browser refuses (or never rendered the frame, e.g. mobile / installed
-        // PWA), fall back to the DOWNLOAD url. A download is served as an
-        // attachment, so it saves the file for the native viewer to print — it
-        // never navigates this window to a chrome-less PDF page (which, in a
-        // standalone PWA, would strand the user with no way back to the app).
+        // PWA), fall back to a download — which saves the file for the native
+        // viewer to print without ever navigating this window away.
         function printContract() {
             var frame = document.getElementById('pdf');
             try {
                 frame.contentWindow.focus();
                 frame.contentWindow.print();
             } catch (e) {
-                window.location.assign(downloadUrl);
+                downloadContract();
             }
         }
     </script>
