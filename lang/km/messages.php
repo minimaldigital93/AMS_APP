@@ -535,6 +535,10 @@ return [
     'meter_in_only_hint' => 'រក្សាទុកតែលេខមីទ័រចាប់ផ្តើម — មិនទាន់គិតថ្លៃទេ។ បញ្ចូលមីទ័រចេញនៅខែក្រោយ ដើម្បីគិតថ្លៃការប្រើប្រាស់។',
     'charge_auto_from_meter' => 'ស្វ័យប្រវត្តិ',
     'flash_opening_reading_saved' => 'បានរក្សាទុកលេខមីទ័រចាប់ផ្តើម។',
+    'meter_readings' => 'លេខមីទ័រ',
+    'no_meter_readings' => 'មិនមានលេខមីទ័រត្រូវបានកត់ត្រា។',
+    'other_charges' => 'ការគិតថ្លៃផ្សេងៗ',
+    'no_other_charges' => 'មិនមានការគិតថ្លៃផ្សេងៗត្រូវបានកត់ត្រា។',
     'next' => 'បន្ទាប់',
     // Revenue/Expense index dashboard
     'overview' => 'ទិដ្ឋភាពទូទៅ',

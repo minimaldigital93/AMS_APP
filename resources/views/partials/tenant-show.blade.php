@@ -34,6 +34,20 @@
     $hasPhoto = $tenant->photo_path && ! \Illuminate\Support\Str::endsWith($tenant->photo_path, '.pdf');
     // The lease this tenant's contract belongs to: the open one, else the latest.
     $contractRental = $tenant->rentals->firstWhere('end_date', null) ?? $tenant->rentals->sortByDesc('start_date')->first();
+
+    // Payment-history modal data — rendered inline as an in-app layout (not a PDF),
+    // scoped to the current/latest lease: rent months, metered readings, other charges.
+    $meteredTypes = \App\Services\RevenueExpense\IncomeRecordingService::METERED_TYPES;
+    $histRentRows = $contractRental ? $history->where('rental_id', $contractRental->id)->values() : collect();
+    $histUtilities = $contractRental
+        ? $contractRental->utilities()->orderByDesc('billing_year')->orderByDesc('billing_month')->orderByDesc('id')->get()
+        : collect();
+    $histMeterRows = $histUtilities->whereIn('utility_type', $meteredTypes)->values();
+    $histOtherRows = $histUtilities->whereNotIn('utility_type', $meteredTypes)->values();
+    $histRentPaidTotal = (float) $histRentRows->where('paid', true)->sum(fn ($r) => $r['amount_paid'] ?? $r['rent_amount']);
+    $histChargesPaidTotal = (float) $histUtilities->where('paid_status', true)->sum('charge_amount');
+    $histChargesUnpaidTotal = (float) $histUtilities->where('paid_status', false)->sum('charge_amount');
+
     // Fixed-term (3/6/12-month) contract detail + overdue state for this lease.
     $termMonths = $contractRental?->contract_term_months;
     $contractStart = $contractRental?->start_date;
@@ -58,7 +72,7 @@
     $statusDisplay = status_label($rawStatus);
 @endphp
 
-<div class="max-w-4xl mx-auto space-y-6">
+<div class="max-w-4xl mx-auto space-y-6" x-data="{ showHistory: false }">
 
     {{-- Overdue contract alert: the fixed lease term has lapsed without a move-out
          or renewal. Surfaced to both admin and supervisor. --}}
@@ -195,8 +209,8 @@
     <div class="bg-white rounded-xl border border-slate-100 p-6" @if($canCollect) x-data="{ collectOpen: false }" @endif>
         <div class="flex items-start justify-between gap-3 mb-4">
             <h3 class="text-sm font-medium text-slate-500 uppercase tracking-wide">{{ __('messages.payment_history') }}</h3>
-            @if($totalDue > 0)
-                <div class="flex flex-col items-end gap-2">
+            <div class="flex items-center gap-2">
+                @if($totalDue > 0)
                     <div class="flex flex-wrap items-center justify-end gap-1.5 text-xs">
                         <span class="px-2.5 py-1 rounded-full bg-red-50 text-red-600 font-semibold">{{ __('messages.outstanding') }} {{ money($totalDue) }}</span>
                         @if($outstanding['rent_due'] > 0 && $outstanding['utilities_due'] > 0)
@@ -205,14 +219,19 @@
                         @endif
                     </div>
                     @if($canCollect)
-                        <button type="button" @click="collectOpen = true"
-                                class="inline-flex items-center gap-1.5 bg-emerald-600 text-white px-3 py-1.5 rounded-lg hover:bg-emerald-700 transition text-xs font-semibold">
-                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-                            {{ __('messages.collect_outstanding') }}
+                        <button type="button" @click="collectOpen = true" title="{{ __('messages.collect_outstanding') }}" aria-label="{{ __('messages.collect_outstanding') }}"
+                                class="inline-flex items-center justify-center h-8 w-8 rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 transition shrink-0">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
                         </button>
                     @endif
-                </div>
-            @endif
+                @endif
+                @if($contractRental)
+                    <button type="button" @click="showHistory = true" title="{{ __('messages.payment_history') }}" aria-label="{{ __('messages.payment_history') }}"
+                            class="inline-flex items-center justify-center h-8 w-8 rounded-lg bg-violet-600 text-white hover:bg-violet-700 transition shrink-0">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                    </button>
+                @endif
+            </div>
         </div>
 
         @if($canCollect)
@@ -493,6 +512,138 @@
             </div>
         </div>
     @endif
+
+    {{-- Payment History Modal (in-app layout, rendered inline — not a PDF) --}}
+    <div x-show="showHistory" x-cloak class="fixed inset-0 z-[70] overflow-y-auto" aria-modal="true"
+         @keydown.escape.window="showHistory = false">
+        <div class="flex items-center justify-center min-h-screen px-4 py-6">
+            <div class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm" @click="showHistory = false"></div>
+            <div class="relative z-10 w-full max-w-xl bg-white rounded-2xl shadow-2xl flex flex-col overflow-hidden" style="max-height:90vh;max-height:90dvh;">
+                {{-- Header --}}
+                <div class="px-5 py-4 border-b border-slate-100 flex items-center justify-between flex-shrink-0">
+                    <div>
+                        <h3 class="text-base font-semibold text-slate-800">{{ __('messages.payment_history') }}</h3>
+                        <p class="text-xs text-slate-500 mt-0.5">{{ $tenant->name }}
+                            @if($tenant->apartment?->apartment_number)· {{ __('messages.room_number') }} {{ $tenant->apartment->apartment_number }}@endif
+                        </p>
+                    </div>
+                    <button type="button" @click="showHistory = false" class="text-slate-400 hover:text-slate-600 w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-100 transition">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+                    </button>
+                </div>
+
+                {{-- Body --}}
+                <div class="flex-1 min-h-0 overflow-y-auto px-5 py-4 space-y-6 bg-slate-50">
+                    {{-- 1. Rent payment history --}}
+                    <section>
+                        <h4 class="flex items-center gap-2 text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">
+                            {{ __('messages.rent') }}
+                            <span class="px-2 py-0.5 rounded-full bg-slate-200 text-slate-600 text-[10px] font-semibold">{{ $histRentRows->count() }}</span>
+                        </h4>
+                        @if($histRentRows->isEmpty())
+                            <p class="text-sm text-slate-400">{{ __('messages.no_rental_period') }}</p>
+                        @else
+                            <div class="bg-white rounded-xl border border-slate-100 divide-y divide-slate-100">
+                                @foreach($histRentRows as $row)
+                                    <div class="flex items-center justify-between gap-3 px-3 py-2.5">
+                                        <span class="text-sm font-medium text-slate-700 w-20 shrink-0">{{ $row['label'] }}</span>
+                                        <span class="text-sm font-semibold {{ $row['paid'] ? 'text-emerald-700' : 'text-slate-400' }} flex-1 text-right">{{ money($row['amount_paid'] ?? $row['rent_amount']) }}</span>
+                                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium w-16 justify-center shrink-0 {{ $row['paid'] ? 'bg-emerald-50 text-emerald-600' : 'bg-red-50 text-red-600' }}">{{ $row['paid'] ? __('messages.paid') : __('messages.unpaid') }}</span>
+                                    </div>
+                                @endforeach
+                            </div>
+                        @endif
+                    </section>
+
+                    {{-- 2. Meter readings (electricity / water) --}}
+                    <section>
+                        <h4 class="flex items-center gap-2 text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">
+                            {{ __('messages.meter_readings') }}
+                            <span class="px-2 py-0.5 rounded-full bg-slate-200 text-slate-600 text-[10px] font-semibold">{{ $histMeterRows->count() }}</span>
+                        </h4>
+                        @if($histMeterRows->isEmpty())
+                            <p class="text-sm text-slate-400">{{ __('messages.no_meter_readings') }}</p>
+                        @else
+                            <div class="bg-white rounded-xl border border-slate-100 overflow-x-auto">
+                                <table class="w-full text-xs">
+                                    <thead>
+                                        <tr class="text-slate-400 uppercase tracking-wide">
+                                            <th class="text-left font-medium px-3 py-2">{{ __('messages.month') }}</th>
+                                            <th class="text-left font-medium px-3 py-2">{{ __('messages.type') }}</th>
+                                            <th class="text-right font-medium px-3 py-2">{{ __('messages.usage') }}</th>
+                                            <th class="text-right font-medium px-3 py-2">{{ __('messages.amount') }}</th>
+                                            <th class="text-right font-medium px-3 py-2">{{ __('messages.status') }}</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody class="divide-y divide-slate-100">
+                                        @foreach($histMeterRows as $row)
+                                            @php
+                                                $usage = ($row->meter_reading_in !== null && $row->meter_reading_out !== null)
+                                                    ? max($row->meter_reading_out - $row->meter_reading_in, 0) : null;
+                                            @endphp
+                                            <tr>
+                                                <td class="px-3 py-2 text-slate-600 whitespace-nowrap">{{ \Carbon\Carbon::create($row->billing_year, $row->billing_month)->format('M Y') }}</td>
+                                                <td class="px-3 py-2 text-slate-600 capitalize">{{ status_label($row->utility_type) }}</td>
+                                                <td class="px-3 py-2 text-right text-slate-600 tabular-nums">{{ $usage !== null ? rtrim(rtrim(number_format($usage, 2), '0'), '.') : '—' }}</td>
+                                                <td class="px-3 py-2 text-right font-semibold text-slate-800 tabular-nums">{{ money($row->charge_amount) }}</td>
+                                                <td class="px-3 py-2 text-right">
+                                                    <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium {{ $row->paid_status ? 'bg-emerald-50 text-emerald-600' : 'bg-red-50 text-red-600' }}">{{ $row->paid_status ? __('messages.paid') : __('messages.unpaid') }}</span>
+                                                </td>
+                                            </tr>
+                                        @endforeach
+                                    </tbody>
+                                </table>
+                            </div>
+                        @endif
+                    </section>
+
+                    {{-- 3. Other charges --}}
+                    <section>
+                        <h4 class="flex items-center gap-2 text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">
+                            {{ __('messages.other_charges') }}
+                            <span class="px-2 py-0.5 rounded-full bg-slate-200 text-slate-600 text-[10px] font-semibold">{{ $histOtherRows->count() }}</span>
+                        </h4>
+                        @if($histOtherRows->isEmpty())
+                            <p class="text-sm text-slate-400">{{ __('messages.no_other_charges') }}</p>
+                        @else
+                            <div class="bg-white rounded-xl border border-slate-100 divide-y divide-slate-100">
+                                @foreach($histOtherRows as $row)
+                                    <div class="flex items-center justify-between gap-3 px-3 py-2.5">
+                                        <span class="text-sm text-slate-600 capitalize w-24 shrink-0">{{ status_label($row->utility_type) }}</span>
+                                        <span class="text-xs text-slate-400 flex-1">{{ \Carbon\Carbon::create($row->billing_year, $row->billing_month)->format('M Y') }}</span>
+                                        <span class="text-sm font-semibold text-slate-800 tabular-nums">{{ money($row->charge_amount) }}</span>
+                                        <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium w-16 justify-center shrink-0 {{ $row->paid_status ? 'bg-emerald-50 text-emerald-600' : 'bg-red-50 text-red-600' }}">{{ $row->paid_status ? __('messages.paid') : __('messages.unpaid') }}</span>
+                                    </div>
+                                @endforeach
+                            </div>
+                        @endif
+                    </section>
+                </div>
+
+                {{-- Summary footer --}}
+                <div class="px-5 py-3 border-t border-slate-100 bg-white flex-shrink-0 space-y-1">
+                    <div class="flex items-center justify-between text-xs text-slate-500">
+                        <span>{{ __('messages.rent') }} · {{ __('messages.paid') }}</span>
+                        <span class="font-medium text-slate-700 tabular-nums">{{ money($histRentPaidTotal) }}</span>
+                    </div>
+                    <div class="flex items-center justify-between text-xs text-slate-500">
+                        <span>{{ __('messages.charges') }} · {{ __('messages.paid') }}</span>
+                        <span class="font-medium text-slate-700 tabular-nums">{{ money($histChargesPaidTotal) }}</span>
+                    </div>
+                    @if($histChargesUnpaidTotal > 0)
+                        <div class="flex items-center justify-between text-xs">
+                            <span class="text-amber-600">{{ __('messages.charges') }} · {{ __('messages.unpaid') }}</span>
+                            <span class="font-semibold text-amber-600 tabular-nums">{{ money($histChargesUnpaidTotal) }}</span>
+                        </div>
+                    @endif
+                    <div class="flex items-center justify-between pt-1.5 mt-1 border-t border-dashed border-slate-200 text-sm font-semibold text-slate-800">
+                        <span>{{ __('messages.total') }} · {{ __('messages.paid') }}</span>
+                        <span class="tabular-nums">{{ money($histRentPaidTotal + $histChargesPaidTotal) }}</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
 
 {{-- Document Preview Modal --}}

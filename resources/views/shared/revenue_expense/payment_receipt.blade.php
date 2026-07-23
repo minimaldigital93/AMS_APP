@@ -191,8 +191,24 @@
                     <td class="price">{{ money($rentAmount) }}</td>
                 </tr>
                 @foreach($utilities as $utility)
+                    @php
+                        $isMetered = in_array($utility->utility_type, ['electricity', 'water'], true);
+                        $hasReadings = $utility->meter_reading_in !== null || $utility->meter_reading_out !== null;
+                        $usage = ($utility->meter_reading_in !== null && $utility->meter_reading_out !== null)
+                            ? max($utility->meter_reading_out - $utility->meter_reading_in, 0) : null;
+                        $fmt = fn ($v) => $v !== null ? rtrim(rtrim(number_format($v, 2), '0'), '.') : '—';
+                    @endphp
                     <tr>
-                        <td class="name">{{ ucfirst(str_replace('_', ' ', $utility->utility_type)) }}</td>
+                        <td class="name">
+                            {{ ucfirst(str_replace('_', ' ', $utility->utility_type)) }}
+                            @if($isMetered && $hasReadings)
+                                <div class="muted" style="font-size:11px;margin-top:1px;">
+                                    {{ __('messages.meter_in') }} {{ $fmt($utility->meter_reading_in) }}
+                                    → {{ __('messages.meter_out') }} {{ $fmt($utility->meter_reading_out) }}
+                                    · {{ __('messages.usage') }} {{ $fmt($usage) }}
+                                </div>
+                            @endif
+                        </td>
                         <td class="qty">1</td>
                         <td class="price">{{ money($utility->charge_amount) }}</td>
                     </tr>

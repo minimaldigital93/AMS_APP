@@ -535,6 +535,10 @@ return [
     'meter_in_only_hint' => 'Saves the opening reading only — no charge yet. Add the meter out reading next month to bill the usage.',
     'charge_auto_from_meter' => 'Auto',
     'flash_opening_reading_saved' => 'Opening meter reading saved.',
+    'meter_readings' => 'Meter Readings',
+    'no_meter_readings' => 'No meter readings recorded.',
+    'other_charges' => 'Other Charges',
+    'no_other_charges' => 'No other charges recorded.',
     'next' => 'Next',
     // Revenue/Expense index dashboard
     'overview' => 'Overview',
