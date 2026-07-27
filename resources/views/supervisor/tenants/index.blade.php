@@ -151,6 +151,8 @@
                                             <span class="px-2 py-1 text-xs font-semibold rounded-md bg-yellow-100 text-yellow-700">{{ __('messages.paying') }}</span>
                                         @elseif($status === 'overdue')
                                             <span class="px-2 py-1 text-xs font-semibold rounded-md bg-red-100 text-red-700">{{ __('messages.overdue') }}</span>
+                                        @elseif($status === 'upcoming')
+                                            <span class="px-2 py-1 text-xs font-semibold rounded-md bg-sky-100 text-sky-700">{{ __('messages.upcoming') }}</span>
                                         @else
                                             <span class="px-2 py-1 text-xs font-semibold rounded-md bg-gray-100 text-gray-700">{{ __('messages.unpaid') }}</span>
                                         @endif
@@ -211,6 +213,8 @@
                             <span class="px-1.5 py-0.5 text-[10px] font-semibold rounded bg-yellow-100 text-yellow-700 flex-shrink-0">{{ __('messages.paying') }}</span>
                         @elseif($status === 'overdue')
                             <span class="px-1.5 py-0.5 text-[10px] font-semibold rounded bg-red-100 text-red-700 flex-shrink-0">{{ __('messages.overdue') }}</span>
+                        @elseif($status === 'upcoming')
+                            <span class="px-1.5 py-0.5 text-[10px] font-semibold rounded bg-sky-100 text-sky-700 flex-shrink-0">{{ __('messages.upcoming') }}</span>
                         @else
                             <span class="px-1.5 py-0.5 text-[10px] font-semibold rounded bg-gray-100 text-gray-700 flex-shrink-0">{{ __('messages.unpaid') }}</span>
                         @endif

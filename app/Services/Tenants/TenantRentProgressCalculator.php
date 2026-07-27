@@ -106,7 +106,13 @@ class TenantRentProgressCalculator
         $isFirstMonth = ($rentalStart->month === $currentMonth && $rentalStart->year === $currentYear);
         $isPastDue = now()->gt($dueDate);
 
+        // A tenancy that only begins in a later month isn't billable yet — it
+        // must read as "upcoming", never overdue/unpaid. Mirrors the guard the
+        // dashboard (DashboardStatsService) and rent-collection page use.
+        $notStartedYet = $rentalStart->gt($monthEnd);
+
         $status = match (true) {
+            $notStartedYet => 'upcoming',
             $payPercent >= 100 => 'paid',
             $payPercent > 0 => 'partial',
             $isPastDue && ! $isFirstMonth => 'overdue',
