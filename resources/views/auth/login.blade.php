@@ -72,7 +72,7 @@
                                         </li>
                                     @endforeach
                                 </ul>
-                                <a x-bind:href="'{{ route('subscribe.create', ['plan' => $plan->slug]) }}?billing_cycle=' + cycle"
+                                <a x-bind:href="'{{ route('subscribe.create', ['plan' => $plan->slug]) }}&billing_cycle=' + cycle"
                                    class="mt-6 block rounded-xl px-4 py-2.5 text-center text-sm font-semibold {{ $popular ? 'bg-indigo-600 text-white hover:bg-indigo-500' : 'bg-gray-900 text-white hover:bg-gray-700' }}">
                                     {{ __('Get started') }}
                                 </a>
