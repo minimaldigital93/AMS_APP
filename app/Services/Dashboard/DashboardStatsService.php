@@ -66,11 +66,18 @@ class DashboardStatsService
         [$floorLabels, $floorOccupancy, $floorsCount] = $this->floorOccupancy();
         $expiringSoon = $this->expiringSoonRentals();
 
+        // Units under maintenance are out of the rentable stock: they are not
+        // vacant rooms the owner failed to rent, so they must not land in
+        // 'available' nor in the 'total' that occupancy is measured against.
+        // 'maintenance' reports them separately and 'total_all' keeps the raw
+        // room count for anything that needs the physical inventory.
         $apartmentCounts = $this->countByStatus(
-            $this->scopedApartmentQuery(),
+            $this->scopedApartmentQuery()->rentable(),
             ['available', 'occupied']
         );
-        $apartmentCounts['total'] = $this->scopedApartmentQuery()->count();
+        $apartmentCounts['maintenance'] = $this->scopedApartmentQuery()->underMaintenance()->count();
+        $apartmentCounts['total'] = $this->scopedApartmentQuery()->rentable()->count();
+        $apartmentCounts['total_all'] = $apartmentCounts['total'] + $apartmentCounts['maintenance'];
 
         $tenantCounts = $this->countByStatus(
             $this->scopedTenantQuery(),
@@ -101,7 +108,7 @@ class DashboardStatsService
             ],
             'revenue' => [
                 'total_monthly' => round($monthlyTotalRevenue, 2),
-                'total_monthly_rent' => $this->scopedApartmentQuery()->where('status', 'occupied')->sum('monthly_rent'),
+                'total_monthly_rent' => $this->scopedApartmentQuery()->rentable()->where('status', 'occupied')->sum('monthly_rent'),
                 'collected_this_month' => round($monthlyCollected, 2),
                 'late_fees_this_month' => round($monthlyLateFees, 2),
                 'by_type' => [
@@ -247,15 +254,20 @@ class DashboardStatsService
      * Occupancy % per floor. Supervisor scope skips floors with no apartments
      * in scope (so an empty floor doesn't show up as "0%").
      *
+     * Units under maintenance are left out of the eager load entirely, so they
+     * count towards neither the numerator nor the denominator — a floor whose
+     * only empty room is under maintenance reads 100% occupied, not 50%. A
+     * floor with nothing BUT maintenance rooms drops out like an empty floor.
+     *
      * @return array{0: list<string>, 1: list<float>, 2: int}
      */
     private function floorOccupancy(): array
     {
         $floorsQuery = Floors::query()->forProperty($this->propertyId)->orderBy('id');
         if ($this->apartmentIds !== null) {
-            $floorsQuery->with(['apartments' => fn ($q) => $q->whereIn('id', $this->apartmentIds)]);
+            $floorsQuery->with(['apartments' => fn ($q) => $q->rentable()->whereIn('id', $this->apartmentIds)]);
         } else {
-            $floorsQuery->with('apartments');
+            $floorsQuery->with(['apartments' => fn ($q) => $q->rentable()]);
         }
         $floors = $floorsQuery->get();
 

@@ -497,6 +497,8 @@ abstract class RevenueExpenseController extends Controller
                 'electricity' => 0, 'water' => 0, 'internet' => 0, 'parking' => 0,
                 'total' => 0,
                 'has_active_rental' => $apartment->rentals->isNotEmpty(),
+                // Distinguishes "out of service" from "vacant" in the status column.
+                'under_maintenance' => (bool) $apartment->under_maintenance,
             ];
 
             foreach ($apartment->rentals as $rental) {
@@ -1392,6 +1394,8 @@ abstract class RevenueExpenseController extends Controller
                 'fixed_items' => $apartment->activeFixedExpenses,
                 'total' => 0,
                 'has_active_rental' => $apartment->rentals->isNotEmpty(),
+                // Distinguishes "out of service" from "vacant" in the status column.
+                'under_maintenance' => (bool) $apartment->under_maintenance,
             ];
 
             foreach ($apartment->rentals as $rental) {

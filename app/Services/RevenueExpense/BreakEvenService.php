@@ -67,8 +67,16 @@ class BreakEvenService
 
         // Only the ids and the count are used below — select the id column alone
         // instead of hydrating every apartment row.
+        //
+        // Two different counts on purpose: $apartmentIds stays the FULL scope
+        // because it drives historical rental/utility lookups — a unit put under
+        // maintenance after a tenant left still earned real income in earlier
+        // months, and dropping it would erase booked money from the reports.
+        // $rentableCount is the rentable stock only, so occupancy % and the
+        // occupancy score aren't dragged down by units that are deliberately
+        // out of inventory.
         $apartmentIds = $this->apartmentsScope->clone()->pluck('id');
-        $totalApartments = $apartmentIds->count();
+        $rentableCount = $this->apartmentsScope->clone()->rentable()->count();
 
         $income = $this->queryService->calculateIncome($monthStart, $monthEnd);
         $expenses = $this->queryService->calculateExpenses($monthStart, $monthEnd);
@@ -82,6 +90,13 @@ class BreakEvenService
             ->pluck('rent_amount');
         $currentOccupancy = $activeRents->count();
         $avgRentPerApartment = (float) ($currentOccupancy > 0 ? $activeRents->avg() : 0);
+
+        // The rentable count is today's state, but occupancy is the selected
+        // month's — a room let in March and put under maintenance in July would
+        // otherwise report 2 of 1 rented (a >100% donut, and a negative SVG dash
+        // gap that browsers drop). The month can never have had fewer rentable
+        // rooms than it actually had tenants, so floor the denominator there.
+        $totalApartments = max($rentableCount, $currentOccupancy);
 
         $businessExpenses = $this->calculateBusinessExpenses($month, $year);
         $variableTotal = max(0, $totalExpenses - $businessExpenses);
@@ -175,12 +190,18 @@ class BreakEvenService
             $expenses = $this->queryService->calculateExpenses($start, $end);
             $occupied = $this->activeRentalsQuery($apartmentIds, $start, $end)->count();
 
+            // Same flooring as calculate(): each month's denominator is the
+            // rentable stock or that month's tenant count, whichever is larger,
+            // so an earlier month can't plot above 100% once a room it held is
+            // taken out of inventory.
+            $monthTotal = max($totalApartments, $occupied);
+
             $trend[] = [
                 'label' => $cursor->format('M Y'),
                 'revenue' => round((float) $income['total_income'], 2),
                 'expenses' => round((float) $expenses['total_expenses'], 2),
                 'net' => round((float) $income['total_income'] - (float) $expenses['total_expenses'], 2),
-                'occupancy_pct' => $totalApartments > 0 ? round($occupied / $totalApartments * 100, 1) : 0,
+                'occupancy_pct' => $monthTotal > 0 ? round($occupied / $monthTotal * 100, 1) : 0,
             ];
 
             if ($cursor->month === $selected->month && $cursor->year === $selected->year) {

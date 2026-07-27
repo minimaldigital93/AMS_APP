@@ -39,6 +39,12 @@
             <p class="text-xs text-slate-400 font-medium">{{ __('messages.occupied') }}</p>
             <p class="text-2xl font-bold text-slate-800">{{ $summary['occupied'] }}</p>
         </div>
+        @if(($summary['maintenance'] ?? 0) > 0)
+        <div class="bg-white rounded-xl border border-slate-100 p-4">
+            <p class="text-xs text-slate-400 font-medium">{{ __('messages.maintenance_mode') }}</p>
+            <p class="text-2xl font-bold text-slate-500">{{ $summary['maintenance'] }}</p>
+        </div>
+        @endif
     </div>
 
     @if($summary['floors'] === 0)
@@ -53,14 +59,22 @@
         <div class="flex flex-wrap items-center gap-4 text-xs text-slate-500">
             <span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-emerald-500"></span> {{ __('messages.available') }}</span>
             <span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-blue-500"></span> {{ __('messages.occupied') }}</span>
+            @if(($summary['maintenance'] ?? 0) > 0)
+            <span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-slate-400"></span> {{ __('messages.maintenance_mode') }}</span>
+            @endif
         </div>
 
         {{-- Floors (collapsible dropdowns, list view) --}}
         <div class="space-y-4">
             @foreach($floorsData as $floor)
                 @php
-                    $floorTotal = count($floor['apartments']);
-                    $floorOccupied = collect($floor['apartments'])->where('status', 'occupied')->count();
+                    // Occupancy rate is measured against rentable stock only —
+                    // maintenance units are out of inventory, so counting them
+                    // would report a shortfall the owner can't act on.
+                    $rentableApts = collect($floor['apartments'])->where('under_maintenance', false);
+                    $floorTotal = $rentableApts->count();
+                    $floorMaintenance = count($floor['apartments']) - $floorTotal;
+                    $floorOccupied = $rentableApts->where('status', 'occupied')->count();
                     $floorRate = $floorTotal > 0 ? round(($floorOccupied / $floorTotal) * 100) : 0;
                 @endphp
                 <div x-data="{ open: {{ $loop->first ? 'true' : 'false' }} }" class="bg-white rounded-2xl border border-slate-100 overflow-hidden">
@@ -72,7 +86,7 @@
                                 <svg class="w-4 h-4 text-slate-400 transition-transform shrink-0" :class="open ? 'rotate-90' : ''" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
                                 <h2 class="text-sm font-semibold text-slate-700 truncate">{{ $floor['name'] ?: 'Floor' }}</h2>
                             </div>
-                            <span class="text-xs text-slate-400 shrink-0">{{ $floorOccupied }}/{{ $floorTotal }} {{ __('messages.occupied') }} · {{ $floorRate }}%</span>
+                            <span class="text-xs text-slate-400 shrink-0">{{ $floorOccupied }}/{{ $floorTotal }} {{ __('messages.occupied') }} · {{ $floorRate }}%@if($floorMaintenance > 0) · {{ $floorMaintenance }} {{ __('messages.maintenance_short') }}@endif</span>
                         </div>
                         @if($floorTotal > 0)
                             <div class="w-full bg-slate-200 rounded-full h-1.5 mt-2">
@@ -92,15 +106,20 @@
                             <div class="grid grid-cols-4 gap-3 p-4">
                                 @foreach($floor['apartments'] as $apt)
                                     @php
-                                        $status = $apt['status'] ?? 'available';
+                                        // Maintenance overrides the stored status for display, and
+                                        // never counts as available (no assign button, gray dot).
+                                        $isMaintenance = ! empty($apt['under_maintenance']);
+                                        $status = $isMaintenance ? 'maintenance' : ($apt['status'] ?? 'available');
                                         $dots = [
                                             'available'   => 'bg-emerald-500',
                                             'occupied'    => 'bg-blue-500',
+                                            'maintenance' => 'bg-slate-400',
                                         ];
                                         $dot = $dots[$status] ?? 'bg-slate-400';
                                         $borderColors = [
                                             'available'   => 'border-emerald-200',
                                             'occupied'    => 'border-blue-200',
+                                            'maintenance' => 'border-slate-200',
                                         ];
                                         $border = $borderColors[$status] ?? 'border-slate-200';
                                         $isAvailable = $status === 'available';
@@ -129,6 +148,16 @@
                                                     :label="$apt['stay_label']"
                                                     :size="64"
                                                     :tip="__('messages.stay_duration').': '.$apt['stay_label'].' · '.__('messages.renews_on', ['date' => $apt['next_renewal_label']])" />
+                                            </div>
+                                        @endif
+
+                                        {{-- Maintenance units carry a label instead of an assign button --}}
+                                        @if($isMaintenance)
+                                            <div class="flex-1 flex items-center justify-center">
+                                                <span class="inline-flex items-center gap-1 text-[11px] font-medium text-slate-500">
+                                                    <span class="material-icons text-[13px] leading-none">handyman</span>
+                                                    {{ __('messages.maintenance_short') }}
+                                                </span>
                                             </div>
                                         @endif
 

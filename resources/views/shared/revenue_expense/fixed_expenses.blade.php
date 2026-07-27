@@ -43,8 +43,11 @@
                             <p class="text-sm text-gray-400 italic">{{ __('messages.no_active_tenant') }}</p>
                         @endif
                     </div>
-                    <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium {{ $apartment->status === 'occupied' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500' }}">
-                        {{ __('messages.' . $apartment->status) }}
+                    {{-- displayStatus(), never the raw status: a unit under
+                         maintenance must not read as an available vacancy. --}}
+                    @php $displayStatus = $apartment->displayStatus(); @endphp
+                    <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium {{ $displayStatus === 'occupied' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500' }}">
+                        {{ status_label($displayStatus) }}
                     </span>
                 </div>
 

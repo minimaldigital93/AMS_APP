@@ -564,8 +564,13 @@
                                         <span class="text-xs text-slate-400 ml-1">F{{ $aptExp['apartment']->floor->floor_number ?? '?' }}</span>
                                     </td>
                                     <td class="px-3 py-2 text-center">
+                                        {{-- A maintenance unit is out of service, not an unrented vacancy. --}}
                                         <span class="px-1.5 py-0.5 rounded-full text-xs font-medium {{ $aptExp['has_active_rental'] ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-400' }}">
-                                            {{ $aptExp['has_active_rental'] ? __('messages.occupied') : __('messages.vacant') }}
+                                            @if(!empty($aptExp['under_maintenance']))
+                                                {{ __('messages.maintenance_short') }}
+                                            @else
+                                                {{ $aptExp['has_active_rental'] ? __('messages.occupied') : __('messages.vacant') }}
+                                            @endif
                                         </span>
                                     </td>
                                     <td class="px-3 py-2 text-right {{ $aptExp['electricity'] > 0 ? 'font-semibold text-amber-600' : 'text-slate-300' }}">{{ money($aptExp['electricity']) }}</td>

@@ -118,6 +118,52 @@
             </div>
         </form>
 
+        {{-- Maintenance mode. Deliberately its own form, posting to its own
+             route: a switch reads as an instant control, so it saves on click
+             and flashes a confirmation instead of waiting for "Update Room".
+             The hidden value is the OPPOSITE of the stored state, so the
+             switch works with no JavaScript at all — its rendered position is
+             always the server's truth. --}}
+        @php $isOccupied = $apartment->isCurrentlyOccupied(); @endphp
+        <div class="px-6 py-5 border-t border-slate-100">
+            <form method="POST" action="{{ route('admin.apartments.maintenance', $apartment->id) }}">
+                @csrf
+                @method('PUT')
+                <input type="hidden" name="under_maintenance" value="{{ $apartment->under_maintenance ? 0 : 1 }}">
+
+                <div class="flex items-start justify-between gap-4">
+                    <div class="min-w-0">
+                        <h3 class="flex items-center gap-2 text-sm font-medium text-slate-700">
+                            <span class="material-icons text-[16px] leading-none text-slate-400">handyman</span>
+                            {{ __('messages.maintenance_mode') }}
+                            @if($apartment->under_maintenance)
+                            <span class="inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-600">
+                                <span class="h-1.5 w-1.5 rounded-full bg-slate-400"></span>
+                                {{ __('messages.maintenance_short') }}
+                            </span>
+                            @endif
+                        </h3>
+                        <p class="text-xs text-slate-400 mt-1">{{ __('messages.maintenance_mode_hint') }}</p>
+                        @if($isOccupied)
+                        <p class="text-xs text-amber-600 mt-1.5">{{ __('messages.maintenance_blocked_occupied') }}</p>
+                        @else
+                        <p class="text-xs text-slate-400 mt-1.5">{{ __('messages.maintenance_saves_instantly') }}</p>
+                        @endif
+                    </div>
+
+                    <button type="submit"
+                            role="switch"
+                            aria-checked="{{ $apartment->under_maintenance ? 'true' : 'false' }}"
+                            aria-label="{{ __('messages.maintenance_mode') }}"
+                            @disabled($isOccupied)
+                            class="relative inline-flex h-6 w-11 flex-shrink-0 rounded-full border-2 border-transparent transition focus:outline-none focus:ring-2 focus:ring-slate-300 focus:ring-offset-2 disabled:opacity-40 disabled:cursor-not-allowed {{ $apartment->under_maintenance ? 'bg-slate-700' : 'bg-slate-300' }}">
+                        <span aria-hidden="true"
+                              class="pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 {{ $apartment->under_maintenance ? 'translate-x-5' : 'translate-x-0' }}"></span>
+                    </button>
+                </div>
+            </form>
+        </div>
+
         <!-- Danger Zone -->
         <div class="px-6 py-5 border-t border-slate-100">
             <div class="flex items-center justify-between">

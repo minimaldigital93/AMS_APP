@@ -141,6 +141,7 @@ class FloorController extends Controller
                         'id' => $apt->id,
                         'number' => $apt->apartment_number,
                         'status' => $apt->status,
+                        'under_maintenance' => (bool) $apt->under_maintenance,
                         'rent' => (float) $apt->monthly_rent,
                         'tenant' => $tenant?->name,
                         'tenant_id' => $tenant?->id,
@@ -153,11 +154,15 @@ class FloorController extends Controller
             ];
         })->values();
 
+        // Units under maintenance are out of the rentable stock — reported on
+        // their own rather than folded into available/total, so the layout's
+        // occupancy figures measure only units that can actually be rented.
         $summary = [
             'floors' => $floors->count(),
-            'total' => $floors->sum(fn ($f) => $f->apartments->count()),
-            'available' => $floors->sum(fn ($f) => $f->apartments->where('status', 'available')->count()),
-            'occupied' => $floors->sum(fn ($f) => $f->apartments->where('status', 'occupied')->count()),
+            'total' => $floors->sum(fn ($f) => $f->apartments->where('under_maintenance', false)->count()),
+            'available' => $floors->sum(fn ($f) => $f->apartments->where('under_maintenance', false)->where('status', 'available')->count()),
+            'occupied' => $floors->sum(fn ($f) => $f->apartments->where('under_maintenance', false)->where('status', 'occupied')->count()),
+            'maintenance' => $floors->sum(fn ($f) => $f->apartments->where('under_maintenance', true)->count()),
         ];
 
         // Unassigned active tenants for the "Existing Tenant" tab of the assign-tenant modal

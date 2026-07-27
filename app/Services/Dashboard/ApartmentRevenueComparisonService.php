@@ -27,7 +27,7 @@ class ApartmentRevenueComparisonService
         $apartmentIds = $this->apartmentIds;
 
         $floorsQuery = Floors::forProperty($this->propertyId)->with(['apartments' => function ($q) use ($apartmentIds) {
-            $q->select('id', 'floor_id', 'apartment_number', 'monthly_rent', 'status')
+            $q->select('id', 'floor_id', 'apartment_number', 'monthly_rent', 'status', 'under_maintenance')
                 ->orderBy('apartment_number');
             if ($apartmentIds !== null) {
                 $q->whereIn('id', $apartmentIds);
@@ -47,7 +47,12 @@ class ApartmentRevenueComparisonService
             $apartments = [];
 
             foreach ($floor->apartments as $apt) {
-                $expected = (float) ($apt->monthly_rent ?? 0);
+                // A unit under maintenance is out of the rentable stock, so it
+                // owes nothing this month and must not inflate the expected
+                // total (which would show as a permanent collection shortfall).
+                // Its `actual` is still summed: rent collected before the unit
+                // went under maintenance is real income and stays reported.
+                $expected = $apt->under_maintenance ? 0.0 : (float) ($apt->monthly_rent ?? 0);
                 $actual = (float) Payments::whereHas('rental', fn ($q) => $q->where('apartment_id', $apt->id))
                     ->where('payment_status', 'paid')
                     ->where('payment_type', 'rent')
@@ -63,7 +68,8 @@ class ApartmentRevenueComparisonService
                     'expected' => round($expected, 2),
                     'actual' => round($actual, 2),
                     'percentage' => $expected > 0 ? round(($actual / $expected) * 100, 1) : 0,
-                    'status' => $apt->status,
+                    'status' => $apt->displayStatus(),
+                    'under_maintenance' => (bool) $apt->under_maintenance,
                 ];
             }
 

@@ -55,6 +55,14 @@ class TenantAssignmentService
                 // Lock the apartment row so two concurrent assignments can't both succeed.
                 $apartment = Apartments::whereKey($apartment->id)->lockForUpdate()->firstOrFail();
 
+                // Checked inside the lock: a unit switched to maintenance mode is
+                // out of the rentable stock and must never receive a tenant, or
+                // the room would be occupied while every occupancy/revenue
+                // denominator excludes it.
+                if ($apartment->under_maintenance) {
+                    throw new AssignTenantException(__('messages.flash_apartment_under_maintenance'));
+                }
+
                 if ($apartment->status !== 'available') {
                     throw new AssignTenantException(__('messages.flash_apartment_not_available'));
                 }

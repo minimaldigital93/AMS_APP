@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Models\Concerns\BelongsToAccount;
 use App\Models\Concerns\FiltersByProperty;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -39,12 +40,19 @@ class Apartments extends Model
 
     public const STATUS_OCCUPIED = 'occupied';
 
+    /**
+     * Pseudo-status used for display only (dots, badges, labels). Maintenance
+     * is a flag on top of `status`, never a stored status value.
+     */
+    public const DISPLAY_STATUS_MAINTENANCE = 'maintenance';
+
     protected $fillable = [
         'floor_id',
         'supervisor_id',
         'apartment_number',
         'monthly_rent',
         'status',
+        'under_maintenance',
         'description',
     ];
 
@@ -52,7 +60,45 @@ class Apartments extends Model
     {
         return [
             'monthly_rent' => 'float',
+            'under_maintenance' => 'boolean',
         ];
+    }
+
+    /**
+     * The rentable stock: units that can hold a tenant today or in future.
+     * This is the scope every occupancy / expected-revenue / break-even
+     * denominator must use — a unit under maintenance is not vacant stock the
+     * owner failed to rent, it is temporarily out of inventory.
+     *
+     * Do NOT use this to scope historical money queries: a unit put under
+     * maintenance after a tenant left still earned real income earlier, and
+     * dropping it would erase booked transactions from the reports.
+     */
+    public function scopeRentable(Builder $query): Builder
+    {
+        return $query->where('under_maintenance', false);
+    }
+
+    public function scopeUnderMaintenance(Builder $query): Builder
+    {
+        return $query->where('under_maintenance', true);
+    }
+
+    /** Available AND in the rentable stock — the only state a tenant may be assigned into. */
+    public function isAssignable(): bool
+    {
+        return ! $this->under_maintenance && $this->status === self::STATUS_AVAILABLE;
+    }
+
+    /**
+     * Status for badges/dots/labels: 'maintenance' wins over the stored status
+     * so a unit under maintenance never reads as "Available" in the UI.
+     */
+    public function displayStatus(): string
+    {
+        return $this->under_maintenance
+            ? self::DISPLAY_STATUS_MAINTENANCE
+            : $this->status;
     }
 
     /**

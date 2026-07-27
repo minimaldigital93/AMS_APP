@@ -36,9 +36,12 @@
     <div class="space-y-5">
         @forelse($floors as $floor)
         @php
-            $total = $floor->apartments->count();
-            $available = $floor->apartments->where('status', 'available')->count();
-            $occupied = $floor->apartments->where('status', 'occupied')->count();
+            // Maintenance units are counted on their own, not as available stock.
+            $maintenance = $floor->apartments->where('under_maintenance', true)->count();
+            $rentableApts = $floor->apartments->where('under_maintenance', false);
+            $total = $rentableApts->count();
+            $available = $rentableApts->where('status', 'available')->count();
+            $occupied = $rentableApts->where('status', 'occupied')->count();
         @endphp
         <div class="bg-white rounded-xl border border-slate-100 overflow-hidden hover:border-slate-200 transition">
             <details class="group">
@@ -73,6 +76,12 @@
                             <span class="w-2 h-2 rounded-full bg-sky-400"></span>
                             <span class="text-xs font-semibold text-sky-600">{{ $occupied }}</span>
                         </div>
+                        @if($maintenance > 0)
+                        <div class="flex items-center gap-1.5" title="{{ __('messages.maintenance_mode') }}">
+                            <span class="w-2 h-2 rounded-full bg-slate-400"></span>
+                            <span class="text-xs font-semibold text-slate-500">{{ $maintenance }}</span>
+                        </div>
+                        @endif
                     </div>
 
                     <!-- Floor editing is handled by the universal "Edit floor"
@@ -111,9 +120,10 @@
                             <td class="px-4 py-3">
                                 <div class="flex items-center gap-2">
                                     <span class="w-1.5 h-1.5 rounded-full {{
-                                        $apartment->status === 'available' ? 'bg-emerald-400' :
-                                        ($apartment->status === 'occupied' ? 'bg-sky-400' : 'bg-amber-400')
-                                    }}" title="{{ __('messages.' . $apartment->status) }}"></span>
+                                        $apartment->under_maintenance ? 'bg-slate-400' :
+                                        ($apartment->status === 'available' ? 'bg-emerald-400' :
+                                        ($apartment->status === 'occupied' ? 'bg-sky-400' : 'bg-amber-400'))
+                                    }}" title="{{ status_label($apartment->displayStatus()) }}"></span>
                                     <span class="text-sm font-medium text-slate-700">{{ $apartment->apartment_number }}</span>
                                 </div>
                             </td>
@@ -146,20 +156,22 @@
                             </td>
                             <td class="px-4 py-3">
                                 @php
-                                    $statusTextClass = match($apartment->status) {
+                                    $displayStatus = $apartment->displayStatus();
+                                    $statusTextClass = match($displayStatus) {
                                         'available' => 'text-emerald-600',
                                         'occupied' => 'text-sky-600',
                                         default => 'text-slate-500',
                                     };
-                                    $statusBgClass = match($apartment->status) {
+                                    $statusBgClass = match($displayStatus) {
                                         'available' => 'bg-emerald-400',
                                         'occupied' => 'bg-sky-400',
+                                        'maintenance' => 'bg-slate-400',
                                         default => 'bg-slate-300',
                                     };
                                 @endphp
                                 <span class="inline-flex items-center gap-1.5 text-xs font-medium {{ $statusTextClass }}">
                                     <span class="w-1.5 h-1.5 rounded-full {{ $statusBgClass }}"></span>
-                                    {{ status_label($apartment->status) }}
+                                    {{ status_label($displayStatus) }}
                                 </span>
                             </td>
                             <td class="px-4 py-3">
@@ -256,7 +268,8 @@
                             </td>
                             <td class="px-4 py-3 text-right">
                                 <div class="flex items-center justify-end gap-1">
-                                    @if(!$tenant || $tenant->status !== 'active')
+                                    {{-- No assign button for maintenance units: they are out of the rentable stock. --}}
+                                    @if(!$apartment->under_maintenance && (!$tenant || $tenant->status !== 'active'))
                                     <button type="button"
                                             data-apartment-id="{{ $apartment->id }}"
                                             data-apartment-number="{{ $apartment->apartment_number }}"
@@ -289,14 +302,16 @@
                         @php
                             $mTenant = $apartment->tenants->sortByDesc('id')->first();
                             $mSupervisor = ($mTenant?->manager ?? null) ?? $apartment->supervisor;
-                            $mStatusText = match($apartment->status) {
+                            $mDisplayStatus = $apartment->displayStatus();
+                            $mStatusText = match($mDisplayStatus) {
                                 'available' => 'text-emerald-600',
                                 'occupied' => 'text-sky-600',
                                 default => 'text-slate-500',
                             };
-                            $mStatusBg = match($apartment->status) {
+                            $mStatusBg = match($mDisplayStatus) {
                                 'available' => 'bg-emerald-400',
                                 'occupied' => 'bg-sky-400',
+                                'maintenance' => 'bg-slate-400',
                                 default => 'bg-slate-300',
                             };
                         @endphp
@@ -305,10 +320,10 @@
                                 <div class="flex flex-1 items-center gap-2 min-w-0">
                                     <span class="w-1.5 h-1.5 rounded-full {{ $mStatusBg }} flex-shrink-0"></span>
                                     <span class="text-base font-semibold text-slate-800 flex-shrink-0">{{ $apartment->apartment_number }}</span>
-                                    <span class="text-[11px] font-medium {{ $mStatusText }} truncate">{{ status_label($apartment->status) }}</span>
+                                    <span class="text-[11px] font-medium {{ $mStatusText }} truncate">{{ status_label($mDisplayStatus) }}</span>
                                 </div>
                                 <div class="flex items-center gap-1 flex-shrink-0">
-                                    @if(!$mTenant || $mTenant->status !== 'active')
+                                    @if(!$apartment->under_maintenance && (!$mTenant || $mTenant->status !== 'active'))
                                     <button type="button"
                                             data-apartment-id="{{ $apartment->id }}"
                                             data-apartment-number="{{ $apartment->apartment_number }}"

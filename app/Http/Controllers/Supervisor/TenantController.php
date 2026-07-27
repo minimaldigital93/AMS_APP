@@ -249,6 +249,7 @@ class TenantController extends Controller
     public function create(): View
     {
         $apartments = $this->supervisorVisibleApartments()
+            ->rentable()
             ->where('status', 'available')
             ->with('floor')
             ->get();
@@ -265,11 +266,18 @@ class TenantController extends Controller
         $minMoveInDate = now()->subDays(3)->toDateString();
 
         $validated = $request->validate([
-            // The room must actually be vacant — assigning an occupied unit
-            // would double-book it (the raw id is client-supplied).
+            // The room must actually be vacant AND in the rentable stock —
+            // assigning an occupied unit would double-book it, and a unit under
+            // maintenance is excluded from every occupancy/revenue figure (the
+            // raw id is client-supplied).
             'apartment_id' => [
                 'required',
-                Rule::exists('apartments', 'id')->where('status', 'available')->whereNull('deleted_at'),
+                // NB: 0, not false — Rule::exists serialises its wheres into the
+                // rule string, where a bool false becomes '' and matches nothing.
+                Rule::exists('apartments', 'id')
+                    ->where('status', 'available')
+                    ->where('under_maintenance', 0)
+                    ->whereNull('deleted_at'),
             ],
             'name' => 'required|string|max:255',
             'gender' => 'nullable|in:male,female,other',
@@ -676,8 +684,10 @@ class TenantController extends Controller
     {
         $this->authorizeTenant($tenant);
 
+        // Movable targets = vacant rentable stock, plus the tenant's own room so
+        // saving the form without a room change always validates.
         $apartments = Apartments::where(function ($q) use ($tenant) {
-            $q->where('status', 'available')
+            $q->where(fn ($sub) => $sub->where('status', 'available')->where('under_maintenance', false))
                 ->orWhere('id', $tenant->apartment_id);
         })
             ->get();
@@ -698,7 +708,9 @@ class TenantController extends Controller
             'apartment_id' => [
                 'required',
                 Rule::exists('apartments', 'id')->whereNull('deleted_at')->where(
-                    fn ($q) => $q->where('status', 'available')->orWhere('id', $tenant->apartment_id)
+                    fn ($q) => $q->where(
+                        fn ($sub) => $sub->where('status', 'available')->where('under_maintenance', false)
+                    )->orWhere('id', $tenant->apartment_id)
                 ),
             ],
             'name' => 'required|string|max:255',

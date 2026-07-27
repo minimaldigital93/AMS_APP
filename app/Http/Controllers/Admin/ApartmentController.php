@@ -116,6 +116,7 @@ class ApartmentController extends Controller
             ],
             'monthly_rent' => 'required|numeric|min:0|max:99999999.99',
             'status' => Apartments::getStatusValidationRule(),
+            'under_maintenance' => 'nullable|boolean',
             'supervisor_id' => [
                 'nullable',
                 // Same-account supervisors only — the bare exists:users,id let a
@@ -129,9 +130,53 @@ class ApartmentController extends Controller
         ]);
         $validated = convert_money_input($validated, ['monthly_rent', 'deposit', 'apartments.*.monthly_rent']);
 
+        // Maintenance mode takes the unit out of the rentable stock, so it must
+        // be empty first — otherwise a living tenant's rent would silently drop
+        // out of every occupancy/expected-revenue figure while they still owe it.
+        // Move the tenant out (or to another room) before switching this on.
+        $wantsMaintenance = (bool) ($validated['under_maintenance'] ?? false);
+        if ($wantsMaintenance && ! $apartment->under_maintenance && $apartment->isCurrentlyOccupied()) {
+            return back()->withInput()->with('error', __('messages.flash_maintenance_blocked_occupied'));
+        }
+
         $apartment->update($validated);
 
         return redirect()->route('admin.floors.index')->with('success', __('messages.flash_apartment_updated'));
+    }
+
+    /**
+     * Instant-save switch for maintenance mode (its own route so the toggle on
+     * the edit page saves on click and confirms, rather than silently riding
+     * along on the main "Update Room" submit).
+     */
+    public function toggleMaintenance(Request $request, Apartments $apartment)
+    {
+        $validated = $request->validate([
+            'under_maintenance' => 'required|boolean',
+        ]);
+
+        $wantsMaintenance = (bool) $validated['under_maintenance'];
+
+        // Double submit / stale page — nothing to do, and no flash to avoid
+        // telling the user something changed when it didn't.
+        if ($wantsMaintenance === (bool) $apartment->under_maintenance) {
+            return back();
+        }
+
+        // Same guard as update(): the unit must be empty before it leaves the
+        // rentable stock, or a living tenant's rent would drop out of every
+        // occupancy/expected-revenue figure while they still owe it.
+        if ($wantsMaintenance && $apartment->isCurrentlyOccupied()) {
+            return back()->with('error', __('messages.flash_maintenance_blocked_occupied'));
+        }
+
+        $apartment->update(['under_maintenance' => $wantsMaintenance]);
+
+        $message = $wantsMaintenance
+            ? __('messages.flash_maintenance_enabled', ['number' => $apartment->apartment_number])
+            : __('messages.flash_maintenance_disabled', ['number' => $apartment->apartment_number]);
+
+        return back()->with('success', $message);
     }
 
     public function assignTenant(AssignTenantRequest $request, Apartments $apartment, TenantAssignmentService $assigner)

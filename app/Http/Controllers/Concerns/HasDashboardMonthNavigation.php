@@ -152,10 +152,14 @@ trait HasDashboardMonthNavigation
 
     /**
      * Compact floor → rooms occupancy shape for the dashboard quick-view popup.
-     * Each room carries only its number and an occupied flag — enough for a
-     * coloured-dot glance, nothing more.
+     * Each room carries its number plus occupied / maintenance flags — enough
+     * for a coloured-dot glance, nothing more.
      *
-     * @return Collection<int, array{name: string, total: int, occupied: int, rooms: Collection}>
+     * The x/y counter is rentable stock only: a unit under maintenance is not a
+     * room the owner failed to rent, so it stays out of both sides of the
+     * ratio and is reported separately.
+     *
+     * @return Collection<int, array{name: string, total: int, occupied: int, maintenance: int, rooms: Collection}>
      */
     protected function buildFloorPlan(Builder $floorsQuery): Collection
     {
@@ -163,15 +167,21 @@ trait HasDashboardMonthNavigation
             ->with(['apartments' => fn ($q) => $q->orderBy('apartment_number')])
             ->orderBy('id')
             ->get()
-            ->map(fn ($floor) => [
-                'name' => $floor->floor_name,
-                'total' => $floor->apartments->count(),
-                'occupied' => $floor->apartments->where('status', 'occupied')->count(),
-                'rooms' => $floor->apartments->map(fn ($apt) => [
-                    'number' => $apt->apartment_number,
-                    'occupied' => $apt->status === 'occupied',
-                ])->values(),
-            ])
+            ->map(function ($floor) {
+                $rentable = $floor->apartments->where('under_maintenance', false);
+
+                return [
+                    'name' => $floor->floor_name,
+                    'total' => $rentable->count(),
+                    'occupied' => $rentable->where('status', 'occupied')->count(),
+                    'maintenance' => $floor->apartments->where('under_maintenance', true)->count(),
+                    'rooms' => $floor->apartments->map(fn ($apt) => [
+                        'number' => $apt->apartment_number,
+                        'occupied' => $apt->status === 'occupied',
+                        'maintenance' => (bool) $apt->under_maintenance,
+                    ])->values(),
+                ];
+            })
             ->values();
     }
 }

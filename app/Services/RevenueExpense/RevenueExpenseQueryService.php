@@ -267,12 +267,18 @@ class RevenueExpenseQueryService
             $otherIncome = 0;
             $utilitiesIncome = 0;
             $expenseBreakdown = ['electricity' => 0, 'water' => 0, 'internet' => 0, 'parking' => 0, 'trash' => 0, 'other' => 0];
-            $tenantName = 'Vacant';
+            // A unit under maintenance is out of the rentable stock: it owes no
+            // rent, so it must not carry a rent_due that reads as an unrented
+            // room in the summary. It keeps its row (and any income booked
+            // before it went under maintenance) — rentals in range below still
+            // overwrite $rentDue with the real prorated figure.
+            $isUnderMaintenance = (bool) $apartment->under_maintenance;
+            $tenantName = $isUnderMaintenance ? 'Maintenance' : 'Vacant';
             $hasActiveRental = false;
             $rentPercent = 0;
             $rentPaid = 0;
             $rentStatus = 'none';
-            $rentDue = $apartment->monthly_rent;
+            $rentDue = $isUnderMaintenance ? 0 : $apartment->monthly_rent;
             $occupancyPercent = 0;
             $lastPaymentDate = null;
             $occupancyEndDate = null;
@@ -379,7 +385,8 @@ class RevenueExpenseQueryService
                 'owner_expenses' => round($fixedExpTotal, 2),
                 'net' => round($income - $expenses - $fixedExpTotal, 2),
                 'expense_breakdown' => $expenseBreakdown,
-                'status' => $apartment->status,
+                'status' => $apartment->displayStatus(),
+                'under_maintenance' => $isUnderMaintenance,
                 'rent_percent' => $rentPercent,
                 'rent_paid' => round($rentPaid, 2),
                 'rent_due' => round($rentDue, 2),

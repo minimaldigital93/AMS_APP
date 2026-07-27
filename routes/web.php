@@ -188,6 +188,7 @@ Route::middleware(['auth', 'role:admin|superadmin', 'subscription.active'])->gro
     Route::get('/admin/apartments/{apartment}/edit', [ApartmentController::class, 'edit'])->name('admin.apartments.edit');
     Route::post('/admin/apartments', [ApartmentController::class, 'store'])->name('admin.apartments.store');
     Route::put('/admin/apartments/{apartment}', [ApartmentController::class, 'update'])->name('admin.apartments.update');
+    Route::put('/admin/apartments/{apartment}/maintenance', [ApartmentController::class, 'toggleMaintenance'])->name('admin.apartments.maintenance');
     Route::post('/admin/apartments/{apartment}/assign-tenant', [ApartmentController::class, 'assignTenant'])->name('admin.apartments.assignTenant');
     Route::delete('/admin/apartments/{apartment}', [ApartmentController::class, 'destroy'])->name('admin.apartments.destroy');
 

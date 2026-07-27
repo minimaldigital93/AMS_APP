@@ -1,7 +1,11 @@
 {{--
     Floor quick-view popup — a minimal at-a-glance occupancy peek for the
     dashboard header. Expects $floorPlan (see HasDashboardMonthNavigation::buildFloorPlan):
-    a collection of ['name', 'total', 'occupied', 'rooms' => [['number','occupied'], …]].
+    a collection of ['name', 'total', 'occupied', 'maintenance',
+    'rooms' => [['number','occupied','maintenance'], …]].
+
+    Maintenance rooms read gray and are labelled: they are out of the rentable
+    stock, so the x/y counter deliberately excludes them on both sides.
 
     Must live inside an element carrying x-data="{ showFloorPeek: false }".
 --}}
@@ -32,6 +36,7 @@
                 <span class="inline-flex items-center gap-1.5 text-xs text-slate-500">
                     <span class="w-2 h-2 rounded-full bg-emerald-500"></span>{{ __('messages.available') }}
                     <span class="w-2 h-2 rounded-full bg-sky-400 ml-2.5"></span>{{ __('messages.occupied') }}
+                    <span class="w-2 h-2 rounded-full bg-slate-400 ml-2.5"></span>{{ __('messages.maintenance_short') }}
                 </span>
             </div>
             <button type="button" @click="showFloorPeek = false"
@@ -46,16 +51,36 @@
             <div class="rounded-xl bg-slate-50/60 border border-slate-100 px-4 py-3.5">
                 <div class="flex items-center justify-between mb-3">
                     <span class="text-sm font-medium text-slate-700">{{ $floor['name'] }}</span>
-                    <span class="text-[11px] text-slate-400">{{ $floor['occupied'] }}/{{ $floor['total'] }} {{ __('messages.occupied') }}</span>
+                    <span class="inline-flex items-center gap-2 text-[11px] text-slate-400">
+                        {{ $floor['occupied'] }}/{{ $floor['total'] }} {{ __('messages.occupied') }}
+                        @if(($floor['maintenance'] ?? 0) > 0)
+                        <span class="inline-flex items-center gap-1 text-slate-500" title="{{ __('messages.maintenance_mode') }}">
+                            <span class="w-1.5 h-1.5 rounded-full bg-slate-400"></span>
+                            {{ $floor['maintenance'] }} {{ __('messages.maintenance_short') }}
+                        </span>
+                        @endif
+                    </span>
                 </div>
                 @if($floor['rooms']->isEmpty())
                     <p class="text-xs text-slate-300">{{ __('messages.no_data') }}</p>
                 @else
                 <div class="grid grid-cols-4 sm:grid-cols-8 gap-2">
                     @foreach($floor['rooms'] as $room)
-                    <span class="inline-flex items-center justify-center gap-1.5 px-2.5 py-1.5 rounded-md bg-white border border-slate-200 text-xs font-medium text-slate-600"
-                          title="{{ $room['number'] }} — {{ $room['occupied'] ? __('messages.occupied') : __('messages.available') }}">
+                    @php
+                        $isMaintenance = $room['maintenance'] ?? false;
+                        $roomStatus = $isMaintenance
+                            ? __('messages.maintenance_short')
+                            : ($room['occupied'] ? __('messages.occupied') : __('messages.available'));
+                    @endphp
+                    {{-- Maintenance chips read gray and dashed so they're
+                         distinguishable from a vacant room at a glance. --}}
+                    <span class="inline-flex items-center justify-center gap-1.5 px-2.5 py-1.5 rounded-md border text-xs font-medium {{ $isMaintenance ? 'bg-slate-50 border-dashed border-slate-300 text-slate-400' : 'bg-white border-slate-200 text-slate-600' }}"
+                          title="{{ $room['number'] }} — {{ $roomStatus }}">
+                        @if($isMaintenance)
+                        <span class="material-icons text-[12px] leading-none text-slate-400">handyman</span>
+                        @else
                         <span class="w-2 h-2 rounded-full {{ $room['occupied'] ? 'bg-sky-400' : 'bg-emerald-500' }}"></span>
+                        @endif
                         {{ $room['number'] }}
                     </span>
                     @endforeach

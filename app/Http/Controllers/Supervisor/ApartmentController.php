@@ -86,6 +86,7 @@ class ApartmentController extends Controller
                         'id' => $apt->id,
                         'number' => $apt->apartment_number,
                         'status' => $apt->status,
+                        'under_maintenance' => (bool) $apt->under_maintenance,
                         'rent' => (float) $apt->monthly_rent,
                         'tenant' => $tenant?->name,
                         'tenant_id' => $tenant?->id,
@@ -98,11 +99,14 @@ class ApartmentController extends Controller
             ];
         })->values();
 
+        // Units under maintenance are out of the rentable stock — reported on
+        // their own rather than folded into available/total (mirrors the admin view).
         $summary = [
             'floors' => $floors->count(),
-            'total' => $floors->sum(fn ($f) => $f->apartments->count()),
-            'available' => $floors->sum(fn ($f) => $f->apartments->where('status', 'available')->count()),
-            'occupied' => $floors->sum(fn ($f) => $f->apartments->where('status', 'occupied')->count()),
+            'total' => $floors->sum(fn ($f) => $f->apartments->where('under_maintenance', false)->count()),
+            'available' => $floors->sum(fn ($f) => $f->apartments->where('under_maintenance', false)->where('status', 'available')->count()),
+            'occupied' => $floors->sum(fn ($f) => $f->apartments->where('under_maintenance', false)->where('status', 'occupied')->count()),
+            'maintenance' => $floors->sum(fn ($f) => $f->apartments->where('under_maintenance', true)->count()),
         ];
 
         $availableTenants = Tenants::where('status', 'active')->whereNull('apartment_id')->get();
