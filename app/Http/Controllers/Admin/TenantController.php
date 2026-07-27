@@ -99,15 +99,18 @@ class TenantController extends Controller
         $tenants = $query->orderBy('tenants.id', 'desc')->get();
 
         // Group by property → floor → apartment so each building and floor stays
-        // contiguous and in natural order (Floor 2 before Floor 10). floor_name
-        // and apartment_number are free text, so sort in PHP with SORT_NATURAL
-        // instead of lexically at the DB. Tenants without an apartment (pending)
-        // sort last via the '~' sentinel.
+        // contiguous. Floors follow the same order as the 3D floor view
+        // (Floors::orderBy('id') — Ground/G first, then 1, 2, 3…) by sorting on
+        // the floor id (zero-padded so it collates correctly under SORT_NATURAL)
+        // rather than the free-text floor_name, which would push "G" after the
+        // numbered floors. apartment_number stays natural (Room 2 before Room 10).
+        // Tenants without an apartment (pending) sort last via the '~' / max-id
+        // sentinels.
         $tenants = $tenants->sortBy(
             fn ($t) => sprintf(
-                '%s|%s|%s',
+                '%s|%020d|%s',
                 $t->apartment?->floor?->property?->name ?? '~',
-                $t->apartment?->floor?->floor_name ?? '~',
+                $t->apartment?->floor?->id ?? PHP_INT_MAX,
                 $t->apartment?->apartment_number ?? '~',
             ),
             SORT_NATURAL | SORT_FLAG_CASE

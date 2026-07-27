@@ -917,16 +917,16 @@ abstract class RevenueExpenseController extends Controller
         // Also keep the old $apartmentSummary for backward compat
         $apartmentSummary = $tenantBills;
 
-        // Keep a full copy for totals and counts, then paginate the tenant bills (10 per page)
+        // Keep a full copy for totals and counts. Pagination removed: show every
+        // tenant bill on a single page (a one-page paginator so the view's
+        // ->items()/->firstItem()/->links() calls keep working and render no links).
         $tenantBillsAll = $tenantBills;
-        $perPage = 10;
-        $page = (int) request()->get('page', 1);
-        $offset = ($page - 1) * $perPage;
+        $perPage = max(count($tenantBillsAll), 1);
         $tenantBills = new LengthAwarePaginator(
-            array_slice($tenantBillsAll, $offset, $perPage),
+            $tenantBillsAll,
             count($tenantBillsAll),
             $perPage,
-            $page,
+            1,
             [
                 'path' => request()->url(),
                 'query' => request()->query(),

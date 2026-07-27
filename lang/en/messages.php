@@ -81,6 +81,7 @@ return [
     'no_active_fiscal_period' => 'No Active Fiscal Period',
     'create_fiscal_period' => 'Create Fiscal Period',
     'floor_view_3d' => 'Floor View',
+    'floor_quick_view' => 'Floor Quick View',
     'previous_month' => 'Previous Month',
     'next_month' => 'Next Month',
     'all_months' => 'All Months',

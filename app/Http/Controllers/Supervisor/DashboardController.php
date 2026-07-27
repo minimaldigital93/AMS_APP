@@ -77,10 +77,15 @@ class DashboardController extends Controller
 
         $monthNavigation = $this->getMonthNavigation($periodMonths, $displayMonth, $isFullPeriod);
 
+        // Compact floor/room occupancy for the dashboard quick-view popup,
+        // limited to the supervisor's assigned properties and active property.
+        $floorPlan = $this->buildFloorPlan($this->supervisorVisibleFloors()->forActiveProperty());
+
         return view('supervisor.dashboard', compact(
             'stats', 'fiscalData', 'calendarData',
             'activePeriod', 'recentTransactions', 'apartmentRevenues',
-            'selectedMonth', 'periodMonths', 'monthNavigation', 'isFullPeriod', 'displayMonth'
+            'selectedMonth', 'periodMonths', 'monthNavigation', 'isFullPeriod', 'displayMonth',
+            'floorPlan'
         ));
     }
 

@@ -118,13 +118,16 @@ class TenantController extends Controller
         // loading every active tenant is cheap and keeps the floor order intact.
         $tenants = $query->orderBy('id', 'desc')->get();
 
-        // Sort by floor → apartment in natural order (Floor 2 before Floor 10).
-        // floor_name/apartment_number are free text, so sort in PHP with
-        // SORT_NATURAL. Tenants without an apartment (pending) sort last.
+        // Sort by floor → apartment, matching the 3D floor view's order
+        // (Floors::orderBy('id') — Ground/G first, then 1, 2, 3…) by sorting on
+        // the floor id (zero-padded for SORT_NATURAL) rather than the free-text
+        // floor_name, which would push "G" after the numbered floors.
+        // apartment_number stays natural (Room 2 before Room 10). Tenants without
+        // an apartment (pending) sort last via the '~' / max-id sentinels.
         $tenants = $tenants->sortBy(
             fn ($t) => sprintf(
-                '%s|%s',
-                $t->apartment?->floor?->floor_name ?? '~',
+                '%020d|%s',
+                $t->apartment?->floor?->id ?? PHP_INT_MAX,
                 $t->apartment?->apartment_number ?? '~',
             ),
             SORT_NATURAL | SORT_FLAG_CASE

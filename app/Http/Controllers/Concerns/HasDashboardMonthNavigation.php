@@ -4,6 +4,8 @@ namespace App\Http\Controllers\Concerns;
 
 use App\Models\FiscalPeriods;
 use Carbon\Carbon;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Collection;
 
 /**
  * Shared month/date-range resolution for dashboard-style screens that show
@@ -146,5 +148,30 @@ trait HasDashboardMonthNavigation
     private function isValidMonth(?int $month, ?int $year): bool
     {
         return $month !== null && $year !== null && $month >= 1 && $month <= 12;
+    }
+
+    /**
+     * Compact floor → rooms occupancy shape for the dashboard quick-view popup.
+     * Each room carries only its number and an occupied flag — enough for a
+     * coloured-dot glance, nothing more.
+     *
+     * @return Collection<int, array{name: string, total: int, occupied: int, rooms: Collection}>
+     */
+    protected function buildFloorPlan(Builder $floorsQuery): Collection
+    {
+        return $floorsQuery
+            ->with(['apartments' => fn ($q) => $q->orderBy('apartment_number')])
+            ->orderBy('id')
+            ->get()
+            ->map(fn ($floor) => [
+                'name' => $floor->floor_name,
+                'total' => $floor->apartments->count(),
+                'occupied' => $floor->apartments->where('status', 'occupied')->count(),
+                'rooms' => $floor->apartments->map(fn ($apt) => [
+                    'number' => $apt->apartment_number,
+                    'occupied' => $apt->status === 'occupied',
+                ])->values(),
+            ])
+            ->values();
     }
 }

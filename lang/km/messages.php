@@ -81,6 +81,7 @@ return [
     'no_active_fiscal_period' => 'គ្មានរយៈពេលសារពើពន្ធសកម្មទេ',
     'create_fiscal_period' => 'បង្កើតរយៈពេលសារពើពន្ធ',
     'floor_view_3d' => 'ទិដ្ឋភាពជាន់',
+    'floor_quick_view' => 'មើលជាន់រហ័ស',
     'previous_month' => 'ខែមុន',
     'next_month' => 'ខែបន្ទាប់',
     'all_months' => 'គ្រប់ខែ',

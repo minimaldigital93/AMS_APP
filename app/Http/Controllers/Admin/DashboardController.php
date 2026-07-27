@@ -7,6 +7,7 @@ use App\Http\Controllers\Concerns\HasFiscalPeriodScope;
 use App\Http\Controllers\Controller;
 use App\Models\Accounts;
 use App\Models\FiscalPeriods;
+use App\Models\Floors;
 use App\Services\Dashboard\ApartmentRevenueComparisonService;
 use App\Services\Dashboard\DashboardCalendarService;
 use App\Services\Dashboard\DashboardStatsService;
@@ -76,11 +77,14 @@ class DashboardController extends Controller
         // Renewal banner when this admin's subscription is due within 3 days.
         $subscriptionAlert = app(NotificationService::class)->subscriptionDueAlert(Auth::user());
 
+        // Compact floor/room occupancy for the dashboard quick-view popup.
+        $floorPlan = $this->buildFloorPlan(Floors::forActiveProperty());
+
         return view('admin.dashboard', compact(
             'stats', 'fiscalData', 'calendarData',
             'activePeriod', 'recentTransactions', 'apartmentRevenues',
             'selectedMonth', 'periodMonths', 'monthNavigation', 'isFullPeriod', 'displayMonth',
-            'subscriptionAlert'
+            'subscriptionAlert', 'floorPlan'
         ));
     }
 }
