@@ -262,7 +262,6 @@ return [
     'start_date' => 'ថ្ងៃចាប់ផ្តើម',
     'end_date' => 'ថ្ងៃបញ្ចប់',
     'optional' => 'ស្រេចចិត្ត',
-    'update_tenant' => 'ធ្វើបច្ចុប្បន្នភាពអ្នកជួល',
     'gender' => 'ភេទ',
     'select_gender' => 'ជ្រើសរើសភេទ',
     'male' => 'ប្រុស',

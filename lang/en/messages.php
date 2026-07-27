@@ -262,7 +262,6 @@ return [
     'start_date' => 'Start Date',
     'end_date' => 'End Date',
     'optional' => 'Optional',
-    'update_tenant' => 'Update Tenant',
     'gender' => 'Gender',
     'select_gender' => 'Select sex',
     'male' => 'Male',

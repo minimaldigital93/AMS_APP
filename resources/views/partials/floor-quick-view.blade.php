@@ -31,7 +31,7 @@
                 <h3 class="text-sm font-semibold text-slate-800">{{ __('messages.floor_quick_view') }}</h3>
                 <span class="inline-flex items-center gap-1.5 text-xs text-slate-500">
                     <span class="w-2 h-2 rounded-full bg-emerald-500"></span>{{ __('messages.available') }}
-                    <span class="w-2 h-2 rounded-full bg-rose-500 ml-2.5"></span>{{ __('messages.occupied') }}
+                    <span class="w-2 h-2 rounded-full bg-sky-400 ml-2.5"></span>{{ __('messages.occupied') }}
                 </span>
             </div>
             <button type="button" @click="showFloorPeek = false"
@@ -55,7 +55,7 @@
                     @foreach($floor['rooms'] as $room)
                     <span class="inline-flex items-center justify-center gap-1.5 px-2.5 py-1.5 rounded-md bg-white border border-slate-200 text-xs font-medium text-slate-600"
                           title="{{ $room['number'] }} — {{ $room['occupied'] ? __('messages.occupied') : __('messages.available') }}">
-                        <span class="w-2 h-2 rounded-full {{ $room['occupied'] ? 'bg-rose-500' : 'bg-emerald-500' }}"></span>
+                        <span class="w-2 h-2 rounded-full {{ $room['occupied'] ? 'bg-sky-400' : 'bg-emerald-500' }}"></span>
                         {{ $room['number'] }}
                     </span>
                     @endforeach
