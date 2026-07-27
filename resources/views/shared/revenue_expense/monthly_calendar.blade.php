@@ -19,31 +19,31 @@
 
     {{-- Month Navigation --}}
     <div class="flex justify-center">
-        <div class="inline-flex items-center bg-white rounded-xl border border-slate-100 px-2 py-1.5 gap-1">
+        <div class="inline-flex max-w-full items-center bg-white rounded-xl border border-slate-100 px-1.5 sm:px-2 py-1.5 gap-0.5 sm:gap-1">
             <a href="{{ route($panel.'.revenue_expense.monthly_calendar', ['month' => $prevMonth->month, 'year' => $prevMonth->year]) }}"
-               class="inline-flex items-center justify-center w-10 h-10 rounded-lg text-slate-500 hover:bg-slate-50 hover:text-sky-600 transition" title="{{ __('messages.previous_month') }}">
+               class="inline-flex shrink-0 items-center justify-center w-9 h-9 sm:w-10 sm:h-10 rounded-lg text-slate-500 hover:bg-slate-50 hover:text-sky-600 transition" title="{{ __('messages.previous_month') }}">
                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
             </a>
-            <div class="px-3 sm:px-4 py-2 min-w-[150px] sm:min-w-[180px] text-center">
-                <span class="text-lg font-bold text-slate-800">{{ $startOfMonth->format('F') }}</span>
-                <span class="text-lg text-slate-400 ml-1">{{ $startOfMonth->format('Y') }}</span>
+            <div class="px-2 sm:px-4 py-2 min-w-0 sm:min-w-[180px] text-center">
+                <span class="text-base sm:text-lg font-bold text-slate-800 whitespace-nowrap">{{ $startOfMonth->format('F') }}</span>
+                <span class="text-base sm:text-lg text-slate-400 ml-1">{{ $startOfMonth->format('Y') }}</span>
                 @if(!$isCurrentMonth)
                     @if($isFutureMonth)
-                        <span class="ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-sky-50 text-sky-700">{{ __('messages.upcoming') }}</span>
+                        <span class="ml-2 hidden sm:inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-sky-50 text-sky-700">{{ __('messages.upcoming') }}</span>
                     @else
-                        <span class="ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-600">{{ __('messages.past') }}</span>
+                        <span class="ml-2 hidden sm:inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-600">{{ __('messages.past') }}</span>
                     @endif
                 @else
-                    <span class="ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-700">{{ __('messages.current') }}</span>
+                    <span class="ml-2 hidden sm:inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-700">{{ __('messages.current') }}</span>
                 @endif
             </div>
             <a href="{{ route($panel.'.revenue_expense.monthly_calendar', ['month' => $nextMonth->month, 'year' => $nextMonth->year]) }}"
-               class="inline-flex items-center justify-center w-10 h-10 rounded-lg text-slate-500 hover:bg-slate-50 hover:text-sky-600 transition" title="{{ __('messages.next_month') }}">
+               class="inline-flex shrink-0 items-center justify-center w-9 h-9 sm:w-10 sm:h-10 rounded-lg text-slate-500 hover:bg-slate-50 hover:text-sky-600 transition" title="{{ __('messages.next_month') }}">
                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
             </a>
             @if(!$isCurrentMonth)
             <a href="{{ route($panel.'.revenue_expense.monthly_calendar') }}"
-               class="ml-1 inline-flex items-center justify-center w-10 h-10 rounded-lg text-sky-600 bg-sky-50 hover:bg-sky-100 transition" title="{{ __('messages.go_to_current_month') }}">
+               class="ml-0.5 sm:ml-1 shrink-0 inline-flex items-center justify-center w-9 h-9 sm:w-10 sm:h-10 rounded-lg text-sky-600 bg-sky-50 hover:bg-sky-100 transition" title="{{ __('messages.go_to_current_month') }}">
                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
             </a>
             @endif

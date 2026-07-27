@@ -16,24 +16,6 @@
             </a>
         </div>
 
-        @if($tenant->attachments->isNotEmpty())
-        <!-- Existing ID Documents (own form per delete, kept outside the update form below) -->
-        <div class="bg-white rounded-xl border border-slate-100 p-6 mb-6">
-            <label class="block text-sm font-medium text-slate-500 mb-2">{{ __('messages.tenant_documents') }}</label>
-            <ul class="space-y-1">
-                @foreach($tenant->attachments as $doc)
-                    <li class="flex items-center gap-2 text-sm bg-slate-50 rounded-lg px-3 py-1.5">
-                        <a href="{{ $doc->url() }}" target="_blank" rel="noopener" download class="flex-1 min-w-0 truncate text-sky-700 hover:underline">{{ $doc->original_name }}</a>
-                        <form action="{{ route('admin.tenants.destroy_document', [$tenant, $doc]) }}" method="POST" data-confirm="{{ __('messages.remove_attachment_confirm') }}">
-                            @csrf @method('DELETE')
-                            <button type="submit" class="text-red-500 hover:text-red-600 text-base leading-none px-1" title="{{ __('messages.delete') }}">&times;</button>
-                        </form>
-                    </li>
-                @endforeach
-            </ul>
-        </div>
-        @endif
-
         <!-- Form Card -->
         <div class="bg-white rounded-xl border border-slate-100 p-6">
             <form action="{{ route('admin.tenants.update', $tenant->id) }}" method="POST" enctype="multipart/form-data" class="space-y-6"
@@ -43,42 +25,57 @@
 
                 <!-- Photo Upload -->
                 <div>
-                            <label for="photo" class="block text-sm font-medium text-slate-500 mb-2">{{ __('messages.tenant_photo') }}</label>
-                    <div class="flex items-start gap-6">
-                        <!-- Current Photo -->
-                        @if($tenant->photo_path && !str_ends_with($tenant->photo_path, '.pdf'))
-                            <div class="flex-shrink-0">
-                                <img src="{{ asset('storage/' . $tenant->photo_path) }}" alt="{{ $tenant->name }}" class="h-32 w-32 object-cover rounded-lg shadow-md">
-                            </div>
-                        @elseif($tenant->photo_path && str_ends_with($tenant->photo_path, '.pdf'))
-                            <div class="flex-shrink-0">
+                            <label for="photo" class="block text-center text-sm font-medium text-slate-500 mb-3">{{ __('messages.tenant_photo') }}</label>
+                    <div class="flex items-start justify-center gap-6">
+                        @if($tenant->photo_path && str_ends_with($tenant->photo_path, '.pdf'))
+                            <!-- Current Photo (PDF) — the + badge replaces it -->
+                            <div class="flex-shrink-0 relative">
                                 <a href="{{ asset('storage/' . $tenant->photo_path) }}" target="_blank" class="h-32 w-32 rounded-lg bg-red-50 flex items-center justify-center text-red-600 border border-red-200">
                                     <svg class="w-8 h-8" fill="currentColor" viewBox="0 0 20 20"><path d="M4 2h7l5 5v11a2 2 0 01-2 2H4a2 2 0 01-2-2V4a2 2 0 012-2z"/></svg>
                                 </a>
+                                <label for="photo"
+                                    title="{{ __('messages.change_photo') }}"
+                                    aria-label="{{ __('messages.change_photo') }}"
+                                    class="absolute bottom-0 right-0 translate-x-1/2 translate-y-1/2 h-8 w-8 inline-flex items-center justify-center rounded-full bg-indigo-600 text-white shadow-lg ring-2 ring-white hover:bg-indigo-700 cursor-pointer transition">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/></svg>
+                                </label>
                             </div>
-                        @endif
-                        <!-- Upload Area -->
-                        <div class="flex-1">
-                            <label for="photo" class="flex flex-col items-center justify-center w-full h-32 border-2 border-slate-200 border-dashed rounded-lg cursor-pointer bg-slate-50 hover:bg-slate-100 transition text-slate-600">
-                                <div class="flex flex-col items-center justify-center pt-5 pb-6">
-                                    <svg class="w-8 h-8 text-gray-400 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
-                                    </svg>
-                                    <p class="text-sm text-gray-700"><span class="font-semibold">{{ __('messages.click_to_upload') }}</span> {{ __('messages.or_drag_drop') }}</p>
-                                    <p class="text-xs text-gray-500">{{ __('messages.png_jpg_gif') }}</p>
-                                    <p class="text-[11px] text-gray-400 mt-0.5">{{ __('messages.photo_max_hint', ['max' => '10 MB']) }}</p>
-                                </div>
+                            <input id="photo" type="file" name="photo" class="hidden" accept="image/*" onchange="previewPhoto(event)">
+                        @elseif($tenant->photo_path)
+                            <!-- Current Photo — click it (or the + badge) to replace -->
+                            <label for="photo" class="flex-shrink-0 relative group cursor-pointer">
+                                <img src="{{ asset('storage/' . $tenant->photo_path) }}" alt="{{ $tenant->name }}" class="h-32 w-32 object-cover rounded-lg shadow-md">
+                                <span class="absolute inset-0 rounded-lg bg-black/45 text-white text-xs font-medium flex items-center justify-center opacity-0 group-hover:opacity-100 transition">{{ __('messages.change') }}</span>
+                                <span title="{{ __('messages.change_photo') }}"
+                                    class="absolute bottom-0 right-0 translate-x-1/2 translate-y-1/2 h-8 w-8 inline-flex items-center justify-center rounded-full bg-indigo-600 text-white shadow-lg ring-2 ring-white group-hover:bg-indigo-700 transition">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/></svg>
+                                </span>
                                 <input id="photo" type="file" name="photo" class="hidden" accept="image/*" onchange="previewPhoto(event)">
                             </label>
-                        </div>
+                        @else
+                            <!-- Upload Area -->
+                            <div class="flex-1">
+                                <label for="photo" class="flex flex-col items-center justify-center w-full h-32 border-2 border-slate-200 border-dashed rounded-lg cursor-pointer bg-slate-50 hover:bg-slate-100 transition text-slate-600">
+                                    <div class="flex flex-col items-center justify-center pt-5 pb-6">
+                                        <svg class="w-8 h-8 text-gray-400 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+                                        </svg>
+                                        <p class="text-sm text-gray-700"><span class="font-semibold">{{ __('messages.click_to_upload') }}</span> {{ __('messages.or_drag_drop') }}</p>
+                                        <p class="text-xs text-gray-500">{{ __('messages.png_jpg_gif') }}</p>
+                                        <p class="text-[11px] text-gray-400 mt-0.5">{{ __('messages.photo_max_hint', ['max' => '10 MB']) }}</p>
+                                    </div>
+                                    <input id="photo" type="file" name="photo" class="hidden" accept="image/*" onchange="previewPhoto(event)">
+                                </label>
+                            </div>
+                        @endif
                     </div>
-                    <div id="photoPreview" class="mt-4"></div>
+                    <div id="photoPreview" class="mt-4 text-center"></div>
                     @error('photo')
-                        <p class="text-red-500 text-sm mt-1">{{ $message }}</p>
+                        <p class="text-red-500 text-sm mt-2 text-center">{{ $message }}</p>
                     @enderror
                 </div>
 
-                <!-- ID Documents -->
+                <!-- Add More Documents -->
                 <div>
                     <x-attachments-input
                         name="documents"
@@ -215,6 +212,20 @@
                     @enderror
                 </div>
 
+                @if($tenant->attachments->isNotEmpty())
+                <!-- Existing ID Documents (delete buttons submit the sibling forms below via form="…") -->
+                <div>
+                    <label class="block text-sm font-medium text-slate-500 mb-2">{{ __('messages.tenant_documents') }}</label>
+                    <ul class="space-y-1">
+                        @foreach($tenant->attachments as $doc)
+                            <li class="flex items-center gap-2 text-sm bg-slate-50 rounded-lg px-3 py-1.5">
+                                <a href="{{ $doc->url() }}" target="_blank" rel="noopener" download class="flex-1 min-w-0 truncate text-sky-700 hover:underline">{{ $doc->original_name }}</a>
+                                <button type="submit" form="delete-document-{{ $doc->id }}" class="text-red-500 hover:text-red-600 text-base leading-none px-1" title="{{ __('messages.delete') }}">&times;</button>
+                            </li>
+                        @endforeach
+                    </ul>
+                </div>
+                @endif
 
                 <!-- Buttons -->
                 <div class="flex gap-3 pt-6">
@@ -223,6 +234,14 @@
                 </div>
             </form>
         </div>
+
+        {{-- Delete forms live outside the update form above (forms can't nest); the
+             buttons in the documents list target them by id. --}}
+        @foreach($tenant->attachments as $doc)
+            <form id="delete-document-{{ $doc->id }}" action="{{ route('admin.tenants.destroy_document', [$tenant, $doc]) }}" method="POST" class="hidden" data-confirm="{{ __('messages.remove_attachment_confirm') }}">
+                @csrf @method('DELETE')
+            </form>
+        @endforeach
     </div>
 </div>
 

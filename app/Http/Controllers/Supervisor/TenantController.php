@@ -295,6 +295,10 @@ class TenantController extends Controller
             'notes' => 'nullable|string',
         ], [
             'apartment_id.exists' => __('messages.validation_apartment_unavailable'),
+            'photo.uploaded' => __('messages.validation_photo_upload_failed', ['max' => '10 MB']),
+            'photo.max' => __('messages.validation_photo_too_large', ['max' => '10 MB']),
+            'photo.mimes' => __('messages.validation_photo_type'),
+            'documents.*.uploaded' => __('messages.validation_photo_upload_failed', ['max' => '10 MB']),
             'phone.unique' => __('messages.validation_phone_taken'),
             'phone.regex' => __('messages.phone_must_be_english'),
             'date_of_birth.before_or_equal' => __('messages.tenant_must_be_18'),
@@ -716,6 +720,10 @@ class TenantController extends Controller
             'notes' => 'nullable|string',
         ], [
             'apartment_id.exists' => __('messages.validation_apartment_unavailable'),
+            'photo.uploaded' => __('messages.validation_photo_upload_failed', ['max' => '10 MB']),
+            'photo.max' => __('messages.validation_photo_too_large', ['max' => '10 MB']),
+            'photo.mimes' => __('messages.validation_photo_type'),
+            'documents.*.uploaded' => __('messages.validation_photo_upload_failed', ['max' => '10 MB']),
             'phone.unique' => __('messages.validation_phone_taken'),
         ]);
         $validated = convert_money_input($validated, ['monthly_rent', 'deposit', 'apartments.*.monthly_rent']);

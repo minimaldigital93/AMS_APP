@@ -46,34 +46,34 @@
         $nextMonth = ($currentIdx !== null && $currentIdx < count($periodMonths) - 1) ? $periodMonths[$currentIdx + 1] : null;
     @endphp
     <div class="mb-6 flex items-center justify-center no-print">
-        <div class="inline-flex items-center bg-white rounded-xl shadow border border-gray-200 px-2 py-1.5 gap-1">
+        <div class="inline-flex max-w-full items-center bg-white rounded-xl shadow border border-gray-200 px-1.5 sm:px-2 py-1.5 gap-0.5 sm:gap-1">
             @if($prevMonth)
             <a href="{{ route($panel.'.revenue_expense.income_statement', ['period' => $activePeriod->id, 'month' => $prevMonth['month'], 'year' => $prevMonth['year']]) }}"
-               class="inline-flex items-center justify-center w-10 h-10 rounded-lg text-gray-600 hover:bg-gray-100 hover:text-blue-600 transition">
+               class="inline-flex shrink-0 items-center justify-center w-9 h-9 sm:w-10 sm:h-10 rounded-lg text-gray-600 hover:bg-gray-100 hover:text-blue-600 transition">
                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
             </a>
             @else
-            <span class="inline-flex items-center justify-center w-10 h-10 rounded-lg text-gray-300 cursor-not-allowed">
+            <span class="inline-flex shrink-0 items-center justify-center w-9 h-9 sm:w-10 sm:h-10 rounded-lg text-gray-300 cursor-not-allowed">
                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
             </span>
             @endif
 
-            <div class="px-4 py-2 min-w-[200px] text-center">
+            <div class="px-2 sm:px-4 py-2 min-w-0 sm:min-w-[200px] text-center">
                 @if($filterMonth)
-                    <span class="text-lg font-bold text-gray-900">{{ \Carbon\Carbon::create($filterYear, $filterMonth, 1)->format('F Y') }}</span>
+                    <span class="text-base sm:text-lg font-bold text-gray-900 whitespace-nowrap">{{ \Carbon\Carbon::create($filterYear, $filterMonth, 1)->format('F Y') }}</span>
                 @else
-                    <span class="text-lg font-bold text-gray-900">{{ __('messages.all_months') }}</span>
-                    <span class="ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-700">{{ __('messages.full_period') }}</span>
+                    <span class="text-base sm:text-lg font-bold text-gray-900 whitespace-nowrap">{{ __('messages.all_months') }}</span>
+                    <span class="ml-2 hidden sm:inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-700">{{ __('messages.full_period') }}</span>
                 @endif
             </div>
 
             @if($nextMonth)
             <a href="{{ route($panel.'.revenue_expense.income_statement', ['period' => $activePeriod->id, 'month' => $nextMonth['month'], 'year' => $nextMonth['year']]) }}"
-               class="inline-flex items-center justify-center w-10 h-10 rounded-lg text-gray-600 hover:bg-gray-100 hover:text-blue-600 transition">
+               class="inline-flex shrink-0 items-center justify-center w-9 h-9 sm:w-10 sm:h-10 rounded-lg text-gray-600 hover:bg-gray-100 hover:text-blue-600 transition">
                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
             </a>
             @else
-            <span class="inline-flex items-center justify-center w-10 h-10 rounded-lg text-gray-300 cursor-not-allowed">
+            <span class="inline-flex shrink-0 items-center justify-center w-9 h-9 sm:w-10 sm:h-10 rounded-lg text-gray-300 cursor-not-allowed">
                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
             </span>
             @endif
@@ -81,7 +81,7 @@
             {{-- View All link --}}
             @if($filterMonth)
             <a href="{{ route($panel.'.revenue_expense.income_statement', ['period' => $activePeriod->id]) }}"
-               class="ml-2 text-xs text-blue-600 hover:text-blue-800 font-medium">{{ __('messages.view_all') }}</a>
+               class="ml-1 sm:ml-2 shrink-0 whitespace-nowrap text-xs text-blue-600 hover:text-blue-800 font-medium">{{ __('messages.view_all') }}</a>
             @endif
         </div>
     </div>
