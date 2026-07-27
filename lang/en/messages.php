@@ -249,6 +249,7 @@ return [
     'paying' => 'Paying',
     'view_details' => 'View Details',
     'process_leave' => 'Process Leave',
+    'process_leave_hint' => 'Move this tenant out, settle final charges, and archive the tenancy.',
     'no_tenants_found' => 'No tenants found',
     'restore' => 'Restore',
     'restore_tenant' => 'Restore Tenant',

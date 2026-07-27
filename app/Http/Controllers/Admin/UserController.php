@@ -78,24 +78,54 @@ class UserController extends Controller
             });
         }
 
-        // Admins/superadmins first, then supervisors, then tenants (users without a role last).
-        $query->orderByRaw(
-            "COALESCE((select min(case roles.name
-                    when 'superadmin' then 0
-                    when 'admin' then 0
-                    when 'supervisor' then 1
-                    else 2 end)
-                from model_has_roles
-                join roles on roles.id = model_has_roles.role_id
-                where model_has_roles.model_id = users.id
-                  and model_has_roles.model_type = ?), 3) asc",
-            [User::class]
-        )->orderBy('name');
+        // Load the full set (accounts are building-scale) rather than paginating,
+        // so tenant users stay grouped by floor and suspended users can be pulled
+        // into their own list — mirroring the active-tenants page, which also
+        // loads everything to keep floors contiguous.
+        $all = $query->get();
 
-        $users = $query->paginate(15);
+        // Suspended users (former tenants after move-out) live in their own list
+        // below the active roster.
+        [$suspended, $active] = $all->partition(fn (User $u) => ($u->status ?? null) === 'suspended');
+
+        $users = $active->sortBy(fn (User $u) => $this->userSortKey($u), SORT_NATURAL | SORT_FLAG_CASE)->values();
+        $suspended = $suspended->sortBy(fn (User $u) => $this->userSortKey($u), SORT_NATURAL | SORT_FLAG_CASE)->values();
+
         $roles = Role::whereIn('name', self::ASSIGNABLE_ROLES)->get();
 
-        return view('admin.users.index', compact('users', 'roles'));
+        return view('admin.users.index', compact('users', 'suspended', 'roles'));
+    }
+
+    /**
+     * Ordering key for the user roster: role bucket first (admins/superadmins →
+     * supervisors → tenants → roleless), then within the tenant bucket by floor +
+     * apartment so tenant users collate exactly like the active-tenants page
+     * (floor id zero-padded so Ground/G sorts before 1, 2, 3…; apartment number
+     * stays natural). Tenants without an apartment sort last via the max-id
+     * sentinel; non-tenants keep name order within their bucket.
+     */
+    private function userSortKey(User $user): string
+    {
+        $role = $user->roles->first()?->name;
+
+        $rank = match ($role) {
+            'superadmin', 'admin' => 0,
+            'supervisor' => 1,
+            'tenant' => 2,
+            default => 3,
+        };
+
+        $apartment = $role === 'tenant'
+            ? $user->tenants->whereIn('status', ['active', 'pending'])->first()?->apartment
+            : null;
+
+        return sprintf(
+            '%d|%020d|%s|%s',
+            $rank,
+            $apartment?->floor?->id ?? PHP_INT_MAX,
+            $apartment?->apartment_number ?? '~',
+            $user->name,
+        );
     }
 
     public function create(): View

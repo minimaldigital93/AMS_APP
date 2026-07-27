@@ -162,14 +162,20 @@ if (! function_exists('money_number')) {
     /**
      * Format a stored USD amount in the active display currency WITHOUT the
      * currency symbol (converted + thousand-separated). KHR is shown as whole
-     * riel by default; USD keeps 2 decimals. Use where the markup supplies its
-     * own symbol/sign, or for input value="" attributes.
+     * riel; USD shows 2 decimals only when the amount has cents (whole amounts
+     * drop the trailing .00). Pass an explicit $decimals to override. Use where
+     * the markup supplies its own symbol/sign, or for input value="" attributes.
      */
     function money_number(float|int|string|null $usd, ?int $decimals = null): string
     {
-        $decimals ??= currency_is_khr() ? 0 : 2;
+        $display = to_display_amount($usd);
 
-        return number_format(to_display_amount($usd), $decimals);
+        if ($decimals === null) {
+            // Whole amounts render without the trailing .00; cents keep 2 dp.
+            $decimals = currency_is_khr() || round($display * 100) % 100 === 0 ? 0 : 2;
+        }
+
+        return number_format($display, $decimals);
     }
 }
 

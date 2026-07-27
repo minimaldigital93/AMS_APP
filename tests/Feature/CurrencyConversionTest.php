@@ -13,11 +13,16 @@ beforeEach(function () {
     $this->actingAs($this->admin);
 });
 
-it('formats USD with the dollar symbol and 2 decimals by default', function () {
+it('formats USD with the dollar symbol, dropping .00 on whole amounts', function () {
     settings(['system_currency' => 'USD']);
 
-    expect(money(100))->toBe('$100.00');
-    expect(money_number(100))->toBe('100.00');
+    // Whole amounts render without the trailing .00...
+    expect(money(100))->toBe('$100');
+    expect(money_number(100))->toBe('100');
+    // ...but amounts with cents keep 2 decimals.
+    expect(money(100.5))->toBe('$100.50');
+    expect(money_number(99.99))->toBe('99.99');
+    // Input prefill always keeps a fixed 2 decimals for the number field.
     expect(money_input(100))->toBe('100.00');
     expect(to_base_amount(100))->toBe(100.0);
     expect(to_display_amount(100))->toBe(100.0);
