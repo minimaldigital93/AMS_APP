@@ -51,9 +51,9 @@
                 @if($floor['rooms']->isEmpty())
                     <p class="text-xs text-slate-300">{{ __('messages.no_data') }}</p>
                 @else
-                <div class="flex flex-wrap gap-2">
+                <div class="grid grid-cols-4 sm:grid-cols-8 gap-2">
                     @foreach($floor['rooms'] as $room)
-                    <span class="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md bg-white border border-slate-200 text-xs font-medium text-slate-600"
+                    <span class="inline-flex items-center justify-center gap-1.5 px-2.5 py-1.5 rounded-md bg-white border border-slate-200 text-xs font-medium text-slate-600"
                           title="{{ $room['number'] }} — {{ $room['occupied'] ? __('messages.occupied') : __('messages.available') }}">
                         <span class="w-2 h-2 rounded-full {{ $room['occupied'] ? 'bg-rose-500' : 'bg-emerald-500' }}"></span>
                         {{ $room['number'] }}
