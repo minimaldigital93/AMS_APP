@@ -230,7 +230,7 @@
                         ])->values();
                     @endphp
                     <tr x-show="isFloorOpen('{{ $floorId }}') && matchesFilter('{{ $bill['status'] }}', '{{ strtolower($bill['tenant']->name ?? '') }}', '{{ strtolower($bill['apartment']->apartment_number ?? '') }}')"
-                        class="hover:bg-gray-50 transition {{ $bill['status'] === 'overdue' ? 'bg-red-50/40' : ($bill['status'] === 'paid' ? 'bg-emerald-50/40' : ($isFutureMonth ? 'bg-sky-50/30' : '')) }}">
+                        class="hover:bg-gray-50 transition {{ $bill['status'] === 'overdue' ? 'bg-red-50/40' : ($bill['status'] === 'paid' ? 'bg-emerald-50/40' : (($isFutureMonth || ($bill['is_upcoming'] ?? false)) ? 'bg-sky-50/30' : '')) }}">
                         <td class="px-4 lg:px-6 py-4 whitespace-nowrap text-sm text-gray-600">{{ $rowNum++ }}</td>
                         <td class="px-4 lg:px-6 py-4">
                             <div class="flex items-center">
@@ -257,8 +257,10 @@
                                 <span class="inline-block px-2 py-1 text-xs font-semibold rounded-md bg-emerald-100 text-emerald-700">{{ __('messages.paid') }}</span>
                             @elseif($bill['status'] === 'overdue')
                                 <span class="inline-block px-2 py-1 text-xs font-semibold rounded-md bg-red-100 text-red-700">{{ __('messages.overdue') }}</span>
+                            @elseif($isFutureMonth || ($bill['is_upcoming'] ?? false))
+                                <span class="inline-block px-2 py-1 text-xs font-semibold rounded-md bg-sky-100 text-sky-700">{{ __('messages.upcoming') }}</span>
                             @else
-                                <span class="inline-block px-2 py-1 text-xs font-semibold rounded-md bg-amber-100 text-amber-700">{{ $isFutureMonth ? __('messages.upcoming') : __('messages.pending') }}</span>
+                                <span class="inline-block px-2 py-1 text-xs font-semibold rounded-md bg-amber-100 text-amber-700">{{ __('messages.pending') }}</span>
                             @endif
                         </td>
                         <td class="px-4 lg:px-6 py-4 whitespace-nowrap text-sm font-medium">
@@ -303,7 +305,7 @@
                 ])->values();
             @endphp
             <div x-show="isFloorOpen('{{ $floorId }}') && matchesFilter('{{ $bill['status'] }}', '{{ strtolower($bill['tenant']->name ?? '') }}', '{{ strtolower($bill['apartment']->apartment_number ?? '') }}')"
-                 class="flex items-center gap-3 px-4 py-3 active:bg-slate-50 transition {{ $bill['status'] === 'overdue' ? 'bg-red-50/40' : ($bill['status'] === 'paid' ? 'bg-emerald-50/40' : ($isFutureMonth ? 'bg-sky-50/30' : '')) }}">
+                 class="flex items-center gap-3 px-4 py-3 active:bg-slate-50 transition {{ $bill['status'] === 'overdue' ? 'bg-red-50/40' : ($bill['status'] === 'paid' ? 'bg-emerald-50/40' : (($isFutureMonth || ($bill['is_upcoming'] ?? false)) ? 'bg-sky-50/30' : '')) }}">
                 <span class="w-5 text-xs font-medium text-slate-400 text-center flex-shrink-0">{{ $mRowNum++ }}</span>
                 <div class="h-9 w-9 rounded-lg bg-sky-50 flex items-center justify-center flex-shrink-0">
                     <svg class="w-5 h-5 text-sky-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/></svg>
@@ -320,8 +322,10 @@
                         <span class="mt-0.5 px-1.5 py-0.5 text-[10px] font-semibold rounded bg-emerald-100 text-emerald-700">{{ __('messages.paid') }}</span>
                     @elseif($bill['status'] === 'overdue')
                         <span class="mt-0.5 px-1.5 py-0.5 text-[10px] font-semibold rounded bg-red-100 text-red-700">{{ __('messages.overdue') }}</span>
+                    @elseif($isFutureMonth || ($bill['is_upcoming'] ?? false))
+                        <span class="mt-0.5 px-1.5 py-0.5 text-[10px] font-semibold rounded bg-sky-100 text-sky-700">{{ __('messages.upcoming') }}</span>
                     @else
-                        <span class="mt-0.5 px-1.5 py-0.5 text-[10px] font-semibold rounded bg-amber-100 text-amber-700">{{ $isFutureMonth ? __('messages.upcoming') : __('messages.pending') }}</span>
+                        <span class="mt-0.5 px-1.5 py-0.5 text-[10px] font-semibold rounded bg-amber-100 text-amber-700">{{ __('messages.pending') }}</span>
                     @endif
                 </div>
                 <div class="flex items-center gap-1 flex-shrink-0">

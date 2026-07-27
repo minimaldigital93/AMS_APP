@@ -303,7 +303,7 @@ return [
     'notes' => 'Notes',
     'phone_number' => 'Phone number',
     'phone_must_be_english' => 'Phone number must be in English digits only.',
-    'tenant_must_be_18' => 'Tenant must be at least 18 years old.',
+    'tenant_must_be_18' => 'Tenant must be at least 16 years old.',
     'move_in_date_min' => 'Move-in date cannot be more than 3 days in the past.',
     'tenant_address' => 'Tenant address',
     'any_additional_notes' => 'Any additional notes',

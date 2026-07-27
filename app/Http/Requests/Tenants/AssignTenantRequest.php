@@ -53,9 +53,9 @@ class AssignTenantRequest extends FormRequest
 
     public function rules(): array
     {
-        // Same bounds as the tenant store flow: tenants are adults (18+)
+        // Same bounds as the tenant store flow: tenants are at least 16
         // and move-in can't be backdated more than a few days.
-        $minBirthDate = now()->subYears(18)->toDateString();
+        $minBirthDate = now()->subYears(16)->toDateString();
         $minMoveInDate = now()->subDays(3)->toDateString();
 
         $photoTypes = implode(',', self::PHOTO_TYPES);

@@ -47,6 +47,22 @@ it('assigns a new tenant to a vacant room: rental, occupied status, deposit inco
         ->and(\Illuminate\Support\Facades\Hash::check('12345678', $user->password))->toBeFalse();
 });
 
+it('books the deposit income in the move-in month, not the day it was entered', function () {
+    $moveIn = now()->addMonthNoOverflow()->startOfMonth()->toDateString(); // next month, still in the open period
+
+    $this->actingAs($this->admin)
+        ->post(route('admin.apartments.assignTenant', $this->vacant), assignPayload([
+            'phone' => '0975550001',
+            'move_in_date' => $moveIn,
+            'deposit' => 250,
+        ]))
+        ->assertRedirect(route('admin.floors.index'));
+
+    $deposit = Accounts::where('category', Accounts::CAT_DEPOSIT_INCOME)->sole();
+    expect($deposit->transaction_date->toDateString())->toBe($moveIn)
+        ->and((float) $deposit->amount)->toBe(250.0);
+});
+
 it('refuses to assign into an occupied room (no second rental)', function () {
     auth()->login($this->admin);
     $sitting = makeTenant($this->vacant);

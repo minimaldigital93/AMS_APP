@@ -279,7 +279,11 @@ class TenantAssignmentService
                 'category' => Accounts::CAT_DEPOSIT_INCOME,
                 'description' => 'Security deposit — Apt '.($apartment->apartment_number ?? 'N/A'),
                 'amount' => $deposit,
-                'transaction_date' => now()->toDateString(),
+                // Recognise the deposit in the tenant's move-in (assigned) month,
+                // not whenever the assignment happened to be entered. Reports
+                // bucket income by transaction_date, so a backdated/forward-dated
+                // move-in must carry the deposit into that month's books.
+                'transaction_date' => optional($rental->start_date)->toDateString() ?? now()->toDateString(),
                 'note' => 'Initial deposit collected on tenant assignment',
                 'reference_number' => $reference,
             ]

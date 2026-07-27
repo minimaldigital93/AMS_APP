@@ -132,7 +132,7 @@
                 <div>
                     <label for="date_of_birth" class="block text-xs font-medium text-slate-500 mb-1.5">{{ __('messages.date_of_birth') }} <span class="text-slate-300">({{ __('messages.optional') }})</span></label>
                     <input type="date" id="date_of_birth" name="date_of_birth" value="{{ old('date_of_birth') }}"
-                        max="{{ now()->subYears(18)->toDateString() }}"
+                        max="{{ now()->subYears(16)->toDateString() }}"
                         style="max-width:100%;box-sizing:border-box;"
                         class="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:ring-1 focus:ring-slate-400 focus:border-slate-400 bg-white {{ $errors->has('date_of_birth') ? 'border-red-400' : '' }}">
                     @error('date_of_birth')<p class="text-red-500 text-xs mt-1">{{ $message }}</p>@enderror
@@ -258,7 +258,7 @@ document.getElementById('tenantForm').addEventListener('submit', function (e) {
         return;
     }
 
-    // Date of birth must be 18 years or older.
+    // Date of birth must be 16 years or older.
     const dob = document.getElementById('date_of_birth').value;
     if (dob) {
         const maxDob = document.getElementById('date_of_birth').max;

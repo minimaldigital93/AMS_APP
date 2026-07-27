@@ -1,13 +1,13 @@
 @php
     $assignBase = $assignBase ?? url('/'.$panel.'/apartments');
     // Native date-picker bounds so every device only offers valid dates:
-    // tenants are 18+ (DOB no later than 18 years ago) and move-in can't be
+    // tenants are 16+ (DOB no later than 16 years ago) and move-in can't be
     // backdated more than a few days. Mirrors AssignTenantRequest.
     // iOS/iPadOS Safari only constrains the native date picker when BOTH min and
     // max are present — a single-bounded input is ignored there (desktop honours
     // it). So pair every bound with a sensible outer limit.
     $minBirthDate = now()->subYears(120)->toDateString();
-    $maxBirthDate = now()->subYears(18)->toDateString();
+    $maxBirthDate = now()->subYears(16)->toDateString();
     $minMoveInDate = now()->subDays(3)->toDateString();
     $maxMoveInDate = now()->addYears(5)->toDateString();
 @endphp

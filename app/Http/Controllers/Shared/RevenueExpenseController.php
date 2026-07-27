@@ -774,7 +774,17 @@ abstract class RevenueExpenseController extends Controller
                 $collected = $rental->payments->sum('amount');
                 $lateFees = $rental->payments->sum('late_fee');
                 $totalRentCollected += $collected + $lateFees;
-                $totalRentExpected += $rental->rent_amount;
+
+                // A tenancy that only begins in a later month isn't billable in
+                // the selected month — it's "upcoming". Such a rental must never
+                // read as overdue/pending, and its rent stays out of this
+                // month's expected/pending tallies. (start_date is date-cast.)
+                $selectedMonthEnd = $selectedDate->copy()->endOfMonth();
+                $notStartedYet = $rental->start_date && $rental->start_date->gt($selectedMonthEnd);
+
+                if (! $notStartedYet) {
+                    $totalRentExpected += $rental->rent_amount;
+                }
 
                 // Check if rent already paid this month
                 $paidThisMonth = $rental->payments
@@ -808,10 +818,18 @@ abstract class RevenueExpenseController extends Controller
                     $dueDate = Carbon::create($currentYear, $currentMonth, $dueDay)->endOfDay();
                 }
 
-                // Determine status
+                // Determine status. A not-yet-started tenancy is surfaced as
+                // "upcoming" (styled like a future month) rather than overdue —
+                // it stays in the pending bucket for filtering, but never counts
+                // as overdue and carries an is_upcoming flag for the badge.
+                $isUpcoming = false;
                 if ($paidThisMonth) {
                     $status = 'paid';
                     $paidCount++;
+                } elseif ($notStartedYet) {
+                    $status = 'pending';
+                    $isUpcoming = true;
+                    $pendingCount++;
                 } elseif ($referenceNow->gt($dueDate)) {
                     $status = 'overdue';
                     $overdueCount++;
@@ -830,18 +848,22 @@ abstract class RevenueExpenseController extends Controller
                 $fixedExpenses = $apartment->activeFixedExpenses ?? collect();
                 $totalFixed = $fixedExpenses->sum('amount');
 
-                // Total bill = rent + utilities + fixed expenses + late fee
-                $lateFeeAmount = (! $paidThisMonth && $referenceNow->gt($dueDate)) ? ($rental->payments->isEmpty() ? 0 : $lateFees) : 0;
+                // Total bill = rent + utilities + fixed expenses + late fee.
+                // A not-yet-started tenancy is never overdue, so no late fee.
+                $isOverdue = ! $notStartedYet && $referenceNow->gt($dueDate);
+                $lateFeeAmount = (! $paidThisMonth && $isOverdue) ? ($rental->payments->isEmpty() ? 0 : $lateFees) : 0;
                 $totalBill = $rental->rent_amount + $totalUtilities + $totalFixed;
 
                 // Suggested late fee to prefill on the checkout form: percent of
                 // rent per day past the due date. Editable by the collector.
-                $overdueDays = $referenceNow->gt($dueDate) ? $dueDate->diffInDays($referenceNow) : 0;
+                $overdueDays = $isOverdue ? $dueDate->diffInDays($referenceNow) : 0;
                 $suggestedLateFee = ($lateFeePercent > 0 && $overdueDays > 0 && ! $paidThisMonth)
                     ? round($rental->rent_amount * ($lateFeePercent / 100) * $overdueDays, 2)
                     : 0;
 
-                if (! $paidThisMonth) {
+                // Upcoming (not-yet-started) rent isn't part of this month's
+                // collectable expectation.
+                if (! $paidThisMonth && ! $notStartedYet) {
                     $totalPending += $totalBill;
                 }
 
@@ -854,6 +876,7 @@ abstract class RevenueExpenseController extends Controller
                     'due_day' => $dueDay,
                     'is_first_month' => $isFirstMonth,
                     'status' => $status,
+                    'is_upcoming' => $isUpcoming,
                     'paid_this_month' => $paidThisMonth,
                     'utilities' => $utilityCharges,
                     'total_utilities' => $totalUtilities,

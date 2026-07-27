@@ -260,7 +260,7 @@ class TenantController extends Controller
      */
     public function store(Request $request, AttachmentService $attachments): RedirectResponse
     {
-        $minBirthDate = now()->subYears(18)->toDateString();
+        $minBirthDate = now()->subYears(16)->toDateString();
         $minMoveInDate = now()->subDays(3)->toDateString();
 
         $validated = $request->validate([

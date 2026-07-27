@@ -163,6 +163,12 @@ class DashboardStatsService
         $paidCount = $pendingCount = $overdueCount = 0;
         $totalPendingAmount = 0.0;
 
+        // A tenancy that only begins after the reference month isn't billable
+        // yet — it must never read as overdue/pending. The monthly view already
+        // excludes it via the window below, but the full-period window reaches
+        // the period close, so guard on the reference month explicitly.
+        $referenceMonthEnd = $referenceMonth->copy()->endOfMonth();
+
         $activeRentals = $this->scopedRentalQuery()
             ->with(['payments' => fn ($pq) => $pq->where('payment_status', 'paid'), 'apartment'])
             ->where('start_date', '<=', $endDate)
@@ -172,6 +178,10 @@ class DashboardStatsService
             ->get();
 
         foreach ($activeRentals as $rental) {
+            if ($rental->start_date && Carbon::parse($rental->start_date)->gt($referenceMonthEnd)) {
+                continue;
+            }
+
             $paidThisMonth = $rental->payments
                 ->filter(fn ($p) => $p->payment_type === 'rent'
                     && Carbon::parse($p->paid_at)->month === $currentMonth
