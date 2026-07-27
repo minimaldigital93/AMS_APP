@@ -122,7 +122,7 @@
                                         @endif
 
                                         {{-- Stay duration (half-donut: monthly cycle progress, total stay in centre) --}}
-                                        @if(!empty($apt['stay_label']))
+                                        @if(!$isAvailable && !empty($apt['stay_label']))
                                             <div class="mt-1 flex flex-col items-center">
                                                 <x-stay-gauge
                                                     :percent="$apt['cycle_percent']"

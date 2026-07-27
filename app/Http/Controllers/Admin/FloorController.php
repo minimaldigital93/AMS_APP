@@ -120,7 +120,14 @@ class FloorController extends Controller
                 'name' => $floor->floor_name,
                 'apartments' => $floor->apartments->map(function ($apt) {
                     $tenant = $apt->tenants->first();
-                    $stay = $apt->rentals->first()?->stayProgress() ?? [];
+                    // Only surface stay progress for genuinely occupied units. A
+                    // moved-out tenant leaves a rental whose end_date is today/
+                    // future — still matched by active() — so gate on a present
+                    // tenant + occupied status, else a freed unit shows both the
+                    // assign button and a lingering progress gauge.
+                    $stay = ($tenant && $apt->status === 'occupied')
+                        ? ($apt->rentals->first()?->stayProgress() ?? [])
+                        : [];
 
                     return [
                         'id' => $apt->id,
