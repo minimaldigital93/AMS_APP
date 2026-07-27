@@ -21,8 +21,6 @@ use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Pagination\LengthAwarePaginator;
-use Illuminate\Pagination\Paginator;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -95,47 +93,35 @@ class TenantController extends Controller
             $query->where('tenants.status', $request->status);
         }
 
-        // In the consolidated "All properties" view, group tenants by property so
-        // each building stays contiguous — same ordering as Billing & Payment
-        // (property name → floor number → apartment number). Otherwise keep the
-        // newest-first ordering within the single active property.
-        if ($showingAll) {
-            $query->leftJoin('apartments', 'tenants.apartment_id', '=', 'apartments.id')
-                ->leftJoin('floors', 'apartments.floor_id', '=', 'floors.id')
-                ->leftJoin('properties', 'floors.property_id', '=', 'properties.id')
-                ->orderBy('properties.name')
-                ->orderBy('floors.floor_name')
-                ->orderBy('apartments.apartment_number')
-                ->orderBy('tenants.id', 'desc')
-                ->select('tenants.*');
-        } else {
-            $query->orderBy('tenants.id', 'desc');
-        }
+        // Fetch the full set (no pagination) so the floor grouping in the view
+        // stays intact — a paginated slice would split a floor across pages.
+        // Accounts are building-scale, so loading every active tenant is cheap.
+        $tenants = $query->orderBy('tenants.id', 'desc')->get();
+
+        // Group by property → floor → apartment so each building and floor stays
+        // contiguous and in natural order (Floor 2 before Floor 10). floor_name
+        // and apartment_number are free text, so sort in PHP with SORT_NATURAL
+        // instead of lexically at the DB. Tenants without an apartment (pending)
+        // sort last via the '~' sentinel.
+        $tenants = $tenants->sortBy(
+            fn ($t) => sprintf(
+                '%s|%s|%s',
+                $t->apartment?->floor?->property?->name ?? '~',
+                $t->apartment?->floor?->floor_name ?? '~',
+                $t->apartment?->apartment_number ?? '~',
+            ),
+            SORT_NATURAL | SORT_FLAG_CASE
+        )->values();
+
+        $rentProgressMap = $this->rentProgressCalculator->map($tenants);
 
         // Rent-progress filter (paid / overdue / unpaid). Progress is computed,
-        // not stored, so the filter has to run over the full scoped set and be
-        // paginated manually — paginating first would only ever filter the
-        // visible page (accounts are building-scale, so this stays cheap).
+        // not stored, so filter the already-loaded collection.
         $rentStatus = $request->input('rent_status');
         if (in_array($rentStatus, ['paid', 'overdue', 'unpaid'], true)) {
-            $all = $query->get();
-            $rentProgressMap = $this->rentProgressCalculator->map($all);
-            $filtered = $all->filter(
+            $tenants = $tenants->filter(
                 fn ($t) => ($rentProgressMap[$t->id]['status'] ?? 'unknown') === $rentStatus
             )->values();
-
-            $page = Paginator::resolveCurrentPage();
-            $tenants = new LengthAwarePaginator(
-                $filtered->forPage($page, 15)->values(),
-                $filtered->count(),
-                15,
-                $page,
-                ['path' => Paginator::resolveCurrentPath()],
-            );
-            $tenants->appends($request->query());
-        } else {
-            $tenants = $query->paginate(15)->withQueryString();
-            $rentProgressMap = $this->rentProgressCalculator->map($tenants);
         }
 
         // Statistics counts (across all records, not just current page), scoped to

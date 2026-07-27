@@ -70,7 +70,7 @@
         {{-- Tenants grouped by property, then into collapsible floor cards (styled like
              Billing & Payment's record_income). Each floor's "No." restarts at 1. --}}
         @php
-            $byProperty = collect($tenants->items())->groupBy(fn ($t) => $t->apartment?->floor?->property_id ?? 0);
+            $byProperty = collect($tenants)->groupBy(fn ($t) => $t->apartment?->floor?->property_id ?? 0);
             $multipleProperties = $showingAll && $byProperty->count() > 1;
         @endphp
         @if(count($tenants) > 0)
@@ -269,12 +269,6 @@
         <div class="bg-white rounded-xl border border-slate-100 p-8 text-center text-gray-500">{{ __('messages.no_tenants_found') }}</div>
         @endif
 
-        <!-- Pagination -->
-        @if($tenants->hasPages())
-        <div class="bg-white rounded-xl border border-slate-100 px-6 py-4">
-            {{ $tenants->withQueryString()->links() }}
-        </div>
-        @endif
 </div>
 
 <script>

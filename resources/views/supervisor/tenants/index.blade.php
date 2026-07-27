@@ -97,7 +97,7 @@
                             @php $rp = $rentProgressMap[$tenant->id] ?? null; $status = $rp['status'] ?? 'unknown'; @endphp
                             <tr x-show="matchesFilter('{{ $status }}','{{ strtolower($tenant->name ?? '') }}','{{ strtolower($tenant->apartment?->apartment_number ?? '') }}','{{ $rp['cycle_percent'] ?? 0 }}')" class="hover:bg-gray-50 transition">
                                 <td class="px-4 py-4 whitespace-nowrap text-sm text-gray-600">
-                                    {{ $tenants->firstItem() ? $tenants->firstItem() + $loop->index : $loop->iteration }}
+                                    {{ $loop->iteration }}
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap">
                                     <div class="flex items-center">
@@ -231,12 +231,6 @@
                 @endforelse
             </div>
 
-            <!-- Pagination -->
-            @if($tenants->hasPages())
-            <div class="bg-white px-6 py-4 border-t border-gray-200">
-                {{ $tenants->withQueryString()->links() }}
-            </div>
-            @endif
         </div>
 </div>
 

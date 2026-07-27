@@ -21,8 +21,6 @@ use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Pagination\LengthAwarePaginator;
-use Illuminate\Pagination\Paginator;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -116,31 +114,31 @@ class TenantController extends Controller
             });
         }
 
-        $query->orderBy('id', 'desc');
+        // Fetch the full set (no pagination); accounts are building-scale, so
+        // loading every active tenant is cheap and keeps the floor order intact.
+        $tenants = $query->orderBy('id', 'desc')->get();
+
+        // Sort by floor → apartment in natural order (Floor 2 before Floor 10).
+        // floor_name/apartment_number are free text, so sort in PHP with
+        // SORT_NATURAL. Tenants without an apartment (pending) sort last.
+        $tenants = $tenants->sortBy(
+            fn ($t) => sprintf(
+                '%s|%s',
+                $t->apartment?->floor?->floor_name ?? '~',
+                $t->apartment?->apartment_number ?? '~',
+            ),
+            SORT_NATURAL | SORT_FLAG_CASE
+        )->values();
+
+        $rentProgressMap = $this->rentProgressCalculator->map($tenants, $activePeriod);
 
         // Rent-progress filter (paid / overdue / unpaid) — same shape as the
-        // admin twin: progress is computed, not stored, so filter the full
-        // scoped set and paginate manually.
+        // admin twin: progress is computed, not stored, so filter the loaded set.
         $rentStatus = $request->input('rent_status');
         if (in_array($rentStatus, ['paid', 'overdue', 'unpaid'], true)) {
-            $all = $query->get();
-            $rentProgressMap = $this->rentProgressCalculator->map($all, $activePeriod);
-            $filtered = $all->filter(
+            $tenants = $tenants->filter(
                 fn ($t) => ($rentProgressMap[$t->id]['status'] ?? 'unknown') === $rentStatus
             )->values();
-
-            $page = Paginator::resolveCurrentPage();
-            $tenants = new LengthAwarePaginator(
-                $filtered->forPage($page, 15)->values(),
-                $filtered->count(),
-                15,
-                $page,
-                ['path' => Paginator::resolveCurrentPath()],
-            );
-            $tenants->appends($request->query());
-        } else {
-            $tenants = $query->paginate(15)->withQueryString();
-            $rentProgressMap = $this->rentProgressCalculator->map($tenants, $activePeriod);
         }
 
         $apartments = $this->supervisorVisibleApartments()->forActiveProperty()->with('floor')->get();
