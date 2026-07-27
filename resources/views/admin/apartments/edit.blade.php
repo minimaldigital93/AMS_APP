@@ -9,8 +9,10 @@
         <div>
             <h1 class="text-2xl font-semibold text-slate-800 tracking-tight">{{ __('messages.edit_apartment') }}</h1>
         </div>
-        <a href="{{ route('admin.floors.index') }}" class="text-slate-400 hover:text-slate-600 text-sm font-medium py-2 px-4 rounded-lg border border-slate-200 hover:border-slate-300 transition">
-            Back to Rooms
+        <a href="{{ route('admin.floors.index') }}" title="{{ __('messages.back') }}" aria-label="{{ __('messages.back') }}" class="inline-flex items-center justify-center w-9 h-9 text-slate-400 hover:text-slate-600 rounded-lg border border-slate-200 hover:border-slate-300 transition">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7" />
+            </svg>
         </a>
     </div>
 

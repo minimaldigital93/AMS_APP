@@ -288,8 +288,6 @@
                     @foreach($floor->apartments as $apartment)
                         @php
                             $mTenant = $apartment->tenants->sortByDesc('id')->first();
-                            $mRental = $mTenant ? $apartment->rentals->where('tenant_id', $mTenant->id)->sortByDesc('id')->first() : null;
-                            $mRent = (float) ($mRental->rent_amount ?? $apartment->monthly_rent ?? 0);
                             $mSupervisor = ($mTenant?->manager ?? null) ?? $apartment->supervisor;
                             $mStatusText = match($apartment->status) {
                                 'available' => 'text-emerald-600',
@@ -303,13 +301,25 @@
                             };
                         @endphp
                         <div class="p-4">
-                            <div class="flex items-start justify-between gap-3">
-                                <div class="flex items-center gap-2 min-w-0">
+                            <div class="flex items-center gap-3">
+                                <div class="flex flex-1 items-center gap-2 min-w-0">
                                     <span class="w-1.5 h-1.5 rounded-full {{ $mStatusBg }} flex-shrink-0"></span>
-                                    <span class="text-base font-semibold text-slate-800">{{ $apartment->apartment_number }}</span>
-                                    <span class="inline-flex items-center gap-1.5 text-[11px] font-medium {{ $mStatusText }}">{{ status_label($apartment->status) }}</span>
+                                    <span class="text-base font-semibold text-slate-800 flex-shrink-0">{{ $apartment->apartment_number }}</span>
+                                    <span class="text-[11px] font-medium {{ $mStatusText }} truncate">{{ status_label($apartment->status) }}</span>
                                 </div>
-                                <span class="text-sm font-semibold text-slate-700 flex-shrink-0">{{ money($mRent) }}</span>
+                                <div class="flex items-center gap-1 flex-shrink-0">
+                                    @if(!$mTenant || $mTenant->status !== 'active')
+                                    <button type="button"
+                                            data-apartment-id="{{ $apartment->id }}"
+                                            data-apartment-number="{{ $apartment->apartment_number }}"
+                                            class="assign-tenant-btn inline-flex items-center justify-center h-9 w-9 rounded-lg text-emerald-600 bg-emerald-50 active:bg-emerald-100 transition" title="{{ __('messages.assign_tenant') }}">
+                                        <svg class="w-[18px] h-[18px]" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" /></svg>
+                                    </button>
+                                    @endif
+                                    <a href="{{ route('admin.apartments.edit', $apartment->id) }}" class="inline-flex items-center justify-center h-9 w-9 rounded-lg text-sky-600 bg-sky-50 active:bg-sky-100 transition" title="{{ __('messages.edit_apartment') }}">
+                                        <svg class="w-[18px] h-[18px]" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125" /></svg>
+                                    </a>
+                                </div>
                             </div>
 
                             <div class="mt-3">
@@ -330,26 +340,11 @@
                                 @endif
                             </div>
 
-                            <div class="mt-3 flex items-center justify-between gap-3">
-                                <div class="text-xs text-slate-400 truncate">
-                                    @if($mSupervisor)
-                                        <span class="text-slate-300">{{ __('messages.supervisor') }}:</span> {{ $mSupervisor->name }}
-                                    @endif
-                                </div>
-                                <div class="flex items-center gap-1 flex-shrink-0">
-                                    @if(!$mTenant || $mTenant->status !== 'active')
-                                    <button type="button"
-                                            data-apartment-id="{{ $apartment->id }}"
-                                            data-apartment-number="{{ $apartment->apartment_number }}"
-                                            class="assign-tenant-btn inline-flex items-center justify-center h-9 w-9 rounded-lg text-emerald-600 bg-emerald-50 active:bg-emerald-100 transition" title="{{ __('messages.assign_tenant') }}">
-                                        <svg class="w-[18px] h-[18px]" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" /></svg>
-                                    </button>
-                                    @endif
-                                    <a href="{{ route('admin.apartments.edit', $apartment->id) }}" class="inline-flex items-center justify-center h-9 w-9 rounded-lg text-sky-600 bg-sky-50 active:bg-sky-100 transition" title="{{ __('messages.edit_apartment') }}">
-                                        <svg class="w-[18px] h-[18px]" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125" /></svg>
-                                    </a>
-                                </div>
+                            @if($mSupervisor)
+                            <div class="mt-2 text-xs text-slate-400 truncate">
+                                <span class="text-slate-300">{{ __('messages.supervisor') }}:</span> {{ $mSupervisor->name }}
                             </div>
+                            @endif
                         </div>
                     @endforeach
                 </div>
