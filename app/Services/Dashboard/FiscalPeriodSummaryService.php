@@ -116,7 +116,14 @@ class FiscalPeriodSummaryService
      */
     private function scopedAccountsQuery(FiscalPeriods $period): Builder
     {
-        $query = Accounts::where('fiscal_period_id', $period->id);
+        // Cumulative "period so far" figures recognise revenue/expense only once
+        // its transaction_date has actually arrived — a forward-dated entry (e.g.
+        // a deposit for a tenant who moves in next month) must not inflate the
+        // current period total until that day. Explicit month navigation is
+        // handled elsewhere and stays uncapped so a future month can still be
+        // previewed.
+        $query = Accounts::where('fiscal_period_id', $period->id)
+            ->whereDate('transaction_date', '<=', now());
 
         if ($this->apartmentIds === null) {
             $query->where('user_id', $this->userId);
