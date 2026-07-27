@@ -225,6 +225,7 @@ return [
     'floor_name' => 'Floor Name',
     'add_floor' => 'Add Floor',
     'edit_floor' => 'Edit Floor',
+    'select_floor_to_edit' => 'Select a floor to edit',
     'delete_floor' => 'Delete Floor',
     'confirm_delete_floor' => 'Are you sure you want to delete :name? This action cannot be undone. The floor must be empty (no rooms) first.',
     // Apartments

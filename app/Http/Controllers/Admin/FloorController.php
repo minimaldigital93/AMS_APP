@@ -83,11 +83,19 @@ class FloorController extends Controller
             ['path' => LengthAwarePaginator::resolveCurrentPath(), 'query' => $request->query()]
         );
 
+        // Lightweight list of every floor (not just the current page) that powers
+        // the universal "Edit floor" selector in the header.
+        $allFloors = $sortedFloors->map(fn ($floor) => [
+            'id' => $floor->id,
+            'name' => $floor->floor_name,
+            'property' => $floor->property?->name,
+        ])->values();
+
         // Unassigned active tenants power the "Existing Tenant" tab of the shared
         // assign-tenant modal embedded on this page.
         $availableTenants = Tenants::where('status', 'active')->whereNull('apartment_id')->get();
 
-        return view('admin.floors.index', compact('floors', 'showingAll', 'properties', 'selectedPropertyId', 'availableTenants'));
+        return view('admin.floors.index', compact('floors', 'showingAll', 'properties', 'selectedPropertyId', 'availableTenants', 'allFloors'));
     }
 
     public function create(): View
@@ -163,7 +171,27 @@ class FloorController extends Controller
         $floor->load('apartments');
         $properties = Property::orderBy('name')->get();
 
-        return view('admin.floors.edit', compact('floor', 'properties'));
+        // Lightweight list of floors powering the "which floor to edit" selector
+        // at the top of the page. Scoped to the globally active property (top-bar
+        // selection) so the picker only offers floors of the building being viewed
+        // — falling back to every floor when "All properties" is selected, matching
+        // the index list. Grouped by property, then ordered by floor id (creation
+        // order) so Ground/G sorts before 1, 2, 3… — matching the active-tenants
+        // view. Sorting on the free-text floor_name would push "G" after the
+        // numbered floors, so it's the id (zero-padded for SORT_NATURAL) we
+        // collate on.
+        $allFloors = Floors::forActiveProperty()->with('property')->get()
+            ->sortBy(
+                fn ($f) => sprintf('%s|%020d', $f->property?->name ?? '~', $f->id),
+                SORT_NATURAL | SORT_FLAG_CASE
+            )
+            ->map(fn ($f) => [
+                'id' => $f->id,
+                'name' => $f->floor_name,
+                'property' => $f->property?->name,
+            ])->values();
+
+        return view('admin.floors.edit', compact('floor', 'properties', 'allFloors'));
     }
 
     public function store(Request $request)

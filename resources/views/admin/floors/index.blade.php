@@ -13,6 +13,17 @@
             <h1 class="text-2xl font-semibold text-slate-800 tracking-tight">{{ __('messages.floors_and_rooms') }}</h1>
         </div>
         <div class="flex items-center gap-2">
+            <!-- "Edit floor" — routes to the edit page where the specific floor is chosen -->
+            @if($allFloors->isNotEmpty())
+            <a href="{{ route('admin.floors.edit', $allFloors->first()['id']) }}"
+               class="inline-flex items-center justify-center bg-white border border-slate-200 hover:border-slate-300 text-slate-700 p-2.5 rounded-lg transition"
+               title="{{ __('messages.edit_floor') }}">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125" />
+                </svg>
+            </a>
+            @endif
+
             <a href="{{ route('admin.floors.create') }}" class="inline-flex items-center gap-2 bg-slate-800 hover:bg-slate-700 text-white text-sm font-medium py-2.5 px-5 rounded-lg transition" title="{{ __('messages.add_floor') }}">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" />
@@ -64,19 +75,10 @@
                         </div>
                     </div>
 
-                    <!-- Floor actions grouped next to the dropdown arrow -->
+                    <!-- Floor editing is handled by the universal "Edit floor"
+                         selector in the header; per-floor edit icons removed. -->
                     <div class="flex items-center gap-1">
-                            <!-- Edit only (delete moved into the floor edit page to prevent accidental deletion) -->
-                            <div class="flex items-center gap-1" onclick="event.stopPropagation()">
-                                <a href="{{ route('admin.floors.edit', $floor) }}"
-                                   class="text-sky-600 hover:text-sky-700 p-2 rounded-lg bg-sky-50/20 hover:bg-sky-50/40 transition" title="{{ __('messages.edit_floor') }}">
-                                    <svg class="w-[18px] h-[18px]" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125" />
-                                    </svg>
-                                </a>
-                            </div>
-
-                            <!-- Dropdown arrow (kept outside stopPropagation so it still toggles) -->
+                            <!-- Dropdown arrow (toggles the rooms list) -->
                             <svg class="w-4 h-4 text-slate-400 group-open:rotate-90 transition-transform flex-shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7" />
                             </svg>

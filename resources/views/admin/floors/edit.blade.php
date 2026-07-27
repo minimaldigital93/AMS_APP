@@ -16,6 +16,21 @@
         </a>
     </div>
 
+    <!-- Floor selector: pick which floor to edit; navigating loads that floor's form -->
+    @if($allFloors->count() > 1)
+    <div class="bg-white rounded-xl border border-slate-100 p-4">
+        <label for="floorPicker" class="block text-xs font-medium text-slate-500 mb-1.5 uppercase tracking-wide">{{ __('messages.select_floor_to_edit') }}</label>
+        <select id="floorPicker" onchange="if(this.value) window.location.href = this.value"
+                class="w-full px-3.5 py-2 text-sm border border-slate-200 rounded-lg bg-slate-50/50 focus:outline-none focus:ring-2 focus:ring-slate-300 transition">
+            @foreach($allFloors as $f)
+            <option value="{{ route('admin.floors.edit', $f['id']) }}" @selected($f['id'] === $floor->id)>
+                {{ $f['name'] }}@if($f['property']) — {{ $f['property'] }}@endif
+            </option>
+            @endforeach
+        </select>
+    </div>
+    @endif
+
     <!-- Errors -->
     @if ($errors->any())
     <div class="bg-red-50 border border-red-100 rounded-lg px-4 py-3 text-red-600 text-sm">
