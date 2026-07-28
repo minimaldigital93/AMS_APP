@@ -79,7 +79,7 @@
                         @if($isMaintenance)
                         <span class="material-icons text-[12px] leading-none text-slate-400">handyman</span>
                         @else
-                        <span class="w-2 h-2 rounded-full {{ $room['occupied'] ? 'bg-sky-400' : 'bg-emerald-500' }}"></span>
+                        <span class="w-2 h-2 shrink-0 rounded-full {{ $room['occupied'] ? 'bg-sky-400' : 'bg-emerald-500' }}"></span>
                         @endif
                         {{ $room['number'] }}
                     </span>
