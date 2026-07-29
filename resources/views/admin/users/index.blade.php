@@ -3,7 +3,7 @@
 @section('title', __('messages.user_management_title'))
 
 @section('content')
-<div class="space-y-6">
+<div class="max-w-6xl mx-auto space-y-8">
     <!-- Header -->
     <div class="flex items-center justify-between gap-3" x-data="{ searchOpen: false }">
         <h1 class="text-2xl font-semibold text-slate-800 tracking-tight">{{ __('messages.user_management_title') }}</h1>
@@ -34,6 +34,62 @@
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" />
                 </svg></a>
+        </div>
+    </div>
+
+    <!-- Summary Cards -->
+    <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
+        <div class="bg-white rounded-xl border border-slate-100 p-5 sm:p-6 summary-card" data-card="neutral">
+            <div class="flex items-center">
+                <div class="p-3 rounded-full bg-indigo-50">
+                    <svg class="w-6 h-6 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                    </svg>
+                </div>
+                <div class="ml-4">
+                    <p class="text-slate-500 text-sm">{{ __('messages.admins') }}</p>
+                    <p class="text-2xl font-bold text-slate-800">{{ $adminCount }}</p>
+                </div>
+            </div>
+        </div>
+        <div class="bg-white rounded-xl border border-slate-100 p-5 sm:p-6 summary-card" data-card="deposits">
+            <div class="flex items-center">
+                <div class="p-3 rounded-full bg-sky-50">
+                    <svg class="w-6 h-6 text-sky-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 11c0-1.657 1.343-3 3-3s3 1.343 3 3v1M6 11c0-1.657 1.343-3 3-3s3 1.343 3 3M17 20h5v-2a3 3 0 00-4.356-2.68M3 20h5v-2a3 3 0 013-3h2"></path>
+                    </svg>
+                </div>
+                <div class="ml-4">
+                    <p class="text-slate-500 text-sm">{{ __('messages.supervisors') }}</p>
+                    <p class="text-2xl font-bold text-slate-800">{{ $supervisorCount }}</p>
+                </div>
+            </div>
+        </div>
+        <div class="bg-white rounded-xl border border-slate-100 p-5 sm:p-6 summary-card" data-card="revenue">
+            <div class="flex items-center">
+                <div class="p-3 rounded-full bg-emerald-50">
+                    <svg class="w-6 h-6 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.856-1.487M15 10a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                    </svg>
+                </div>
+                <div class="ml-4">
+                    <p class="text-slate-500 text-sm">{{ __('messages.tenants') }}</p>
+                    <p class="text-2xl font-bold text-slate-800">{{ $tenantCount }}</p>
+                </div>
+            </div>
+        </div>
+        <div class="bg-white rounded-xl border border-slate-100 p-5 sm:p-6 summary-card" data-card="warning">
+            <div class="flex items-center">
+                <div class="p-3 rounded-full bg-amber-50">
+                    <svg class="w-6 h-6 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"></path>
+                    </svg>
+                </div>
+                <div class="ml-4">
+                    <p class="text-slate-500 text-sm">{{ __('messages.suspended') }}</p>
+                    <p class="text-2xl font-bold text-slate-800">{{ $suspendedCount }}</p>
+                </div>
+            </div>
         </div>
     </div>
 

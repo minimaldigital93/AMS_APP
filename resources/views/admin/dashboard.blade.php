@@ -224,7 +224,8 @@
     @if($fiscalData['has_active_period'] && !$isFullPeriod)
     <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
         <a href="{{ route('admin.revenue_expense.record_income', ['month' => $displayMonth->month, 'year' => $displayMonth->year, 'filter' => 'paid']) }}"
-            class="bg-white border border-slate-200 rounded-xl p-4 flex items-center justify-between hover:border-emerald-300 hover:shadow-sm transition">
+            data-card="paid"
+            class="summary-card bg-white border border-slate-200 rounded-xl p-4 flex items-center justify-between hover:border-emerald-300 hover:shadow-sm transition">
             <div>
                 <p class="flex items-center gap-2 text-sm font-medium text-slate-600">
                     <span class="p-1.5 rounded-full bg-emerald-50 inline-flex items-center justify-center">
@@ -249,7 +250,8 @@
         </a>
 
         <a href="{{ route('admin.revenue_expense.record_income', ['month' => $displayMonth->month, 'year' => $displayMonth->year, 'filter' => 'pending']) }}"
-            class="bg-white border border-slate-200 rounded-xl p-4 flex items-center justify-between hover:border-amber-300 hover:shadow-sm transition">
+            data-card="pending"
+            class="summary-card bg-white border border-slate-200 rounded-xl p-4 flex items-center justify-between hover:border-amber-300 hover:shadow-sm transition">
             <div>
                 <p class="flex items-center gap-2 text-sm font-medium text-slate-600">
                     <span class="p-1.5 rounded-full bg-amber-50 inline-flex items-center justify-center">
@@ -267,7 +269,8 @@
         </a>
 
         <a href="{{ route('admin.revenue_expense.record_income', ['month' => $displayMonth->month, 'year' => $displayMonth->year, 'filter' => 'overdue']) }}"
-            class="bg-white border border-slate-200 rounded-xl p-4 flex items-center justify-between hover:border-red-300 hover:shadow-sm transition">
+            data-card="overdue"
+            class="summary-card bg-white border border-slate-200 rounded-xl p-4 flex items-center justify-between hover:border-red-300 hover:shadow-sm transition">
             <div>
                 <p class="flex items-center gap-2 text-sm font-medium text-slate-600">
                     <span class="p-1.5 rounded-full bg-red-50 inline-flex items-center justify-center">

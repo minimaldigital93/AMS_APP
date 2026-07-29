@@ -21,7 +21,7 @@
 
 {{-- Popup overlay --}}
 <div x-cloak x-show="showFloorPeek"
-     class="fixed inset-0 z-50 flex items-center justify-center p-4"
+     class="fixed inset-0 z-50 flex items-center justify-center p-6 sm:p-4"
      x-transition.opacity>
     {{-- backdrop --}}
     <div class="absolute inset-0 bg-slate-900/40" @click="showFloorPeek = false"></div>
@@ -30,23 +30,22 @@
          @click.stop @keydown.escape.window="showFloorPeek = false">
 
         {{-- Header --}}
-        <div class="sticky top-0 bg-white/95 backdrop-blur px-6 py-4 border-b border-slate-100 flex items-center justify-between gap-4">
-            <div class="flex items-center gap-3">
-                <h3 class="text-sm font-semibold text-slate-800">{{ __('messages.floor_quick_view') }}</h3>
-                <span class="inline-flex items-center gap-1.5 text-xs text-slate-500">
-                    <span class="w-2 h-2 rounded-full bg-emerald-500"></span>{{ __('messages.available') }}
-                    <span class="w-2 h-2 rounded-full bg-sky-400 ml-2.5"></span>{{ __('messages.occupied') }}
-                    <span class="w-2 h-2 rounded-full bg-slate-400 ml-2.5"></span>{{ __('messages.maintenance_short') }}
+        <div class="sticky top-0 bg-white/95 backdrop-blur px-5 sm:px-6 py-4 border-b border-slate-100 flex items-center justify-center gap-4">
+            <div class="flex items-center justify-center gap-3">
+                <span class="inline-flex flex-wrap items-center justify-center gap-x-2 gap-y-1 text-xs text-slate-500">
+                    <span class="w-2 h-2 rounded-full bg-emerald-500 mr-0.5"></span>{{ __('messages.available') }}
+                    <span class="w-2 h-2 rounded-full bg-sky-400 ml-2.5 mr-0.5"></span>{{ __('messages.occupied') }}
+                    <span class="w-2 h-2 rounded-full bg-slate-400 ml-2.5 mr-0.5"></span>{{ __('messages.maintenance_short') }}
                 </span>
             </div>
             <button type="button" @click="showFloorPeek = false"
-                    class="opacity-60 hover:opacity-100 transition" aria-label="{{ __('messages.close') }}">
+                    class="absolute right-4 top-4 opacity-60 hover:opacity-100 transition" aria-label="{{ __('messages.close') }}">
                 <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"/></svg>
             </button>
         </div>
 
         {{-- Body --}}
-        <div class="px-6 py-5 space-y-5">
+        <div class="px-5 sm:px-6 py-5 space-y-5">
             @forelse($floorPlan as $floor)
             <div class="rounded-xl bg-slate-50/60 border border-slate-100 px-4 py-3.5">
                 <div class="flex items-center justify-between mb-3">

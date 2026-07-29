@@ -93,7 +93,18 @@ class UserController extends Controller
 
         $roles = Role::whereIn('name', self::ASSIGNABLE_ROLES)->get();
 
-        return view('admin.users.index', compact('users', 'suspended', 'roles'));
+        // Summary card counts (active roster grouped by role bucket, plus the
+        // separate suspended list). Uses the already-loaded collections so no
+        // extra queries are fired.
+        $adminCount = $active->filter(fn (User $u) => $u->hasAnyRole(['admin', 'superadmin']))->count();
+        $supervisorCount = $active->filter(fn (User $u) => $u->hasRole('supervisor'))->count();
+        $tenantCount = $active->filter(fn (User $u) => $u->hasRole('tenant'))->count();
+        $suspendedCount = $suspended->count();
+
+        return view('admin.users.index', compact(
+            'users', 'suspended', 'roles',
+            'adminCount', 'supervisorCount', 'tenantCount', 'suspendedCount',
+        ));
     }
 
     /**

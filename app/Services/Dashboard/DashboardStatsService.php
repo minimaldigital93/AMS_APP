@@ -133,7 +133,7 @@ class DashboardStatsService
             ],
             'floor_labels' => $floorLabels,
             'floor_occupancy' => $floorOccupancy,
-            'tenants_on_leave' => $this->tenantsOnLeaveCount(),
+            'tenants_on_leave' => $this->tenantsOnLeaveCount($startDate, $endDate),
         ];
     }
 
@@ -318,9 +318,15 @@ class DashboardStatsService
         return (float) $query->sum('amount');
     }
 
-    private function tenantsOnLeaveCount(): int
+    /**
+     * Count tenants who left within the viewed window (by leave_date), so the
+     * dashboard reports "this month's leaves" rather than every leave on record.
+     */
+    private function tenantsOnLeaveCount(Carbon $startDate, Carbon $endDate): int
     {
-        $query = TenantLeave::query()->forProperty($this->propertyId);
+        $query = TenantLeave::query()
+            ->forProperty($this->propertyId)
+            ->whereBetween('leave_date', [$startDate->copy()->startOfDay(), $endDate->copy()->endOfDay()]);
         if ($this->apartmentIds !== null) {
             $query->whereIn('apartment_id', $this->apartmentIds);
         }

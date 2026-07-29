@@ -1064,6 +1064,11 @@ body.ams-themed {
 [data-theme="aurora"] .summary-card[data-card="deposits"]  { --kpi-from: #0EA5E9; --kpi-to: #38BDF8; --kpi-glow: rgba(2,132,199,0.50); }
 [data-theme="aurora"] .summary-card[data-card="warning"]   { --kpi-from: #F59E0B; --kpi-to: #FBBF24; --kpi-glow: rgba(180,83,9,0.50); }
 [data-theme="aurora"] .summary-card[data-card="neutral"]   { --kpi-from: #6366F1; --kpi-to: #818CF8; --kpi-glow: rgba(49,46,129,0.55); }
+/* Payment-status quick-view cards (paid / pending / overdue) opt into the KPI
+   treatment with their own vivid gradients. */
+[data-theme="aurora"] .summary-card[data-card="paid"]    { --kpi-from: #14B8A6; --kpi-to: #5EEAD4; --kpi-glow: rgba(13,148,136,0.50); }
+[data-theme="aurora"] .summary-card[data-card="pending"] { --kpi-from: #F97316; --kpi-to: #FDBA74; --kpi-glow: rgba(194,65,12,0.50); }
+[data-theme="aurora"] .summary-card[data-card="overdue"] { --kpi-from: #EC4899; --kpi-to: #F9A8D4; --kpi-glow: rgba(190,24,93,0.50); }
 
 [data-theme="aurora"] .summary-card.bg-white:is(.rounded-lg, .rounded-xl, .rounded-2xl) {
     position: relative;
@@ -1155,6 +1160,14 @@ body.ams-themed {
 [data-theme="aurora"] .nav-link.active,
 [data-theme="aurora"] .submenu-item.active,
 [data-theme="aurora"] .section-header {
+    color: #FFFFFF;
+}
+/* Section labels (Property Management … Settings) hardcode #374151 on their
+   inner .section-title span in the sidebar's own <style>, so the .section-header
+   colour above can't reach them — dark grey on the indigo rail, unreadable.
+   Repaint them (and their hover) like the Dashboard nav label: full white. */
+[data-theme="aurora"] .section-title,
+[data-theme="aurora"] .section-header:hover .section-title {
     color: #FFFFFF;
 }
 
