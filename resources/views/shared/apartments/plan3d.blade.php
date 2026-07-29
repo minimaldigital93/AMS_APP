@@ -27,24 +27,22 @@
             <p class="text-xs text-slate-400 font-medium">{{ __('messages.floors') }}</p>
             <p class="text-2xl font-bold text-slate-800">{{ $summary['floors'] }}</p>
         </div>
-        <div class="bg-white rounded-xl border border-slate-100 p-4 summary-card" data-card="deposits">
-            <p class="text-xs text-slate-400 font-medium">{{ __('messages.total_units') }}</p>
-            <p class="text-2xl font-bold text-slate-800">{{ $summary['total'] }}</p>
+        {{-- Occupied is shown against the rentable total (occupied/total) so the
+             two figures read as one ratio instead of two cards the user has to
+             divide in their head. --}}
+        <div class="bg-white rounded-xl border border-slate-100 p-4 summary-card" data-card="occupancy">
+            <p class="text-xs text-slate-400 font-medium">{{ __('messages.occupied') }} / {{ __('messages.total_units') }}</p>
+            <p class="text-2xl font-bold text-slate-800">{{ $summary['occupied'] }}<span class="text-slate-400 font-semibold">/{{ $summary['total'] }}</span></p>
         </div>
         <div class="bg-white rounded-xl border border-slate-100 p-4 summary-card" data-card="revenue">
             <p class="text-xs text-slate-400 font-medium">{{ __('messages.available') }}</p>
             <p class="text-2xl font-bold text-slate-800">{{ $summary['available'] }}</p>
         </div>
-        <div class="bg-white rounded-xl border border-slate-100 p-4 summary-card" data-card="occupancy">
-            <p class="text-xs text-slate-400 font-medium">{{ __('messages.occupied') }}</p>
-            <p class="text-2xl font-bold text-slate-800">{{ $summary['occupied'] }}</p>
-        </div>
-        @if(($summary['maintenance'] ?? 0) > 0)
+        {{-- Always rendered (even at zero) to keep the row at exactly four cards. --}}
         <div class="bg-white rounded-xl border border-slate-100 p-4 summary-card" data-card="warning">
             <p class="text-xs text-slate-400 font-medium">{{ __('messages.maintenance_mode') }}</p>
             <p class="text-2xl font-bold text-slate-500">{{ $summary['maintenance'] }}</p>
         </div>
-        @endif
     </div>
 
     @if($summary['floors'] === 0)
@@ -77,7 +75,10 @@
                     $floorOccupied = $rentableApts->where('status', 'occupied')->count();
                     $floorRate = $floorTotal > 0 ? round(($floorOccupied / $floorTotal) * 100) : 0;
                 @endphp
-                <div x-data="{ open: {{ $loop->first ? 'true' : 'false' }} }" class="bg-white rounded-2xl border border-slate-100 overflow-hidden">
+                {{-- Every floor starts collapsed on first load — the header row
+                     already carries the occupancy figures, so the page opens as a
+                     scannable list rather than one expanded floor. --}}
+                <div x-data="{ open: false }" class="bg-white rounded-2xl border border-slate-100 overflow-hidden">
                     {{-- Dropdown header --}}
                     <button type="button" @click="open = !open"
                             class="w-full px-5 py-3 border-b border-slate-100 bg-slate-50/60 text-left hover:bg-slate-100/60 transition">
