@@ -1113,6 +1113,18 @@ body.ams-themed {
 [data-theme="aurora"] .summary-card [class*="bg-"]:is(.rounded-full, .rounded-lg).overflow-hidden > * {
     background-color: #FFFFFF;
 }
+/* Expandable KPI cards (Record Expense) keep their breakdown INSIDE the card.
+   Those pastel tiles would read as pale rectangles stamped on the gradient —
+   and the rule above has already turned their text white — so each inner panel
+   becomes a glass tile instead. Icon chips (:has(> svg)) and progress tracks
+   (.overflow-hidden) have their own rules above and are excluded here. */
+[data-theme="aurora"] .summary-card [class*="bg-"]:is(.rounded-lg, .rounded-xl, .rounded-2xl):not(.overflow-hidden):not(:has(> svg)) {
+    background-color: rgba(255,255,255,0.16);
+}
+/* Panel outlines and inner dividers, same treatment. */
+[data-theme="aurora"] .summary-card [class*="border-"] {
+    border-color: rgba(255,255,255,0.22);
+}
 [data-theme="aurora"] .summary-card svg { color: #FFFFFF; }
 
 /* On paper the gradient is dropped by the browser but the white text is not —
@@ -1129,6 +1141,10 @@ body.ams-themed {
     }
     [data-theme="aurora"] .summary-card.bg-white:is(.rounded-lg, .rounded-xl, .rounded-2xl)::after {
         display: none !important;
+    }
+    /* Glass panels/dividers would be white-on-white on paper. */
+    [data-theme="aurora"] .summary-card [class*="border-"] {
+        border-color: #E2E8F0 !important;
     }
 }
 

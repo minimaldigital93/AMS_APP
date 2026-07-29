@@ -161,7 +161,7 @@
     @endphp
     <div class="grid grid-cols-2 md:grid-cols-3 gap-3 md:gap-4">
         <div x-data="{ expanded: false }" @click="expanded = !expanded"
-            class="bg-white rounded-xl border border-emerald-100 p-4 md:p-5 cursor-pointer transition hover:shadow-sm">
+            class="bg-white rounded-xl border border-emerald-100 p-4 md:p-5 cursor-pointer transition hover:shadow-sm summary-card" data-card="revenue">
             <div class="flex flex-col items-start gap-2 md:flex-row md:items-center md:gap-3 mb-3">
                 <div class="w-10 h-10 rounded-lg bg-emerald-50 flex items-center justify-center flex-shrink-0">
                     <svg class="w-5 h-5 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
@@ -209,7 +209,7 @@
         </div>
 
         <div x-data="{ expanded: false }" @click="expanded = !expanded"
-            class="bg-white rounded-xl border border-slate-100 p-4 md:p-5 cursor-pointer transition hover:shadow-sm">
+            class="bg-white rounded-xl border border-slate-100 p-4 md:p-5 cursor-pointer transition hover:shadow-sm summary-card" data-card="expenses">
             <div class="flex flex-col items-start gap-2 md:flex-row md:items-center md:gap-3 mb-3">
                 <div class="w-10 h-10 rounded-lg bg-orange-50 flex items-center justify-center flex-shrink-0">
                     <svg class="w-5 h-5 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5"/></svg>
@@ -231,7 +231,8 @@
         </div>
 
         <div x-data="{ expanded: false }" @click="expanded = !expanded"
-            class="bg-white rounded-xl border {{ $expenseNet >= 0 ? 'border-emerald-100' : 'border-orange-100' }} p-4 md:p-5 cursor-pointer transition hover:shadow-sm">
+            class="bg-white rounded-xl border {{ $expenseNet >= 0 ? 'border-emerald-100' : 'border-orange-100' }} p-4 md:p-5 cursor-pointer transition hover:shadow-sm summary-card"
+            data-card="{{ $expenseNet >= 0 ? 'netprofit' : 'warning' }}">
             <div class="flex flex-col items-start gap-2 md:flex-row md:items-center md:gap-3 mb-3">
                 <div class="w-10 h-10 rounded-lg {{ $expenseNet >= 0 ? 'bg-emerald-50' : 'bg-orange-50' }} flex items-center justify-center flex-shrink-0">
                     <svg class="w-5 h-5 {{ $expenseNet >= 0 ? 'text-emerald-600' : 'text-orange-600' }}" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>

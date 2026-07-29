@@ -70,7 +70,7 @@
 
     <!-- Summary Cards -->
     <div class="grid grid-cols-2 md:grid-cols-3 gap-3 md:gap-4">
-        <div class="bg-white rounded-xl border border-slate-100 p-5">
+        <div class="bg-white rounded-xl border border-slate-100 p-5 summary-card" data-card="revenue">
             <div class="flex items-center gap-3">
                 <div class="w-10 h-10 rounded-lg bg-emerald-50 flex items-center justify-center">
                     <svg class="w-5 h-5 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
@@ -82,7 +82,7 @@
             </div>
             <p class="text-[11px] text-slate-400 mt-2">{{ __('messages.tenants_paid', ['count' => $paidCount]) }}</p>
         </div>
-        <div class="bg-white rounded-xl border border-slate-100 p-5">
+        <div class="bg-white rounded-xl border border-slate-100 p-5 summary-card" data-card="warning">
             <div class="flex items-center gap-3">
                 <div class="w-10 h-10 rounded-lg bg-amber-50 flex items-center justify-center">
                     <svg class="w-5 h-5 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
@@ -95,7 +95,7 @@
             <p class="text-[11px] text-slate-400 mt-2">{{ __('messages.n_pending', ['count' => $pendingCount]) }}</p>
         </div>
         @if($isFutureMonth)
-        <div class="bg-white rounded-xl border border-slate-100 p-5">
+        <div class="bg-white rounded-xl border border-slate-100 p-5 summary-card" data-card="deposits">
             <div class="flex items-center gap-3">
                 <div class="w-10 h-10 rounded-lg bg-sky-50 flex items-center justify-center">
                     <svg class="w-5 h-5 text-sky-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
@@ -108,7 +108,7 @@
             <p class="text-[11px] text-slate-400 mt-2">{{ __('messages.scheduled_for') }} {{ $selectedDate->format('F') }}</p>
         </div>
         @else
-        <div class="bg-white rounded-xl border border-slate-100 p-5">
+        <div class="bg-white rounded-xl border border-slate-100 p-5 summary-card" data-card="expenses">
             <div class="flex items-center gap-3">
                 <div class="w-10 h-10 rounded-lg bg-red-50 flex items-center justify-center">
                     <svg class="w-5 h-5 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z"/></svg>
