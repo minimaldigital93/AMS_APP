@@ -224,9 +224,16 @@
     @if($fiscalData['has_active_period'] && !$isFullPeriod)
     <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
         <a href="{{ route('admin.revenue_expense.record_income', ['month' => $displayMonth->month, 'year' => $displayMonth->year, 'filter' => 'paid']) }}"
-            data-card="paid"
-            class="summary-card bg-white border border-slate-200 rounded-xl p-4 flex items-center justify-between hover:border-emerald-300 hover:shadow-sm transition">
-            <div>
+            class="group relative overflow-hidden bg-gradient-to-br from-white to-emerald-50 border border-slate-200 rounded-xl p-4 flex items-center justify-between hover:border-emerald-300 hover:shadow-sm transition">
+            <span class="pointer-events-none absolute top-2 right-6 w-16 h-16 rounded-full bg-emerald-200/40 transition-transform duration-500 group-hover:scale-110"></span>
+            <span class="pointer-events-none absolute -top-3 right-24 w-10 h-10 rounded-full bg-emerald-300/30 transition-transform duration-500 group-hover:scale-110"></span>
+            <span class="pointer-events-none absolute top-10 right-2 w-8 h-8 rounded-full bg-emerald-200/40"></span>
+            <span class="pointer-events-none absolute bottom-2 right-16 w-12 h-12 rounded-full bg-emerald-300/25 transition-transform duration-500 group-hover:scale-110"></span>
+            <span class="pointer-events-none absolute -bottom-4 right-4 w-14 h-14 rounded-full bg-emerald-200/35"></span>
+            <span class="pointer-events-none absolute bottom-3 left-4 w-6 h-6 rounded-full bg-emerald-300/30"></span>
+            <span class="pointer-events-none absolute top-1 left-1/2 w-5 h-5 rounded-full bg-emerald-200/40"></span>
+            <span class="pointer-events-none absolute bottom-9 right-28 w-4 h-4 rounded-full bg-emerald-300/30"></span>
+            <div class="relative">
                 <p class="flex items-center gap-2 text-sm font-medium text-slate-600">
                     <span class="p-1.5 rounded-full bg-emerald-50 inline-flex items-center justify-center">
                         <svg class="w-4 h-4 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
@@ -250,9 +257,16 @@
         </a>
 
         <a href="{{ route('admin.revenue_expense.record_income', ['month' => $displayMonth->month, 'year' => $displayMonth->year, 'filter' => 'pending']) }}"
-            data-card="pending"
-            class="summary-card bg-white border border-slate-200 rounded-xl p-4 flex items-center justify-between hover:border-amber-300 hover:shadow-sm transition">
-            <div>
+            class="group relative overflow-hidden bg-gradient-to-br from-white to-amber-50 border border-slate-200 rounded-xl p-4 flex items-center justify-between hover:border-amber-300 hover:shadow-sm transition">
+            <span class="pointer-events-none absolute top-2 right-6 w-16 h-16 rounded-full bg-amber-200/40 transition-transform duration-500 group-hover:scale-110"></span>
+            <span class="pointer-events-none absolute -top-3 right-24 w-10 h-10 rounded-full bg-amber-300/30 transition-transform duration-500 group-hover:scale-110"></span>
+            <span class="pointer-events-none absolute top-10 right-2 w-8 h-8 rounded-full bg-amber-200/40"></span>
+            <span class="pointer-events-none absolute bottom-2 right-16 w-12 h-12 rounded-full bg-amber-300/25 transition-transform duration-500 group-hover:scale-110"></span>
+            <span class="pointer-events-none absolute -bottom-4 right-4 w-14 h-14 rounded-full bg-amber-200/35"></span>
+            <span class="pointer-events-none absolute bottom-3 left-4 w-6 h-6 rounded-full bg-amber-300/30"></span>
+            <span class="pointer-events-none absolute top-1 left-1/2 w-5 h-5 rounded-full bg-amber-200/40"></span>
+            <span class="pointer-events-none absolute bottom-9 right-28 w-4 h-4 rounded-full bg-amber-300/30"></span>
+            <div class="relative">
                 <p class="flex items-center gap-2 text-sm font-medium text-slate-600">
                     <span class="p-1.5 rounded-full bg-amber-50 inline-flex items-center justify-center">
                         <svg class="w-4 h-4 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
@@ -269,9 +283,16 @@
         </a>
 
         <a href="{{ route('admin.revenue_expense.record_income', ['month' => $displayMonth->month, 'year' => $displayMonth->year, 'filter' => 'overdue']) }}"
-            data-card="overdue"
-            class="summary-card bg-white border border-slate-200 rounded-xl p-4 flex items-center justify-between hover:border-red-300 hover:shadow-sm transition">
-            <div>
+            class="group relative overflow-hidden bg-gradient-to-br from-white to-rose-50 border border-slate-200 rounded-xl p-4 flex items-center justify-between hover:border-red-300 hover:shadow-sm transition">
+            <span class="pointer-events-none absolute top-2 right-6 w-16 h-16 rounded-full bg-rose-200/40 transition-transform duration-500 group-hover:scale-110"></span>
+            <span class="pointer-events-none absolute -top-3 right-24 w-10 h-10 rounded-full bg-rose-300/30 transition-transform duration-500 group-hover:scale-110"></span>
+            <span class="pointer-events-none absolute top-10 right-2 w-8 h-8 rounded-full bg-rose-200/40"></span>
+            <span class="pointer-events-none absolute bottom-2 right-16 w-12 h-12 rounded-full bg-rose-300/25 transition-transform duration-500 group-hover:scale-110"></span>
+            <span class="pointer-events-none absolute -bottom-4 right-4 w-14 h-14 rounded-full bg-rose-200/35"></span>
+            <span class="pointer-events-none absolute bottom-3 left-4 w-6 h-6 rounded-full bg-rose-300/30"></span>
+            <span class="pointer-events-none absolute top-1 left-1/2 w-5 h-5 rounded-full bg-rose-200/40"></span>
+            <span class="pointer-events-none absolute bottom-9 right-28 w-4 h-4 rounded-full bg-rose-300/30"></span>
+            <div class="relative">
                 <p class="flex items-center gap-2 text-sm font-medium text-slate-600">
                     <span class="p-1.5 rounded-full bg-red-50 inline-flex items-center justify-center">
                         <svg class="w-4 h-4 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
