@@ -107,25 +107,25 @@
 
     {{-- Balance Flow --}}
     <div class="grid grid-cols-2 md:grid-cols-5 gap-3 mb-6">
-        <div class="bg-white rounded-lg shadow p-4 text-center">
+        <div class="bg-white rounded-lg shadow p-4 text-center summary-card" data-card="neutral">
             <p class="text-xs text-gray-500">{{ __('messages.opening') }}</p>
             <p class="text-lg font-bold mt-1">{{ money($openingBalance) }}</p>
         </div>
-        <div class="bg-white rounded-lg shadow p-4 text-center">
+        <div class="bg-white rounded-lg shadow p-4 text-center summary-card" data-card="revenue">
             <p class="text-xs text-gray-500">{{ __('messages.income') }}</p>
             <p class="text-lg font-bold text-green-600 mt-1">+{{ money($financials['total_income']) }}</p>
         </div>
-        <div class="bg-white rounded-lg shadow p-4 text-center">
+        <div class="bg-white rounded-lg shadow p-4 text-center summary-card" data-card="expenses">
             <p class="text-xs text-gray-500">{{ __('messages.expenses_word') }}</p>
             <p class="text-lg font-bold text-red-600 mt-1">-{{ money($financials['total_expenses']) }}</p>
         </div>
-        <div class="bg-white rounded-lg shadow p-4 text-center">
+        <div class="bg-white rounded-lg shadow p-4 text-center summary-card" data-card="netprofit">
             <p class="text-xs text-gray-500">{{ __('messages.net') }}</p>
             <p class="text-lg font-bold {{ $financials['net_income'] >= 0 ? 'text-green-600' : 'text-red-600' }} mt-1">
                 {{ $financials['net_income'] >= 0 ? '+' : '' }}{{ money($financials['net_income']) }}
             </p>
         </div>
-        <div class="bg-white rounded-lg shadow p-4 text-center">
+        <div class="bg-white rounded-lg shadow p-4 text-center summary-card" data-card="deposits">
             <p class="text-xs text-gray-500">{{ __('messages.closing') }}</p>
             <p class="text-lg font-bold mt-1">
                 @if($closingIsFirm)

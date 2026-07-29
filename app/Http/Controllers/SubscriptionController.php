@@ -6,6 +6,7 @@ use App\Exceptions\KhqrPlatformCredentialsMissingException;
 use App\Models\KhqrPayment;
 use App\Models\Plan;
 use App\Models\Subscription;
+use App\Models\Theme;
 use App\Models\User;
 use App\Services\RevenueExpense\KhqrPaymentService;
 use App\Services\Subscription\SubscriptionService;
@@ -154,6 +155,10 @@ class SubscriptionController extends Controller
             'phone' => $validated['phone'],
             'password' => Hash::make($validated['password']),
             'status' => $status,
+            // A new row already carries the signup theme (User::$attributes);
+            // a taken-over legacy row may predate it, so fill the gap without
+            // clobbering a theme someone actually picked.
+            'theme' => $user->theme ?: Theme::SIGNUP_SLUG,
         ])->save();
 
         // An account owner points at itself.

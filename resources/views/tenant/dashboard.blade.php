@@ -88,17 +88,17 @@
     {{-- Apartment & Payment Stats --}}
     @if($rental)
     <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-        <div class="bg-white rounded-xl border border-slate-100 shadow-sm p-4 sm:p-5">
+        <div class="bg-white rounded-xl border border-slate-100 shadow-sm p-4 sm:p-5 summary-card" data-card="neutral">
             <p class="text-xs text-gray-400 uppercase">{{ __('messages.apartment') }}</p>
             <p class="text-lg font-bold text-indigo-700 mt-1 truncate">{{ $rental->apartment->apartment_number ?? '—' }}</p>
             <p class="text-xs text-gray-400 mt-0.5 truncate">{{ $rental->apartment->floor?->floor_name ?? '' }}</p>
         </div>
-        <div class="bg-white rounded-xl border border-slate-100 shadow-sm p-4 sm:p-5">
+        <div class="bg-white rounded-xl border border-slate-100 shadow-sm p-4 sm:p-5 summary-card" data-card="netprofit">
             <p class="text-xs text-gray-400 uppercase">{{ __('messages.monthly_rent') }}</p>
             <p class="text-lg font-bold text-gray-900 mt-1">{{ money($paymentStats['this_month_total']) }}</p>
             <p class="text-xs text-gray-400 mt-0.5">{{ __('messages.current_period') }}</p>
         </div>
-        <div class="bg-white rounded-xl border border-slate-100 shadow-sm p-4 sm:p-5">
+        <div class="bg-white rounded-xl border border-slate-100 shadow-sm p-4 sm:p-5 summary-card" data-card="revenue">
             <p class="text-xs text-gray-400 uppercase">{{ __('messages.paid_this_month') }}</p>
             <p class="text-lg font-bold mt-1
                 {{ $paymentStats['this_month_status'] === 'paid' ? 'text-green-600' : ($paymentStats['this_month_status'] === 'partial' ? 'text-yellow-600' : 'text-red-500') }}">
@@ -112,7 +112,7 @@
             </div>
             <p class="text-xs text-gray-400 mt-1">{{ __('messages.percent_of_rent', ['percent' => $paymentStats['this_month_percent']]) }}</p>
         </div>
-        <div class="bg-white rounded-xl border border-slate-100 shadow-sm p-4 sm:p-5">
+        <div class="bg-white rounded-xl border border-slate-100 shadow-sm p-4 sm:p-5 summary-card" data-card="deposits">
             <p class="text-xs text-gray-400 uppercase">{{ __('messages.all_time_paid') }}</p>
             <p class="text-lg font-bold text-gray-900 mt-1">{{ money($paymentStats['all_time_paid']) }}</p>
             <p class="text-xs text-gray-400 mt-0.5">{{ __('messages.total_payments') }}</p>

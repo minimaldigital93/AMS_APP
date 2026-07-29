@@ -119,7 +119,7 @@
 
      {{-- Summary Cards  --}}
     <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
-        <div class="bg-white rounded-xl border border-slate-100 p-5">
+        <div class="bg-white rounded-xl border border-slate-100 p-5 summary-card" data-card="revenue">
             <div class="flex items-center gap-3">
                 <div class="w-10 h-10 rounded-lg bg-emerald-50 flex items-center justify-center">
                     <svg class="w-5 h-5 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
@@ -131,7 +131,7 @@
             </div>
             <p class="text-[11px] text-slate-400 mt-2">{{ $income['payment_count'] }} payment{{ $income['payment_count'] !== 1 ? 's' : '' }}</p>
         </div>
-        <div class="bg-white rounded-xl border border-slate-100 p-5">
+        <div class="bg-white rounded-xl border border-slate-100 p-5 summary-card" data-card="expenses">
             <div class="flex items-center gap-3">
                 <div class="w-10 h-10 rounded-lg bg-red-50 flex items-center justify-center">
                     <svg class="w-5 h-5 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 17h8m0 0V9m0 8l-8-8-4 4-6-6"/></svg>
@@ -143,7 +143,7 @@
             </div>
             <p class="text-[11px] text-slate-400 mt-2">{{ $expenses['expense_count'] }} transaction{{ $expenses['expense_count'] !== 1 ? 's' : '' }}</p>
         </div>
-        <div class="bg-white rounded-xl border border-slate-100 p-5">
+        <div class="bg-white rounded-xl border border-slate-100 p-5 summary-card" data-card="netprofit">
             <div class="flex items-center gap-3">
                 <div class="w-10 h-10 rounded-lg {{ $summary['net_profit'] >= 0 ? 'bg-sky-50' : 'bg-orange-50' }} flex items-center justify-center">
                     <svg class="w-5 h-5 {{ $summary['net_profit'] >= 0 ? 'text-sky-600' : 'text-orange-600' }}" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
@@ -162,7 +162,7 @@
             $deposit_refunds = $expenses['deposit_expenses'] ?? 0;
             $deposit_net = $deposit_income - $deposit_refunds;
         @endphp
-        <div class="bg-white rounded-xl border border-slate-100 p-5">
+        <div class="bg-white rounded-xl border border-slate-100 p-5 summary-card" data-card="deposits">
             <div class="flex items-center gap-3">
                 <div class="w-10 h-10 rounded-lg bg-purple-50 flex items-center justify-center">
                     <svg class="w-5 h-5 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/></svg>
@@ -345,15 +345,15 @@
 
         {{-- Income Summary Row --}}
         <div class="grid grid-cols-3 gap-4 mb-4">
-            <div class="bg-white rounded-xl border border-slate-100 p-5">
+            <div class="bg-white rounded-xl border border-slate-100 p-5 summary-card" data-card="neutral">
                 <p class="text-xs text-slate-400 font-medium">{{ __('messages.expected_rent') }}</p>
                 <p class="text-xl font-bold text-sky-600 mt-1">{{ money($totalRentExpected) }}</p>
             </div>
-            <div class="bg-white rounded-xl border border-slate-100 p-5">
+            <div class="bg-white rounded-xl border border-slate-100 p-5 summary-card" data-card="revenue">
                 <p class="text-xs text-slate-400 font-medium">{{ __('messages.collected') }}</p>
                 <p class="text-xl font-bold text-emerald-600 mt-1">{{ money($totalRentCollected) }}</p>
             </div>
-            <div class="bg-white rounded-xl border border-slate-100 p-5">
+            <div class="bg-white rounded-xl border border-slate-100 p-5 summary-card" data-card="netprofit">
                 <p class="text-xs text-slate-400 font-medium">{{ __('messages.collection_rate') }}</p>
                 <p class="text-xl font-bold {{ $totalRentCollected >= $totalRentExpected ? 'text-emerald-600' : 'text-orange-600' }} mt-1">
                     {{ $totalRentExpected > 0 ? round(($totalRentCollected / $totalRentExpected) * 100, 1) : 0 }}%
@@ -908,19 +908,19 @@
 
         {{-- Key Metrics --}}
         <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
-            <div class="bg-white rounded-xl border border-slate-100 p-5">
+            <div class="bg-white rounded-xl border border-slate-100 p-5 summary-card" data-card="neutral">
                 <p class="text-xs text-slate-400 font-medium">{{ __('messages.total_apartments') }}</p>
                 <p class="text-xl font-bold text-sky-600 mt-1">{{ $total_apartments }}</p>
             </div>
-            <div class="bg-white rounded-xl border border-slate-100 p-5">
+            <div class="bg-white rounded-xl border border-slate-100 p-5 summary-card" data-card="revenue">
                 <p class="text-xs text-slate-400 font-medium">{{ __('messages.avg_rent_unit') }}</p>
                 <p class="text-xl font-bold text-emerald-600 mt-1">{{ money($avg_rent_per_apartment) }}</p>
             </div>
-            <div class="bg-white rounded-xl border border-slate-100 p-5">
+            <div class="bg-white rounded-xl border border-slate-100 p-5 summary-card" data-card="occupancy">
                 <p class="text-xs text-slate-400 font-medium">{{ __('messages.occupancy') }}</p>
                 <p class="text-xl font-bold text-purple-600 mt-1">{{ $current_occupancy }}/{{ $total_apartments }}</p>
             </div>
-            <div class="bg-white rounded-xl border border-slate-100 p-5">
+            <div class="bg-white rounded-xl border border-slate-100 p-5 summary-card" data-card="warning">
                 <p class="text-xs text-slate-400 font-medium">{{ __('messages.status') }}</p>
                 <p class="text-lg font-bold mt-1 {{ $is_above_break_even ? 'text-emerald-600' : 'text-red-600' }}">
                     {{ $is_above_break_even ? '✓ ABOVE' : '✗ BELOW' }} Break-Even

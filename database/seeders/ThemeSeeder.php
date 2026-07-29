@@ -348,6 +348,53 @@ class ThemeSeeder extends Seeder
                 ],
             ),
 
+            // ============================================================
+            //  THEME 10 — AURORA
+            //  Government/enterprise dashboard look: soft aurora canvas,
+            //  deep indigo nav rail, and vivid full-bleed gradient summary
+            //  cards (white numerals on colour). The gradients themselves
+            //  live in theme.css under [data-theme="aurora"] — a token map
+            //  can't express a four-way per-card gradient set.
+            // ============================================================
+            $this->theme(
+                slug: 'aurora',
+                name: 'Aurora',
+                description: 'Vivid gradient summary cards on a soft aurora canvas with a deep indigo nav rail.',
+                mode: 'light',
+                background: 'linear-gradient(160deg, #F7F8FE 0%, #EFF2FC 48%, #F8F4FE 100%)',
+                sidebar: 'linear-gradient(180deg, #2E3192 0%, #3A3FA8 55%, #4B4FC0 100%)',
+                topbar: '#FFFFFF',
+                card: '#FFFFFF',
+                textPrimary: '#161A33',
+                textSecondary: '#6B7392',
+                accent: '#4F46E5',
+                accentContrast: '#FFFFFF',
+                border: 'rgba(79,70,229,0.10)',
+                hover: 'rgba(79,70,229,0.06)',
+                active: 'rgba(79,70,229,0.10)',
+                ring: 'rgba(79,70,229,0.28)',
+                shadow: '0 10px 30px -12px rgba(49,46,129,0.22)',
+                sortOrder: 88,
+                extra: [
+                    '--radius' => '20px',
+                    '--radius-sm' => '14px',
+                    '--radius-lg' => '26px',
+                    '--shadow-lg' => '0 20px 48px -16px rgba(49,46,129,0.32)',
+                    // Deep indigo rail — light text/dividers, pale indigo indicator.
+                    // Muted sits nearly at full white on purpose: on this rail
+                    // every nav label reads like the active one.
+                    '--sidebar-text' => '#FFFFFF',
+                    '--sidebar-text-muted' => 'rgba(255,255,255,0.95)',
+                    '--sidebar-hover' => 'rgba(255,255,255,0.10)',
+                    '--sidebar-active' => 'rgba(255,255,255,0.16)',
+                    '--sidebar-border' => 'rgba(255,255,255,0.14)',
+                    '--sidebar-accent' => '#C7D2FE',
+                    // Solid swatches for the picker thumbnails (tokens are gradients).
+                    '__preview_background' => '#EFF2FC',
+                    '__preview_sidebar' => '#3A3FA8',
+                ],
+            ),
+
             $this->theme(
                 slug: 'bento',
                 name: 'Bento Grid',
@@ -409,7 +456,7 @@ class ThemeSeeder extends Seeder
             'is_active' => true,
             'preview' => [
                 'background' => $extra['__preview_background'] ?? $background,
-                'sidebar' => $sidebar,
+                'sidebar' => $extra['__preview_sidebar'] ?? $sidebar,
                 'card' => $card,
                 'primary' => $textPrimary,
                 'accent' => $textSecondary,

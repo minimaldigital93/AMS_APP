@@ -295,15 +295,15 @@
 
     {{-- Summary Cards --}}
     <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-6">
-        <div class="bg-white rounded-xl shadow border border-gray-100 p-5 text-center">
+        <div class="bg-white rounded-xl shadow border border-gray-100 p-5 text-center summary-card" data-card="revenue">
             <p class="text-sm text-gray-500">{{ __('messages.total_revenue') }}</p>
             <p class="text-2xl font-bold text-green-700 mt-1">{{ money($totalRevenue) }}</p>
         </div>
-        <div class="bg-white rounded-xl shadow border border-gray-100 p-5 text-center">
+        <div class="bg-white rounded-xl shadow border border-gray-100 p-5 text-center summary-card" data-card="expenses">
             <p class="text-sm text-gray-500">{{ __('messages.total_expenses') }}</p>
             <p class="text-2xl font-bold text-red-600 mt-1">{{ money($totalExpenses) }}</p>
         </div>
-        <div class="bg-white rounded-xl shadow border border-gray-100 p-5 text-center {{ $netIncome >= 0 ? '' : 'ring-2 ring-red-200' }}">
+        <div class="bg-white rounded-xl shadow border border-gray-100 p-5 text-center summary-card {{ $netIncome >= 0 ? '' : 'ring-2 ring-red-200' }}" data-card="netprofit">
             <p class="text-sm text-gray-500">{{ __('messages.net_income') }}</p>
             <p class="text-2xl font-bold {{ $netIncome >= 0 ? 'text-green-700' : 'text-red-600' }} mt-1">
                 {{ $netIncome >= 0 ? '' : '-' }}{{ money(abs($netIncome)) }}

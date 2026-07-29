@@ -26,7 +26,7 @@
 
         <!-- Statistics Section -->
         <div class="grid grid-cols-2 gap-4 sm:gap-6">
-            <div class="bg-white rounded-xl border border-slate-100 p-5 sm:p-6">
+            <div class="bg-white rounded-xl border border-slate-100 p-5 sm:p-6 summary-card" data-card="neutral">
                 <div class="flex items-center">
                     <div class="p-3 rounded-full bg-slate-50">
                         <svg class="w-6 h-6 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -39,7 +39,7 @@
                     </div>
                 </div>
             </div>
-            <div class="bg-white rounded-xl border border-slate-100 p-5 sm:p-6">
+            <div class="bg-white rounded-xl border border-slate-100 p-5 sm:p-6 summary-card" data-card="warning">
                 <div class="flex items-center">
                     <div class="p-3 rounded-full bg-slate-50">
                         <svg class="w-6 h-6 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">

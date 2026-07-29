@@ -1021,6 +1021,134 @@ body.ams-themed {
 [data-theme="midnight"] input::placeholder,
 [data-theme="midnight"] textarea::placeholder { color: var(--text-secondary); opacity: 0.75; }
 
+/* ───────────────────────── THEME 10 · AURORA ───────────────────────────────
+   Government/enterprise dashboard look. The token map already paints the
+   aurora canvas and the deep indigo rail; what a token can't express is the
+   thing that defines this theme — the KPI row rendered as vivid full-bleed
+   gradient cards with white numerals, one hue per metric.
+
+   Everything here is SURFACE ONLY (background, text colour, icon chip) — no
+   markup, padding or layout changes, exactly like the card bridge above. The
+   selectors carry `.bg-white.rounded-xl` so they out-specify that bridge,
+   which would otherwise repaint these cards white. */
+
+/* Soft aurora blooms behind the canvas gradient (fixed, so they don't scroll
+   away on long pages). */
+[data-theme="aurora"] body.ams-themed {
+    background-attachment: fixed;
+    background-image:
+        radial-gradient(52rem 30rem at 12% -8%, rgba(99,102,241,0.14), transparent 60%),
+        radial-gradient(46rem 28rem at 88% 4%, rgba(139,92,246,0.12), transparent 62%),
+        linear-gradient(160deg, #F7F8FE 0%, #EFF2FC 48%, #F8F4FE 100%);
+}
+
+/* --- Summary / KPI cards → vivid gradients -------------------------------
+   Every KPI card in the app carries `.summary-card`, so the treatment is not
+   dashboard-only: Billing & Payment, Break-even, the tenant lists, the fiscal
+   period sheets and the tenant portal all opt in with the same class.
+
+   The hue comes from `data-card`, which only sets three custom properties —
+   the painting rule below is written once. Pages use different radii
+   (rounded-lg / -xl / -2xl), hence the :is() list; it also lifts the selector
+   to 0-4-0 so it out-ranks the card bridge, which would repaint them white. */
+[data-theme="aurora"] {
+    /* Fallback hue for a summary card with no (or an unknown) data-card. */
+    --kpi-from: #6366F1;
+    --kpi-to: #818CF8;
+    --kpi-glow: rgba(49,46,129,0.55);
+}
+[data-theme="aurora"] .summary-card[data-card="revenue"]   { --kpi-from: #10B981; --kpi-to: #4ADE80; --kpi-glow: rgba(5,150,105,0.55); }
+[data-theme="aurora"] .summary-card[data-card="expenses"]  { --kpi-from: #E11D48; --kpi-to: #FB7185; --kpi-glow: rgba(190,18,60,0.50); }
+[data-theme="aurora"] .summary-card[data-card="netprofit"] { --kpi-from: #3B82F6; --kpi-to: #60C5F5; --kpi-glow: rgba(29,78,216,0.50); }
+[data-theme="aurora"] .summary-card[data-card="occupancy"] { --kpi-from: #8B5CF6; --kpi-to: #C084FC; --kpi-glow: rgba(109,40,217,0.50); }
+[data-theme="aurora"] .summary-card[data-card="deposits"]  { --kpi-from: #0EA5E9; --kpi-to: #38BDF8; --kpi-glow: rgba(2,132,199,0.50); }
+[data-theme="aurora"] .summary-card[data-card="warning"]   { --kpi-from: #F59E0B; --kpi-to: #FBBF24; --kpi-glow: rgba(180,83,9,0.50); }
+[data-theme="aurora"] .summary-card[data-card="neutral"]   { --kpi-from: #6366F1; --kpi-to: #818CF8; --kpi-glow: rgba(49,46,129,0.55); }
+
+[data-theme="aurora"] .summary-card.bg-white:is(.rounded-lg, .rounded-xl, .rounded-2xl) {
+    position: relative;
+    overflow: hidden;
+    border-color: transparent;
+    background-image: linear-gradient(135deg, var(--kpi-from) 0%, var(--kpi-to) 100%);
+    box-shadow: 0 12px 28px -14px var(--kpi-glow);
+}
+/* Decorative corner bloom (the soft disc in the card's top-right). */
+[data-theme="aurora"] .summary-card.bg-white:is(.rounded-lg, .rounded-xl, .rounded-2xl)::after {
+    content: '';
+    position: absolute;
+    top: -35%;
+    right: -12%;
+    width: 11rem;
+    height: 11rem;
+    border-radius: 9999px;
+    background: rgba(255,255,255,0.13);
+    pointer-events: none;
+}
+[data-theme="aurora"] .summary-card.bg-white:is(.rounded-lg, .rounded-xl, .rounded-2xl):hover {
+    box-shadow: 0 18px 38px -14px var(--kpi-glow);
+    border-color: transparent;
+}
+/* All content inside a gradient card reads white: labels, numerals and the
+   green/red breakdown spans alike (their hues are illegible on colour). */
+[data-theme="aurora"] .summary-card.bg-white:is(.rounded-lg, .rounded-xl, .rounded-2xl),
+[data-theme="aurora"] .summary-card.bg-white:is(.rounded-lg, .rounded-xl, .rounded-2xl) [class*="text-"] {
+    color: #FFFFFF;
+}
+[data-theme="aurora"] .summary-card [class*="text-slate-4"],
+[data-theme="aurora"] .summary-card [class*="text-slate-5"],
+[data-theme="aurora"] .summary-card [class*="text-gray-4"],
+[data-theme="aurora"] .summary-card [class*="text-gray-5"] {
+    color: rgba(255,255,255,0.80);
+}
+/* Icon chip: the pastel tint + coloured glyph become a glass disc. Chips are
+   the rounded boxes that WRAP AN ICON — :has() keeps progress-bar tracks and
+   other rounded children out of it (they are handled just below). */
+[data-theme="aurora"] .summary-card :is(.rounded-full, .rounded-lg, .rounded-xl, .rounded-2xl):has(> svg) {
+    background-color: rgba(255,255,255,0.20);
+}
+/* Progress bars: translucent track, solid white fill. */
+[data-theme="aurora"] .summary-card [class*="bg-"]:is(.rounded-full, .rounded-lg).overflow-hidden {
+    background-color: rgba(255,255,255,0.25);
+}
+[data-theme="aurora"] .summary-card [class*="bg-"]:is(.rounded-full, .rounded-lg).overflow-hidden > * {
+    background-color: #FFFFFF;
+}
+[data-theme="aurora"] .summary-card svg { color: #FFFFFF; }
+
+/* On paper the gradient is dropped by the browser but the white text is not —
+   which would print a blank card. Hand the KPI cards back their ink. */
+@media print {
+    [data-theme="aurora"] .summary-card.bg-white:is(.rounded-lg, .rounded-xl, .rounded-2xl) {
+        background-image: none !important;
+        border-color: #E2E8F0 !important;
+    }
+    [data-theme="aurora"] .summary-card.bg-white:is(.rounded-lg, .rounded-xl, .rounded-2xl),
+    [data-theme="aurora"] .summary-card [class*="text-"],
+    [data-theme="aurora"] .summary-card svg {
+        color: #111827 !important;
+    }
+    [data-theme="aurora"] .summary-card.bg-white:is(.rounded-lg, .rounded-xl, .rounded-2xl)::after {
+        display: none !important;
+    }
+}
+
+/* --- Sidebar labels ------------------------------------------------------
+   On the indigo rail every nav label reads at full strength — inactive items
+   match the active one instead of sitting a shade behind it. The active state
+   is still obvious from its lit surface, indigo bar and icon chip. */
+[data-theme="aurora"] .nav-link.active,
+[data-theme="aurora"] .submenu-item.active,
+[data-theme="aurora"] .section-header {
+    color: #FFFFFF;
+}
+
+/* Aurora — buoyant: the cards float on their own coloured glow. */
+[data-theme="aurora"] {
+    --card-hover-translate: -4px;
+    --card-hover-shadow: 0 18px 44px -18px rgba(49,46,129,0.45);
+    --card-hover-border: color-mix(in srgb, var(--accent-color) 24%, var(--border-color));
+}
+
 /*
  * ============================================================================
  *  PER-THEME CARD HOVER PERSONALITY  (themes 1-5)

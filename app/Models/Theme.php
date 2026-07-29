@@ -18,6 +18,14 @@ class Theme extends Model
     /** Slug of the theme used when a user has not picked one. */
     public const DEFAULT_SLUG = 'carbon-gray';
 
+    /**
+     * Slug a brand-new user starts on (stamped on `users.theme` at creation —
+     * see {@see User::$attributes}). Deliberately separate from DEFAULT_SLUG:
+     * changing this only affects accounts registered from now on, while
+     * DEFAULT_SLUG is the fallback for rows that never got a theme at all.
+     */
+    public const SIGNUP_SLUG = 'aurora';
+
     protected $fillable = [
         'slug',
         'name',

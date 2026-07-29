@@ -23,24 +23,24 @@
 
     {{-- Summary chips --}}
     <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        <div class="bg-white rounded-xl border border-slate-100 p-4">
+        <div class="bg-white rounded-xl border border-slate-100 p-4 summary-card" data-card="neutral">
             <p class="text-xs text-slate-400 font-medium">{{ __('messages.floors') }}</p>
             <p class="text-2xl font-bold text-slate-800">{{ $summary['floors'] }}</p>
         </div>
-        <div class="bg-white rounded-xl border border-slate-100 p-4">
+        <div class="bg-white rounded-xl border border-slate-100 p-4 summary-card" data-card="deposits">
             <p class="text-xs text-slate-400 font-medium">{{ __('messages.total_units') }}</p>
             <p class="text-2xl font-bold text-slate-800">{{ $summary['total'] }}</p>
         </div>
-        <div class="bg-white rounded-xl border border-slate-100 p-4">
+        <div class="bg-white rounded-xl border border-slate-100 p-4 summary-card" data-card="revenue">
             <p class="text-xs text-slate-400 font-medium">{{ __('messages.available') }}</p>
             <p class="text-2xl font-bold text-slate-800">{{ $summary['available'] }}</p>
         </div>
-        <div class="bg-white rounded-xl border border-slate-100 p-4">
+        <div class="bg-white rounded-xl border border-slate-100 p-4 summary-card" data-card="occupancy">
             <p class="text-xs text-slate-400 font-medium">{{ __('messages.occupied') }}</p>
             <p class="text-2xl font-bold text-slate-800">{{ $summary['occupied'] }}</p>
         </div>
         @if(($summary['maintenance'] ?? 0) > 0)
-        <div class="bg-white rounded-xl border border-slate-100 p-4">
+        <div class="bg-white rounded-xl border border-slate-100 p-4 summary-card" data-card="warning">
             <p class="text-xs text-slate-400 font-medium">{{ __('messages.maintenance_mode') }}</p>
             <p class="text-2xl font-bold text-slate-500">{{ $summary['maintenance'] }}</p>
         </div>

@@ -9,19 +9,21 @@ beforeEach(function () {
 });
 
 it('seeds the full premium theme catalog', function () {
-    expect(Theme::count())->toBe(11);
+    expect(Theme::count())->toBe(12);
     expect(Theme::pluck('slug')->all())->toEqualCanonicalizing([
         // The two originals + six premium style themes …
         'carbon-gray', 'platinum-silver', 'skeuomorphism', 'neomorphism',
         'glassmorphism', 'minimal', 'brutalism', 'bento',
         // … the retained light tints …
         'light-blue', 'light-green',
-        // … and the dark theme (Phase 7 U6).
+        // … the dark theme (Phase 7 U6) …
         'midnight',
+        // … and the gradient KPI theme.
+        'aurora',
     ]);
     // Midnight is the one dark theme; everything else stays light.
     expect(Theme::where('mode', 'dark')->pluck('slug')->all())->toBe(['midnight']);
-    expect(Theme::where('mode', 'light')->count())->toBe(10);
+    expect(Theme::where('mode', 'light')->count())->toBe(11);
 });
 
 it('emits structural tokens for the style themes', function () {
@@ -94,7 +96,13 @@ it('rejects an unknown theme slug', function () {
         ->putJson(route('admin.settings.theme.update'), ['theme' => 'does-not-exist'])
         ->assertStatus(422);
 
-    expect($admin->fresh()->theme)->toBeNull();
+    // Left on whatever it had — here the theme every new user starts on.
+    expect($admin->fresh()->theme)->toBe(Theme::SIGNUP_SLUG);
+});
+
+it('starts a newly created user on the signup theme', function () {
+    expect(makeAdmin()->theme)->toBe('aurora')
+        ->and(Theme::where('slug', Theme::SIGNUP_SLUG)->exists())->toBeTrue();
 });
 
 it('resolves the active slug from the authenticated user', function () {

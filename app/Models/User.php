@@ -40,6 +40,17 @@ class User extends Authenticatable
     ];
 
     /**
+     * Column defaults for a freshly created user. New signups (and the
+     * supervisors/tenants an owner creates) land on the signup theme; existing
+     * rows keep whatever they have, NULL included.
+     *
+     * @var array<string, mixed>
+     */
+    protected $attributes = [
+        'theme' => Theme::SIGNUP_SLUG,
+    ];
+
+    /**
      * The attributes that should be hidden for serialization.
      *
      * @var list<string>

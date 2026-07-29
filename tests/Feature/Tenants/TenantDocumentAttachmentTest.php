@@ -121,6 +121,106 @@ it('deletes a single document without touching the others', function () {
         ->and(Attachment::find($kept->id))->not->toBeNull();
 });
 
+/** Attach $count ready-made documents to a tenant (bypasses the upload form). */
+function attachTenantDocs(Tenants $tenant, int $count): void
+{
+    foreach (range(1, $count) as $i) {
+        $tenant->attachments()->create([
+            'kind' => Attachment::KIND_TENANT_DOCUMENT,
+            'path' => UploadedFile::fake()->create("doc-{$i}.pdf", 100)->store('tenants/documents', Attachment::DISK),
+            'original_name' => "doc-{$i}.pdf",
+            'mime_type' => 'application/pdf',
+            'size' => 100 * 1024,
+            'sort_order' => $i,
+        ]);
+    }
+}
+
+it('adds several documents in one edit submit and lists them all under ID Documents', function () {
+    Storage::fake(Attachment::DISK);
+    $admin = makeAdmin();
+    $this->actingAs($admin);
+
+    $tenant = makeTenant(null, ['phone' => '012345678']);
+    attachTenantDocs($tenant, 1);
+
+    $this->put(route('admin.tenants.update', $tenant), storeTenantPayload([
+        'apartment_id' => $tenant->apartment_id,
+        'phone' => $tenant->phone,
+        'documents' => [
+            UploadedFile::fake()->create('id-front.pdf', 100, 'application/pdf'),
+            UploadedFile::fake()->image('id-back.jpg', 100, 100),
+            UploadedFile::fake()->create('lease.pdf', 100, 'application/pdf'),
+        ],
+    ]))->assertRedirect();
+
+    // Every file in the multi-select landed as its own attachment, on disk too.
+    $docs = $tenant->fresh()->attachments;
+    expect($docs)->toHaveCount(4)
+        ->and($docs->pluck('original_name')->all())
+        ->toBe(['doc-1.pdf', 'id-front.pdf', 'id-back.jpg', 'lease.pdf'])
+        ->and($docs->pluck('sort_order')->all())->toBe([1, 2, 3, 4]);
+
+    $docs->each(fn (Attachment $d) => Storage::disk(Attachment::DISK)->assertExists($d->path));
+
+    // …and the edit page renders every one of them, each with its delete form.
+    $page = $this->get(route('admin.tenants.edit', $tenant))->assertOk();
+    foreach ($docs as $doc) {
+        $page->assertSee($doc->original_name)
+            ->assertSee('delete-document-'.$doc->id);
+    }
+});
+
+it('lets a supervisor add several documents at once and shows them all', function () {
+    Storage::fake(Attachment::DISK);
+    $admin = makeAdmin();
+    auth()->login($admin);
+    $supervisor = makeSupervisor(['account_id' => $admin->id, 'phone' => '0967778891']);
+    $property = \App\Models\Property::create(['name' => 'Sup Block', 'supervisor_id' => $supervisor->id]);
+    $floor = makeFloor('Sup Floor');
+    $floor->update(['property_id' => $property->id]);
+    $room = makeApartment($floor, ['apartment_number' => 'S-301', 'status' => 'occupied']);
+    $tenant = makeTenant($room, ['phone' => '012345679']);
+    attachTenantDocs($tenant, 1);
+    auth()->logout();
+
+    $this->actingAs($supervisor)
+        ->put(route('supervisor.tenants.update', $tenant), storeTenantPayload([
+            'apartment_id' => $room->id,
+            'phone' => $tenant->phone,
+            'documents' => [
+                UploadedFile::fake()->create('sup-a.pdf', 100, 'application/pdf'),
+                UploadedFile::fake()->image('sup-b.jpg', 100, 100),
+            ],
+        ]))->assertRedirect();
+
+    $docs = Tenants::withoutAccountScope()->find($tenant->id)->attachments;
+    expect($docs->pluck('original_name')->all())->toBe(['doc-1.pdf', 'sup-a.pdf', 'sup-b.jpg']);
+
+    $page = $this->actingAs($supervisor)->get(route('supervisor.tenants.edit', $tenant))->assertOk();
+    foreach ($docs as $doc) {
+        $page->assertSee($doc->original_name);
+    }
+});
+
+it('rejects more than the max document count on update too', function () {
+    Storage::fake(Attachment::DISK);
+    $admin = makeAdmin();
+    $this->actingAs($admin);
+
+    $tenant = makeTenant(null, ['phone' => '012345680']);
+
+    $this->put(route('admin.tenants.update', $tenant), storeTenantPayload([
+        'apartment_id' => $tenant->apartment_id,
+        'phone' => $tenant->phone,
+        'documents' => collect(range(1, 5))
+            ->map(fn ($i) => UploadedFile::fake()->create("f{$i}.pdf", 100, 'application/pdf'))
+            ->all(),
+    ]))->assertSessionHasErrors('documents');
+
+    expect($tenant->fresh()->attachments)->toHaveCount(0);
+});
+
 it('prevents deleting another accounts tenant document', function () {
     Storage::fake(\App\Models\Attachment::DISK);
     $adminA = makeAdmin();
