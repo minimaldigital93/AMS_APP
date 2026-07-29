@@ -704,6 +704,8 @@ abstract class RevenueExpenseController extends Controller
 
         // Build a Carbon date for the selected month
         $selectedDate = Carbon::create($currentYear, $currentMonth, 1);
+        $monthStart = $selectedDate->copy()->startOfMonth();
+        $monthEnd = $selectedDate->copy()->endOfMonth();
 
         // Calculate previous and next month
         $prevDate = $selectedDate->copy()->subMonth();
@@ -731,11 +733,17 @@ abstract class RevenueExpenseController extends Controller
         // (floor.property drives the per-property grouping/headers in the view when
         // the consolidated "All properties" view is active).
         $apartments = $this->scopeApartments()
-            ->with(['floor.property', 'activeFixedExpenses', 'rentals' => function ($q) use ($activePeriod, $currentMonth, $currentYear) {
-                $q->where(function ($sq) {
-                    $sq->whereNull('end_date')->orWhere('end_date', '>=', now());
+            ->with(['floor.property', 'activeFixedExpenses', 'rentals' => function ($q) use ($activePeriod, $currentMonth, $currentYear, $monthStart) {
+                // Which tenancies can matter for the month being viewed: anything
+                // that had not already ended before the month began. Anchoring
+                // this to now() instead (the old behaviour) dropped a departed
+                // tenant from every past month's books, so their bill vanished
+                // from the month they actually lived through.
+                $q->where(function ($sq) use ($monthStart) {
+                    $sq->whereNull('end_date')->orWhere('end_date', '>=', $monthStart);
                 })
                     ->orderBy('start_date', 'desc')
+                    ->orderBy('id', 'desc')
                     ->with(['tenant', 'payments' => function ($pq) use ($activePeriod, $currentMonth, $currentYear) {
                         // Count a payment as "this month's" if it lands inside the
                         // active fiscal period window OR within the month being
@@ -772,7 +780,25 @@ abstract class RevenueExpenseController extends Controller
         $lateFeePercent = (float) settings('late_fee_percent', 0);
 
         foreach ($apartments as $apartment) {
-            foreach ($apartment->rentals as $rental) {
+            // A room is single-occupancy, so it gets exactly one bill row per
+            // month. Billing every still-"active" rental duplicated the room
+            // number during turnover: a leaving tenant's move-out date may be
+            // any day later in the month (leave_date is only validated as
+            // >= move_in_date), and the room is freed for reassignment the
+            // moment the leave is processed — so the outgoing and incoming
+            // rentals overlap, and the room was billed twice.
+            //
+            // Rentals arrive newest-first. Take the newest tenancy that has
+            // actually begun by month end — the current occupant. If none has
+            // (room empty now, next tenant moves in later), fall back to the
+            // earliest future tenancy so it still surfaces as "upcoming".
+            $currentOccupant = $apartment->rentals
+                ->first(fn ($r) => ! $r->start_date || $r->start_date->lte($monthEnd))
+                ?? $apartment->rentals->last();
+
+            $billableRentals = $currentOccupant ? [$currentOccupant] : [];
+
+            foreach ($billableRentals as $rental) {
                 $collected = $rental->payments->sum('amount');
                 $lateFees = $rental->payments->sum('late_fee');
                 $totalRentCollected += $collected + $lateFees;
@@ -781,8 +807,7 @@ abstract class RevenueExpenseController extends Controller
                 // the selected month — it's "upcoming". Such a rental must never
                 // read as overdue/pending, and its rent stays out of this
                 // month's expected/pending tallies. (start_date is date-cast.)
-                $selectedMonthEnd = $selectedDate->copy()->endOfMonth();
-                $notStartedYet = $rental->start_date && $rental->start_date->gt($selectedMonthEnd);
+                $notStartedYet = $rental->start_date && $rental->start_date->gt($monthEnd);
 
                 if (! $notStartedYet) {
                     $totalRentExpected += $rental->rent_amount;
