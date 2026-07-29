@@ -27,6 +27,18 @@
     </div>
 
 
+    {{-- Opening balance + net result --}}
+    <div class="grid grid-cols-2 gap-4 mb-4">
+        <div class="bg-white rounded-lg shadow p-4 summary-card" data-card="neutral">
+            <p class="text-xs text-gray-500 uppercase">{{ __('messages.opening_balance') }}</p>
+            <p class="text-xl font-bold mt-1">{{ money($periodOpening) }}</p>
+        </div>
+        <div class="bg-white rounded-lg shadow p-4 summary-card" data-card="netprofit">
+            <p class="text-xs text-gray-500 uppercase">Net {{ $financialData['is_profitable'] ? 'Profit' : 'Loss' }}</p>
+            <p class="text-xl font-bold {{ $financialData['is_profitable'] ? 'text-green-600' : 'text-red-600' }} mt-1">{{ money(abs($financialData['net_income'])) }}</p>
+        </div>
+    </div>
+
     {{-- Fiscal period time progress --}}
     @php
         $periodStart   = $fiscalperiod->opening_date;
@@ -91,18 +103,6 @@
                     <div class="flex justify-between"><span class="text-gray-600">{{ __('messages.fixed_other') }}</span><span class="font-medium">{{ money($financialData['fixed_expenses']) }}</span></div>
                 @endif
             </div>
-        </div>
-    </div>
-
-    {{-- Opening balance + net result --}}
-    <div class="grid grid-cols-2 gap-4 mb-6">
-        <div class="bg-white rounded-lg shadow p-4 summary-card" data-card="neutral">
-            <p class="text-xs text-gray-500 uppercase">{{ __('messages.opening_balance') }}</p>
-            <p class="text-xl font-bold mt-1">{{ money($periodOpening) }}</p>
-        </div>
-        <div class="bg-white rounded-lg shadow p-4 summary-card" data-card="netprofit">
-            <p class="text-xs text-gray-500 uppercase">Net {{ $financialData['is_profitable'] ? 'Profit' : 'Loss' }}</p>
-            <p class="text-xl font-bold {{ $financialData['is_profitable'] ? 'text-green-600' : 'text-red-600' }} mt-1">{{ money(abs($financialData['net_income'])) }}</p>
         </div>
     </div>
 

@@ -563,6 +563,10 @@ body.ams-themed {
 .ams-themed .sidebar-container .border-b { border-color: var(--sidebar-border, var(--border-color)); }
 .ams-themed .sidebar-container h2 { color: var(--sidebar-text, var(--text-primary)); }
 .ams-themed .sidebar-container .logout-button { color: var(--sidebar-text-muted, var(--text-secondary)); }
+/* Hairline capping the rail (layouts draw it in blue). */
+.ams-themed .sidebar-container::before {
+    background: linear-gradient(90deg, transparent, var(--sidebar-border, var(--border-color)), transparent);
+}
 
 /* Nav links — inactive text, hover, and the icon chip. */
 .ams-themed .nav-link.text-gray-700,
@@ -607,6 +611,78 @@ body.ams-themed {
 .ams-themed .section-header::before { background: var(--sidebar-accent, var(--accent-color)); }
 .ams-themed .section-header::after { background: var(--sidebar-hover, var(--hover-bg)); }
 .ams-themed .section-header:hover { color: var(--sidebar-text, var(--text-primary)); }
+
+/* ---------------------------------------------------------------------------
+   The rest of the rail's chrome — icon glow, chevron, section icon/label,
+   submenu spine, separator, focus ring, badge — is hardcoded blue/indigo
+   (#3b82f6 / #6366f1) and amber in the sidebar partials' own <style>. Once the
+   rail carries a theme tint, those strays read as a different design system
+   bolted on, so repaint every one of them from --sidebar-* tokens. Each rule
+   out-specifies its origin by the leading .ams-themed.
+   --------------------------------------------------------------------------- */
+.ams-themed .nav-link:hover .nav-icon svg {
+    filter: drop-shadow(0 2px 4px color-mix(in srgb, var(--sidebar-accent, var(--accent-color)) 28%, transparent));
+}
+
+/* Collapse chevron + section icon chip. */
+.ams-themed .chevron,
+.ams-themed .section-icon { color: var(--sidebar-text-muted, var(--text-secondary)); }
+.ams-themed .section-icon {
+    background: var(--sidebar-hover, var(--hover-bg));
+    box-shadow: inset 0 0 0 1px var(--sidebar-border, var(--border-color));
+}
+.ams-themed .section-header:hover .chevron {
+    color: var(--sidebar-accent, var(--accent-color));
+    filter: none;
+}
+.ams-themed .section-header:hover .section-icon {
+    background: var(--sidebar-active, var(--active-bg));
+    color: var(--sidebar-accent, var(--accent-color));
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--sidebar-accent, var(--accent-color)) 30%, transparent);
+}
+
+/* Section label — the partial pins #374151 on the inner .section-title span,
+   which the .section-header colour above can never reach. */
+.ams-themed .section-title { color: var(--sidebar-text-muted, var(--text-secondary)); }
+.ams-themed .section-header:hover .section-title { color: var(--sidebar-accent, var(--accent-color)); }
+
+/* Submenu spine + submenu icon chips. */
+.ams-themed .submenu-item {
+    border-left-color: color-mix(in srgb, var(--sidebar-accent, var(--accent-color)) 24%, transparent);
+}
+.ams-themed .submenu-item:hover { border-left-color: var(--sidebar-accent, var(--accent-color)); }
+.ams-themed .submenu-item::before {
+    background: linear-gradient(to bottom,
+        color-mix(in srgb, var(--sidebar-accent, var(--accent-color)) 55%, transparent), transparent);
+}
+.ams-themed .submenu-item .nav-icon {
+    background: var(--sidebar-hover, var(--hover-bg));
+    box-shadow: inset 0 0 0 1px var(--sidebar-border, var(--border-color));
+}
+.ams-themed .submenu-item:hover .nav-icon {
+    background: var(--sidebar-active, var(--active-bg));
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--sidebar-accent, var(--accent-color)) 30%, transparent);
+}
+
+/* Group separator — a hairline in the rail's own divider colour, not a blue
+   glow (the ::before blur layer is dropped rather than recoloured). */
+.ams-themed .section-separator {
+    background: linear-gradient(to right, transparent 0%,
+        var(--sidebar-border, var(--border-color)) 50%, transparent 100%);
+}
+.ams-themed .section-separator::before { background: none; filter: none; }
+
+.ams-themed .nav-link:focus-visible { outline-color: var(--sidebar-accent, var(--accent-color)); }
+
+/* "Coming soon" / count badge — semantic warning, not a second brand colour. */
+.ams-themed .nav-badge {
+    background: var(--warning-color);
+    color: var(--accent-contrast);
+    box-shadow: none;
+}
+.ams-themed .nav-link:hover .nav-badge {
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--warning-color) 35%, transparent);
+}
 
 /* Shared top bar (partials/topbar.blade.php). */
 .ams-themed #topbarNav {
@@ -1255,4 +1331,92 @@ body.ams-themed {
     display: flex;
     align-items: center;
     gap: 0.3rem;
+}
+
+/*
+ * ============================================================================
+ *  PER-THEME SIDEBAR SURFACE  (UNLAYERED — must out-rank the chrome bridge)
+ * ----------------------------------------------------------------------------
+ *  The flat colour of the rail comes from each theme's --sidebar-bg token
+ *  (ThemeSeeder). This section adds the *texture* on top of it — the layer a
+ *  token map can't express — so the rail reads as part of the theme's material
+ *  rather than a white slab parked next to the content.
+ *
+ *  Each block restates a background-image only; the token colour underneath is
+ *  untouched. Specificity ties with the bridge's
+ *  `.ams-themed .sidebar-container > div`, so these must stay AFTER it in the
+ *  file (source order breaks the tie). Skeuomorphism / Glassmorphism / Aurora
+ *  paint their own rails in the per-theme style blocks above — not repeated.
+ * ============================================================================
+ */
+
+/* Carbon Gray — a whisper of vertical shading so the rail sits a plane behind
+   the white cards instead of competing with them. */
+[data-theme="carbon-gray"] .ams-sidebar,
+[data-theme="carbon-gray"] .sidebar-container,
+[data-theme="carbon-gray"] .sidebar-container > div {
+    background-image: linear-gradient(180deg, rgba(255,255,255,0.55) 0%, rgba(255,255,255,0) 45%);
+}
+
+/* Platinum Silver — brushed platinum: fine vertical grain over a soft
+   top-to-bottom polish, the same material as its top bar. */
+[data-theme="platinum-silver"] .ams-sidebar,
+[data-theme="platinum-silver"] .sidebar-container,
+[data-theme="platinum-silver"] .sidebar-container > div {
+    background-image:
+        repeating-linear-gradient(90deg, rgba(43,43,43,0.018) 0 1px, transparent 1px 3px),
+        linear-gradient(180deg, rgba(255,255,255,0.85) 0%, rgba(255,255,255,0) 60%);
+}
+
+/* Light Blue / Light Green — the accent tint pools at the top of the rail and
+   fades out, echoing the way the canvas is tinted. */
+[data-theme="light-blue"] .ams-sidebar,
+[data-theme="light-blue"] .sidebar-container,
+[data-theme="light-blue"] .sidebar-container > div {
+    background-image: radial-gradient(120% 55% at 0% 0%, rgba(37,99,235,0.10) 0%, rgba(37,99,235,0) 70%);
+}
+[data-theme="light-green"] .ams-sidebar,
+[data-theme="light-green"] .sidebar-container,
+[data-theme="light-green"] .sidebar-container > div {
+    background-image: radial-gradient(120% 55% at 0% 0%, rgba(22,163,74,0.10) 0%, rgba(22,163,74,0) 70%);
+}
+
+/* Minimal — no texture by design; only the hairline edge separates rail from
+   canvas. Declared so no inherited image can creep in. */
+[data-theme="minimal"] .ams-sidebar,
+[data-theme="minimal"] .sidebar-container,
+[data-theme="minimal"] .sidebar-container > div {
+    background-image: none;
+}
+
+/* Brutalism — printed paper stock: a hard 45° hatch at low alpha, no blur,
+   no gradient. */
+[data-theme="brutalism"] .ams-sidebar,
+[data-theme="brutalism"] .sidebar-container,
+[data-theme="brutalism"] .sidebar-container > div {
+    background-image: repeating-linear-gradient(45deg,
+        rgba(10,10,10,0.045) 0 1px, transparent 1px 7px);
+}
+
+/* Bento — a faint dot grid: the modular lattice the bento cards sit on. */
+[data-theme="bento"] .ams-sidebar,
+[data-theme="bento"] .sidebar-container,
+[data-theme="bento"] .sidebar-container > div {
+    background-image: radial-gradient(rgba(26,29,36,0.055) 1px, transparent 1px);
+    background-size: 14px 14px;
+}
+
+/* Neomorphism — the rail is the same extruded surface as everything else, so
+   it gets depth, not texture: a soft inner light from the top-left. */
+[data-theme="neomorphism"] .ams-sidebar,
+[data-theme="neomorphism"] .sidebar-container > div {
+    background-image: linear-gradient(145deg, rgba(255,255,255,0.55) 0%, rgba(163,177,198,0.14) 100%);
+}
+
+/* Midnight — graphite rail lifted a touch at the top so it separates from the
+   near-black canvas without a hard border. */
+[data-theme="midnight"] .ams-sidebar,
+[data-theme="midnight"] .sidebar-container,
+[data-theme="midnight"] .sidebar-container > div {
+    background-image: linear-gradient(180deg, rgba(255,255,255,0.045) 0%, rgba(255,255,255,0) 40%);
 }

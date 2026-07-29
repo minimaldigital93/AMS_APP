@@ -59,7 +59,7 @@ class ThemeSeeder extends Seeder
                 description: 'Clean corporate light theme in the spirit of Notion, Stripe & Linear.',
                 mode: 'light',
                 background: '#F5F6F8',
-                sidebar: '#FFFFFF',
+                sidebar: '#ECEEF3',
                 topbar: '#FFFFFF',
                 card: '#FFFFFF',
                 textPrimary: '#111827',
@@ -72,6 +72,18 @@ class ThemeSeeder extends Seeder
                 ring: 'rgba(17,24,39,0.16)',
                 shadow: '0 6px 24px rgba(17,24,39,0.08)',
                 sortOrder: 10,
+                extra: [
+                    // Cool graphite rail — one step behind the #F5F6F8 canvas so
+                    // the white cards read as the front plane. Hover/active are
+                    // lifted from the base tokens because the rail is no longer
+                    // white and a 4% wash would disappear into it.
+                    '--sidebar-text' => '#111827',
+                    '--sidebar-text-muted' => '#5A6272',
+                    '--sidebar-hover' => 'rgba(17,24,39,0.05)',
+                    '--sidebar-active' => 'rgba(17,24,39,0.09)',
+                    '--sidebar-border' => 'rgba(17,24,39,0.10)',
+                    '--sidebar-accent' => '#111827',
+                ],
             ),
             $this->theme(
                 slug: 'platinum-silver',
@@ -79,7 +91,7 @@ class ThemeSeeder extends Seeder
                 description: 'Elegant bright luxury — Apple, Tesla & modern banking.',
                 mode: 'light',
                 background: '#F8F9FB',
-                sidebar: '#FFFFFF',
+                sidebar: '#F0F2F5',
                 topbar: '#FFFFFF',
                 card: '#FFFFFF',
                 textPrimary: '#2B2B2B',
@@ -92,6 +104,17 @@ class ThemeSeeder extends Seeder
                 ring: 'rgba(43,43,43,0.16)',
                 shadow: '0 6px 24px rgba(43,43,43,0.07)',
                 sortOrder: 20,
+                extra: [
+                    // Brushed platinum rail (the grain + polish gradient live in
+                    // theme.css). Muted text is darkened from the #8D8D8D base:
+                    // on a tinted rail that grey drops below comfortable contrast.
+                    '--sidebar-text' => '#2B2B2B',
+                    '--sidebar-text-muted' => '#64686F',
+                    '--sidebar-hover' => 'rgba(43,43,43,0.05)',
+                    '--sidebar-active' => 'rgba(43,43,43,0.09)',
+                    '--sidebar-border' => 'rgba(43,43,43,0.10)',
+                    '--sidebar-accent' => '#2B2B2B',
+                ],
             ),
             $this->theme(
                 slug: 'light-blue',
@@ -99,7 +122,7 @@ class ThemeSeeder extends Seeder
                 description: 'Calm, airy light theme with a soft blue accent.',
                 mode: 'light',
                 background: '#EFF4FF',
-                sidebar: '#FFFFFF',
+                sidebar: '#E4EDFC',
                 topbar: '#FFFFFF',
                 card: '#FFFFFF',
                 textPrimary: '#0F1B2D',
@@ -112,6 +135,17 @@ class ThemeSeeder extends Seeder
                 ring: 'rgba(37,99,235,0.25)',
                 shadow: '0 6px 24px rgba(37,99,235,0.10)',
                 sortOrder: 90,
+                extra: [
+                    // The rail carries the theme's own blue a shade deeper than
+                    // the canvas, so the tint reads as intentional instead of a
+                    // white panel floating on a blue page.
+                    '--sidebar-text' => '#0F1B2D',
+                    '--sidebar-text-muted' => '#4C5E77',
+                    '--sidebar-hover' => 'rgba(37,99,235,0.09)',
+                    '--sidebar-active' => 'rgba(37,99,235,0.15)',
+                    '--sidebar-border' => 'rgba(37,99,235,0.16)',
+                    '--sidebar-accent' => '#1D4ED8',
+                ],
             ),
             $this->theme(
                 slug: 'light-green',
@@ -119,7 +153,7 @@ class ThemeSeeder extends Seeder
                 description: 'Fresh, natural light theme with a soft green accent.',
                 mode: 'light',
                 background: '#EFFBF3',
-                sidebar: '#FFFFFF',
+                sidebar: '#E1F4E9',
                 topbar: '#FFFFFF',
                 card: '#FFFFFF',
                 textPrimary: '#0F241A',
@@ -132,6 +166,17 @@ class ThemeSeeder extends Seeder
                 ring: 'rgba(22,163,74,0.25)',
                 shadow: '0 6px 24px rgba(22,163,74,0.10)',
                 sortOrder: 100,
+                extra: [
+                    // Mirror of Light Blue: the rail deepens the canvas tint, and
+                    // the active accent darkens to #15803D so it still separates
+                    // from a green-tinted surface.
+                    '--sidebar-text' => '#0F241A',
+                    '--sidebar-text-muted' => '#4D6659',
+                    '--sidebar-hover' => 'rgba(22,163,74,0.09)',
+                    '--sidebar-active' => 'rgba(22,163,74,0.15)',
+                    '--sidebar-border' => 'rgba(22,163,74,0.16)',
+                    '--sidebar-accent' => '#15803D',
+                ],
             ),
 
             // ============================================================
@@ -255,7 +300,7 @@ class ThemeSeeder extends Seeder
                 description: 'Quiet and editorial — flat cards, hairline borders and generous whitespace.',
                 mode: 'light',
                 background: '#FFFFFF',
-                sidebar: '#FFFFFF',
+                sidebar: '#FAFAFA',
                 topbar: '#FFFFFF',
                 card: '#FFFFFF',
                 textPrimary: '#18181B',
@@ -274,6 +319,11 @@ class ThemeSeeder extends Seeder
                     '--radius-lg' => '14px',
                     '--shadow-sm' => '0 1px 1px rgba(0,0,0,0.03)',
                     '--shadow-lg' => '0 4px 16px rgba(0,0,0,0.07)',
+                    // The quietest possible separation — one step off white plus
+                    // the hairline edge. Anything stronger stops being Minimal.
+                    '--sidebar-hover' => 'rgba(0,0,0,0.04)',
+                    '--sidebar-active' => 'rgba(0,0,0,0.06)',
+                    '--sidebar-border' => 'rgba(0,0,0,0.07)',
                 ],
             ),
 
@@ -288,7 +338,7 @@ class ThemeSeeder extends Seeder
                 description: 'Bold and structural — square corners, heavy black outlines and hard offset shadows.',
                 mode: 'light',
                 background: '#FAFAF4',
-                sidebar: '#FFFFFF',
+                sidebar: '#F0EEE1',
                 topbar: '#FFFFFF',
                 card: '#FFFFFF',
                 textPrimary: '#0A0A0A',
@@ -309,6 +359,15 @@ class ThemeSeeder extends Seeder
                     '--shadow-sm' => '2px 2px 0 0 #0A0A0A',
                     '--shadow-lg' => '8px 8px 0 0 #0A0A0A',
                     '--transition' => '120ms cubic-bezier(0.2, 0, 0, 1)',
+                    // Printed-stock rail (hatched in theme.css) against the paper
+                    // canvas, framed by the theme's 2px black edge. States are
+                    // flat washes of the same ink — no tint, no glow.
+                    '--sidebar-text' => '#0A0A0A',
+                    '--sidebar-text-muted' => '#2E2E2E',
+                    '--sidebar-hover' => 'rgba(10,10,10,0.08)',
+                    '--sidebar-active' => 'rgba(10,10,10,0.16)',
+                    '--sidebar-border' => '#0A0A0A',
+                    '--sidebar-accent' => '#0A0A0A',
                 ],
             ),
 
@@ -345,6 +404,15 @@ class ThemeSeeder extends Seeder
                 sortOrder: 85,
                 extra: [
                     '--shadow-lg' => '0 18px 50px -12px rgba(0,0,0,0.65)',
+                    // Graphite rail on the near-black canvas. The indigo accent is
+                    // lightened to #A5B4FC for the active bar/icon: the body
+                    // #818CF8 goes muddy against the darker rail surface.
+                    '--sidebar-text' => '#E5E7EB',
+                    '--sidebar-text-muted' => '#98A1B3',
+                    '--sidebar-hover' => 'rgba(255,255,255,0.06)',
+                    '--sidebar-active' => 'rgba(255,255,255,0.10)',
+                    '--sidebar-border' => 'rgba(255,255,255,0.08)',
+                    '--sidebar-accent' => '#A5B4FC',
                 ],
             ),
 
@@ -401,7 +469,7 @@ class ThemeSeeder extends Seeder
                 description: 'Soft rounded bento surfaces with airy spacing — calm, modular and modern.',
                 mode: 'light',
                 background: '#EEF0F4',
-                sidebar: '#FFFFFF',
+                sidebar: '#F6F8FB',
                 topbar: '#FFFFFF',
                 card: '#FFFFFF',
                 textPrimary: '#1A1D24',
@@ -419,6 +487,12 @@ class ThemeSeeder extends Seeder
                     '--radius-sm' => '16px',
                     '--radius-lg' => '30px',
                     '--shadow-lg' => '0 18px 50px -12px rgba(26,29,36,0.20)',
+                    // Rail sits between the grey canvas and the white boxes, with
+                    // the dot lattice (theme.css) tying it to the bento grid.
+                    '--sidebar-text-muted' => '#616875',
+                    '--sidebar-hover' => 'rgba(26,29,36,0.05)',
+                    '--sidebar-active' => 'rgba(26,29,36,0.09)',
+                    '--sidebar-border' => 'rgba(26,29,36,0.09)',
                 ],
             ),
         ];

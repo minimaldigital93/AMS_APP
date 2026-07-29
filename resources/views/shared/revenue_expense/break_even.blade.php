@@ -88,6 +88,50 @@
         </div>
     </div>
 
+    {{-- ── Quick insights ───────────────────────────────────── --}}
+    <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+
+        {{-- Average utilities per room --}}
+        <div class="bg-white rounded-2xl border border-slate-100 p-5 summary-card" data-card="deposits">
+            <div class="w-10 h-10 rounded-xl bg-sky-50 flex items-center justify-center mb-3">
+                <svg class="w-5 h-5 text-sky-500" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 22a7 7 0 0 0 7-7c0-2-1-3.9-3-5.5s-3.5-4-4-6.5c-.5 2.5-2 4.9-4 6.5C6 11.1 5 13 5 15a7 7 0 0 0 7 7Z"/></svg>
+            </div>
+            <p class="text-[11px] uppercase tracking-wide text-slate-400 font-semibold">{{ __('messages.avg_utilities_room') }}</p>
+            <p class="text-2xl font-extrabold text-slate-800 mt-1">{{ money($util['avg_per_room'], 0) }}</p>
+            <p class="text-[11px] text-slate-400 mt-1">{{ __('messages.across_rooms_used', ['count' => $util['rooms_used']]) }}</p>
+        </div>
+
+        {{-- Most utility-hungry apartment --}}
+        <div class="bg-white rounded-2xl border border-slate-100 p-5 summary-card" data-card="warning">
+            <div class="w-10 h-10 rounded-xl bg-amber-50 flex items-center justify-center mb-3">
+                <svg class="w-5 h-5 text-amber-500" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="m2.25 12 8.954-8.955c.44-.439 1.152-.439 1.591 0L21.75 12M4.5 9.75v10.125c0 .621.504 1.125 1.125 1.125H9.75v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21h4.125c.621 0 1.125-.504 1.125-1.125V9.75"/></svg>
+            </div>
+            <p class="text-[11px] uppercase tracking-wide text-slate-400 font-semibold">{{ __('messages.highest_utility_room') }}</p>
+            @if($util['top_apartment'])
+                <p class="text-2xl font-extrabold text-slate-800 mt-1">{{ __('messages.apt_short') }} {{ $util['top_apartment']['label'] }}</p>
+                <p class="text-[11px] text-slate-400 mt-1">{{ money($util['top_apartment']['amount'], 0) }} {{ __('messages.in_utilities') }}</p>
+            @else
+                <p class="text-2xl font-extrabold text-slate-300 mt-1">—</p>
+                <p class="text-[11px] text-slate-400 mt-1">{{ __('messages.no_data_yet') }}</p>
+            @endif
+        </div>
+
+        {{-- Biggest expense to cut --}}
+        <div class="bg-white rounded-2xl border border-slate-100 p-5 summary-card" data-card="expenses">
+            <div class="w-10 h-10 rounded-xl bg-rose-50 flex items-center justify-center mb-3">
+                <svg class="w-5 h-5 text-rose-500" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M7.848 8.25 9.384 9.137m-1.536-.887a3 3 0 1 1-5.196-3 3 3 0 0 1 5.196 3Zm1.536.887a2.165 2.165 0 0 1 1.083 1.839c.005.351.054.695.14 1.024m-1.223-2.863 2.077 1.199M7.848 15.75l1.536-.887m-1.536.887a3 3 0 1 1-5.196 3 3 3 0 0 1 5.196-3Zm1.536-.887a2.165 2.165 0 0 0 1.083-1.838c.005-.352.054-.695.14-1.025m-1.223 2.863 2.077-1.199m0-3.328a4.323 4.323 0 0 1 2.068-1.379l5.325-1.628a4.5 4.5 0 0 1 2.48-.044l.803.215-7.794 4.5m-2.882-1.664A4.331 4.331 0 0 0 10.607 12m3.736 0 7.794 4.5-.802.215a4.5 4.5 0 0 1-2.48-.043l-5.326-1.629a4.324 4.324 0 0 1-2.068-1.379M14.343 12l-2.882 1.664"/></svg>
+            </div>
+            <p class="text-[11px] uppercase tracking-wide text-slate-400 font-semibold">{{ __('messages.biggest_cost_cut') }}</p>
+            @if($biggest_expense)
+                <p class="text-2xl font-extrabold text-slate-800 mt-1 truncate" title="{{ $biggest_expense['label'] }}">{{ $biggest_expense['label'] }}</p>
+                <p class="text-[11px] text-slate-400 mt-1">{{ money($biggest_expense['amount'], 0) }} {{ __('messages.this_month') }}</p>
+            @else
+                <p class="text-2xl font-extrabold text-slate-300 mt-1">—</p>
+                <p class="text-[11px] text-slate-400 mt-1">{{ __('messages.no_expenses_yet') }}</p>
+            @endif
+        </div>
+    </div>
+
     {{-- ── Two donuts: occupancy + utilities ────────────────── --}}
     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
 
@@ -172,50 +216,6 @@
                     <svg class="w-8 h-8 text-slate-300 mb-2" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 18v-5.25m0 0a6.01 6.01 0 0 0 1.5-.189m-1.5.189a6.01 6.01 0 0 1-1.5-.189m3.75 7.478a12.06 12.06 0 0 1-4.5 0m3.75 2.383a14.406 14.406 0 0 1-3 0M14.25 18v-.192c0-.983.658-1.823 1.508-2.316a7.5 7.5 0 1 0-7.517 0c.85.493 1.509 1.333 1.509 2.316V18"/></svg>
                     <p class="text-sm text-slate-400">{{ __('messages.no_utility_bills') }}</p>
                 </div>
-            @endif
-        </div>
-    </div>
-
-    {{-- ── Quick insights ───────────────────────────────────── --}}
-    <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
-
-        {{-- Average utilities per room --}}
-        <div class="bg-white rounded-2xl border border-slate-100 p-5 summary-card" data-card="deposits">
-            <div class="w-10 h-10 rounded-xl bg-sky-50 flex items-center justify-center mb-3">
-                <svg class="w-5 h-5 text-sky-500" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 22a7 7 0 0 0 7-7c0-2-1-3.9-3-5.5s-3.5-4-4-6.5c-.5 2.5-2 4.9-4 6.5C6 11.1 5 13 5 15a7 7 0 0 0 7 7Z"/></svg>
-            </div>
-            <p class="text-[11px] uppercase tracking-wide text-slate-400 font-semibold">{{ __('messages.avg_utilities_room') }}</p>
-            <p class="text-2xl font-extrabold text-slate-800 mt-1">{{ money($util['avg_per_room'], 0) }}</p>
-            <p class="text-[11px] text-slate-400 mt-1">{{ __('messages.across_rooms_used', ['count' => $util['rooms_used']]) }}</p>
-        </div>
-
-        {{-- Most utility-hungry apartment --}}
-        <div class="bg-white rounded-2xl border border-slate-100 p-5 summary-card" data-card="warning">
-            <div class="w-10 h-10 rounded-xl bg-amber-50 flex items-center justify-center mb-3">
-                <svg class="w-5 h-5 text-amber-500" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="m2.25 12 8.954-8.955c.44-.439 1.152-.439 1.591 0L21.75 12M4.5 9.75v10.125c0 .621.504 1.125 1.125 1.125H9.75v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21h4.125c.621 0 1.125-.504 1.125-1.125V9.75"/></svg>
-            </div>
-            <p class="text-[11px] uppercase tracking-wide text-slate-400 font-semibold">{{ __('messages.highest_utility_room') }}</p>
-            @if($util['top_apartment'])
-                <p class="text-2xl font-extrabold text-slate-800 mt-1">{{ __('messages.apt_short') }} {{ $util['top_apartment']['label'] }}</p>
-                <p class="text-[11px] text-slate-400 mt-1">{{ money($util['top_apartment']['amount'], 0) }} {{ __('messages.in_utilities') }}</p>
-            @else
-                <p class="text-2xl font-extrabold text-slate-300 mt-1">—</p>
-                <p class="text-[11px] text-slate-400 mt-1">{{ __('messages.no_data_yet') }}</p>
-            @endif
-        </div>
-
-        {{-- Biggest expense to cut --}}
-        <div class="bg-white rounded-2xl border border-slate-100 p-5 summary-card" data-card="expenses">
-            <div class="w-10 h-10 rounded-xl bg-rose-50 flex items-center justify-center mb-3">
-                <svg class="w-5 h-5 text-rose-500" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M7.848 8.25 9.384 9.137m-1.536-.887a3 3 0 1 1-5.196-3 3 3 0 0 1 5.196 3Zm1.536.887a2.165 2.165 0 0 1 1.083 1.839c.005.351.054.695.14 1.024m-1.223-2.863 2.077 1.199M7.848 15.75l1.536-.887m-1.536.887a3 3 0 1 1-5.196 3 3 3 0 0 1 5.196-3Zm1.536-.887a2.165 2.165 0 0 0 1.083-1.838c.005-.352.054-.695.14-1.025m-1.223 2.863 2.077-1.199m0-3.328a4.323 4.323 0 0 1 2.068-1.379l5.325-1.628a4.5 4.5 0 0 1 2.48-.044l.803.215-7.794 4.5m-2.882-1.664A4.331 4.331 0 0 0 10.607 12m3.736 0 7.794 4.5-.802.215a4.5 4.5 0 0 1-2.48-.043l-5.326-1.629a4.324 4.324 0 0 1-2.068-1.379M14.343 12l-2.882 1.664"/></svg>
-            </div>
-            <p class="text-[11px] uppercase tracking-wide text-slate-400 font-semibold">{{ __('messages.biggest_cost_cut') }}</p>
-            @if($biggest_expense)
-                <p class="text-2xl font-extrabold text-slate-800 mt-1 truncate" title="{{ $biggest_expense['label'] }}">{{ $biggest_expense['label'] }}</p>
-                <p class="text-[11px] text-slate-400 mt-1">{{ money($biggest_expense['amount'], 0) }} {{ __('messages.this_month') }}</p>
-            @else
-                <p class="text-2xl font-extrabold text-slate-300 mt-1">—</p>
-                <p class="text-[11px] text-slate-400 mt-1">{{ __('messages.no_expenses_yet') }}</p>
             @endif
         </div>
     </div>
