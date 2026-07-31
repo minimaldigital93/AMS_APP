@@ -112,11 +112,33 @@ class ContractGenerator
             'generatedAt' => $rental->contract_generated_at ?? now(),
             'landlord' => $this->landlord(),
             'rates' => $this->rates($rental),
+            // Rent due-day for ប្រការ៤. Leases created through the assignment
+            // flow store one, but the older TenantController paths (and every
+            // row predating the column) leave it null — fall back to the
+            // move-in day, which is the same default the assignment flow
+            // stores. Null only when the lease has no start date at all, and
+            // then the Blade prints a dotted fill-in line as before.
+            'dueDay' => $this->dueDay($rental),
             // Fixed lease term (3/6/12 months) and its computed end date, both
             // null for an open-ended tenancy → the Blade omits the duration line.
             'termMonths' => $rental->contract_term_months,
             'termEnd' => $rental->contractEndDate(),
         ];
+    }
+
+    /**
+     * The day of the month rent falls due (ប្រការ៤), 1-31, or null when it
+     * cannot be resolved at all.
+     */
+    private function dueDay(Rentals $rental): ?int
+    {
+        if ($rental->payment_due_day) {
+            return (int) $rental->payment_due_day;
+        }
+
+        return $rental->start_date
+            ? (int) Carbon::parse($rental->start_date)->day
+            : null;
     }
 
     /**

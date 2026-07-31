@@ -164,6 +164,27 @@ it('lets a lease price override the account default', function () {
         ->not->toContain('$0.50');
 });
 
+it('prints the rent due day in ប្រការ៤, falling back to the move-in day', function () {
+    $rental = leaseWithContract($this, $this->vacant, '0963330004');
+
+    $khDay = strtr((string) $rental->start_date->day, [
+        '0' => '០', '1' => '១', '2' => '២', '3' => '៣', '4' => '៤',
+        '5' => '៥', '6' => '៦', '7' => '៧', '8' => '៨', '9' => '៩',
+    ]);
+    // Exactly one space either side of the value — $bold() supplies both.
+    $expected = 'រៀងរាល់ថ្ងៃទី</span> <span class="v">'.$khDay.'</span> <span';
+
+    auth()->login($this->admin);
+    expect(contractHtml($rental))->toContain($expected);
+
+    // Leases created before the column existed (and by the older
+    // TenantController paths) store no due day — the move-in day fills it in
+    // rather than leaving a dotted blank on the contract.
+    $rental->forceFill(['payment_due_day' => null])->save();
+
+    expect(contractHtml($rental->fresh()))->toContain($expected);
+});
+
 it('falls back to the company block when owner fields are blank', function () {
     auth()->login($this->admin);
     settings([

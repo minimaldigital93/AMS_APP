@@ -355,6 +355,10 @@ class TenantController extends Controller
                 'start_date' => Carbon::parse($validated['move_in_date']),
                 'end_date' => ($validated['move_out_date'] ?? null) ? Carbon::parse($validated['move_out_date']) : null,
                 'rent_amount' => $apartment->monthly_rent,
+                // Rent falls due on the move-in day each month — the same
+                // default TenantAssignmentService stores, and what ប្រការ៤ of
+                // the contract prints.
+                'payment_due_day' => Carbon::parse($validated['move_in_date'])->day,
                 'deposit' => $validated['deposit'] ?? 0,
             ]);
 
@@ -789,6 +793,7 @@ class TenantController extends Controller
                     'start_date' => Carbon::parse($validated['move_in_date']),
                     'end_date' => null,
                     'rent_amount' => $newApartment->monthly_rent,
+                    'payment_due_day' => Carbon::parse($validated['move_in_date'])->day,
                     'deposit' => $validated['deposit'] ?? 0,
                 ]);
             }
