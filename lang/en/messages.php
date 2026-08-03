@@ -168,6 +168,16 @@ return [
     'late_fee_percent' => 'Late Fee (% / day)',
     'late_fee_percent_hint' => 'Percent of the monthly rent charged for each day a payment is overdue. Set to 0 to disable. Auto-fills the late fee when collecting rent.',
     'late_fee_auto_hint' => 'Auto: :percent% of rent × :days overdue day(s)',
+    'overdue_by_days' => 'Overdue by :days day(s)',
+
+    'billing_cycle_settings' => 'Billing Cycle',
+    'billing_cycle_day' => 'Rent Collection Day',
+    'billing_cycle_day_none' => 'Each tenant\'s move-in day',
+    'billing_cycle_day_hint' => 'The day of the month every tenant\'s rent falls due. The move-in month is charged only from the move-in date up to that day; every month after is the full rent. Leave it on "Each tenant\'s move-in day" to keep billing as it is.',
+    'billing_overdue_days' => 'Overdue After',
+    'billing_overdue_days_hint' => 'Days of grace after the due date before rent counts as late. The late fee starts counting from here, and the number is printed on the rental contract.',
+    'day_of_month' => 'Day :day',
+    'prorated_days' => ':days days',
 
     'upload_logo' => 'Upload Logo',
     'change_logo' => 'Change Logo',

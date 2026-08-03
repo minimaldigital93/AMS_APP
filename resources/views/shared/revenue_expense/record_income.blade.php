@@ -245,6 +245,18 @@
                         </td>
                         <td class="px-4 lg:px-6 py-4 whitespace-nowrap text-right">
                             <p class="text-sm text-slate-700">{{ money($bill['monthly_rent']) }}</p>
+                            {{-- Fixed collection day: name the span this rent covers, and
+                                 flag a prorated move-in month so the smaller figure never
+                                 looks like a mistake. Absent entirely when the account
+                                 bills on each tenant's move-in day. --}}
+                            @if(!empty($bill['billing_period']))
+                                <p class="text-[11px] text-slate-400">{{ $bill['billing_period']->label() }}</p>
+                                @if($bill['billing_period']->isProrated)
+                                    <span class="inline-flex items-center px-1.5 py-0.5 mt-0.5 rounded-full text-[10px] font-semibold bg-indigo-50 text-indigo-700">
+                                        {{ __('messages.prorated_days', ['days' => $bill['billing_period']->days]) }}
+                                    </span>
+                                @endif
+                            @endif
                         </td>
                         <td class="px-4 lg:px-6 py-4 whitespace-nowrap text-right">
                             <p class="text-sm text-slate-700">{{ money($bill['total_bill'] - $bill['monthly_rent']) }}</p>
@@ -280,7 +292,7 @@
                                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 3h12v18l-2-1.5-2 1.5-2-1.5-2 1.5-2-1.5L6 21z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 8h6M9 11.5h6M9 15h3.5"/></svg>
                                 </button>
                                 @if($bill['status'] !== 'paid')
-                                <button @click="openCheckout({{ $bill['rental']->id }}, '{{ addslashes($bill['tenant']->name ?? __('messages.tenant')) }}', '{{ $bill['apartment']->apartment_number }}', {{ $bill['monthly_rent'] }}, {{ $bill['total_utility_only'] }}, {{ $bill['total_other_charges'] }}, {{ $bill['total_fixed'] }}, {{ $bill['total_bill'] }}, {{ $bill['late_fee_suggested'] ?? 0 }}, {{ $bill['overdue_days'] ?? 0 }})"
+                                <button @click="openCheckout({{ $bill['rental']->id }}, '{{ addslashes($bill['tenant']->name ?? __('messages.tenant')) }}', '{{ $bill['apartment']->apartment_number }}', {{ $bill['monthly_rent'] }}, {{ $bill['total_utility_only'] }}, {{ $bill['total_other_charges'] }}, {{ $bill['total_fixed'] }}, {{ $bill['total_bill'] }}, {{ $bill['late_fee_suggested'] ?? 0 }}, {{ $bill['overdue_days'] ?? 0 }}, {{ json_encode($bill['checkout_detail']) }})"
                                     class="inline-flex items-center justify-center h-7 w-7 rounded-md text-emerald-600 bg-emerald-50 hover:bg-emerald-100 transition" title="{{ __('messages.checkout_pay') }}">
                                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
                                 </button>
@@ -346,7 +358,7 @@
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 3h12v18l-2-1.5-2 1.5-2-1.5-2 1.5-2-1.5L6 21z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 8h6M9 11.5h6M9 15h3.5"/></svg>
                     </button>
                     @if($bill['status'] !== 'paid')
-                    <button @click="openCheckout({{ $bill['rental']->id }}, '{{ addslashes($bill['tenant']->name ?? __('messages.tenant')) }}', '{{ $bill['apartment']->apartment_number }}', {{ $bill['monthly_rent'] }}, {{ $bill['total_utility_only'] }}, {{ $bill['total_other_charges'] }}, {{ $bill['total_fixed'] }}, {{ $bill['total_bill'] }}, {{ $bill['late_fee_suggested'] ?? 0 }}, {{ $bill['overdue_days'] ?? 0 }})"
+                    <button @click="openCheckout({{ $bill['rental']->id }}, '{{ addslashes($bill['tenant']->name ?? __('messages.tenant')) }}', '{{ $bill['apartment']->apartment_number }}', {{ $bill['monthly_rent'] }}, {{ $bill['total_utility_only'] }}, {{ $bill['total_other_charges'] }}, {{ $bill['total_fixed'] }}, {{ $bill['total_bill'] }}, {{ $bill['late_fee_suggested'] ?? 0 }}, {{ $bill['overdue_days'] ?? 0 }}, {{ json_encode($bill['checkout_detail']) }})"
                         class="inline-flex items-center justify-center h-8 w-8 rounded-lg text-emerald-600 bg-emerald-50 active:bg-emerald-100 transition" title="{{ __('messages.checkout_pay') }}">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
                     </button>
@@ -700,6 +712,26 @@
                     </div>
                     <button @click="closeCheckout()" class="text-slate-400 hover:text-slate-600 p-1 rounded-lg hover:bg-slate-100 transition text-lg leading-none">&times;</button>
                 </div>
+                {{-- What this payment covers and when it was owed. The period is
+                     the span the rent buys on a fixed collection day, otherwise
+                     just the month; the due date is the collection day, or the
+                     tenant's own move-in day when no collection day is set. --}}
+                <div x-show="!khqrActive" class="px-5 py-3 bg-slate-50/70 border-b border-slate-100 flex items-start justify-between gap-4">
+                    <div class="min-w-0">
+                        <p class="text-[10px] uppercase tracking-wider text-slate-400">{{ __('messages.billing_period') }}</p>
+                        <p class="text-sm font-medium text-slate-700 truncate" x-text="checkoutPeriod"></p>
+                        <span x-show="checkoutProrated > 0" x-cloak
+                            class="inline-flex items-center px-1.5 py-0.5 mt-1 rounded-full text-[10px] font-semibold bg-indigo-50 text-indigo-700"
+                            x-text="'{{ __('messages.prorated_days') }}'.replace(':days', checkoutProrated)"></span>
+                    </div>
+                    <div class="text-right flex-shrink-0">
+                        <p class="text-[10px] uppercase tracking-wider text-slate-400">{{ __('messages.due_date') }}</p>
+                        <p class="text-sm font-semibold" :class="checkoutOverdueDays > 0 ? 'text-red-600' : 'text-slate-700'" x-text="checkoutDue"></p>
+                        <span x-show="checkoutOverdueDays > 0" x-cloak
+                            class="inline-flex items-center px-1.5 py-0.5 mt-1 rounded-full text-[10px] font-semibold bg-red-50 text-red-700"
+                            x-text="'{{ __('messages.overdue_by_days') }}'.replace(':days', checkoutOverdueDays)"></span>
+                    </div>
+                </div>
                 <form action="{{ route($panel.'.revenue_expense.checkout') }}" method="POST" class="p-5 space-y-4 overflow-y-auto flex-1" x-show="!khqrActive" @submit="onCheckoutSubmit($event)">
                     @csrf
                     <input type="hidden" name="rental_id" x-model="checkoutRentalId">
@@ -724,18 +756,38 @@
                             </label>
                             <span class="text-sm font-semibold text-slate-800" x-text="'$' + (parseFloat(checkoutUtilities) + parseFloat(checkoutOtherCharges)).toFixed(2)"></span>
                         </div>
-                        <div x-show="checkoutUtilities > 0 && payUtilities" class="flex items-center justify-between py-1 px-3 pl-10">
-                            <span class="text-xs text-slate-400">↳ Utilities (Elec/Water)</span>
-                            <span class="text-xs text-slate-500" x-text="'$' + parseFloat(checkoutUtilities).toFixed(2)"></span>
-                        </div>
-                        <div x-show="checkoutOtherCharges > 0 && payUtilities" class="flex items-center justify-between py-1 px-3 pl-10">
-                            <span class="text-xs text-slate-400">↳ Other (Internet/Parking…)</span>
-                            <span class="text-xs text-slate-500" x-text="'$' + parseFloat(checkoutOtherCharges).toFixed(2)"></span>
-                        </div>
+                        {{-- Each charge by name, so the "Charges" total is never
+                             a number the collector has to go look up. Dimmed,
+                             not hidden, when the charges line is unticked. --}}
+                        <template x-for="(c, i) in checkoutItems" :key="'c' + i">
+                            <div class="flex items-center justify-between py-1 px-3 pl-10 transition" :class="payUtilities ? '' : 'opacity-50'">
+                                <span class="flex items-center gap-1.5 min-w-0">
+                                    <span class="w-1.5 h-1.5 rounded-full flex-shrink-0"
+                                        :class="{
+                                            'bg-yellow-400': c.type === 'electricity',
+                                            'bg-blue-400': c.type === 'water',
+                                            'bg-purple-400': c.type === 'internet',
+                                            'bg-orange-400': c.type === 'parking',
+                                            'bg-teal-400': c.type === 'trash',
+                                            'bg-slate-400': c.type === 'other'
+                                        }"></span>
+                                    <span class="text-xs text-slate-400 truncate" x-text="typeLabels[c.type] || c.type"></span>
+                                    <span x-show="c.paid" class="text-[10px] font-medium text-emerald-600 bg-emerald-50 px-1 py-0.5 rounded flex-shrink-0">{{ __('messages.paid_lower') }}</span>
+                                </span>
+                                <span class="text-xs text-slate-500 flex-shrink-0" x-text="'$' + parseFloat(c.amount).toFixed(2)"></span>
+                            </div>
+                        </template>
                         <div x-show="checkoutFixed > 0" class="flex items-center justify-between py-2 px-3 rounded-lg bg-slate-50">
                             <span class="text-sm text-slate-500 pl-6">{{ __('messages.apartment_costs') }}</span>
                             <span class="text-sm font-medium text-slate-700" x-text="'$' + parseFloat(checkoutFixed).toFixed(2)"></span>
                         </div>
+                        {{-- …and the same for the room's own recurring costs. --}}
+                        <template x-for="(f, i) in checkoutFixedItems" :key="'f' + i">
+                            <div class="flex items-center justify-between py-1 px-3 pl-10">
+                                <span class="text-xs text-slate-400 truncate" x-text="f.name"></span>
+                                <span class="text-xs text-slate-500 flex-shrink-0" x-text="'$' + parseFloat(f.amount).toFixed(2)"></span>
+                            </div>
+                        </template>
                         <div class="flex items-center justify-between py-2 px-3 rounded-lg bg-slate-50">
                             <span class="text-sm text-slate-500">{{ __('messages.late_fee') }}</span>
                             <input type="number" name="late_fee" x-model="checkoutLateFee" step="0.01" min="0" value="0"
@@ -984,6 +1036,13 @@ function billingManager() {
         checkoutTotal: 0,
         checkoutLateFee: 0,
         checkoutOverdueDays: 0,
+        // Bill detail: what span the rent covers, when it fell due, and the
+        // individual charge / room-cost lines behind the two totals above.
+        checkoutPeriod: '',
+        checkoutDue: '',
+        checkoutProrated: 0,
+        checkoutItems: [],
+        checkoutFixedItems: [],
         lateFeePercent: {{ (float) settings('late_fee_percent', 0) }},
         checkoutMethod: 'cash',
         payRent: true,
@@ -1193,7 +1252,7 @@ function billingManager() {
             return sum.toFixed(this.khrCurrency ? 0 : 2).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
         },
 
-        openCheckout(rentalId, tenant, apt, rent, utilities, otherCharges, fixed, total, lateFee = 0, overdueDays = 0) {
+        openCheckout(rentalId, tenant, apt, rent, utilities, otherCharges, fixed, total, lateFee = 0, overdueDays = 0, detail = {}) {
             this.checkoutRentalId = rentalId;
             this.checkoutTenant = tenant;
             this.checkoutApt = apt;
@@ -1204,6 +1263,11 @@ function billingManager() {
             this.checkoutTotal = total;
             this.checkoutLateFee = lateFee;
             this.checkoutOverdueDays = overdueDays;
+            this.checkoutPeriod = detail.period || '';
+            this.checkoutDue = detail.due || '';
+            this.checkoutProrated = detail.prorated || 0;
+            this.checkoutItems = detail.items || [];
+            this.checkoutFixedItems = detail.fixed || [];
             this.checkoutMethod = 'cash';
             this.payRent = true;
             this.payUtilities = true;

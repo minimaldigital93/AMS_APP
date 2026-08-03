@@ -108,12 +108,17 @@ class Tenants extends Model
      * when a `rent` payment was recorded with a `paid_at` inside that month.
      * Unpaid past/current months are what the tenant view lets the user settle.
      *
+     * When the account has a rent collection day set, the move-in month is
+     * prorated up to that day (BillingCycleService) instead of charging a whole
+     * month — same figure the rent-collection page shows, so arrears agree.
+     *
      * @return \Illuminate\Support\Collection<int, array<string, mixed>>
      */
     public function paymentHistory(): \Illuminate\Support\Collection
     {
         $now = now();
         $history = collect();
+        $cycles = app(\App\Services\Billing\BillingCycleService::class);
 
         foreach ($this->rentals as $rental) {
             if (! $rental->start_date) {
@@ -153,7 +158,8 @@ class Tenants extends Model
                     'month' => $month,
                     'year' => $year,
                     'label' => $cursor->format('M Y'),
-                    'rent_amount' => (float) $rental->rent_amount,
+                    'rent_amount' => $cycles->periodFor($rental, $month, $year)?->amount
+                        ?? (float) $rental->rent_amount,
                     'paid' => (bool) $rentPayment,
                     'paid_at' => $rentPayment?->paid_at,
                     // Total of everything the tenant actually paid this month.

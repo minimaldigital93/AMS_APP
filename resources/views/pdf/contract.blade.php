@@ -116,6 +116,11 @@
     // template renderable on its own.
     $dueDay = $dueDay ?? $rental->payment_due_day ?? $start?->day;
 
+    // Grace days before the late fee starts (ប្រការ៥). ContractGenerator passes
+    // the account's setting; the 3 keeps the template renderable on its own and
+    // is the value this clause carried before it became configurable.
+    $overdueDays = $overdueDays ?? 3;
+
     // Fixed lease term (ប្រការ២). When a 3/6/12-month term was agreed, state the
     // duration and its end date; an open-ended tenancy prints nothing extra.
     $termMonths = $termMonths ?? null;
@@ -321,7 +326,7 @@
     <td class="n">ប្រការ៥៖</td>
     <td class="b">
     ភាគី“ខ” យល់ព្រមទទួលការផាកពិន័យចំនួន {!! $pct($rates['late_percent']) !!}{!! $kw('នៃថ្លៃឈ្នួលក្នុងមួយថ្ងៃ') !!} ក្នុងករណីភាគី“ខ” ខកខានបង់ប្រាក់ថ្លៃបន្ទប់ ចំណត និងថ្លៃផ្សេងៗ
-    ក្រោយរយៈពេល ០៣ថ្ងៃដែលបានព្រមព្រៀងនៅក្នុងកិច្ចសន្យានេះ។
+    ក្រោយរយៈពេល{!! $bold($khNum(str_pad((string) $overdueDays, 2, '0', STR_PAD_LEFT))) !!}{!! $kw('ថ្ងៃ') !!}ដែលបានព្រមព្រៀងនៅក្នុងកិច្ចសន្យានេះ។
     </td>
 </tr></table>
 

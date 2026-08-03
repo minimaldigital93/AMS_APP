@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Settings;
+use App\Services\Billing\BillingCycleService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
@@ -76,6 +77,16 @@ class SettingsController extends Controller
             'late' => [
                 'late_fee_percent' => '',
             ],
+            // Rent collection day. Blank keeps the original behaviour — rent is
+            // due on each tenant's own move-in day. Set it and every tenant's
+            // rent falls due on that day instead, with the move-in month
+            // prorated up to it. `billing_overdue_days` is the grace period
+            // before rent counts late; it drives the late fee and is printed in
+            // ប្រការ៥ of the contract. See BillingCycleService.
+            'billing' => [
+                'billing_cycle_day' => '',
+                'billing_overdue_days' => (string) BillingCycleService::DEFAULT_OVERDUE_DAYS,
+            ],
             'system' => [
                 'system_currency' => 'USD',
                 'khr_exchange_rate' => '4100',
@@ -121,6 +132,12 @@ class SettingsController extends Controller
             'settings.late_fee_percent' => 'nullable|numeric|min:0|max:100',
             // Auto-calculate metered electricity/water charges toggle ('1'/'0').
             'settings.utility_meter_auto_calc' => 'nullable|in:0,1',
+            // Rent collection day. The 1–28 cap is the whole reason February,
+            // the 30/31-day months and leap years need no special-casing: days
+            // 29–31 don't exist in every month, so they can never be a monthly
+            // anchor. Blank = keep billing on each tenant's move-in day.
+            'settings.billing_cycle_day' => 'nullable|integer|min:1|max:'.BillingCycleService::MAX_COLLECTION_DAY,
+            'settings.billing_overdue_days' => 'nullable|integer|min:0|max:31',
             'company_logo' => 'nullable|image|mimes:jpeg,jpg,png,webp|max:2048',
         ], [
             'settings.khr_exchange_rate.numeric' => __('messages.exchange_rate_invalid'),

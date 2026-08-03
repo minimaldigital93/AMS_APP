@@ -40,6 +40,8 @@
                 'utility_garbage_fee'       => 'M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16',
                 'utility_meter_auto_calc'   => 'M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z',
                 'late_fee_percent'          => 'M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z',
+                'billing_cycle_day'         => 'M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z',
+                'billing_overdue_days'      => 'M12 9v2m0 4h.01M5.07 19h13.86a2 2 0 001.74-3L13.74 4a2 2 0 00-3.48 0L3.33 16a2 2 0 001.74 3z',
                 'system_currency' => 'M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z',
             ];
             $defaultRowIcon = 'M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z M15 12a3 3 0 11-6 0 3 3 0 016 0z';
@@ -48,6 +50,7 @@
                 'owner'   => __('messages.owner_information'),
                 'utility' => __('messages.default_utility_prices'),
                 'late'    => __('messages.late_fee_settings'),
+                'billing' => __('messages.billing_cycle_settings'),
                 'system'  => __('messages.system_preferences'),
             ];
             // Money rows render as a currency-prefixed number input. Values are
@@ -220,6 +223,29 @@
                                 placeholder="0">
                             <span>%</span>
                         </span>
+                        @elseif($key === 'billing_cycle_day')
+                        {{-- 1–28 only: the 29th–31st don't exist in every month, so
+                             they can't anchor a monthly cycle. Blank = keep billing
+                             each tenant on their own move-in day. --}}
+                        <span class="relative ml-auto inline-flex items-center">
+                            <select name="settings[{{ $key }}]" id="{{ $key }}" class="{{ $selectClasses }}">
+                                <option value="">{{ __('messages.billing_cycle_day_none') }}</option>
+                                @for($d = 1; $d <= \App\Services\Billing\BillingCycleService::MAX_COLLECTION_DAY; $d++)
+                                    <option value="{{ $d }}" {{ (int) $currentValue === $d ? 'selected' : '' }}>{{ __('messages.day_of_month', ['day' => $d]) }}</option>
+                                @endfor
+                            </select>
+                            <svg class="pointer-events-none absolute right-0 w-3.5 h-3.5 text-gray-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="{{ $chevronIcon }}" />
+                            </svg>
+                        </span>
+                        @elseif($key === 'billing_overdue_days')
+                        <span class="ml-auto inline-flex items-center gap-1 text-[15px] text-gray-400">
+                            <input type="number" min="0" max="31" step="1" name="settings[{{ $key }}]" id="{{ $key }}"
+                                value="{{ $currentValue }}"
+                                class="w-20 bg-transparent border-0 p-0 text-right text-gray-500 focus:text-gray-900 focus:ring-0 focus:outline-none"
+                                placeholder="{{ \App\Services\Billing\BillingCycleService::DEFAULT_OVERDUE_DAYS }}">
+                            <span>{{ __('messages.days_word') }}</span>
+                        </span>
                         @elseif($key === 'khr_exchange_rate')
                         <span class="ml-auto inline-flex items-center gap-1 text-[15px] text-gray-400">
                             <span>1 $ =</span>
@@ -239,6 +265,10 @@
                 </div>
                 @if($category === 'late')
                 <p class="px-4 mt-2 text-[13px] text-gray-500">{{ __('messages.late_fee_percent_hint') }}</p>
+                @endif
+                @if($category === 'billing')
+                <p class="px-4 mt-2 text-[13px] text-gray-500">{{ __('messages.billing_cycle_day_hint') }}</p>
+                <p class="px-4 mt-1 text-[13px] text-gray-500">{{ __('messages.billing_overdue_days_hint') }}</p>
                 @endif
                 @if($category === 'utility')
                 <p class="px-4 mt-2 text-[13px] text-gray-500">{{ __('messages.metered_price_hint') }}</p>

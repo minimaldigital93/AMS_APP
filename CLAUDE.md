@@ -208,6 +208,39 @@ Implement `App\Contracts\PaymentGateway` (three methods: `provider()`, `verify()
 
 ---
 
+## Rent collection day
+
+An account can nominate one day of the month (`settings('billing_cycle_day')`,
+1–28) on which every tenant's rent falls due. Two rules, and that is the whole
+feature — there is **no invoice table, no scheduler, no per-lease column**. Rent
+owed stays derived from the calendar, as it always has been here.
+
+- **First bill** = move-in date → collection day of the **following** month,
+  prorated. **Every bill after** = collection day → collection day at the full
+  rent. `$300/mo`, moved in Aug 8, day 2 → Aug: `$241.94` (25 days), Sep: `$300`.
+- Daily rate = **monthly rent ÷ days in the month the period starts in**, so a
+  full cycle comes out at exactly one month's rent in any month length. Full
+  cycles take the rent verbatim (no division) so no rounding drift accumulates.
+- The 1–28 cap is *why* February, 30/31-day months and leap years need no
+  special-casing. Don't widen it.
+- Rule 1 anchoring on the **following** month is what guarantees exactly one
+  period starts per calendar month — that is what lets the month-navigated rent
+  collection page keep working unchanged. Don't "fix" it to the same month.
+- Blank setting → `periodFor()` returns `null` and every caller keeps its
+  original move-in-day behaviour. That null is the backward-compatibility seam.
+- `settings('billing_overdue_days')` (default 3) is grace before rent counts
+  late. It drives the overdue badge, the late-fee day count, **and** ប្រការ៥ of
+  the contract PDF — previously hard-coded to ០៣ថ្ងៃ there.
+- Services: `app/Services/Billing/` — `ProrationCalculator` (pure),
+  `BillingCycleService` (reads settings, derives the period), `BillingPeriod` (VO).
+- Call sites: `Shared\RevenueExpenseController::recordIncome()` (rent due, due
+  date, late fee), `Tenants::paymentHistory()` (arrears — keep it agreeing with
+  the collection page), `ContractGenerator` (ប្រការ៤ due day, ប្រការ៥ grace).
+- `tests/Feature/Billing/RentCollectionDayTest.php` pins both rules *and* the
+  no-collection-day backward-compatibility contract.
+
+---
+
 ## Global helpers (`app/helpers.php`)
 
 | Helper | Purpose |

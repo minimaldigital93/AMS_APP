@@ -3,6 +3,7 @@
 namespace App\Services\Contracts;
 
 use App\Models\Rentals;
+use App\Services\Billing\BillingCycleService;
 use App\Services\Pdf\KhmerPdf;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Storage;
@@ -119,6 +120,10 @@ class ContractGenerator
             // stores. Null only when the lease has no start date at all, and
             // then the Blade prints a dotted fill-in line as before.
             'dueDay' => $this->dueDay($rental),
+            // Grace days before rent counts late (ប្រការ៥). The clause used to
+            // hard-code 3; it now prints whatever the account collects on, and
+            // the rent-collection page counts late fees from the same day.
+            'overdueDays' => app(BillingCycleService::class)->overdueDays(),
             // Fixed lease term (3/6/12 months) and its computed end date, both
             // null for an open-ended tenancy → the Blade omits the duration line.
             'termMonths' => $rental->contract_term_months,
@@ -132,6 +137,12 @@ class ContractGenerator
      */
     private function dueDay(Rentals $rental): ?int
     {
+        // An account-wide rent collection day is the whole point of the
+        // setting: every tenant pays on that day, so the contract must say so.
+        if ($day = app(BillingCycleService::class)->collectionDay()) {
+            return $day;
+        }
+
         if ($rental->payment_due_day) {
             return (int) $rental->payment_due_day;
         }

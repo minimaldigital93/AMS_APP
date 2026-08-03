@@ -26,6 +26,7 @@ use App\Models\Rentals;
 use App\Models\Tenants;
 use App\Models\Utilities;
 use App\Services\Attachments\AttachmentService;
+use App\Services\Billing\BillingCycleService;
 use App\Services\RevenueExpense\BreakEvenService;
 use App\Services\RevenueExpense\ExpenseRecordingService;
 use App\Services\RevenueExpense\IncomeRecordingService;
@@ -776,8 +777,14 @@ abstract class RevenueExpenseController extends Controller
         $paidCount = 0;
         $pendingCount = 0;
 
-        // Late fee = percent of monthly rent per day overdue (0 = feature off).
+        // Late fee = percent of monthly rent per day overdue (0 = feature off),
+        // counted only once the grace period has run out.
         $lateFeePercent = (float) settings('late_fee_percent', 0);
+
+        // Rent collection day. Null period = the account has no collection day
+        // set, so this lease keeps billing on its own move-in day as before.
+        $cycles = app(BillingCycleService::class);
+        $graceDays = $cycles->overdueDays();
 
         foreach ($apartments as $apartment) {
             // A room is single-occupancy, so it gets exactly one bill row per
@@ -809,8 +816,14 @@ abstract class RevenueExpenseController extends Controller
                 // month's expected/pending tallies. (start_date is date-cast.)
                 $notStartedYet = $rental->start_date && $rental->start_date->gt($monthEnd);
 
+                // On a fixed collection day the rent owed for the move-in month
+                // is prorated from the move-in date up to that day; every later
+                // month is the full rent. Null = no collection day set.
+                $period = $cycles->periodFor($rental, $currentMonth, $currentYear);
+                $rentDue = $period ? $period->amount : (float) $rental->rent_amount;
+
                 if (! $notStartedYet) {
-                    $totalRentExpected += $rental->rent_amount;
+                    $totalRentExpected += $rentDue;
                 }
 
                 // Check if rent already paid this month
@@ -829,7 +842,12 @@ abstract class RevenueExpenseController extends Controller
                 // Calculate due date based on tenant start date:
                 // - For regular tenants: due on the same day-of-month as their `start_date` within the selected month.
                 // - For tenants whose tenancy began in the selected month: due = start_date + 1 month (count 1 month).
-                if ($rental->start_date) {
+                if ($period) {
+                    // Fixed collection day: due on that day, and for the move-in
+                    // month on the day the prorated period runs up to.
+                    $dueDate = $period->dueDate->copy()->endOfDay();
+                    $dueDay = $dueDate->day;
+                } elseif ($rental->start_date) {
                     $startDay = $rental->start_date->day;
                     if ($isFirstMonth) {
                         $dueDate = Carbon::parse($rental->start_date)->copy()->addMonth()->endOfDay();
@@ -849,6 +867,10 @@ abstract class RevenueExpenseController extends Controller
                 // "upcoming" (styled like a future month) rather than overdue —
                 // it stays in the pending bucket for filtering, but never counts
                 // as overdue and carries an is_upcoming flag for the badge.
+                // Rent isn't late until the grace period has run out — the same
+                // grace the printed contract promises (ប្រការ៥).
+                $overdueAfter = $dueDate->copy()->addDays($graceDays);
+
                 $isUpcoming = false;
                 if ($paidThisMonth) {
                     $status = 'paid';
@@ -857,7 +879,7 @@ abstract class RevenueExpenseController extends Controller
                     $status = 'pending';
                     $isUpcoming = true;
                     $pendingCount++;
-                } elseif ($referenceNow->gt($dueDate)) {
+                } elseif ($referenceNow->gt($overdueAfter)) {
                     $status = 'overdue';
                     $overdueCount++;
                 } else {
@@ -877,15 +899,15 @@ abstract class RevenueExpenseController extends Controller
 
                 // Total bill = rent + utilities + fixed expenses + late fee.
                 // A not-yet-started tenancy is never overdue, so no late fee.
-                $isOverdue = ! $notStartedYet && $referenceNow->gt($dueDate);
+                $isOverdue = ! $notStartedYet && $referenceNow->gt($overdueAfter);
                 $lateFeeAmount = (! $paidThisMonth && $isOverdue) ? ($rental->payments->isEmpty() ? 0 : $lateFees) : 0;
-                $totalBill = $rental->rent_amount + $totalUtilities + $totalFixed;
+                $totalBill = $rentDue + $totalUtilities + $totalFixed;
 
                 // Suggested late fee to prefill on the checkout form: percent of
-                // rent per day past the due date. Editable by the collector.
-                $overdueDays = $isOverdue ? $dueDate->diffInDays($referenceNow) : 0;
+                // rent per day past the grace period. Editable by the collector.
+                $overdueDays = $isOverdue ? (int) $overdueAfter->diffInDays($referenceNow) : 0;
                 $suggestedLateFee = ($lateFeePercent > 0 && $overdueDays > 0 && ! $paidThisMonth)
-                    ? round($rental->rent_amount * ($lateFeePercent / 100) * $overdueDays, 2)
+                    ? round($rentDue * ($lateFeePercent / 100) * $overdueDays, 2)
                     : 0;
 
                 // Upcoming (not-yet-started) rent isn't part of this month's
@@ -898,7 +920,11 @@ abstract class RevenueExpenseController extends Controller
                     'apartment' => $apartment,
                     'rental' => $rental,
                     'tenant' => $rental->tenant,
-                    'monthly_rent' => $rental->rent_amount,
+                    'monthly_rent' => $rentDue,
+                    // The span this rent covers, only when a collection day is
+                    // set — the view prints it under the amount so a prorated
+                    // move-in month never reads as a mistake.
+                    'billing_period' => $period,
                     'due_date' => $dueDate,
                     'due_day' => $dueDay,
                     'is_first_month' => $isFirstMonth,
@@ -918,6 +944,24 @@ abstract class RevenueExpenseController extends Controller
                     'overdue_days' => $overdueDays,
                     'total_collected' => $collected + $lateFees,
                     'payment_count' => $rental->payments->count(),
+                    // Everything the payment form spells out: the span the rent
+                    // buys, the day it falls due, and every fee by name. Built
+                    // here rather than in the view because both the desktop and
+                    // mobile rows hand it to the same checkout modal.
+                    'checkout_detail' => [
+                        'period' => $period?->label() ?? $selectedDate->format('F Y'),
+                        'due' => $dueDate->format('M j, Y'),
+                        'prorated' => ($period && $period->isProrated) ? $period->days : 0,
+                        'items' => $utilityCharges->map(fn ($u) => [
+                            'type' => $u->utility_type,
+                            'amount' => (float) $u->charge_amount,
+                            'paid' => (bool) $u->paid_status,
+                        ])->values(),
+                        'fixed' => $fixedExpenses->map(fn ($f) => [
+                            'name' => $f->expense_name,
+                            'amount' => (float) $f->amount,
+                        ])->values(),
+                    ],
                 ];
             }
         }
