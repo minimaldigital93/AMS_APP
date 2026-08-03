@@ -112,7 +112,9 @@ it('prints the configured owner and utility prices on the contract', function ()
         ->toContain('098765432')
         ->toContain('ស្រី')     // owner gender, Khmer
         ->toContain('$0.50')    // water, from settings
-        ->toContain('$2.00');   // garbage, from settings
+        // money() drops the trailing .00 on whole amounts, so garbage is "$2",
+        // not "$2.00" — see money_number() in app/helpers.php.
+        ->toContain('$2');      // garbage, from settings
 });
 
 it('drops a utility (label and all) when its price resolves to zero', function () {
@@ -126,13 +128,18 @@ it('drops a utility (label and all) when its price resolves to zero', function (
     auth()->login($this->admin);
     $html = contractHtml($rental);
 
+    // Matched with the label's closing tag: the charge labels are bare utility
+    // names ("ទឹក", "ភ្លើង", …) and those words also occur in the prose of
+    // ប្រការ៤ and ប្រការ៧, so a bare toContain() would hit those instead. Each
+    // label in the ប្រការ១ list is wrapped in its own nowrap span. Water is the
+    // only priced utility here, so it is also the last one — hence "និងទឹក".
     expect($html)
-        ->toContain('តម្លៃទឹក')         // water label — priced, so shown
+        ->toContain('>និងទឹក</span>')     // water label — priced, so shown
         ->toContain('$0.50')
-        ->not->toContain('តម្លៃភ្លើង')   // electricity label — unset, dropped
-        ->not->toContain('តម្លៃចំណតរថយន្ត') // parking — dropped
-        ->not->toContain('តម្លៃអុីនធីណេត')  // internet — dropped
-        ->not->toContain('តម្លៃសំរាម');   // garbage — dropped
+        ->not->toContain('>ភ្លើង</span>')   // electricity label — unset, dropped
+        ->not->toContain('>ចំណតរថយន្ត</span>') // parking — dropped
+        ->not->toContain('>អុីនធីណេត</span>')  // internet — dropped
+        ->not->toContain('>សំរាម</span>');   // garbage — dropped
 });
 
 it('prints the late-fee percentage per day in the penalty article', function () {
@@ -143,10 +150,13 @@ it('prints the late-fee percentage per day in the penalty article', function () 
     $rental = leaseWithContract($this, $this->vacant, '0963330004');
 
     auth()->login($this->admin);
-    // ប្រការ៥ renders the account-wide late_fee_percent as "3.5%" (trailing
-    // zeros trimmed), followed by "of the rent per day" in Khmer.
+    // ប្រការ៥ renders the account-wide late_fee_percent as "៣.៥%" — trailing
+    // zeros trimmed, and in Khmer numerals like every other counted value on
+    // the form (it sits next to the ០៥ថ្ងៃ grace period in the same sentence).
+    // Followed by "of the rent per day" in Khmer.
     expect(contractHtml($rental))
-        ->toContain('3.5%')
+        ->toContain('៣.៥%')
+        ->not->toContain('3.5%')
         ->toContain('នៃថ្លៃឈ្នួលក្នុងមួយថ្ងៃ');
 });
 

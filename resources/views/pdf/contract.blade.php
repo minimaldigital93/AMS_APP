@@ -67,11 +67,24 @@
     $price = fn ($v, int $n = 12) => ($v !== null && (float) $v > 0)
         ? $bold(e(money($v)), true)
         : $dots($n);
+    // Khmer numerals, used by every counted value on the form (dates, the
+    // grace-day count, the late-fee percent). Money keeps Latin digits, as on
+    // the paper form.
+    // NOTE: the array form of strtr — the three-arg string form maps byte-for-byte
+    // and would splice the 3-byte Khmer digits into invalid UTF-8, which then hangs
+    // mPDF's purify_utf8() sanitiser for 30s+.
+    $khNum = fn ($v) => strtr((string) $v, [
+        '0' => '០', '1' => '១', '2' => '២', '3' => '៣', '4' => '៤',
+        '5' => '៥', '6' => '៦', '7' => '៧', '8' => '៨', '9' => '៩',
+    ]);
+
     // Late-fee penalty (ប្រការ៥) is a percentage of the rent per overdue day,
-    // not a money amount. nowrap so mPDF keeps "3.5%" on one line, and trailing
-    // zeros are trimmed so 2.00 → "2" and 3.50 → "3.5".
+    // not a money amount — so it is a counted value and prints in Khmer
+    // numerals, matching the ០៥ថ្ងៃ grace period in the same sentence. nowrap so
+    // mPDF keeps "៣.៥%" on one line, and trailing zeros are trimmed so 2.00 →
+    // "២" and 3.50 → "៣.៥".
     $pct = fn ($v, int $n = 6) => ($v !== null && (float) $v > 0)
-        ? $bold(e(rtrim(rtrim(number_format((float) $v, 2, '.', ''), '0'), '.')).'%', true)
+        ? $bold(e($khNum(rtrim(rtrim(number_format((float) $v, 2, '.', ''), '0'), '.'))).'%', true)
         : $dots($n);
 
     $genderLabels = ['male' => 'ប្រុស', 'female' => 'ស្រី', 'other' => 'ផ្សេងៗ'];
@@ -89,14 +102,8 @@
     $start = $rental->start_date ? Carbon::parse($rental->start_date) : null;
     $genDate = Carbon::parse($generatedAt);
 
-    // Khmer numerals + month names for the "made on" date line.
-    // NOTE: the array form of strtr — the three-arg string form maps byte-for-byte
-    // and would splice the 3-byte Khmer digits into invalid UTF-8, which then hangs
-    // mPDF's purify_utf8() sanitiser for 30s+.
-    $khNum = fn ($v) => strtr((string) $v, [
-        '0' => '០', '1' => '១', '2' => '២', '3' => '៣', '4' => '៤',
-        '5' => '៥', '6' => '៦', '7' => '៧', '8' => '៨', '9' => '៩',
-    ]);
+    // Khmer month names for the lease/"made on" date lines ($khNum is defined
+    // above, with the other value formatters that use it).
     $khMonths = [
         1 => 'មករា', 2 => 'កុម្ភៈ', 3 => 'មីនា', 4 => 'មេសា',
         5 => 'ឧសភា', 6 => 'មិថុនា', 7 => 'កក្កដា', 8 => 'សីហា',
@@ -133,12 +140,18 @@
     // than printed as a blank fill-in line. Rent always prints (dotted if unset).
     // "និង" (and) is welded onto whichever utility ends up last so the sentence
     // still reads, and if every utility is hidden the line is just the rent.
+    //
+    // The labels are the bare utility names, NOT "តម្លៃទឹក / តម្លៃភ្លើង / …":
+    // "ក្នុងតម្លៃ" already governs the whole list, and the repeated "តម្លៃ" cost
+    // ~10mm each — with all five priced the article ran onto a third line
+    // carrying nothing but the closing "។". Dropping it frees ~41mm, which keeps
+    // ប្រការ១ at two lines even with every utility priced and a floor label.
     $utilities = array_filter([
-        'តម្លៃទឹក' => $rates['water'],
-        'តម្លៃភ្លើង' => $rates['electricity'],
-        'តម្លៃចំណតរថយន្ត' => $rates['parking'],
-        'តម្លៃអុីនធីណេត' => $rates['internet'],
-        'តម្លៃសំរាម' => $rates['garbage'],
+        'ទឹក' => $rates['water'],
+        'ភ្លើង' => $rates['electricity'],
+        'ចំណតរថយន្ត' => $rates['parking'],
+        'អុីនធីណេត' => $rates['internet'],
+        'សំរាម' => $rates['garbage'],
     ], fn ($rate) => $rate !== null);
 
     $renderUtilities = function () use ($utilities, $kw, $price) {
@@ -297,7 +310,10 @@
 <table class="article" autosize="0"><tr>
     <td class="n">ប្រការ១៖</td>
     <td class="b">
-    ភាគី“ក” បានយល់ព្រមជួលបន្ទប់ដែលមានលេខ{!! $val($apartment?->apartment_number, 6) !!}ស្ថិតនៅអាស័យដ្ឋានផ្ទះជួលខាងលើទៅឱ្យ ភាគី“ខ”
+    {{-- Floor: the column is floors.floor_name (a free-text label like "2" or
+         "Ground"), not `floors` — $floor?->floors is a magic null and printed a
+         blank dotted rule. $kw keeps the short label whole, like the others. --}}
+    ភាគី“ក” បានយល់ព្រមជួលបន្ទប់ដែលមានលេខ{!! $val($apartment?->apartment_number, 6) !!}{!! $kw('ជាន់ទី') !!}{!! $val($floor?->floor_name, 6) !!}{!! $kw('ស្ថិតនៅអាស័យដ្ឋានផ្ទះជួលខាងលើទៅឱ្យ') !!} ភាគី“ខ”
     ក្នុងតម្លៃ {!! $price($rates['rent']) !!}{!! $renderUtilities() !!}។
     </td>
 </tr></table>
@@ -336,8 +352,8 @@
     ភាគី“ខ” យល់ព្រម ប្រើប្រាស់បន្ទប់ខាងលើ សម្រាប់តែស្នាក់នៅប៉ុណ្ណោះ។ ភាគី“ខ” មិនអាចប្រើប្រាស់បន្ទប់ធ្វើជា
     កន្លែងរកស៊ី-លក់ដូរ ការិយាល័យ ឃ្លាំងដាក់ទំនិញ។ល។ និងមិនអាចប្រើប្រាស់សម្រាប់ប្រព្រឹត្តអំពើខុសច្បាប់ មាន
     ដូចជាប្រើប្រាស់ ផលិត ឬរក្សាទុកគ្រឿងញៀន ទំនិញឬរបស់ខុសច្បាប់ ការជួញដូរមនុស្ស ការធ្វើអាជីវកម្មផ្លូវភេទ
-    ល្បែងស៊ីសងជាដើម។ ក្នុងករណីដែល ភាគី“ខ” បំពានលើអ្វីដែលបានរៀបរាប់ក្នុងកិច្ចសន្យា ភាគី“ក” មានសិទ្ធិ
-    បញ្ឈប់ការជួលបន្ទប់ទៅឲ្យ ភាគី“ខ” ភ្លាមៗ និងជូនដំណឹងទៅអាជ្ញាធរមានសមត្ថកិច្ចដោយមិនចាំបាច់ជូនដំណឹង
+    ល្បែងស៊ីសង និង Scams Online ជាដើម។ ក្នុងករណីដែល ភាគី“ខ” បំពានលើអ្វីដែលបានរៀបរាប់ក្នុងកិច្ចសន្យា ភាគី“ក”
+    មានសិទ្ធិបញ្ឈប់ការជួលបន្ទប់ទៅឲ្យ ភាគី“ខ” ភ្លាមៗ និងជូនដំណឹងទៅអាជ្ញាធរមានសមត្ថកិច្ចដោយមិនចាំបាច់ជូនដំណឹង
     ដល់ ភាគី“ខ” ជាមុន ហើយ ភាគី“ខ” ក៏មិនអាចទាមទារសំណង ឬប្រាក់កក់អ្វីឡើយ។
     </td>
 </tr></table>
@@ -345,10 +361,15 @@
 <table class="article" autosize="0"><tr>
     <td class="n">ប្រការ៧៖</td>
     <td class="b">
-    ក្នុងអំឡុងស្នាក់នៅ ភាគី “ខ” យល់ព្រមគ្រប់គ្រង និងថែរក្សាបន្ទប់ ឧបករណ៍ និងសម្ភារៈដែលមាននៅក្នុងបន្ទប់
+    {{-- Two deliberate tightenings so this article closes on its fourth line
+         instead of leaving "ទាត់។" alone on a fifth: "ភាគី“ខ”" is set without
+         the stray space (every other article already writes it welded), and the
+         closing clause reads "យកប្រាក់កក់ជាសំណងទូទាត់" — the redundant "ដើម្បី"
+         was ~12mm, and the overflow was ~9mm. --}}
+    ក្នុងអំឡុងស្នាក់នៅ ភាគី“ខ” យល់ព្រមគ្រប់គ្រង និងថែរក្សាបន្ទប់ ឧបករណ៍ និងសម្ភារៈដែលមាននៅក្នុងបន្ទប់
     ដោយសុចរិតភាព <span class="stress">និងមិនត្រូវស្វានជញ្ជាំង វាយដែក លាបពណ៌ ផ្លាស់ប្តូរប្រព័ន្ធទឹកភ្លើង បិទស្ទីកគ័រ អុជធុប ឬបិទ
     រូបភាពផ្សេងៗលើជញ្ជាំង</span>។ ក្នុងករណីមានការខូចខាត ភាគី“ខ” ត្រូវជូនដំណឹងដល់ ភាគី“ក” និងត្រូវចេញថ្លៃជួស
-    ជុល ឬសងការខូចខាតទាំងស្រុងដល់ ភាគី“ក” ឬត្រូវយកប្រាក់កក់ដើម្បីជាសំណងទូទាត់។
+    ជុល ឬសងការខូចខាតទាំងស្រុងដល់ ភាគី“ក” ឬត្រូវយកប្រាក់កក់ជាសំណងទូទាត់។
     </td>
 </tr></table>
 
@@ -363,46 +384,65 @@
 <table class="article" autosize="0"><tr>
     <td class="n">ប្រការ៩៖</td>
     <td class="b">
-    ភាគី“ខ” យល់ព្រម មិនអនុញ្ញាត្តិឱ្យអ្នកផ្សេង ក្រៅពីសមាជិកដូចដែលបានរៀបរាប់ឈ្មោះក្នុងកិច្ចសន្យា មកស្នាក់នៅឬ
+    {{-- Tightened so the article closes on its fourth line instead of leaving
+         "សំណូមពររបស់ ភាគី“ខ”។" alone on a fifth (same treatment as ប្រការ៧):
+         "អនុញ្ញាត្តិ" was a misspelling of "អនុញ្ញាត", "ដូច" before "ដែលបាន
+         រៀបរាប់" was redundant, and the third repeat of "អ្នកក្រៅសមាជិកដែលបាន
+         រៀបរាប់ឈ្មោះក្នុងកិច្ចសន្យា" is now "អ្នកនោះ" — the same person the
+         sentence has already named twice, so the clause reads identically. --}}
+    ភាគី“ខ” យល់ព្រម មិនអនុញ្ញាតឱ្យអ្នកផ្សេង ក្រៅពីសមាជិកដែលបានរៀបរាប់ឈ្មោះក្នុងកិច្ចសន្យា មកស្នាក់នៅឬ
     ចេញចូលបរិវេណផ្ទះឡើយ។ ក្នុងករណីភាគី“ខ” មានបំណងចង់ឲ្យអ្នកផ្សេង ក្រៅពីសមាជិកដែលបានរៀបរាប់ឈ្មោះ
     ក្នុងកិច្ចសន្យា មកស្នាក់នៅ ភាគី“ខ” ត្រូវជូនដំណឹងទៅ ភាគី“ក” ជាមុនសិន ហើយលុះណាតែ ភាគី“ក” យល់ព្រម
-    ទើប ភាគី“ខ” អាចឲ្យអ្នកក្រៅសមាជិកដែលបានរៀបរាប់ឈ្មោះក្នុងកិច្ចសន្យា ស្នាក់នៅបាន។ ក្នុងករណីនេះ ភាគី“ក”
-    សូមរក្សាសិទ្ធិក្នុងការផ្តល់ការអនុញ្ញាតឬមិនអនុញ្ញាត តាមសំណូមពររបស់ ភាគី“ខ”។
+    ទើប ភាគី“ខ” អាចឲ្យអ្នកនោះស្នាក់នៅបាន។ ក្នុងករណីនេះ ភាគី“ក” សូមរក្សាសិទ្ធិក្នុងការផ្តល់ការអនុញ្ញាតឬមិន
+    អនុញ្ញាតតាមសំណូមពររបស់ ភាគី“ខ”។
     </td>
 </tr></table>
 
 <table class="article" autosize="0"><tr>
     <td class="n">ប្រការ១០៖</td>
     <td class="b">
-    ក្នុងអំឡុងការស្នាក់នៅ ភាគី“ខ” យល់ព្រមមើលថែរក្សាទ្រព្យសម្បត្តិផ្ទាល់ខ្លួន និងទទួលការខុសត្រូវលើការបាត់បង់
-    ដោយប្រការណាមួយដោយខ្លួនឯង។ ក្នុងករណីខូចខាត ឬបាត់បង់ដោយប្រការណាមួយ ភាគី“ក” មិនទទួលខុស
-    ត្រូវឡើយ។
+    {{-- Tightened so the article closes on its second line instead of leaving
+         "ត្រូវឡើយ។" alone on a third: "ការ" dropped from "អំឡុងការស្នាក់នៅ" and
+         "ទទួលការខុសត្រូវ" (every other article writes "ក្នុងអំឡុងស្នាក់នៅ" and
+         "ទទួលខុសត្រូវ" — this clause's own closing words do too), "មើល" dropped
+         from "មើលថែរក្សា", and the second "ដោយប្រការណាមួយ" dropped as the same
+         sentence has already said it. --}}
+    ក្នុងអំឡុងស្នាក់នៅ ភាគី“ខ” យល់ព្រមថែរក្សាទ្រព្យសម្បត្តិផ្ទាល់ខ្លួន និងទទួលខុសត្រូវលើការបាត់បង់ដោយប្រការ
+    ណាមួយដោយខ្លួនឯង។ ក្នុងករណីខូចខាត ឬបាត់បង់ ភាគី“ក” មិនទទួលខុសត្រូវឡើយ។
     </td>
 </tr></table>
 
 <table class="article" autosize="0"><tr>
     <td class="n">ប្រការ១១៖</td>
     <td class="b">
-    ក្នុងអំឡុងស្នាក់នៅ ភាគី“ខ”ត្រូវគោរពបទបញ្ជារផ្ទៃក្នុងរបស់ផ្ទះជួល និងយល់ព្រមមិនបង្កើតកម្មវិធីជួបជុំ ឬជប់
-    លៀងផ្សេងៗ ដែលអាចបង្កជាសំឡេងឬការរំខានដល់អ្នកស្នាក់នៅឯទៀត។ ក្នុងករណី ភាគី“ខ” ចង់បង្កើតកម្មវិធីអ្វី
-    មួយ ភាគី“ខ” ត្រូវសុំអនុញ្ញាតពី ភាគី“ក” ជាមុនសិន។ ក្នុងករណីនេះ ភាគី “ក” សូមរក្សាសិទ្ធិក្នុងការផ្តល់ការ
+    {{-- Tightened so the article closes on its fifth line instead of leaving
+         "ទាំងអស់។" alone on a sixth: "បទបញ្ជារ" was a misspelling of "បទបញ្ជា",
+         "បង្កជាសំឡេង" loses the redundant "ជា", "ភាគី “ក”" loses the stray space
+         (every other article writes it welded), and "មិនមានការផ្តល់សំណង" becomes
+         "មិនផ្តល់សំណង" — the wording ប្រការ៨ already uses for the same penalty. --}}
+    ក្នុងអំឡុងស្នាក់នៅ ភាគី“ខ”ត្រូវគោរពបទបញ្ជាផ្ទៃក្នុងរបស់ផ្ទះជួល និងយល់ព្រមមិនបង្កើតកម្មវិធីជួបជុំ ឬជប់
+    លៀងផ្សេងៗ ដែលអាចបង្កសំឡេងឬការរំខានដល់អ្នកស្នាក់នៅឯទៀត។ ក្នុងករណី ភាគី“ខ” ចង់បង្កើតកម្មវិធីអ្វី
+    មួយ ភាគី“ខ” ត្រូវសុំអនុញ្ញាតពី ភាគី“ក” ជាមុនសិន។ ក្នុងករណីនេះ ភាគី“ក” សូមរក្សាសិទ្ធិក្នុងការផ្តល់ការ
     អនុញ្ញាតឬមិនអនុញ្ញាត តាមសំណូមពររបស់ ភាគី“ខ”។ ក្នុងករណីភាគី“ខ” មិនបានគោរពតាមការណែនាំនេះ ភាគី“ក”
-    មានសិទ្ធិបញ្ឈប់ការស្នាក់នៅ និងមិនមានការផ្តល់សំណងអ្វីទាំងអស់។
+    មានសិទ្ធិបញ្ឈប់ការស្នាក់នៅ និងមិនផ្តល់សំណងអ្វីទាំងអស់។
     </td>
 </tr></table>
 
 <table class="article" autosize="0"><tr>
     <td class="n">ប្រការ១២៖</td>
     <td class="b">
-    ភាគីទាំងសងខាង បានអាន បានយល់ និងយល់ព្រមអនុវត្តតាមខ្លឹមសារដែលបានរៀបរាប់ក្នុងកិច្ចព្រមព្រៀងនេះ។
+    {{-- Tightened onto a single line instead of leaving "កិច្ចព្រមព្រៀងនេះ។"
+         alone on a second: "ដែលបានរៀបរាប់" dropped, so it reads "the content of
+         this agreement" rather than "the content described in this agreement". --}}
+    ភាគីទាំងសងខាង បានអាន បានយល់និងយល់ព្រមអនុវត្តតាមខ្លឹមសារក្នុងកិច្ចព្រមព្រៀងនេះ។
     </td>
 </tr></table>
 
 <table class="article" autosize="0"><tr>
     <td class="n">ប្រការ១៣៖</td>
     <td class="b">
-    ក្នុងករណីដែលមានការបំពានលើប្រការណាមួយ ដែលបានរៀបរាប់ក្នុងកិច្ចព្រមព្រៀង នោះ ភាគី“ក” អាចរំលាយ
-    កិច្ចសន្យា និងទាមទារឲ្យ ភាគី“ខ” ត្រូវចាកចេញពីបន្ទប់ជួលដែលមានលេខដូចខាងលើ បន្ទាប់ពីរំលាយកិច្ចសន្យា
+    ក្នុងករណីដែលមានការបំពានលើប្រការណាមួយ ដែលបានរៀបរាប់ក្នុងកិច្ចព្រមព្រៀងនេះ ភាគី“ក” អាចរំលាយ
+    កិច្ចសន្យា និងទាមទារឲ្យភាគី“ខ” ត្រូវចាកចេញពីបន្ទប់ជួលដែលមានលេខដូចខាងលើ បន្ទាប់ពីរំលាយកិច្ចសន្យា
     ហើយ ភាគី“ខ” ត្រូវសងសំណងខូចខាតដែលកើតមាន (ប្រសិនបើមាន) និងយល់ព្រមបោះបង់ប្រាក់កក់ ដែល
     មាននៅក្នុងប្រការ ២។
     </td>
