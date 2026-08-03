@@ -2,17 +2,25 @@
 
 use App\Models\Payments;
 use App\Models\Utilities;
+use Carbon\Carbon;
 
 /**
  * A tenant's outstanding debt = unpaid rent months + unpaid utility charges,
  * both carried forward until settled (no stored "debt" rows). This is what the
  * tenant detail page's "Outstanding" figure and unpaid-charges list read.
+ *
+ * The clock is pinned because every case counts rent months from a fixed
+ * start_date up to "now" — left on the real clock these expectations quietly
+ * go stale by one month with each month that passes.
  */
 beforeEach(function () {
+    Carbon::setTestNow('2026-07-15');
     seedRoles();
     $this->admin = makeAdmin();
     $this->actingAs($this->admin);
 });
+
+afterEach(fn () => Carbon::setTestNow());
 
 it('sums unpaid rent months and unpaid utilities into one total', function () {
     $tenant = makeTenant();

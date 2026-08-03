@@ -50,6 +50,30 @@ foreach ($revenueExpensePages as $page) {
     });
 }
 
+it('renders the shared payment receipt in both modes and both panels', function () {
+    $f = sharedViewsFixture();
+
+    $payment = App\Models\Payments::create([
+        'rental_id' => $f['rental']->id,
+        'amount' => 500,
+        'due_date' => now()->toDateString(),
+        'paid_at' => now()->toDateString(),
+        'payment_method' => 'cash',
+        'payment_status' => 'paid',
+        'payment_type' => 'rent',
+        'late_fee' => 0,
+    ]);
+
+    foreach (['admin', 'supervisor'] as $panel) {
+        $this->actingAs($f[$panel === 'admin' ? 'admin' : 'sup']);
+
+        // The bill summary carries the receipt picker, which builds
+        // panel-prefixed routes — a missing $panel would 500 right here.
+        $this->get(route("{$panel}.revenue_expense.print_receipt", ['rental' => $f['rental']->id]))->assertOk();
+        $this->get(route("{$panel}.revenue_expense.print_receipt", ['rental' => $f['rental']->id, 'payment' => $payment->id]))->assertOk();
+    }
+});
+
 it('renders the shared tenant pages in the admin panel', function () {
     $f = sharedViewsFixture();
     $this->actingAs($f['admin']);

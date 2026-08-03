@@ -58,6 +58,15 @@ controller between the two panels** — use the shared pattern:
   consolidated "All properties" mode, the supervisor page has income summary
   cards. The two TenantControllers likewise stay separate; keep their
   validation rules in sync (`gender`, `email`, `id_card_number` exist in both).
+  Separate pages are **not** licence to answer the same question differently:
+  the supervisor page used to hand its active fiscal period to
+  `TenantRentProgressCalculator`, widening the payment window to the whole year
+  while the percentage still divided by one month's rent — every tenant with
+  payment history read "paid" in an unpaid month, to the people whose job is
+  collecting it, while the admin page called the same tenant overdue. Rent
+  progress is a **current-month** question; the calculator takes no period.
+  `tests/Feature/Tenants/RentProgressConsistencyTest.php` asserts both panels
+  agree.
 - `tests/Feature/SharedPanelViewsTest.php` renders every shared page as both
   roles — keep it passing when touching shared views.
 
@@ -149,7 +158,7 @@ app/
                                       RevenueExpenseQueryService
     Subscription/SubscriptionService
     Tenants/                       ← TenantLeaveProcessor, TenantPendingChargesQuery,
-                                      TenantRentProgressCalculator
+                                      TenantRentProgressCalculator, LeaseSyncService
     TenantLeaveCalculator          ← move-out proration calculator
     NotificationService
   Enums/
@@ -233,11 +242,200 @@ owed stays derived from the calendar, as it always has been here.
   the contract PDF — previously hard-coded to ០៣ថ្ងៃ there.
 - Services: `app/Services/Billing/` — `ProrationCalculator` (pure),
   `BillingCycleService` (reads settings, derives the period), `BillingPeriod` (VO).
-- Call sites: `Shared\RevenueExpenseController::recordIncome()` (rent due, due
-  date, late fee), `Tenants::paymentHistory()` (arrears — keep it agreeing with
-  the collection page), `ContractGenerator` (ប្រការ៤ due day, ប្រការ៥ grace).
+- Call sites — **every** place that says what a month owes, or they disagree
+  with each other: `Shared\RevenueExpenseController::recordIncome()` (rent due,
+  due date, late fee), `Tenants::paymentHistory()` (arrears),
+  `MonthClosePreflight` (the pre-close shortfall), `TenantRentProgressCalculator`
+  (the tenant-index badge, both panels), `ContractGenerator` (ប្រការ៤ due day,
+  ប្រការ៥ grace). The last two read `rentals.rent_amount` raw until 2026-08 and
+  reported a phantom shortfall on every fully-paid prorated move-in month.
 - `tests/Feature/Billing/RentCollectionDayTest.php` pins both rules *and* the
   no-collection-day backward-compatibility contract.
+
+---
+
+## `rentals` is the system of record for money — edits must reach it
+
+Nothing about rent is stored as an invoice. Every money figure is **derived from
+the `rentals` row**: prorated rent (`BillingCycleService`), rent due and the
+overdue badge (`RevenueExpenseQueryService`, `Shared\RevenueExpenseController`),
+arrears (`TenantRentProgressCalculator`), the move-out settlement
+(`TenantLeaveCalculator`), and ប្រការ១/៤ of the contract (`ContractGenerator`) —
+all read `rentals.start_date`, `rentals.rent_amount`, `rentals.payment_due_day`.
+
+The edit forms write **other** tables: the tenant edit page writes `tenants`
+(`move_in_date`, `deposit`), the room edit page writes `apartments`
+(`monthly_rent`). Without a sync step the profile shows the corrected figure
+while billing keeps charging the old one.
+
+`App\Services\Tenants\LeaseSyncService` is that step. Call it from any flow that
+edits lease-relevant details:
+
+- `syncFromTenantEdit($tenant)` — after `$tenant->update()`, **inside the same
+  transaction**. Copies `move_in_date` → `start_date` + `payment_due_day` (which
+  has no form field of its own and has always been the move-in day), copies
+  `deposit`, and corrects the `deposit:rental:{id}` income row.
+- `repriceActiveLeases($apartment, $rent)` — after a room reprice, so the sitting
+  tenant's next bill uses the new price.
+
+Two rules the service enforces, and they are the point of it:
+
+- **Only the current lease follows an edit.** An ended tenancy is booked history
+  — its dates and rent are what was actually charged.
+- **Closed fiscal periods are never restated** — the deposit ledger row is
+  corrected only while its period is still open, and it is *update-only*: an
+  edit corrects income that check-in booked, it never books new income.
+
+Repricing an occupied room moves the **whole** current month (rent is derived,
+not invoiced) — there is no month-specific rent without an invoice table.
+The stored contract PDF is *not* auto-regenerated; that stays the admin's
+explicit "Regenerate" action on the tenant page.
+
+`tests/Feature/Billing/TenantDetailEditSyncTest.php` pins all of this for both
+panels.
+
+---
+
+## A bill has two sides — rent and charges settle on separate visits
+
+Tenants pay rent before the month ends; the meters are read and the
+utility/other charges are collected at the turn of the month. So a bill row on
+the rent collection page carries **two independent statuses**, derived per
+request in `Shared\RevenueExpenseController::recordIncome()` — there is still no
+invoice table.
+
+- `rent_status` — paid / pending / overdue / upcoming. Driven by a `payment_type
+  = 'rent'` Payments row and the collection-day due date.
+- `charges_status` — `none` / `pending` / `paid`, from `utilities.paid_status`.
+  **`none` ≠ `paid`**: it means the meters haven't been read yet, so nothing is
+  owed *and* the month isn't finished.
+- `status` (the filter bucket, the row tint and the floor dots) folds them into
+  **one of three buckets — `paid` / `pending` / `overdue`, and nothing else.**
+  `paid` requires **both** sides settled; rent in with charges outstanding is
+  not a fourth state, it is simply pending. A `none` charges side is unsettled
+  in a **running** month (meters not read) and settles in any other month:
+  nothing was ever billed, so nothing is owed — accounts whose rent is
+  utilities-inclusive never write a charge row and their closed months must not
+  sit in `pending` forever. `has_outstanding` is unchanged and stays the
+  authority for the checkout button: a pending row with unread meters has
+  nothing collectable yet.
+- **The row prints one badge** — `<x-bill-status>`
+  (`components/bill-status.blade.php`, `compact` for the mobile card). The two
+  sides survive only as its `title` tooltip ("Rent paid · charges due" /
+  "· meters not read yet"), because a second badge competing with the status
+  is exactly what was removed. `paidCount` means *fully settled* — the "N
+  tenants paid" line under the Collected tile excludes a rent-paid tenant whose
+  meters are still unread.
+
+### Three buckets, everywhere — paid / pending / overdue
+
+`paid`, `pending`, `overdue` is the whole payment-status vocabulary of the app.
+Do not introduce a fourth bucket (`partial`, `paying`, `unpaid`, `not billed`)
+in any view: they were consolidated in 2026-08 precisely because the same tenant
+read differently on each screen. `upcoming` is *not* a fourth payment state —
+it marks a tenancy that has not begun, so nothing is owed yet.
+
+Every screen that states rent status derives it the same way and must keep
+agreeing:
+
+- `Shared\RevenueExpenseController::recordIncome()` — the rent collection page
+  (filter chips, floor dots, row tint, `<x-bill-status>`).
+- `DashboardStatsService::countRentPaymentStatus()` — the admin/supervisor
+  dashboard's Paid/Pending/Overdue tiles. Each tile **links to the matching
+  filter chip on the collection page**, so it is charges-aware too: counting
+  rent alone made the tile disagree with the page it opens.
+- `TenantRentProgressCalculator` — the tenant-index badge in both panels, and
+  the `?rent_status=paid|pending|overdue` filter in both TenantControllers.
+  Rent-only by design (the badge sits beside a rent progress bar, and the page
+  only ever shows the current month, where a `none` charges side could never
+  settle).
+- `Tenant\DashboardController` — `this_month_status` on the tenant's own
+  dashboard.
+
+Anything short of settled is `pending`; "how far along" belongs to the
+percentage/progress bar next to the badge, not to a bucket of its own.
+
+Three rules this depends on:
+
+- **Never gate "Add charge" on `status`** — gate it on the two sides. A row with
+  `rent_status = paid` and `charges_status = none` is exactly the row that still
+  needs its meter reading entered; hiding the button there is what made the
+  workflow impossible. The button is
+  hidden only when **both** sides are settled (`rent_status = paid` **and**
+  `charges_status = paid`) — that month is finished, so there is nothing left to
+  bill on it.
+- **Quote checkout the unpaid totals** (`unpaid_utility_only`,
+  `unpaid_other_charges`), never the gross ones. `settleUtilitiesForMonth()`
+  only settles unpaid rows, so a second visit shown gross figures re-quotes
+  money the first visit already took. The modal locks the rent line via
+  `rent_status` for the same reason.
+- **Pending is tracked per side** (`totalPendingRent` + `totalPendingCharges`).
+  One all-or-nothing test — the old behaviour — dropped a rent-paid tenant's
+  unpaid charges out of the tile entirely, which under this workflow is every
+  tenant every month. Fixed apartment costs ride with rent; they have no
+  settlement row of their own.
+
+`checkout()`'s `pay_rent` / `pay_utilities` flags were always independent — it
+was the status and totals layer that assumed one payment.
+`tests/Feature/RevenueExpense/SplitRentChargesStatusTest.php` pins all of it.
+
+### Both sides of a checkout settle the *billed* month
+
+The checkout form's date field defaults to **today**, and rent is collected
+late all the time — so the month the money arrives in is routinely not the
+month it pays for. `billing_month`/`billing_year` (the month the bill page was
+showing) is the authority for both sides:
+
+- **`Payments.paid_at` is anchored in the billed month** (`rentAnchorDate()` —
+  the payment date itself when it already falls there, else the end/start of the
+  billed month). Every derived rent figure keys off `paid_at`, so it is what
+  decides which month goes green. Rent used to key off the payment date alone:
+  collecting July's bill on Aug 3 settled July's *charges* but booked the rent
+  against August — July stayed overdue forever and August read paid with nothing
+  collected. `Accounts.transaction_date` still carries the real payment date;
+  income is recognised when received, in the open period. Same split
+  `settleOutstandingForTenant()` uses.
+- **Rent is idempotent per rental per billed month.** The modal locks the rent
+  line once rent is in, but a disabled checkbox isn't posted at all — a
+  double-click or stale tab re-posted `pay_rent` and booked it twice. Utilities
+  are naturally idempotent (only unpaid rows settle); rent was not. `checkout()`
+  returns `rent_already_paid` so the panel says so instead of "no items
+  selected". `recordBulkRent()` has carried the same guard since the 2026-07 audit.
+
+`tests/Feature/RevenueExpense/CheckoutBillingMonthTest.php` pins both.
+
+### …so a receipt is per payment, not per month
+
+`Shared\RevenueExpenseController::printReceipt()` renders **two documents off
+one route** (`revenue-expense/print-receipt/{rental}?month=&year=`):
+
+- **`?payment={id}` → a RECEIPT for that one payment.** Every figure comes off
+  that `Payments` row — amount, late fee, method, reference, note, `paid_at`.
+  Two collection visits mean two rows, so each gets its own receipt. The
+  receipt number is derived from the payment id, so a reprint is byte-identical
+  forever. A receipt states what was received: no balance line, no unpaid items.
+- **no `payment` → the month's BILL SUMMARY.** Every line tagged paid/unpaid,
+  balance = the unsettled lines. It says "Bill Summary", not "Receipt".
+
+Rules behind it:
+
+- **The rent line comes from `BillingCycleService`, never `rentals.rent_amount`**
+  — rent is derived here, so a prorated move-in month must print what was
+  actually billed.
+- **A receipt lists only what its payment settled.** Utilities carry no
+  `payment_id`; `settleUtilityRows()` stamps their `paid_at` from the same date
+  as the `Payments` row, and that timestamp is the join. When the rows don't
+  reconcile to the payment amount, fall back to one line for the amount taken —
+  never print a total that differs from the money received.
+- **The late fee is its own line.** It used to count toward "amount paid" while
+  the total ignored it, so every late receipt printed short.
+- Fixed room costs settle with rent (they have no settlement row), which is what
+  marks them paid on the summary.
+- The row's receipt button opens the single payment directly when the month has
+  one, else the summary — whose picker strip (`.no-print`) links the rest.
+
+`tests/Feature/RevenueExpense/PrintReceiptTest.php` pins all of it;
+`SharedPanelViewsTest` renders both modes in both panels.
 
 ---
 

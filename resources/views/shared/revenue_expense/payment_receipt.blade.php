@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{{ __('messages.payment_receipt') }} — {{ $tenant->name ?? __('messages.tenant') }} — {{ $apartment?->apartment_number ?? 'N/A' }}</title>
+    <title>{{ $isReceipt ? __('messages.payment_receipt') : __('messages.bill_summary') }} — {{ $tenant->name ?? __('messages.tenant') }} — {{ $apartment?->apartment_number ?? 'N/A' }}</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
@@ -98,6 +98,41 @@
         .badge.paid { background: #dcfce7; color: #166534; }
         .badge.due { background: #fef3c7; color: #92400e; }
 
+        /* Per-line settlement tag — a bill summary lists what has settled and
+           what hasn't side by side, so each line says which it is. */
+        .tag {
+            display: inline-block;
+            margin-left: 5px;
+            padding: 0 5px;
+            border-radius: 4px;
+            font-size: 9.5px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: .3px;
+            vertical-align: 1px;
+        }
+        .tag.paid { background: #dcfce7; color: #166534; }
+        .tag.due { background: #fef3c7; color: #92400e; }
+
+        /* Receipt picker — rent and charges settle on separate visits, so a
+           month routinely holds more than one receipt. */
+        .picker { max-width: 320px; margin: 0 auto 16px; }
+        .picker-title {
+            font-size: 10.5px; font-weight: 700; text-transform: uppercase;
+            letter-spacing: .5px; color: #6b7280; margin-bottom: 6px;
+        }
+        .chips { display: flex; flex-wrap: wrap; gap: 6px; }
+        .chip {
+            display: inline-flex; align-items: baseline; gap: 5px;
+            padding: 5px 9px; border-radius: 7px; text-decoration: none;
+            background: #fff; border: 1px solid #d1d5db; color: #374151;
+            font-size: 11.5px; line-height: 1.3;
+        }
+        .chip:hover { background: #f9fafb; }
+        .chip.active { background: #2563eb; border-color: #2563eb; color: #fff; }
+        .chip .chip-amt { font-weight: 700; }
+        .chip .chip-when { font-size: 10.5px; opacity: .75; }
+
         .notes { font-size: 12px; color: #4b5563; word-break: break-word; }
         .thank-you { font-weight: 700; letter-spacing: 1px; }
 
@@ -124,6 +159,34 @@
         </a>
     </div>
     @endunless
+
+    @php
+        // Every link stays inside whichever panel and frame we were opened in.
+        $link = fn (?int $paymentId) => route($panel.'.revenue_expense.print_receipt', array_filter([
+            'rental' => $rental->id,
+            'month' => $month,
+            'year' => $year,
+            'payment' => $paymentId,
+            'embed' => request()->boolean('embed') ? 1 : null,
+        ], fn ($v) => $v !== null));
+    @endphp
+
+    <!-- Which payment: a month holds one receipt per collection visit -->
+    <div class="picker no-print">
+        <div class="picker-title">{{ __('messages.receipts_this_month') }} — {{ $monthYear }}</div>
+        <div class="chips">
+            <a class="chip {{ $isReceipt ? '' : 'active' }}" href="{{ $link(null) }}">{{ __('messages.bill_summary') }}</a>
+            @forelse($monthPayments as $p)
+                <a class="chip {{ $currentPaymentId === $p->id ? 'active' : '' }}" href="{{ $link($p->id) }}">
+                    <span>{{ __('messages.'.$p->payment_type) }}</span>
+                    <span class="chip-amt">{{ money($p->amount + $p->late_fee) }}</span>
+                    <span class="chip-when">{{ optional($p->paid_at)->format('M j') }}</span>
+                </a>
+            @empty
+                <span style="font-size:11.5px;color:#6b7280;">{{ __('messages.no_payments_recorded_month') }}</span>
+            @endforelse
+        </div>
+    </div>
 
     <!-- Receipt -->
     <div class="receipt">
@@ -154,18 +217,27 @@
 
         <hr class="divider">
 
-        <!-- Receipt title + status -->
+        <!-- Document title + status -->
         <div class="center" style="margin-bottom:10px;">
-            <div style="font-size:14px;font-weight:700;letter-spacing:.5px;">{{ strtoupper(__('messages.payment_receipt')) }}</div>
+            <div style="font-size:14px;font-weight:700;letter-spacing:.5px;">
+                {{ strtoupper($isReceipt ? __('messages.payment_receipt') : __('messages.bill_summary')) }}
+            </div>
             <div style="margin-top:6px;">
-                <span class="badge {{ $isPaid ? 'paid' : 'due' }}">{{ $isPaid ? __('messages.paid') : __('messages.pending') }}</span>
+                <span class="badge {{ $isPaid ? 'paid' : 'due' }}">{{ $isPaid ? __('messages.paid') : __('messages.outstanding') }}</span>
             </div>
         </div>
 
         <!-- Tenant & payment meta -->
-        <div class="meta-row"><span class="label">{{ __('messages.receipt_number') }}</span><span class="value">{{ $receiptNumber }}</span></div>
-        <div class="meta-row"><span class="label">{{ __('messages.payment_date') }}</span><span class="value">{{ \Carbon\Carbon::parse($paymentDate)->format('M d, Y · h:i A') }}</span></div>
-        <div class="meta-row"><span class="label">{{ __('messages.billing_period') }}</span><span class="value">{{ $monthYear }}</span></div>
+        @if($receiptNumber)
+            <div class="meta-row"><span class="label">{{ __('messages.receipt_number') }}</span><span class="value">{{ $receiptNumber }}</span></div>
+        @endif
+        @if($paymentDate)
+            <div class="meta-row"><span class="label">{{ __('messages.payment_date') }}</span><span class="value">{{ $paymentDate->format('M d, Y · h:i A') }}</span></div>
+        @endif
+        <div class="meta-row">
+            <span class="label">{{ __('messages.billing_period') }}</span>
+            <span class="value">{{ $periodLabel ?? $monthYear }}</span>
+        </div>
         <div class="meta-row"><span class="label">{{ __('messages.tenant') }}</span><span class="value">{{ $tenant->name ?? '—' }}</span></div>
         @if($property)
             <div class="meta-row"><span class="label">{{ __('messages.property_name') }}</span><span class="value">{{ $property->name }}</span></div>
@@ -175,7 +247,7 @@
 
         <hr class="divider">
 
-        <!-- Line items -->
+        <!-- Line items: on a receipt, only what this payment collected -->
         <table class="items">
             <thead>
                 <tr>
@@ -185,23 +257,26 @@
                 </tr>
             </thead>
             <tbody>
-                <tr>
-                    <td class="name">{{ __('messages.rent') }} — {{ $monthYear }}</td>
-                    <td class="qty">1</td>
-                    <td class="price">{{ money($rentAmount) }}</td>
-                </tr>
-                @foreach($utilities as $utility)
+                @foreach($lines as $line)
                     @php
-                        $isMetered = in_array($utility->utility_type, ['electricity', 'water'], true);
-                        $hasReadings = $utility->meter_reading_in !== null || $utility->meter_reading_out !== null;
-                        $usage = ($utility->meter_reading_in !== null && $utility->meter_reading_out !== null)
+                        $utility = $line['utility'] ?? null;
+                        $hasReadings = $utility && ($utility->meter_reading_in !== null || $utility->meter_reading_out !== null);
+                        $usage = ($utility && $utility->meter_reading_in !== null && $utility->meter_reading_out !== null)
                             ? max($utility->meter_reading_out - $utility->meter_reading_in, 0) : null;
                         $fmt = fn ($v) => $v !== null ? rtrim(rtrim(number_format($v, 2), '0'), '.') : '—';
                     @endphp
                     <tr>
                         <td class="name">
-                            {{ ucfirst(str_replace('_', ' ', $utility->utility_type)) }}
-                            @if($isMetered && $hasReadings)
+                            {{ $line['label'] }}
+                            {{-- Settlement tags only make sense on the summary; every
+                                 line on a receipt is money already taken. --}}
+                            @unless($isReceipt)
+                                <span class="tag {{ $line['settled'] ? 'paid' : 'due' }}">{{ $line['settled'] ? __('messages.paid') : __('messages.unpaid') }}</span>
+                            @endunless
+                            @if(!empty($line['sublabel']))
+                                <div class="muted" style="font-size:11px;margin-top:1px;">{{ $line['sublabel'] }}</div>
+                            @endif
+                            @if($hasReadings)
                                 <div class="muted" style="font-size:11px;margin-top:1px;">
                                     {{ __('messages.meter_in') }} {{ $fmt($utility->meter_reading_in) }}
                                     → {{ __('messages.meter_out') }} {{ $fmt($utility->meter_reading_out) }}
@@ -210,14 +285,7 @@
                             @endif
                         </td>
                         <td class="qty">1</td>
-                        <td class="price">{{ money($utility->charge_amount) }}</td>
-                    </tr>
-                @endforeach
-                @foreach($fixedExpenses as $expense)
-                    <tr>
-                        <td class="name">{{ $expense->expense_name }}</td>
-                        <td class="qty">1</td>
-                        <td class="price">{{ money($expense->amount) }}</td>
+                        <td class="price">{{ money($line['amount']) }}</td>
                     </tr>
                 @endforeach
             </tbody>
@@ -227,30 +295,33 @@
 
         <!-- Total -->
         <div class="total-line">
-            <span class="label">{{ __('messages.total') }}</span>
-            <span class="amount">{{ money($totalBill) }}</span>
+            <span class="label">{{ $isReceipt ? __('messages.amount_received') : __('messages.total') }}</span>
+            <span class="amount">{{ money($total) }}</span>
         </div>
 
         <div style="margin-top:10px;">
-            <div class="pay-row">
-                <span class="muted">{{ __('messages.payment_method') }}</span>
-                <span>{{ $paymentMethod ? strtoupper($paymentMethod) : '—' }}</span>
-            </div>
-            <div class="pay-row">
-                <span class="muted">{{ __('messages.amount_paid') }}</span>
-                <span style="font-weight:700;">{{ money($amountPaid) }}</span>
-            </div>
-            @if($balance > 0)
+            @if($isReceipt)
                 <div class="pay-row">
-                    <span class="muted">{{ __('messages.balance_due') }}</span>
-                    <span style="font-weight:700;color:#b45309;">{{ money($balance) }}</span>
+                    <span class="muted">{{ __('messages.payment_method') }}</span>
+                    <span>{{ $paymentMethod ? strtoupper($paymentMethod) : '—' }}</span>
                 </div>
-            @endif
-            @if($reference)
+                @if($reference)
+                    <div class="pay-row">
+                        <span class="muted">{{ __('messages.transaction_reference') }}</span>
+                        <span>{{ $reference }}</span>
+                    </div>
+                @endif
+            @else
                 <div class="pay-row">
-                    <span class="muted">{{ __('messages.transaction_reference') }}</span>
-                    <span>{{ $reference }}</span>
+                    <span class="muted">{{ __('messages.amount_paid') }}</span>
+                    <span style="font-weight:700;">{{ money($amountPaid) }}</span>
                 </div>
+                @if($balance > 0)
+                    <div class="pay-row">
+                        <span class="muted">{{ __('messages.balance_due') }}</span>
+                        <span style="font-weight:700;color:#b45309;">{{ money($balance) }}</span>
+                    </div>
+                @endif
             @endif
         </div>
 
@@ -267,11 +338,12 @@
         <div class="meta-row"><span class="label">{{ __('messages.generated_by') }}</span><span class="value">{{ $generatedBy }}</span></div>
         <div class="meta-row"><span class="label muted" style="font-size:11px;">{{ $generatedAt->format('M d, Y · h:i A') }}</span><span class="value"></span></div>
 
-        <hr class="divider">
-
-        <div class="center" style="margin-top:6px;">
-            <div class="thank-you">{{ strtoupper(__('messages.thank_you_payment')) }}</div>
-        </div>
+        @if($isReceipt)
+            <hr class="divider">
+            <div class="center" style="margin-top:6px;">
+                <div class="thank-you">{{ strtoupper(__('messages.thank_you_payment')) }}</div>
+            </div>
+        @endif
     </div>
 
     <script>

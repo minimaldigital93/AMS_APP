@@ -132,10 +132,17 @@
                 <input type="hidden" name="under_maintenance" value="{{ $apartment->under_maintenance ? 0 : 1 }}">
 
                 <div class="flex items-center justify-between gap-4">
-                    <h3 class="flex items-center gap-2 text-sm font-medium text-slate-700">
-                        <span class="material-icons text-[16px] leading-none text-slate-400">handyman</span>
-                        {{ __('messages.maintenance_mode') }}
-                    </h3>
+                    <div>
+                        <h3 class="flex items-center gap-2 text-sm font-medium text-slate-700">
+                            <span class="material-icons text-[16px] leading-none text-slate-400">handyman</span>
+                            {{ __('messages.maintenance_mode') }}
+                        </h3>
+                        {{-- A disabled switch with no reason reads as a broken
+                             control, so say why it can't be flipped. --}}
+                        @if($isOccupied)
+                            <p class="text-slate-400 text-xs mt-0.5">{{ __('messages.maintenance_blocked_occupied') }}</p>
+                        @endif
+                    </div>
 
                     <button type="submit"
                             role="switch"

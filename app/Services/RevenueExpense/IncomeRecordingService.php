@@ -378,7 +378,16 @@ class IncomeRecordingService
      * CAT_OTHER_INCOME. This split is what powers the dashboard's per-type
      * income breakdown (see RevenueExpenseQueryService::calculateIncome).
      *
-     * @return array{total_paid: float, items: list<string>}
+     * BOTH sides settle the BILLING month — the month the bill page was
+     * showing — not whatever month the payment date happens to fall in. The
+     * charges side has always done this; rent used to key off the payment date
+     * alone, so collecting July's bill on Aug 3 (the date field defaults to
+     * today) settled July's charges but booked the rent against August: July
+     * stayed "overdue" forever and August read "paid" without a cent collected.
+     * The ledger row still carries $paymentDate — income is recognised when it
+     * is received, the same split settleOutstandingForTenant() uses.
+     *
+     * @return array{total_paid: float, items: list<string>, rent_already_paid: bool}
      */
     public function checkout(Rentals $rental, array $data): array
     {
@@ -389,23 +398,55 @@ class IncomeRecordingService
             $reference = $data['transaction_reference'] ?? null;
             $note = $data['note'] ?? null;
 
+            $paymentMonth = \Carbon\Carbon::parse($paymentDate);
+            $billingMonth = (int) ($data['billing_month'] ?? $paymentMonth->month);
+            $billingYear = (int) ($data['billing_year'] ?? $paymentMonth->year);
+
             $totalPaid = 0.0;
             $items = [];
+            $rentAlreadyPaid = false;
 
             if (! empty($data['pay_rent'])) {
                 $rentAmount = (float) $data['rent_amount'];
+                $rentPaidAt = $this->rentAnchorDate($paymentMonth, $billingMonth, $billingYear);
+
+                // Idempotency guard: the checkout modal locks the rent line once
+                // the month's rent is in, but a disabled checkbox simply isn't
+                // posted — a double-click or a stale tab re-posts pay_rent and
+                // used to book the rent twice. recordBulkRent() has carried this
+                // guard since the 2026-07 audit; the per-tenant path had not.
+                $rentAlreadyPaid = Payments::where('rental_id', $rental->id)
+                    ->where('payment_type', 'rent')
+                    ->where('payment_status', 'paid')
+                    ->whereMonth('paid_at', $rentPaidAt->month)
+                    ->whereYear('paid_at', $rentPaidAt->year)
+                    ->exists();
+            }
+
+            if (! empty($data['pay_rent']) && ! $rentAlreadyPaid) {
+                // Say which month the rent bought whenever that isn't the month
+                // it was handed over in — it is what the receipt prints.
+                $billedLabel = \Carbon\Carbon::create($billingYear, $billingMonth, 1)->format('F Y');
+                $rentNote = $note ?? 'Monthly rent payment';
+                if (! $rentPaidAt->isSameMonth($paymentMonth)) {
+                    $rentNote .= ' ('.$billedLabel.' rent, collected '.$paymentMonth->toDateString().')';
+                }
 
                 $payment = Payments::create([
                     'rental_id' => $rental->id,
                     'amount' => $rentAmount,
-                    'due_date' => $paymentDate,
-                    'paid_at' => $paymentDate,
+                    'due_date' => $rentPaidAt->toDateString(),
+                    // Anchored in the month the rent is FOR: rent owed is
+                    // derived from this date everywhere (rent_status on the
+                    // collection page, paymentHistory() arrears, the close
+                    // preflight), so it decides which month goes green.
+                    'paid_at' => $rentPaidAt->toDateString(),
                     'payment_method' => $paymentMethod,
                     'payment_status' => 'paid',
                     'payment_type' => 'rent',
                     'transaction_reference' => $reference,
                     'late_fee' => $lateFee,
-                    'note' => $note ?? 'Monthly rent payment',
+                    'note' => $rentNote,
                 ]);
 
                 Accounts::create([
@@ -415,8 +456,11 @@ class IncomeRecordingService
                     'user_id' => $this->userId,
                     'account_type' => Accounts::TYPE_INCOME,
                     'category' => Accounts::CAT_RENT_INCOME,
-                    'description' => '[Apt '.($rental->apartment?->apartment_number ?? 'N/A').'] Monthly rent',
+                    'description' => '[Apt '.($rental->apartment?->apartment_number ?? 'N/A').'] Monthly rent'
+                        .($rentPaidAt->isSameMonth($paymentMonth) ? '' : ' — '.$billedLabel),
                     'amount' => $rentAmount,
+                    // Income is recognised when the money arrived, in the open
+                    // period — only the Payments anchor moves to the billed month.
                     'transaction_date' => $paymentDate,
                     'reference_number' => $reference,
                     'note' => $note,
@@ -438,11 +482,12 @@ class IncomeRecordingService
             }
 
             if (! empty($data['pay_utilities'])) {
-                $paymentMonth = \Carbon\Carbon::parse($paymentDate);
+                // Naturally idempotent — only unpaid rows are settled, so a
+                // re-post finds nothing left and returns null.
                 $utilityResult = $this->settleUtilitiesForMonth(
                     $rental,
-                    (int) ($data['billing_month'] ?? $paymentMonth->month),
-                    (int) ($data['billing_year'] ?? $paymentMonth->year),
+                    $billingMonth,
+                    $billingYear,
                     $paymentDate,
                     $paymentMethod,
                     $reference,
@@ -456,8 +501,31 @@ class IncomeRecordingService
             return [
                 'total_paid' => $totalPaid,
                 'items' => $items,
+                'rent_already_paid' => $rentAlreadyPaid,
             ];
         });
+    }
+
+    /**
+     * The date a checkout's rent payment is anchored to: a date inside the
+     * month the rent is FOR, since every derived rent figure keys off `paid_at`.
+     *
+     * The payment date itself whenever it already falls in the billed month
+     * (the everyday case, unchanged). Back-collection anchors at the end of the
+     * billed month, prepayment at its start — either way firmly inside it, and
+     * the ledger keeps the real payment date regardless.
+     */
+    private function rentAnchorDate(\Carbon\Carbon $paymentDate, int $billingMonth, int $billingYear): \Carbon\Carbon
+    {
+        $billed = \Carbon\Carbon::create($billingYear, $billingMonth, 1)->startOfMonth();
+
+        if ($paymentDate->isSameMonth($billed)) {
+            return $paymentDate->copy();
+        }
+
+        return $paymentDate->gt($billed)
+            ? $billed->copy()->endOfMonth()->startOfDay()
+            : $billed->copy()->startOfDay();
     }
 
     /**

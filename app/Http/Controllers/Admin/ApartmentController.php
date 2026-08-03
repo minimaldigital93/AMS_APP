@@ -11,9 +11,11 @@ use App\Models\Rentals;
 use App\Models\User;
 use App\Services\Subscription\SubscriptionService;
 use App\Services\Tenants\AssignTenantException;
+use App\Services\Tenants\LeaseSyncService;
 use App\Services\Tenants\TenantAssignmentService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 
@@ -101,7 +103,7 @@ class ApartmentController extends Controller
         return redirect()->route('admin.floors.index')->with('success', __('messages.flash_apartment_created'));
     }
 
-    public function update(Request $request, Apartments $apartment)
+    public function update(Request $request, Apartments $apartment, LeaseSyncService $leases)
     {
         $validated = $request->validate([
             'apartment_number' => [
@@ -139,9 +141,24 @@ class ApartmentController extends Controller
             return back()->withInput()->with('error', __('messages.flash_maintenance_blocked_occupied'));
         }
 
-        $apartment->update($validated);
+        // The room price and the sitting tenant's rent are two different
+        // columns: `apartments.monthly_rent` is the asking price, while every
+        // bill is derived from the lease's own `rent_amount`. Repricing an
+        // occupied room has to move both, or the rent-collection page lists the
+        // new price and charges the old one.
+        $newRent = (float) $validated['monthly_rent'];
+        $repriced = 0;
 
-        return redirect()->route('admin.floors.index')->with('success', __('messages.flash_apartment_updated'));
+        DB::transaction(function () use ($apartment, $validated, $leases, $newRent, &$repriced) {
+            $apartment->update($validated);
+            $repriced = $leases->repriceActiveLeases($apartment, $newRent);
+        });
+
+        $message = $repriced > 0
+            ? __('messages.flash_apartment_updated_rent_synced', ['rent' => money($newRent)])
+            : __('messages.flash_apartment_updated');
+
+        return redirect()->route('admin.floors.index')->with('success', $message);
     }
 
     /**

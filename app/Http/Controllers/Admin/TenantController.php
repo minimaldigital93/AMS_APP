@@ -14,6 +14,7 @@ use App\Models\Rentals;
 use App\Models\Tenants;
 use App\Models\User;
 use App\Services\Attachments\AttachmentService;
+use App\Services\Tenants\LeaseSyncService;
 use App\Services\Tenants\TenantLeaveProcessor;
 use App\Services\Tenants\TenantPendingChargesQuery;
 use App\Services\Tenants\TenantRentProgressCalculator;
@@ -118,10 +119,11 @@ class TenantController extends Controller
 
         $rentProgressMap = $this->rentProgressCalculator->map($tenants);
 
-        // Rent-progress filter (paid / overdue / unpaid). Progress is computed,
-        // not stored, so filter the already-loaded collection.
+        // Rent-progress filter (paid / pending / overdue — the same three
+        // buckets everywhere). Progress is computed, not stored, so filter the
+        // already-loaded collection.
         $rentStatus = $request->input('rent_status');
-        if (in_array($rentStatus, ['paid', 'overdue', 'unpaid'], true)) {
+        if (in_array($rentStatus, ['paid', 'overdue', 'pending'], true)) {
             $tenants = $tenants->filter(
                 fn ($t) => ($rentProgressMap[$t->id]['status'] ?? 'unknown') === $rentStatus
             )->values();
@@ -625,7 +627,7 @@ class TenantController extends Controller
     /**
      * Update a tenant
      */
-    public function update(Request $request, Tenants $tenant, AttachmentService $attachments): RedirectResponse
+    public function update(Request $request, Tenants $tenant, AttachmentService $attachments, LeaseSyncService $leases): RedirectResponse
     {
         $validated = $request->validate([
             // Moving rooms requires the target to be vacant (keeping the
@@ -683,7 +685,7 @@ class TenantController extends Controller
 
         // Room move + tenant update in one transaction so a failure can't leave
         // two rooms flipped with no matching rental (or vice versa).
-        DB::transaction(function () use ($tenant, $validated) {
+        DB::transaction(function () use ($tenant, $validated, $leases) {
             $oldApartmentId = $tenant->apartment_id;
             $newApartmentId = $validated['apartment_id'];
 
@@ -719,6 +721,12 @@ class TenantController extends Controller
             }
 
             $tenant->update($validated);
+
+            // Rent, due day and arrears are all derived from the lease, not
+            // from this row — carry the edited move-in date / deposit across or
+            // the profile and the bill disagree. No-op after a room move: the
+            // rental created just above already holds the new values.
+            $leases->syncFromTenantEdit($tenant);
         });
 
         if ($request->hasFile('documents')) {

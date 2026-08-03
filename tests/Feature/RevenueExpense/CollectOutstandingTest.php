@@ -4,6 +4,7 @@ use App\Models\Accounts;
 use App\Models\Payments;
 use App\Models\Utilities;
 use App\Services\RevenueExpense\IncomeRecordingService;
+use Carbon\Carbon;
 
 /**
  * "Collect Outstanding" settles a tenant's whole carried-forward debt at once.
@@ -11,13 +12,20 @@ use App\Services\RevenueExpense\IncomeRecordingService;
  * Accounting invariant: income is recognised on the payment date in the CURRENT
  * open period (closed books untouched), while each owed rent month's Payments
  * row is anchored in its own month so the tenant's derived debt clears.
+ *
+ * The clock is pinned to the payment date these cases settle on: how much is
+ * owed is the count of rent months from start_date up to "now", so on the real
+ * clock every expectation here goes stale by one month each month.
  */
 beforeEach(function () {
+    Carbon::setTestNow('2026-07-22');
     seedRoles();
     $this->admin = makeAdmin();
     $this->actingAs($this->admin);
     $this->period = makeFiscalPeriod($this->admin);
 });
+
+afterEach(fn () => Carbon::setTestNow());
 
 function settleService(): IncomeRecordingService
 {

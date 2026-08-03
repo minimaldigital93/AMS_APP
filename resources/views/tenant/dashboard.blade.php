@@ -101,12 +101,12 @@
         <div class="bg-white rounded-xl border border-slate-100 shadow-sm p-4 sm:p-5 summary-card" data-card="revenue">
             <p class="text-xs text-gray-400 uppercase">{{ __('messages.paid_this_month') }}</p>
             <p class="text-lg font-bold mt-1
-                {{ $paymentStats['this_month_status'] === 'paid' ? 'text-green-600' : ($paymentStats['this_month_status'] === 'partial' ? 'text-yellow-600' : 'text-red-500') }}">
+                {{ $paymentStats['this_month_status'] === 'paid' ? 'text-green-600' : 'text-amber-600' }}">
                 {{ money($paymentStats['this_month_paid']) }}
             </p>
             <div class="mt-2 h-1.5 bg-gray-100 rounded-full overflow-hidden">
                 <div class="h-full rounded-full
-                    {{ $paymentStats['this_month_status'] === 'paid' ? 'bg-green-500' : ($paymentStats['this_month_status'] === 'partial' ? 'bg-yellow-400' : 'bg-red-400') }}"
+                    {{ $paymentStats['this_month_status'] === 'paid' ? 'bg-green-500' : 'bg-amber-400' }}"
                     style="width: {{ $paymentStats['this_month_percent'] }}%">
                 </div>
             </div>

@@ -71,7 +71,10 @@ class DashboardController extends Controller
                     'this_month_paid' => $paidThisMonth,
                     'this_month_total' => $monthlyRent,
                     'this_month_percent' => $percent,
-                    'this_month_status' => $percent >= 100 ? 'paid' : ($percent > 0 ? 'partial' : 'unpaid'),
+                    // Same three-bucket vocabulary as every other status view:
+                    // anything short of the full month is simply pending, and
+                    // this_month_percent is where "how far along" is expressed.
+                    'this_month_status' => $percent >= 100 ? 'paid' : 'pending',
                     'all_time_paid' => Payments::where('rental_id', $rental->id)
                         ->where('payment_status', 'paid')
                         ->sum('amount'),

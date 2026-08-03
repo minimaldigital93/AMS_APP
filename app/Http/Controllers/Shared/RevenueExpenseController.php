@@ -27,6 +27,7 @@ use App\Models\Tenants;
 use App\Models\Utilities;
 use App\Services\Attachments\AttachmentService;
 use App\Services\Billing\BillingCycleService;
+use App\Services\Billing\BillingPeriod;
 use App\Services\RevenueExpense\BreakEvenService;
 use App\Services\RevenueExpense\ExpenseRecordingService;
 use App\Services\RevenueExpense\IncomeRecordingService;
@@ -773,6 +774,13 @@ abstract class RevenueExpenseController extends Controller
         $totalRentExpected = 0;
         $totalRentCollected = 0;
         $totalPending = 0;
+        // Rent and charges are collected on separate visits (rent before month
+        // end, utilities once the meters are read), so what is still owed has
+        // to be tracked per side — a rent-paid tenant can still owe charges.
+        $totalPendingRent = 0.0;
+        $totalPendingCharges = 0.0;
+        // Three buckets, no more: paid / pending / overdue. A row that is not
+        // fully settled is pending, whichever side of the bill is missing.
         $overdueCount = 0;
         $paidCount = 0;
         $pendingCount = 0;
@@ -863,28 +871,30 @@ abstract class RevenueExpenseController extends Controller
                     $dueDate = Carbon::create($currentYear, $currentMonth, $dueDay)->endOfDay();
                 }
 
-                // Determine status. A not-yet-started tenancy is surfaced as
-                // "upcoming" (styled like a future month) rather than overdue —
-                // it stays in the pending bucket for filtering, but never counts
-                // as overdue and carries an is_upcoming flag for the badge.
-                // Rent isn't late until the grace period has run out — the same
-                // grace the printed contract promises (ប្រការ៥).
+                // Determine the RENT side of the status. A not-yet-started
+                // tenancy is surfaced as "upcoming" (styled like a future month)
+                // rather than overdue — it stays in the pending bucket for
+                // filtering, but never counts as overdue and carries an
+                // is_upcoming flag for the badge. Rent isn't late until the
+                // grace period has run out — the same grace the printed
+                // contract promises (ប្រការ៥).
+                //
+                // The charges side is derived just below and the two are folded
+                // into the row status afterwards: rent and charges are settled
+                // on separate visits, so neither one alone decides the row.
                 $overdueAfter = $dueDate->copy()->addDays($graceDays);
+                $isOverdue = ! $paidThisMonth && ! $notStartedYet && $referenceNow->gt($overdueAfter);
 
                 $isUpcoming = false;
                 if ($paidThisMonth) {
-                    $status = 'paid';
-                    $paidCount++;
+                    $rentStatus = 'paid';
                 } elseif ($notStartedYet) {
-                    $status = 'pending';
+                    $rentStatus = 'pending';
                     $isUpcoming = true;
-                    $pendingCount++;
-                } elseif ($referenceNow->gt($overdueAfter)) {
-                    $status = 'overdue';
-                    $overdueCount++;
+                } elseif ($isOverdue) {
+                    $rentStatus = 'overdue';
                 } else {
-                    $status = 'pending';
-                    $pendingCount++;
+                    $rentStatus = 'pending';
                 }
 
                 // Calculate extra charges (utilities for current month)
@@ -893,15 +903,52 @@ abstract class RevenueExpenseController extends Controller
                 $totalUtilityOnly = $utilityCharges->whereIn('utility_type', ['electricity', 'water'])->sum('charge_amount');
                 $totalOtherCharges = $utilityCharges->whereIn('utility_type', ['internet', 'parking', 'trash', 'other'])->sum('charge_amount');
 
+                // What is still collectable on the charges side. Only unpaid
+                // rows are payable — settleUtilitiesForMonth() skips the rest —
+                // so the checkout modal must be handed these, not the gross
+                // totals above, or a second visit re-quotes charges already
+                // settled on the first.
+                $unpaidCharges = $utilityCharges->filter(fn ($u) => ! $u->paid_status);
+                $unpaidUtilityOnly = (float) $unpaidCharges->whereIn('utility_type', ['electricity', 'water'])->sum('charge_amount');
+                $unpaidOtherCharges = (float) $unpaidCharges->whereIn('utility_type', ['internet', 'parking', 'trash', 'other'])->sum('charge_amount');
+                $unpaidChargeTotal = $unpaidUtilityOnly + $unpaidOtherCharges;
+
+                // 'none' is not the same as 'paid': it means the meters haven't
+                // been read yet, so nothing is owed *and* the month isn't done.
+                $chargesStatus = $utilityCharges->isEmpty()
+                    ? 'none'
+                    : ($unpaidCharges->isEmpty() ? 'paid' : 'pending');
+
                 // Fixed expenses for the apartment
                 $fixedExpenses = $apartment->activeFixedExpenses ?? collect();
                 $totalFixed = $fixedExpenses->sum('amount');
 
-                // Total bill = rent + utilities + fixed expenses + late fee.
-                // A not-yet-started tenancy is never overdue, so no late fee.
-                $isOverdue = ! $notStartedYet && $referenceNow->gt($overdueAfter);
-                $lateFeeAmount = (! $paidThisMonth && $isOverdue) ? ($rental->payments->isEmpty() ? 0 : $lateFees) : 0;
+                // Total bill = rent + utilities + fixed expenses.
                 $totalBill = $rentDue + $totalUtilities + $totalFixed;
+
+                // Row status folds both sides into ONE of three buckets —
+                // paid / pending / overdue — because that is the whole
+                // vocabulary the dashboard tiles, the filter chips and the
+                // tenant list share. Rent in but charges still owed is not a
+                // fourth state; it is simply not settled yet, so it is pending.
+                //
+                // A running month whose meters haven't been read ('none') is
+                // not settled either: rent is in, nothing is billed yet, and
+                // one visit is still to come. Once the month is over and
+                // nothing was ever billed there is nothing left to collect, so
+                // it settles; accounts with rent-inclusive utilities never
+                // write a charge row and their closed months must not sit in
+                // pending forever.
+                $chargesSettled = $chargesStatus === 'paid'
+                    || ($chargesStatus === 'none' && ($isPastMonth || $isFutureMonth));
+
+                $status = ($rentStatus === 'paid' && ! $chargesSettled) ? 'pending' : $rentStatus;
+
+                match ($status) {
+                    'paid' => $paidCount++,
+                    'overdue' => $overdueCount++,
+                    default => $pendingCount++,
+                };
 
                 // Suggested late fee to prefill on the checkout form: percent of
                 // rent per day past the grace period. Editable by the collector.
@@ -910,10 +957,21 @@ abstract class RevenueExpenseController extends Controller
                     ? round($rentDue * ($lateFeePercent / 100) * $overdueDays, 2)
                     : 0;
 
+                // What's still collectable, tracked per side. Folding both into
+                // one all-or-nothing test (the old behaviour) dropped a
+                // rent-paid tenant's unpaid charges out of the tile entirely —
+                // which is every tenant, every month, once rent is collected
+                // before the meters are read. Fixed apartment costs ride with
+                // rent: they have no settlement row of their own and checkout
+                // bills them alongside it.
+                //
                 // Upcoming (not-yet-started) rent isn't part of this month's
                 // collectable expectation.
-                if (! $paidThisMonth && ! $notStartedYet) {
-                    $totalPending += $totalBill;
+                if (! $notStartedYet) {
+                    if (! $paidThisMonth) {
+                        $totalPendingRent += $rentDue + $totalFixed;
+                    }
+                    $totalPendingCharges += $unpaidChargeTotal;
                 }
 
                 $tenantBills[] = [
@@ -929,12 +987,22 @@ abstract class RevenueExpenseController extends Controller
                     'due_day' => $dueDay,
                     'is_first_month' => $isFirstMonth,
                     'status' => $status,
+                    // The two sides behind $status. The row prints one badge,
+                    // but these say WHY it is pending (rent in, charges due /
+                    // meters unread), gate the "Add charge" button and decide
+                    // which lines the checkout modal pre-ticks.
+                    'rent_status' => $rentStatus,
+                    'charges_status' => $chargesStatus,
+                    'has_outstanding' => ! $notStartedYet && (! $paidThisMonth || $unpaidChargeTotal > 0),
                     'is_upcoming' => $isUpcoming,
                     'paid_this_month' => $paidThisMonth,
                     'utilities' => $utilityCharges,
                     'total_utilities' => $totalUtilities,
                     'total_utility_only' => $totalUtilityOnly,
                     'total_other_charges' => $totalOtherCharges,
+                    'unpaid_utility_only' => $unpaidUtilityOnly,
+                    'unpaid_other_charges' => $unpaidOtherCharges,
+                    'unpaid_charge_total' => $unpaidChargeTotal,
                     'fixed_expenses' => $fixedExpenses,
                     'total_fixed' => $totalFixed,
                     'total_bill' => $totalBill,
@@ -1066,9 +1134,14 @@ abstract class RevenueExpenseController extends Controller
         $electricityRate = money_input((float) settings('utility_electricity_price', 0));
         $waterRate = money_input((float) settings('utility_water_price', 0));
 
+        // The headline pending figure is still one number — it's just no longer
+        // blind to charges owed by a tenant whose rent is already in.
+        $totalPending = $totalPendingRent + $totalPendingCharges;
+
         return $this->panelView('record_income', compact(
             'activePeriod', 'apartments', 'apartmentSummary', 'tenantBills', 'tenantBillsAll', 'recentIncome',
             'totalRentExpected', 'totalRentCollected', 'totalPending',
+            'totalPendingRent', 'totalPendingCharges',
             'overdueCount', 'paidCount', 'pendingCount',
             'selectedDate', 'prevDate', 'nextDate',
             'isCurrentMonth', 'isFutureMonth', 'isPastMonth',
@@ -1168,13 +1241,20 @@ abstract class RevenueExpenseController extends Controller
         $result = $this->incomeService($activePeriod)->checkout($rental, $validated);
 
         if ($result['total_paid'] === 0.0) {
-            return redirect()->back()->with('error', __('messages.flash_no_items_selected'));
+            // A re-post of an already-settled checkout (double-click, stale tab)
+            // now books nothing — say so, rather than "no items selected".
+            return redirect()->back()->with(
+                'error',
+                $result['rent_already_paid']
+                    ? __('messages.flash_rent_already_collected')
+                    : __('messages.flash_no_items_selected')
+            );
         }
 
         $tenantName = $rental->tenant->name ?? __('messages.tenant');
         $aptNumber = ($rental->apartment?->apartment_number ?? 'N/A');
 
-        return redirect()->back()
+        $redirect = redirect()->back()
             ->with('print_bill_rental', $rental->id)
             ->with(
                 'success',
@@ -1185,6 +1265,14 @@ abstract class RevenueExpenseController extends Controller
                     'items' => implode(', ', $result['items']),
                 ])
             );
+
+        // Charges went through but the rent line was a duplicate — the operator
+        // must not walk away believing rent was taken twice over.
+        if ($result['rent_already_paid']) {
+            $redirect->with('warning', __('messages.flash_rent_already_collected'));
+        }
+
+        return $redirect;
     }
 
     /**
@@ -1300,6 +1388,24 @@ abstract class RevenueExpenseController extends Controller
         return $this->panelView('tenant_bill_print', $billData);
     }
 
+    /**
+     * Receipt for one payment, or the month's bill summary.
+     *
+     * Two modes, and the distinction is the whole point of this method:
+     *
+     *  - `?payment={id}` — a RECEIPT for that one payment. Every figure comes
+     *    off that Payments row: what it collected, how, when, under which
+     *    reference. Rent and charges settle on separate visits (see "A bill has
+     *    two sides" in CLAUDE.md), so each visit gets its own receipt, and the
+     *    receipt number is derived from the payment id so a reprint months
+     *    later is byte-identical.
+     *  - no `payment` — the month's BILL SUMMARY: everything owed, what has
+     *    settled, what is still open. It is not a receipt and doesn't say it is.
+     *
+     * Rent is never stored as an invoice, so the rent figure comes from
+     * BillingCycleService — the same prorated amount the collection page
+     * charged — not from `rentals.rent_amount`.
+     */
     public function printReceipt(Request $request, $rentalId)
     {
         $month = (int) $request->input('month', now()->month);
@@ -1309,51 +1415,222 @@ abstract class RevenueExpenseController extends Controller
             ->findOrFail($rentalId);
         $this->authorizeRentalAccess($rental);
 
-        $utilities = Utilities::where('rental_id', $rental->id)
-            ->where('billing_month', $month)
-            ->where('billing_year', $year)
-            ->get();
-
-        $payments = Payments::where('rental_id', $rental->id)
+        // Every payment sitting against this month — the picker strip at the
+        // top of the page, and the summary's cash figure.
+        $monthPayments = Payments::where('rental_id', $rental->id)
             ->where('payment_status', 'paid')
             ->whereMonth('paid_at', $month)
             ->whereYear('paid_at', $year)
             ->orderBy('paid_at')
+            ->orderBy('id')
             ->get();
 
-        $fixedExpenses = $rental->apartment->activeFixedExpenses ?? collect();
+        // Scoped to the rental: another tenant's payment id is a 404, never
+        // someone else's receipt.
+        $payment = $request->filled('payment')
+            ? Payments::where('rental_id', $rental->id)
+                ->where('payment_status', 'paid')
+                ->findOrFail((int) $request->input('payment'))
+            : null;
 
-        $totalUtilities = $utilities->sum('charge_amount');
-        $totalFixed = $fixedExpenses->sum('amount');
-        $totalBill = $rental->rent_amount + $totalUtilities + $totalFixed;
+        $period = app(BillingCycleService::class)->periodFor($rental, $month, $year);
+        $rentDue = $period ? $period->amount : (float) $rental->rent_amount;
 
-        $amountPaid = $payments->sum('amount') + $payments->sum('late_fee');
-        $latestPayment = $payments->last();
-        $isPaid = $payments->where('payment_type', 'rent')->isNotEmpty();
-        $paymentDate = $latestPayment?->paid_at ?? now();
+        $charges = Utilities::where('rental_id', $rental->id)
+            ->forMonth($month, $year)
+            ->orderBy('utility_type')
+            ->get();
 
-        return $this->panelView('payment_receipt', [
+        $fixedExpenses = $rental->apartment?->activeFixedExpenses ?? collect();
+
+        $body = $payment
+            ? $this->receiptForPayment($payment, $period, $month, $year)
+            : $this->billSummaryFor($monthPayments, $period, $rentDue, $charges, $fixedExpenses);
+
+        return $this->panelView('payment_receipt', $body + [
             'rental' => $rental,
             'apartment' => $rental->apartment,
             'tenant' => $rental->tenant,
             'property' => $rental->apartment?->property,
+            'month' => $month,
+            'year' => $year,
             'monthYear' => Carbon::create($year, $month, 1)->format('F Y'),
-            'rentAmount' => $rental->rent_amount,
-            'utilities' => $utilities,
-            'fixedExpenses' => $fixedExpenses,
-            'totalBill' => $totalBill,
-            'amountPaid' => $amountPaid,
-            'balance' => max($totalBill - $amountPaid, 0),
-            'isPaid' => $isPaid,
-            'paymentDate' => $paymentDate,
-            'paymentMethod' => $latestPayment?->payment_method,
-            'note' => $payments->pluck('note')->filter()->implode(' · '),
-            'reference' => $latestPayment?->transaction_reference,
-            'receiptNumber' => 'RCPT-'.$rental->id.'-'.Carbon::parse($paymentDate)->format('Ymd').($latestPayment ? '-'.$latestPayment->id : ''),
+            'periodLabel' => $period?->label(),
             'billReference' => 'BILL-'.$rental->id.'-'.sprintf('%04d%02d', $year, $month),
+            'monthPayments' => $monthPayments,
+            'currentPaymentId' => $payment?->id,
             'generatedBy' => auth()->user()?->name ?? '—',
             'generatedAt' => now(),
         ]);
+    }
+
+    /**
+     * Receipt body for a single payment: only what that payment collected.
+     *
+     * @return array<string, mixed>
+     */
+    private function receiptForPayment(Payments $payment, ?BillingPeriod $period, int $month, int $year): array
+    {
+        $lines = [];
+        $settled = $this->utilitiesSettledBy($payment);
+
+        if ($settled->isNotEmpty()) {
+            foreach ($settled as $utility) {
+                $lines[] = [
+                    'label' => $this->chargeLabel($utility->utility_type),
+                    'amount' => (float) $utility->charge_amount,
+                    'utility' => $utility,
+                    'settled' => true,
+                ];
+            }
+        } else {
+            // Rent, deposit, a manually recorded utilities payment — one line
+            // for the money the row actually holds.
+            $lines[] = [
+                'label' => $this->paymentTypeLabel($payment->payment_type),
+                'sublabel' => $payment->payment_type === 'rent'
+                    ? ($period?->label() ?? Carbon::create($year, $month, 1)->format('F Y'))
+                    : null,
+                'amount' => (float) $payment->amount,
+                'settled' => true,
+            ];
+        }
+
+        // The late fee was collected with this payment but has never had a line
+        // of its own — it was folded into "amount paid" while the total ignored
+        // it, so every late receipt printed short.
+        if ((float) $payment->late_fee > 0) {
+            $lines[] = [
+                'label' => __('messages.late_fee'),
+                'amount' => (float) $payment->late_fee,
+                'settled' => true,
+            ];
+        }
+
+        return [
+            'isReceipt' => true,
+            'payment' => $payment,
+            'lines' => $lines,
+            'total' => collect($lines)->sum('amount'),
+            'amountPaid' => (float) $payment->amount + (float) $payment->late_fee,
+            'balance' => 0.0,
+            'isPaid' => true,
+            'paymentDate' => $payment->paid_at,
+            'paymentMethod' => $payment->payment_method,
+            'reference' => $payment->transaction_reference,
+            'note' => $payment->note,
+            // Anchored on the payment id, so a reprint never renumbers.
+            'receiptNumber' => 'RCPT-'.$payment->paid_at?->format('Ymd').'-'.$payment->id,
+        ];
+    }
+
+    /**
+     * Bill-summary body: everything owed for the month, tagged per line with
+     * whether it has settled.
+     *
+     * @param  \Illuminate\Support\Collection<int, Payments>  $monthPayments
+     * @param  \Illuminate\Support\Collection<int, Utilities>  $charges
+     * @param  \Illuminate\Support\Collection<int, \App\Models\ApartmentFixedExpense>  $fixedExpenses
+     * @return array<string, mixed>
+     */
+    private function billSummaryFor($monthPayments, ?BillingPeriod $period, float $rentDue, $charges, $fixedExpenses): array
+    {
+        $rentPaid = $monthPayments->where('payment_type', 'rent')->isNotEmpty();
+
+        $lines = [[
+            'label' => __('messages.rent'),
+            'sublabel' => $period?->label(),
+            'amount' => $rentDue,
+            'settled' => $rentPaid,
+        ]];
+
+        foreach ($charges as $utility) {
+            $lines[] = [
+                'label' => $this->chargeLabel($utility->utility_type),
+                'amount' => (float) $utility->charge_amount,
+                'utility' => $utility,
+                'settled' => (bool) $utility->paid_status,
+            ];
+        }
+
+        // Fixed room costs have no settlement row of their own — checkout bills
+        // them alongside rent, so that is what marks them settled.
+        foreach ($fixedExpenses as $expense) {
+            $lines[] = [
+                'label' => $expense->expense_name,
+                'amount' => (float) $expense->amount,
+                'settled' => $rentPaid,
+            ];
+        }
+
+        $lateFees = (float) $monthPayments->sum('late_fee');
+        if ($lateFees > 0) {
+            $lines[] = [
+                'label' => __('messages.late_fee'),
+                'amount' => $lateFees,
+                'settled' => true,
+            ];
+        }
+
+        $outstanding = collect($lines)->reject(fn ($l) => $l['settled'])->sum('amount');
+        $chargesOpen = $charges->contains(fn ($u) => ! $u->paid_status);
+
+        return [
+            'isReceipt' => false,
+            'payment' => null,
+            'lines' => $lines,
+            'total' => collect($lines)->sum('amount'),
+            // Cash actually received this month, late fees included.
+            'amountPaid' => (float) $monthPayments->sum('amount') + $lateFees,
+            'balance' => round($outstanding, 2),
+            // Both sides have to be clear — 'none' charges (meters unread) do
+            // not block it, an unpaid charge row does.
+            'isPaid' => $rentPaid && ! $chargesOpen,
+            'paymentDate' => $monthPayments->last()?->paid_at,
+            'paymentMethod' => null,
+            'reference' => null,
+            'note' => null,
+            'receiptNumber' => null,
+        ];
+    }
+
+    /**
+     * The charge rows one utilities payment settled. Utilities carry no
+     * payment_id — settleUtilityRows() stamps their paid_at from the same
+     * date as the Payments row, so that timestamp is the link. The total has
+     * to reconcile, or we fall back to a single line for the amount taken.
+     *
+     * @return \Illuminate\Support\Collection<int, Utilities>
+     */
+    private function utilitiesSettledBy(Payments $payment)
+    {
+        if ($payment->payment_type !== 'utilities' || ! $payment->paid_at) {
+            return collect();
+        }
+
+        $rows = Utilities::where('rental_id', $payment->rental_id)
+            ->where('paid_status', true)
+            ->where('paid_at', $payment->paid_at)
+            ->orderBy('utility_type')
+            ->get();
+
+        return abs($rows->sum('charge_amount') - (float) $payment->amount) < 0.01
+            ? $rows
+            : collect();
+    }
+
+    /** Localised label for a utilities row's type. */
+    private function chargeLabel(string $type): string
+    {
+        return __('messages.'.$type) === 'messages.'.$type
+            ? ucfirst(str_replace('_', ' ', $type))
+            : __('messages.'.$type);
+    }
+
+    /** Localised label for a Payments row's type. */
+    private function paymentTypeLabel(?string $type): string
+    {
+        return $type ? $this->chargeLabel($type) : __('messages.payment');
     }
 
     public function storeIncome(RecordIncomeRequest $request)

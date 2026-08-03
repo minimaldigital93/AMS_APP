@@ -63,8 +63,8 @@
                 class="px-3 py-1.5 rounded-lg text-sm font-medium transition {{ $activeRentStatus === 'paid' ? 'bg-emerald-600 text-white' : 'bg-slate-50 text-slate-600 hover:bg-slate-100' }}">{{ __('messages.paid') }}</a>
             <a href="{{ request()->fullUrlWithQuery(['rent_status' => 'overdue', 'page' => null]) }}"
                 class="px-3 py-1.5 rounded-lg text-sm font-medium transition {{ $activeRentStatus === 'overdue' ? 'bg-red-600 text-white' : 'bg-slate-50 text-slate-600 hover:bg-slate-100' }}">{{ __('messages.overdue') }}</a>
-            <a href="{{ request()->fullUrlWithQuery(['rent_status' => 'unpaid', 'page' => null]) }}"
-                class="px-3 py-1.5 rounded-lg text-sm font-medium transition {{ $activeRentStatus === 'unpaid' ? 'bg-gray-800 text-white' : 'bg-slate-50 text-slate-600 hover:bg-slate-100' }}">{{ __('messages.unpaid') }}</a>
+            <a href="{{ request()->fullUrlWithQuery(['rent_status' => 'pending', 'page' => null]) }}"
+                class="px-3 py-1.5 rounded-lg text-sm font-medium transition {{ $activeRentStatus === 'pending' ? 'bg-amber-600 text-white' : 'bg-slate-50 text-slate-600 hover:bg-slate-100' }}">{{ __('messages.pending') }}</a>
         </div>
 
         {{-- Tenants grouped by property, then into collapsible floor cards (styled like
@@ -122,7 +122,7 @@
                                 <span class="w-2 h-2 rounded-full bg-red-400"></span>
                                 <span class="text-xs font-semibold text-red-600">{{ $flOverdue }}</span>
                             </div>
-                            <div class="flex items-center gap-1.5" title="{{ __('messages.unpaid') }}">
+                            <div class="flex items-center gap-1.5" title="{{ __('messages.pending') }}">
                                 <span class="w-2 h-2 rounded-full bg-amber-400"></span>
                                 <span class="text-xs font-semibold text-amber-600">{{ $flOther }}</span>
                             </div>
@@ -189,16 +189,16 @@
                                         @endif
                                     </td>
                                     <td class="px-4 lg:px-6 py-4 whitespace-nowrap">
+                                        {{-- One status, three values — the same vocabulary as the
+                                             dashboard tiles and the rent collection page. --}}
                                         @if($status === 'paid')
                                             <span class="px-2 py-1 text-xs font-semibold rounded-md bg-emerald-100 text-emerald-700">{{ __('messages.paid') }}</span>
-                                        @elseif($status === 'partial')
-                                            <span class="px-2 py-1 text-xs font-semibold rounded-md bg-yellow-100 text-yellow-700">{{ __('messages.paying') }}</span>
                                         @elseif($status === 'overdue')
                                             <span class="px-2 py-1 text-xs font-semibold rounded-md bg-red-100 text-red-700">{{ __('messages.overdue') }}</span>
                                         @elseif($status === 'upcoming')
                                             <span class="px-2 py-1 text-xs font-semibold rounded-md bg-sky-100 text-sky-700">{{ __('messages.upcoming') }}</span>
                                         @else
-                                            <span class="px-2 py-1 text-xs font-semibold rounded-md bg-gray-100 text-gray-700">{{ __('messages.unpaid') }}</span>
+                                            <span class="px-2 py-1 text-xs font-semibold rounded-md bg-amber-100 text-amber-700">{{ __('messages.pending') }}</span>
                                         @endif
                                     </td>
                                     <td class="px-4 lg:px-6 py-4 whitespace-nowrap text-sm font-medium">
@@ -243,14 +243,12 @@
                             <!-- Status badge -->
                             @if($status === 'paid')
                                 <span class="px-1.5 py-0.5 text-[10px] font-semibold rounded bg-emerald-100 text-emerald-700 flex-shrink-0">{{ __('messages.paid') }}</span>
-                            @elseif($status === 'partial')
-                                <span class="px-1.5 py-0.5 text-[10px] font-semibold rounded bg-yellow-100 text-yellow-700 flex-shrink-0">{{ __('messages.paying') }}</span>
                             @elseif($status === 'overdue')
                                 <span class="px-1.5 py-0.5 text-[10px] font-semibold rounded bg-red-100 text-red-700 flex-shrink-0">{{ __('messages.overdue') }}</span>
                             @elseif($status === 'upcoming')
                                 <span class="px-1.5 py-0.5 text-[10px] font-semibold rounded bg-sky-100 text-sky-700 flex-shrink-0">{{ __('messages.upcoming') }}</span>
                             @else
-                                <span class="px-1.5 py-0.5 text-[10px] font-semibold rounded bg-gray-100 text-gray-700 flex-shrink-0">{{ __('messages.unpaid') }}</span>
+                                <span class="px-1.5 py-0.5 text-[10px] font-semibold rounded bg-amber-100 text-amber-700 flex-shrink-0">{{ __('messages.pending') }}</span>
                             @endif
                             <!-- Actions -->
                             <div class="flex items-center gap-1 flex-shrink-0">

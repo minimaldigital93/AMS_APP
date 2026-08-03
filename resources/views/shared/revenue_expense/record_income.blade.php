@@ -1,5 +1,27 @@
 @extends('layouts.'.$panel)
 
+@php
+    // Where the row's receipt button points. A month holds one payment row per
+    // collection visit (rent before month end, charges once the meters are
+    // read), so a single payment opens as its own receipt while several open
+    // the bill summary — which carries the picker to choose between them.
+    $receiptUrl = function (array $bill) use ($panel, $currentMonth, $currentYear) {
+        // The eager-loaded set also carries fiscal-period payments from other
+        // months — narrow it to the month this page is showing.
+        $paid = $bill['rental']->payments->filter(
+            fn ($p) => $p->paid_at && $p->paid_at->month === $currentMonth && $p->paid_at->year === $currentYear
+        );
+
+        return route($panel.'.revenue_expense.print_receipt', array_filter([
+            'rental' => $bill['rental']->id,
+            'month' => $currentMonth,
+            'year' => $currentYear,
+            'payment' => $paid->count() === 1 ? $paid->first()->id : null,
+            'embed' => 1,
+        ], fn ($v) => $v !== null));
+    };
+@endphp
+
 @section('content')
 <div class="max-w-6xl mx-auto space-y-8" x-data="billingManager()">
     <!-- Header -->
@@ -92,7 +114,11 @@
                     <p class="text-xl font-bold text-amber-600">{{ money($totalPending) }}</p>
                 </div>
             </div>
-            <p class="text-[11px] text-slate-400 mt-2">{{ __('messages.n_pending', ['count' => $pendingCount]) }}</p>
+            {{-- Split the figure: rent and charges are collected on separate
+                 visits, so "what's left to collect" is two errands, not one. --}}
+            <p class="text-[11px] text-slate-400 mt-2">
+                {{ __('messages.pending_split', ['rent' => money($totalPendingRent), 'charges' => money($totalPendingCharges)]) }}
+            </p>
         </div>
         @if($isFutureMonth)
         <div class="bg-white rounded-xl border border-slate-100 p-5 summary-card" data-card="deposits">
@@ -265,34 +291,37 @@
                             <p class="text-sm font-bold {{ $bill['status'] === 'paid' ? 'text-emerald-600' : 'text-slate-800' }}">{{ money($bill['total_bill']) }}</p>
                         </td>
                         <td class="px-4 lg:px-6 py-4 whitespace-nowrap text-center">
-                            @if($bill['status'] === 'paid')
-                                <span class="inline-block px-2 py-1 text-xs font-semibold rounded-md bg-emerald-100 text-emerald-700">{{ __('messages.paid') }}</span>
-                            @elseif($bill['status'] === 'overdue')
-                                <span class="inline-block px-2 py-1 text-xs font-semibold rounded-md bg-red-100 text-red-700">{{ __('messages.overdue') }}</span>
-                            @elseif($isFutureMonth || ($bill['is_upcoming'] ?? false))
-                                <span class="inline-block px-2 py-1 text-xs font-semibold rounded-md bg-sky-100 text-sky-700">{{ __('messages.upcoming') }}</span>
-                            @else
-                                <span class="inline-block px-2 py-1 text-xs font-semibold rounded-md bg-amber-100 text-amber-700">{{ __('messages.pending') }}</span>
-                            @endif
+                            {{-- One badge, three values. Paid means rent AND charges
+                                 are settled; the tooltip says which side is still open. --}}
+                            <x-bill-status :bill="$bill" :future="$isFutureMonth" />
                         </td>
                         <td class="px-4 lg:px-6 py-4 whitespace-nowrap text-sm font-medium">
                             <div class="flex items-center justify-end gap-4">
-                                @if($bill['status'] !== 'paid')
+                                {{-- Stays available while either side is still open: the
+                                     meters are read after the rent visit, so a rent-paid
+                                     row with no charges yet ('none') is exactly the row
+                                     that still needs them entered. Only a fully settled
+                                     month — rent paid *and* charges paid — hides it. --}}
+                                @unless($bill['rent_status'] === 'paid' && ($bill['charges_status'] ?? 'none') === 'paid')
                                 <button @click="openAddCharge({{ $bill['rental']->id }}, '{{ addslashes($bill['tenant']->name ?? __('messages.tenant')) }}', '{{ $bill['apartment']->apartment_number }}')"
                                     class="inline-flex items-center justify-center h-7 w-7 rounded-md text-orange-600 bg-orange-50 hover:bg-orange-100 transition" title="{{ __('messages.add_charge') }}">
                                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/></svg>
                                 </button>
-                                @endif
+                                @endunless
                                 <button @click="openChargesReceipt({{ $bill['rental']->id }}, '{{ addslashes($bill['tenant']->name ?? __('messages.tenant')) }}', '{{ $bill['apartment']->apartment_number }}', {{ $chargesJson->toJson() }}, {{ $bill['monthly_rent'] }}, {{ $bill['total_fixed'] }})"
                                     class="inline-flex items-center justify-center h-7 w-7 rounded-md text-sky-600 bg-sky-50 hover:bg-sky-100 transition" title="{{ __('messages.view_charges') }}">
                                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
                                 </button>
-                                <button @click="openReceipt('{{ route($panel.'.revenue_expense.print_receipt', ['rental' => $bill['rental']->id, 'month' => $currentMonth, 'year' => $currentYear, 'embed' => 1]) }}')"
+                                {{-- One payment in the month → open its receipt straight
+                                     away. More than one (the rent visit and the charges
+                                     visit each write their own) → open the bill summary,
+                                     which carries the picker for choosing between them. --}}
+                                <button @click="openReceipt('{{ $receiptUrl($bill) }}')"
                                     class="inline-flex items-center justify-center h-7 w-7 rounded-md text-indigo-600 bg-indigo-50 hover:bg-indigo-100 transition" title="{{ __('messages.view_receipt') }}">
                                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 3h12v18l-2-1.5-2 1.5-2-1.5-2 1.5-2-1.5L6 21z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 8h6M9 11.5h6M9 15h3.5"/></svg>
                                 </button>
-                                @if($bill['status'] !== 'paid')
-                                <button @click="openCheckout({{ $bill['rental']->id }}, '{{ addslashes($bill['tenant']->name ?? __('messages.tenant')) }}', '{{ $bill['apartment']->apartment_number }}', {{ $bill['monthly_rent'] }}, {{ $bill['total_utility_only'] }}, {{ $bill['total_other_charges'] }}, {{ $bill['total_fixed'] }}, {{ $bill['total_bill'] }}, {{ $bill['late_fee_suggested'] ?? 0 }}, {{ $bill['overdue_days'] ?? 0 }}, {{ json_encode($bill['checkout_detail']) }})"
+                                @if($bill['has_outstanding'] ?? ($bill['status'] !== 'paid'))
+                                <button @click="openCheckout({{ $bill['rental']->id }}, '{{ addslashes($bill['tenant']->name ?? __('messages.tenant')) }}', '{{ $bill['apartment']->apartment_number }}', {{ $bill['monthly_rent'] }}, {{ $bill['unpaid_utility_only'] }}, {{ $bill['unpaid_other_charges'] }}, {{ $bill['total_fixed'] }}, {{ $bill['total_bill'] }}, {{ $bill['late_fee_suggested'] ?? 0 }}, {{ $bill['overdue_days'] ?? 0 }}, {{ json_encode($bill['checkout_detail']) }}, '{{ $bill['rent_status'] }}', '{{ $bill['charges_status'] }}')"
                                     class="inline-flex items-center justify-center h-7 w-7 rounded-md text-emerald-600 bg-emerald-50 hover:bg-emerald-100 transition" title="{{ __('messages.checkout_pay') }}">
                                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
                                 </button>
@@ -330,35 +359,28 @@
                 <!-- Amount + status -->
                 <div class="flex flex-col items-center flex-1 min-w-0">
                     <p class="text-sm font-bold {{ $bill['status'] === 'paid' ? 'text-emerald-600' : 'text-slate-800' }} whitespace-nowrap">{{ money($bill['total_bill']) }}</p>
-                    @if($bill['status'] === 'paid')
-                        <span class="mt-0.5 px-1.5 py-0.5 text-[10px] font-semibold rounded bg-emerald-100 text-emerald-700">{{ __('messages.paid') }}</span>
-                    @elseif($bill['status'] === 'overdue')
-                        <span class="mt-0.5 px-1.5 py-0.5 text-[10px] font-semibold rounded bg-red-100 text-red-700">{{ __('messages.overdue') }}</span>
-                    @elseif($isFutureMonth || ($bill['is_upcoming'] ?? false))
-                        <span class="mt-0.5 px-1.5 py-0.5 text-[10px] font-semibold rounded bg-sky-100 text-sky-700">{{ __('messages.upcoming') }}</span>
-                    @else
-                        <span class="mt-0.5 px-1.5 py-0.5 text-[10px] font-semibold rounded bg-amber-100 text-amber-700">{{ __('messages.pending') }}</span>
-                    @endif
+                    <x-bill-status :bill="$bill" :future="$isFutureMonth" compact />
                 </div>
                 <div class="flex items-center gap-1 flex-shrink-0">
-                    @if($bill['status'] !== 'paid')
+                    {{-- Hidden only when both sides are settled — see the desktop row. --}}
+                    @unless($bill['rent_status'] === 'paid' && ($bill['charges_status'] ?? 'none') === 'paid')
                     <button @click="openAddCharge({{ $bill['rental']->id }}, '{{ addslashes($bill['tenant']->name ?? __('messages.tenant')) }}', '{{ $bill['apartment']->apartment_number }}')"
                         class="inline-flex items-center justify-center h-8 w-8 rounded-lg text-orange-600 bg-orange-50 active:bg-orange-100 transition" title="{{ __('messages.add_charge') }}">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/></svg>
                     </button>
                     @else
                     <span class="h-8 w-8 flex-shrink-0" aria-hidden="true"></span>
-                    @endif
+                    @endunless
                     <button @click="openChargesReceipt({{ $bill['rental']->id }}, '{{ addslashes($bill['tenant']->name ?? __('messages.tenant')) }}', '{{ $bill['apartment']->apartment_number }}', {{ $chargesJson->toJson() }}, {{ $bill['monthly_rent'] }}, {{ $bill['total_fixed'] }})"
                         class="inline-flex items-center justify-center h-8 w-8 rounded-lg text-sky-700 bg-sky-50 active:bg-sky-100 transition" title="{{ __('messages.view_charges') }}">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
                     </button>
-                    <button @click="openReceipt('{{ route($panel.'.revenue_expense.print_receipt', ['rental' => $bill['rental']->id, 'month' => $currentMonth, 'year' => $currentYear, 'embed' => 1]) }}')"
+                    <button @click="openReceipt('{{ $receiptUrl($bill) }}')"
                         class="inline-flex items-center justify-center h-8 w-8 rounded-lg text-indigo-600 bg-indigo-50 active:bg-indigo-100 transition" title="{{ __('messages.view_receipt') }}">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 3h12v18l-2-1.5-2 1.5-2-1.5-2 1.5-2-1.5L6 21z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 8h6M9 11.5h6M9 15h3.5"/></svg>
                     </button>
-                    @if($bill['status'] !== 'paid')
-                    <button @click="openCheckout({{ $bill['rental']->id }}, '{{ addslashes($bill['tenant']->name ?? __('messages.tenant')) }}', '{{ $bill['apartment']->apartment_number }}', {{ $bill['monthly_rent'] }}, {{ $bill['total_utility_only'] }}, {{ $bill['total_other_charges'] }}, {{ $bill['total_fixed'] }}, {{ $bill['total_bill'] }}, {{ $bill['late_fee_suggested'] ?? 0 }}, {{ $bill['overdue_days'] ?? 0 }}, {{ json_encode($bill['checkout_detail']) }})"
+                    @if($bill['has_outstanding'] ?? ($bill['status'] !== 'paid'))
+                    <button @click="openCheckout({{ $bill['rental']->id }}, '{{ addslashes($bill['tenant']->name ?? __('messages.tenant')) }}', '{{ $bill['apartment']->apartment_number }}', {{ $bill['monthly_rent'] }}, {{ $bill['unpaid_utility_only'] }}, {{ $bill['unpaid_other_charges'] }}, {{ $bill['total_fixed'] }}, {{ $bill['total_bill'] }}, {{ $bill['late_fee_suggested'] ?? 0 }}, {{ $bill['overdue_days'] ?? 0 }}, {{ json_encode($bill['checkout_detail']) }}, '{{ $bill['rent_status'] }}', '{{ $bill['charges_status'] }}')"
                         class="inline-flex items-center justify-center h-8 w-8 rounded-lg text-emerald-600 bg-emerald-50 active:bg-emerald-100 transition" title="{{ __('messages.checkout_pay') }}">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
                     </button>
@@ -741,10 +763,14 @@
                     <input type="hidden" name="billing_year" value="{{ $currentYear }}">
                     <!-- Bill lines -->
                     <div class="space-y-1.5">
-                        <div class="flex items-center justify-between py-2 px-3 rounded-lg bg-slate-50">
-                            <label class="flex items-center gap-2 text-sm text-slate-600 cursor-pointer select-none">
-                                <input type="checkbox" name="pay_rent" value="1" x-model="payRent" class="rounded border-slate-300 text-emerald-600 focus:ring-emerald-500">
+                        {{-- Rent already collected on an earlier visit: shown for
+                             context, locked so this visit can't bill it twice. --}}
+                        <div class="flex items-center justify-between py-2 px-3 rounded-lg bg-slate-50" :class="rentAlreadyPaid ? 'opacity-60' : ''">
+                            <label class="flex items-center gap-2 text-sm text-slate-600 select-none" :class="rentAlreadyPaid ? 'cursor-not-allowed' : 'cursor-pointer'">
+                                <input type="checkbox" name="pay_rent" value="1" x-model="payRent" :disabled="rentAlreadyPaid"
+                                    class="rounded border-slate-300 text-emerald-600 focus:ring-emerald-500 disabled:opacity-50">
                                 {{ __('messages.rent') }}
+                                <span x-show="rentAlreadyPaid" x-cloak class="text-[10px] font-medium text-emerald-600 bg-emerald-50 px-1 py-0.5 rounded">{{ __('messages.paid_lower') }}</span>
                             </label>
                             <span class="text-sm font-semibold text-slate-800" x-text="'$' + parseFloat(checkoutRent).toFixed(2)"></span>
                         </div>
@@ -777,13 +803,14 @@
                                 <span class="text-xs text-slate-500 flex-shrink-0" x-text="'$' + parseFloat(c.amount).toFixed(2)"></span>
                             </div>
                         </template>
-                        <div x-show="checkoutFixed > 0" class="flex items-center justify-between py-2 px-3 rounded-lg bg-slate-50">
+                        <div x-show="checkoutFixed > 0" class="flex items-center justify-between py-2 px-3 rounded-lg bg-slate-50 transition" :class="payRent ? '' : 'opacity-50'">
                             <span class="text-sm text-slate-500 pl-6">{{ __('messages.apartment_costs') }}</span>
                             <span class="text-sm font-medium text-slate-700" x-text="'$' + parseFloat(checkoutFixed).toFixed(2)"></span>
                         </div>
-                        {{-- …and the same for the room's own recurring costs. --}}
+                        {{-- …and the same for the room's own recurring costs. They
+                             ride with the rent line, so they dim with it. --}}
                         <template x-for="(f, i) in checkoutFixedItems" :key="'f' + i">
-                            <div class="flex items-center justify-between py-1 px-3 pl-10">
+                            <div class="flex items-center justify-between py-1 px-3 pl-10 transition" :class="payRent ? '' : 'opacity-50'">
                                 <span class="text-xs text-slate-400 truncate" x-text="f.name"></span>
                                 <span class="text-xs text-slate-500 flex-shrink-0" x-text="'$' + parseFloat(f.amount).toFixed(2)"></span>
                             </div>
@@ -1047,6 +1074,8 @@ function billingManager() {
         checkoutMethod: 'cash',
         payRent: true,
         payUtilities: true,
+        rentAlreadyPaid: false,
+        chargesStatus: 'none',
 
         // KHQR (KHQRPay) flow
         khqrActive: false,
@@ -1252,7 +1281,11 @@ function billingManager() {
             return sum.toFixed(this.khrCurrency ? 0 : 2).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
         },
 
-        openCheckout(rentalId, tenant, apt, rent, utilities, otherCharges, fixed, total, lateFee = 0, overdueDays = 0, detail = {}) {
+        // rentStatus/chargesStatus decide what this visit is FOR: mid-month it's
+        // the rent, after the meters are read it's the charges. Pre-ticking only
+        // the outstanding side means the collector never has to untick a line —
+        // and can't re-bill one that's already settled.
+        openCheckout(rentalId, tenant, apt, rent, utilities, otherCharges, fixed, total, lateFee = 0, overdueDays = 0, detail = {}, rentStatus = 'pending', chargesStatus = 'none') {
             this.checkoutRentalId = rentalId;
             this.checkoutTenant = tenant;
             this.checkoutApt = apt;
@@ -1269,8 +1302,10 @@ function billingManager() {
             this.checkoutItems = detail.items || [];
             this.checkoutFixedItems = detail.fixed || [];
             this.checkoutMethod = 'cash';
-            this.payRent = true;
-            this.payUtilities = true;
+            this.rentAlreadyPaid = rentStatus === 'paid';
+            this.chargesStatus = chargesStatus;
+            this.payRent = ! this.rentAlreadyPaid;
+            this.payUtilities = chargesStatus === 'pending';
             this.resetKhqr();
             this.showCheckout = true;
         },
@@ -1504,7 +1539,10 @@ function billingManager() {
                 total += parseFloat(this.checkoutUtilities) || 0;
                 total += parseFloat(this.checkoutOtherCharges) || 0;
             }
-            total += parseFloat(this.checkoutFixed) || 0;
+            // The room's own recurring costs have no settlement row of their own,
+            // so they ride with the rent visit — and must not be re-quoted on a
+            // charges-only visit after the rent is already in.
+            if (this.payRent) total += parseFloat(this.checkoutFixed) || 0;
             total += parseFloat(this.checkoutLateFee) || 0;
             return total.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
         }

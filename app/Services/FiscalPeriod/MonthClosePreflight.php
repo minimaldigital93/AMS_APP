@@ -5,6 +5,7 @@ namespace App\Services\FiscalPeriod;
 use App\Models\MonthlyPeriod;
 use App\Models\Rentals;
 use App\Models\Utilities;
+use App\Services\Billing\BillingCycleService;
 use Carbon\Carbon;
 use Illuminate\Support\Collection;
 
@@ -17,11 +18,14 @@ use Illuminate\Support\Collection;
  *
  * Two obligations are checked:
  *
- *   - Rent: derived, not stored. A rental active during the month owes
- *     `rent_amount`; it is considered paid when the sum of its paid rent
- *     Payments landing in that calendar month reaches `rent_amount`. Mirrors
- *     the rent-collection page (RevenueExpenseController::recordIncome) and
- *     TenantRentProgressCalculator so the two never disagree.
+ *   - Rent: derived, not stored. A rental active during the month owes what
+ *     BillingCycleService derives for it — the full rent, or the prorated
+ *     figure in a move-in month on an account that bills on a collection day.
+ *     It is considered paid when the sum of its paid rent Payments landing in
+ *     that calendar month reaches that figure. Mirrors the rent-collection page
+ *     (RevenueExpenseController::recordIncome) and TenantRentProgressCalculator
+ *     so the three never disagree — reading `rent_amount` raw here is what made
+ *     them disagree on every prorated move-in month.
  *   - Utilities: stored as unpaid `Utilities` rows for the month; these
  *     already carry forward on their own until settled.
  *
@@ -74,6 +78,8 @@ class MonthClosePreflight
      */
     private function unpaidRent(int $monthNumber, int $year, Carbon $monthStart, Carbon $monthEnd): Collection
     {
+        $cycles = app(BillingCycleService::class);
+
         $rentals = Rentals::query()
             ->where('start_date', '<=', $monthEnd)
             ->where(function ($q) use ($monthStart) {
@@ -88,8 +94,14 @@ class MonthClosePreflight
             ->get();
 
         return $rentals
-            ->map(function (Rentals $rental) {
-                $rent = (float) $rental->rent_amount;
+            ->map(function (Rentals $rental) use ($cycles, $monthNumber, $year) {
+                // What the collection page actually billed for this month —
+                // prorated in the move-in month when the account bills on a
+                // collection day. Reading rent_amount raw reported a phantom
+                // shortfall on every fully-paid prorated month ($300 expected
+                // against the $241.94 that was owed and paid).
+                $rent = $cycles->periodFor($rental, $monthNumber, $year)?->amount
+                    ?? (float) $rental->rent_amount;
                 $paid = (float) $rental->payments->sum('amount');
                 $shortfall = round(max(0, $rent - $paid), 2);
 

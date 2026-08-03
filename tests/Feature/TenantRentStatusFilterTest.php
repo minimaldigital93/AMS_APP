@@ -28,7 +28,7 @@ function rentFilterOwner(): User
 it('renders the admin tenant list under each rent_status filter', function () {
     $admin = rentFilterOwner();
 
-    foreach (['paid', 'overdue', 'unpaid', '', 'bogus'] as $status) {
+    foreach (['paid', 'overdue', 'pending', '', 'bogus'] as $status) {
         $this->actingAs($admin)
             ->get('/admin/tenants'.($status !== '' ? "?rent_status={$status}" : ''))
             ->assertOk();
@@ -40,7 +40,7 @@ it('renders the supervisor tenant list under each rent_status filter', function 
     $sup = User::factory()->create(['status' => 'active', 'account_id' => $admin->id]);
     $sup->assignRole('supervisor');
 
-    foreach (['paid', 'overdue', 'unpaid'] as $status) {
+    foreach (['paid', 'overdue', 'pending'] as $status) {
         $this->actingAs($sup)
             ->get("/supervisor/tenants?rent_status={$status}")
             ->assertOk();

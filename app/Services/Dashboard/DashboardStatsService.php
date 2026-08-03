@@ -160,12 +160,26 @@ class DashboardStatsService
     /**
      * Walk active rentals in the window and classify each as paid/pending/overdue.
      *
+     * These three tiles link straight to the rent collection page's three
+     * filter chips, so they must count the same way it does: **paid means the
+     * whole bill is settled**, rent and charges both. A tenant whose rent is in
+     * but whose utility charges are still owed — or whose meters haven't been
+     * read yet in a month still running — is pending, not paid. Counting rent
+     * alone made the tile disagree with the page it opens.
+     *
      * @return array{0:int,1:int,2:int,3:float} [paid, pending, overdue, totalPending]
      */
     private function countRentPaymentStatus(Carbon $startDate, Carbon $endDate, Carbon $referenceMonth, Carbon $referenceDate): array
     {
         $currentMonth = $referenceMonth->month;
         $currentYear = $referenceMonth->year;
+
+        // Only the month still running keeps an unbilled charges side open —
+        // the meters are read at the turn of the month. Any other month settles
+        // a bill nobody ever charged for: accounts whose rent includes
+        // utilities never write a charge row, and their closed months must not
+        // sit in pending forever. Mirrors the rent collection page.
+        $isRunningMonth = $referenceMonth->year === now()->year && $referenceMonth->month === now()->month;
 
         $paidCount = $pendingCount = $overdueCount = 0;
         $totalPendingAmount = 0.0;
@@ -177,7 +191,13 @@ class DashboardStatsService
         $referenceMonthEnd = $referenceMonth->copy()->endOfMonth();
 
         $activeRentals = $this->scopedRentalQuery()
-            ->with(['payments' => fn ($pq) => $pq->where('payment_status', 'paid'), 'apartment'])
+            ->with([
+                'payments' => fn ($pq) => $pq->where('payment_status', 'paid'),
+                // The charges side of the reference month's bill.
+                'utilities' => fn ($uq) => $uq->where('billing_month', $currentMonth)
+                    ->where('billing_year', $currentYear),
+                'apartment',
+            ])
             ->where('start_date', '<=', $endDate)
             ->where(function ($q) use ($startDate) {
                 $q->whereNull('end_date')->orWhere('end_date', '>=', $startDate);
@@ -200,23 +220,34 @@ class DashboardStatsService
             $dueDay = min($dueDay, Carbon::create($currentYear, $currentMonth)->daysInMonth);
             $dueDate = Carbon::create($currentYear, $currentMonth, $dueDay)->endOfDay();
 
+            // The charges side. No rows is not the same as settled while the
+            // month is still running — it means the meters haven't been read.
+            $unpaidCharges = (float) $rental->utilities->where('paid_status', false)->sum('charge_amount');
+            $chargesSettled = $rental->utilities->isEmpty()
+                ? ! $isRunningMonth
+                : $unpaidCharges <= 0;
+
             // If the rental started in the reference month and hasn't paid yet,
-            // treat the first partial month as pending (do not mark overdue).
+            // treat the first part-month as pending (do not mark overdue).
             if ($start && $start->month === $currentMonth && $start->year === $currentYear && ! $paidThisMonth) {
                 $pendingCount++;
-                $totalPendingAmount += $rental->rent_amount;
+                $totalPendingAmount += $rental->rent_amount + $unpaidCharges;
 
                 continue;
             }
 
-            if ($paidThisMonth) {
+            if ($paidThisMonth && $chargesSettled) {
                 $paidCount++;
+            } elseif ($paidThisMonth) {
+                // Rent in, charges still open — not settled, so not paid.
+                $pendingCount++;
+                $totalPendingAmount += $unpaidCharges;
             } elseif ($referenceDate->gt($dueDate)) {
                 $overdueCount++;
-                $totalPendingAmount += $rental->rent_amount;
+                $totalPendingAmount += $rental->rent_amount + $unpaidCharges;
             } else {
                 $pendingCount++;
-                $totalPendingAmount += $rental->rent_amount;
+                $totalPendingAmount += $rental->rent_amount + $unpaidCharges;
             }
         }
 

@@ -132,3 +132,61 @@ it('reports nothing unpaid when everything is settled', function () {
     expect($result['has_unpaid'])->toBeFalse()
         ->and($result['total_count'])->toBe(0);
 });
+
+/**
+ * Rent owed is DERIVED (BillingCycleService), never `rentals.rent_amount`.
+ * Reading the column raw made the preflight report a phantom shortfall on
+ * every fully-paid prorated move-in month — the one month where the two
+ * figures differ — and told the admin the books weren't ready to close.
+ */
+it('uses the prorated move-in rent, not the full monthly rent', function () {
+    settings(['billing_cycle_day' => '2']);
+
+    // Moved in Jan 8 on a $300 room, collection day 2: Jan 8 → Feb 2 is
+    // 25 days, so January owes $241.94 — not $300.
+    $tenant = makeTenant();
+    $rental = makeRental($tenant, $tenant->apartment, [
+        'start_date' => '2026-01-08',
+        'rent_amount' => 300,
+    ]);
+
+    $due = app(App\Services\Billing\BillingCycleService::class)
+        ->periodFor($rental, 1, 2026)->amount;
+    expect($due)->toBe(241.94);
+
+    // Paid in full at the figure the collection page billed.
+    Payments::create([
+        'rental_id' => $rental->id, 'amount' => $due,
+        'due_date' => '2026-01-31', 'paid_at' => '2026-01-31',
+        'payment_method' => 'cash', 'payment_status' => 'paid', 'payment_type' => 'rent',
+    ]);
+
+    $result = app(MonthClosePreflight::class)->unpaidFor($this->month);
+
+    expect($result['rent_count'])->toBe(0)
+        ->and($result['has_unpaid'])->toBeFalse();
+});
+
+it('still measures a prorated month short when it is genuinely underpaid', function () {
+    settings(['billing_cycle_day' => '2']);
+
+    $tenant = makeTenant();
+    $rental = makeRental($tenant, $tenant->apartment, [
+        'start_date' => '2026-01-08',
+        'rent_amount' => 300,
+    ]);
+
+    Payments::create([
+        'rental_id' => $rental->id, 'amount' => 100,
+        'due_date' => '2026-01-31', 'paid_at' => '2026-01-31',
+        'payment_method' => 'cash', 'payment_status' => 'paid', 'payment_type' => 'rent',
+    ]);
+
+    $result = app(MonthClosePreflight::class)->unpaidFor($this->month);
+
+    // Short against the PRORATED figure (241.94 - 100), not the full 300.
+    expect($result['rent_count'])->toBe(1)
+        ->and($result['rent'][0]->rent)->toBe(241.94)
+        ->and($result['rent'][0]->shortfall)->toBe(141.94)
+        ->and($result['rent'][0]->status)->toBe('partial');
+});

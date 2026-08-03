@@ -29,7 +29,7 @@ it('marks a next-month tenant as upcoming, not overdue, on the tenant index', fu
         'start_date' => '2026-08-01', // moves in next month
     ]);
 
-    $map = (new TenantRentProgressCalculator)->map([$tenant->fresh()], $this->period);
+    $map = app(TenantRentProgressCalculator::class)->map([$tenant->fresh()]);
 
     expect($map[$tenant->id]['status'])->toBe('upcoming');
 });
@@ -41,7 +41,7 @@ it('still flags a genuinely unpaid current tenant as overdue on the tenant index
         'start_date' => '2026-06-01', // started last month, nothing paid
     ]);
 
-    $map = (new TenantRentProgressCalculator)->map([$tenant->fresh()], $this->period);
+    $map = app(TenantRentProgressCalculator::class)->map([$tenant->fresh()]);
 
     expect($map[$tenant->id]['status'])->toBe('overdue');
 });
