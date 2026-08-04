@@ -80,6 +80,45 @@ it('keeps a room mothballed after it was let inside the denominator', function (
         ->and($payments['paid'] + $payments['pending'] + $payments['overdue'])->toBe(1);
 });
 
+it('bills a room turned over mid-month once, not once per tenancy', function () {
+    // The room is single-occupancy, but the outgoing and incoming tenancies
+    // overlap: the leaver's end_date is the 10th and the room was reassigned on
+    // the 12th. The rent collection page bills the room once; so must the tile.
+    $apartment = makeApartment(null, ['monthly_rent' => 500, 'status' => 'occupied']);
+
+    makeRental(makeTenant($apartment, ['status' => 'inactive']), $apartment, [
+        'start_date' => '2026-01-01',
+        'end_date' => '2026-07-10',
+        'rent_amount' => 500,
+    ]);
+    makeRental(makeTenant($apartment), $apartment, [
+        'start_date' => '2026-07-12',
+        'rent_amount' => 500,
+    ]);
+
+    $payments = julyStats($this->admin->id, $this->period->id)['payments'];
+
+    expect($payments['bills_total'])->toBe(1)
+        ->and($payments['paid'] + $payments['pending'] + $payments['overdue'])->toBe(1);
+});
+
+it('still bills a room whose next tenancy has not begun yet', function () {
+    // Leaver gone in June, replacement moves in next month: the newest tenancy
+    // has not started, so the room falls back to the one that has.
+    $apartment = makeApartment(null, ['monthly_rent' => 500, 'status' => 'available']);
+    makeRental(makeTenant($apartment, ['status' => 'inactive']), $apartment, [
+        'start_date' => '2026-01-01',
+        'end_date' => '2026-07-05',
+        'rent_amount' => 500,
+    ]);
+    makeRental(makeTenant($apartment), $apartment, [
+        'start_date' => '2026-08-01',
+        'rent_amount' => 500,
+    ]);
+
+    expect(julyStats($this->admin->id, $this->period->id)['payments']['bills_total'])->toBe(1);
+});
+
 it('reports a zero denominator when no tenancy is billable in the month', function () {
     $apartment = makeApartment(null, ['monthly_rent' => 500, 'status' => 'available']);
     makeRental(makeTenant($apartment), $apartment, [

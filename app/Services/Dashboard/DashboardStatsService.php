@@ -209,7 +209,23 @@ class DashboardStatsService
             ->where(function ($q) use ($startDate) {
                 $q->whereNull('end_date')->orWhere('end_date', '>=', $startDate);
             })
-            ->get();
+            ->orderByDesc('start_date')
+            ->orderByDesc('id')
+            ->get()
+            // A room is single-occupancy, so it gets exactly one bill per month
+            // — the same rule the rent collection page these tiles link to
+            // applies. A leaving tenant's move-out date can be any day of the
+            // month and the room is freed for reassignment the moment the leave
+            // is processed, so the outgoing and incoming tenancies overlap:
+            // walking rentals counted that room twice and the tile read 29 of
+            // 28. Rentals arrive newest-first; take the newest tenancy that has
+            // begun by month end (the occupant), else the earliest future one
+            // so an empty room awaiting its next tenant is still represented.
+            ->groupBy('apartment_id')
+            ->map(fn ($rentals) => $rentals->first(
+                fn ($r) => ! $r->start_date || Carbon::parse($r->start_date)->lte($referenceMonthEnd)
+            ) ?? $rentals->last())
+            ->values();
 
         foreach ($activeRentals as $rental) {
             if ($rental->start_date && Carbon::parse($rental->start_date)->gt($referenceMonthEnd)) {
