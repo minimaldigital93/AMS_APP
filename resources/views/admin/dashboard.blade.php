@@ -249,7 +249,7 @@
                     </p>
                 @endif
             </div>
-            @php $paid = $stats['payments']['paid'] ?? 0; $assigned = $stats['apartments']['occupied'] ?? ($stats['apartments']['total'] ?? 0); @endphp
+            @php $paid = $stats['payments']['paid'] ?? 0; $assigned = $stats['payments']['bills_total'] ?? 0; @endphp
             <div class="relative w-16 h-16 flex items-center justify-center">
                 <canvas id="paymentsDonutPaid" width="64" height="64"></canvas>
                 <span class="absolute inset-0 flex items-center justify-center pointer-events-none text-xs font-medium text-slate-700">{{ $paid }} / {{ $assigned }}</span>
@@ -390,7 +390,7 @@
         var paid = {{ json_encode($stats['payments']['paid'] ?? 0) }};
         var pending = {{ json_encode($stats['payments']['pending'] ?? 0) }};
         var overdue = {{ json_encode($stats['payments']['overdue'] ?? 0) }};
-        var totalAssigned = {{ json_encode($stats['apartments']['occupied'] ?? ($stats['apartments']['total'] ?? 0)) }};
+        var totalAssigned = {{ json_encode($stats['payments']['bills_total'] ?? 0) }};
 
         function renderMini(id, value, color) {
             var el = document.getElementById(id);

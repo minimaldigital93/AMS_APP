@@ -103,6 +103,13 @@ class DashboardStatsService
                 'paid' => $paidCount,
                 'pending' => $pendingCount,
                 'overdue' => $overdueCount,
+                // Denominator for the three donuts: the bills actually
+                // classified for the reference month. Never the room count —
+                // occupancy is today's state while these are the month's, so a
+                // tenant who moved out mid-month (room now available), two
+                // tenancies on one room in a month, or a room mothballed after
+                // it was let all made the tile read 29/28.
+                'bills_total' => $paidCount + $pendingCount + $overdueCount,
                 'total_collected' => $this->collectedTotal($startDate, $endDate),
                 'total_pending' => $totalPendingAmount,
             ],
