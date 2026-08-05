@@ -1,5 +1,12 @@
 @extends('layouts.'.$panel)
 
+@php
+    // Booked expenses print the category's current name; a key with no category
+    // row left (deleted, or from the hard-coded "other expense" vocabulary)
+    // falls back to the humanized key so history never reads blank.
+    $catLabel = fn (?string $key) => $expenseCategoryLabels[$key] ?? ucfirst(str_replace('_', ' ', (string) $key));
+@endphp
+
 @section('content')
 <div class="max-w-6xl mx-auto space-y-8" x-data="{ showForm: false, activeTab: 'business', showDetail: false, detail: null, openDetail(d) { this.detail = d; this.showDetail = true }, showBizDetail: false, bizDetail: null, openBizDetail(d) { this.bizDetail = d; this.showBizDetail = true } }">
     <!-- Header -->
@@ -116,6 +123,9 @@
                                 <option value="{{ $key }}" {{ old('category') == $key ? 'selected' : '' }}>{{ $label }}</option>
                                 @endforeach
                             </select>
+                            @if($panel === 'admin')
+                            <a href="{{ route('admin.settings.expense_categories') }}" class="mt-1 inline-block text-xs text-slate-400 hover:text-orange-600">{{ __('messages.manage_expense_categories') }}</a>
+                            @endif
                         </div>
                         <div>
                             <label for="biz_amount" class="block text-sm font-medium text-slate-700 mb-1">{{ __('messages.amount_dollar') }} <span class="text-red-500">*</span></label>
@@ -631,7 +641,7 @@
                         <td class="px-4 py-3">
                             <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-700">{{ __('messages.type_other') }}</span>
                         </td>
-                        <td class="px-4 py-3 text-sm text-slate-600">{{ ucfirst(str_replace('_', ' ', $oe->category)) }}</td>
+                        <td class="px-4 py-3 text-sm text-slate-600">{{ $catLabel($oe->category) }}</td>
                         <td class="px-4 py-3 text-sm text-slate-700">
                             {{ $oe->description }}
                             @if($oe->note)<span class="block text-xs text-slate-400">{{ $oe->note }}</span>@endif
@@ -655,7 +665,7 @@
                                 {{ __('messages.business_word') }}
                             </span>
                         </td>
-                        <td class="px-4 py-3 text-sm text-slate-600">{{ ucfirst(str_replace('_', ' ', $be->category)) }}</td>
+                        <td class="px-4 py-3 text-sm text-slate-600">{{ $catLabel($be->category) }}</td>
                         <td class="px-4 py-3 text-sm text-slate-700">
                             {{ $be->expense_name }}
                             @if($be->note)<span class="block text-xs text-slate-400">{{ $be->note }}</span>@endif
@@ -700,7 +710,7 @@
                     'name'       => $oe->description,
                     'type'       => 'other',
                     'date'       => \Carbon\Carbon::parse($oe->transaction_date)->format('M d, Y'),
-                    'category'   => ucfirst(str_replace('_', ' ', $oe->category)),
+                    'category'   => $catLabel($oe->category),
                     'note'       => $oe->note,
                     'amount'     => (float) $oe->amount,
                     'recurring'  => false,
@@ -726,7 +736,7 @@
                     'name'       => $be->expense_name,
                     'type'       => 'business',
                     'date'       => $be->expense_date->format('M d, Y'),
-                    'category'   => ucfirst(str_replace('_', ' ', $be->category)),
+                    'category'   => $catLabel($be->category),
                     'note'       => $be->note,
                     'amount'     => (float) $be->amount,
                     'recurring'  => (bool) $be->is_recurring,

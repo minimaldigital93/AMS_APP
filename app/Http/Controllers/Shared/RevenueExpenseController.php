@@ -20,6 +20,7 @@ use App\Models\ApartmentFixedExpense;
 use App\Models\Apartments;
 use App\Models\Attachment;
 use App\Models\BusinessExpense;
+use App\Models\ExpenseCategory;
 use App\Models\FiscalPeriods;
 use App\Models\Payments;
 use App\Models\Rentals;
@@ -1849,18 +1850,15 @@ abstract class RevenueExpenseController extends Controller
 
         $businessTotal = $businessExpenses->sum('amount');
 
-        // Business expense categories
-        $businessCategories = [
-            'electricity' => 'Electricity',
-            'water' => 'Water',
-            'trash' => 'Trash',
-            'internet' => 'Internet',
-            'legal_fee' => 'Legal Fee',
-            'tax' => 'Tax',
-            'loan_payment' => 'Loan Payment',
-            'salary' => 'Salary',
-            'other' => 'Other',
-        ];
+        // Business expense categories — the account's own vocabulary, managed in
+        // Settings → Expense Categories. StoreBusinessExpenseRequest validates
+        // against this same list, so the dropdown can never offer a value the
+        // form rejects (it used to: "Legal Fee" and "Salary" were unsubmittable).
+        ExpenseCategory::ensureDefaults();
+        $businessCategories = ExpenseCategory::options();
+        // Labels for booked rows include retired categories, so history keeps
+        // reading correctly after one is deactivated.
+        $expenseCategoryLabels = ExpenseCategory::labelMap();
 
         // Tenants expense collection (utilities + fixed charges billed to tenants).
         $tenantsExpenseCollected = $totalExpenses;
@@ -1880,6 +1878,7 @@ abstract class RevenueExpenseController extends Controller
             'activePeriod', 'apartments', 'apartmentExpenses', 'apartmentExpensesAll', 'recentExpenses',
             'utilityTypes', 'totalExpenses', 'otherExpenseCategories', 'otherExpenses',
             'totalOtherExpenses', 'businessExpenses', 'businessTotal', 'businessCategories',
+            'expenseCategoryLabels',
             'grandTotalExpenses', 'tenantsExpenseCollected', 'expenseNet', 'currentMonth', 'currentYear',
             'filterMonth', 'filterYear', 'periodMonths'
         ));

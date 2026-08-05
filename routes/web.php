@@ -259,6 +259,14 @@ Route::middleware(['auth', 'role:admin|superadmin', 'subscription.active'])->gro
     Route::get('/admin/settings/theme', [\App\Http\Controllers\Admin\ThemeController::class, 'index'])->name('admin.settings.theme');
     Route::put('/admin/settings/theme', [\App\Http\Controllers\Admin\ThemeController::class, 'update'])->name('admin.settings.theme.update');
 
+    // Expense Categories — the vocabulary the record-expense form offers.
+    // Same rule as theme: declared before the '/admin/settings/{key}' wildcard.
+    Route::get('/admin/settings/expense-categories', [\App\Http\Controllers\Admin\ExpenseCategoryController::class, 'index'])->name('admin.settings.expense_categories');
+    Route::post('/admin/settings/expense-categories', [\App\Http\Controllers\Admin\ExpenseCategoryController::class, 'store'])->name('admin.settings.expense_categories.store');
+    Route::post('/admin/settings/expense-categories/restore-defaults', [\App\Http\Controllers\Admin\ExpenseCategoryController::class, 'restoreDefaults'])->name('admin.settings.expense_categories.restore');
+    Route::put('/admin/settings/expense-categories/{expenseCategory}', [\App\Http\Controllers\Admin\ExpenseCategoryController::class, 'update'])->name('admin.settings.expense_categories.update');
+    Route::delete('/admin/settings/expense-categories/{expenseCategory}', [\App\Http\Controllers\Admin\ExpenseCategoryController::class, 'destroy'])->name('admin.settings.expense_categories.destroy');
+
     // System Settings Routes
     Route::get('/admin/settings', [SettingsController::class, 'index'])->name('admin.settings.index');
     Route::put('/admin/settings/batch', [SettingsController::class, 'updateBatch'])->name('admin.settings.updateBatch');

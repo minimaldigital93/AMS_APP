@@ -1236,4 +1236,25 @@ return [
     'renew_plus_months' => '+:n months',
     'keep_current_term' => 'Keep current term (just regenerate the PDF)',
     'contract_renewed' => 'Contract renewed successfully.',
+
+    // Settings → Expense Categories (admin-managed vocabulary for the
+    // record-expense form; see App\Models\ExpenseCategory).
+    'expense_categories_hint' => 'Manage the categories the expense form offers.',
+    'manage_expense_categories' => 'Manage categories',
+    'add_expense_category' => 'Add category',
+    'expense_category_name_placeholder' => 'e.g. Cleaning Services',
+    'expense_category_added' => 'Category ":name" added.',
+    'expense_category_updated' => 'Category ":name" updated.',
+    'expense_category_deleted' => 'Category ":name" deleted.',
+    'expense_category_duplicate' => 'A category with that name already exists.',
+    'expense_category_in_use_count' => '":name" is already used by :count recorded expense(s), so it cannot be deleted — those records would lose their label. Deactivate it instead: it disappears from the expense form and the recorded expenses keep their category.',
+    'expense_category_locked_title' => 'This category cannot be deleted',
+    'expense_category_deactivate_instead' => 'Deactivate instead',
+    'expense_category_in_use_short' => 'used by :count expense(s)',
+    'expense_category_last_active' => 'At least one category must stay active — the expense form needs something to select.',
+    'expense_category_delete_confirm' => 'Delete the category ":name"?',
+    'expense_category_key_hint' => 'Renaming a category keeps its recorded expenses. A category already used by an expense can be turned off but not deleted.',
+    'expense_categories_restore_defaults' => 'Restore default categories',
+    'expense_categories_restore_defaults_hint' => 'Adds back any default category that was deleted. Your own categories and renames are left alone.',
+    'expense_categories_defaults_restored' => ':count default category(ies) restored.',
 ];

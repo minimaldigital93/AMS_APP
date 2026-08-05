@@ -452,6 +452,60 @@ Rules behind it:
 
 ---
 
+## Expense categories are account-owned, not a hard-coded list
+
+The categories the record-expense form offers live in `expense_categories`
+(`App\Models\ExpenseCategory`, `BelongsToAccount`) and are managed by the owner
+at **Settings → Expense Categories** (`Admin\ExpenseCategoryController`,
+`views/admin/settings/expense_categories.blade.php`). Admin-only, like every
+settings page that writes account-wide config; supervisors record expenses
+against the admin's vocabulary but don't manage it.
+
+Two columns carry the design:
+
+- **`key` is immutable** — it is what `business_expenses.category` stores, and
+  `incomeStatement()` maps six of them (`electricity`, `water`, `internet`,
+  `security`, `tax`, `property_tax`) onto their own statement lines while every
+  other key falls into "Other Expenses". It is derived once from the name
+  (`makeKey()`), so **renaming a category never restates booked history**.
+- **`is_active`** is how a category is retired: hidden from the dropdown, still
+  labelling the expenses that reference it. That is why **deleting a category
+  that booked money references is refused outright** (`isInUse()`/`usageCount()`
+  check both `business_expenses` and the `Accounts` expense rows — account-scoped
+  Eloquent builders, so a sibling account's bookings never hold a category open)
+  — the expense stores the key as a string, so a delete would strand it.
+  The settings page **says so instead of hiding the button**: an in-use row's
+  delete turns into a lock that opens the shared dialog
+  (`partials/confirm-modal`, `confirmAction`/`amsAlert`) naming how many records
+  hold it, whose OK submits the hidden deactivate form — the one action that is
+  allowed. `destroy()` re-checks server-side; the dialog is only the
+  explanation, and `usageByKey()` is the two-aggregate version for the list.
+
+Rules:
+
+- **The form and its validation read the same list.** `recordExpense()` renders
+  `ExpenseCategory::options()` and `StoreBusinessExpenseRequest` validates
+  `Rule::in(array_keys(...))` of it. They were two hard-coded lists that had
+  drifted — the dropdown offered `legal_fee` and `salary`, the request allowed
+  `legal` and `salaries`, so those two options were unsubmittable. Don't
+  reintroduce a second list.
+- **Defaults are seeded lazily** (`ensureDefaults()`), not by a data migration,
+  so accounts created later get them too. An account with **no** categories
+  refills — an empty dropdown makes the expense form unusable — which is also
+  why `update()` refuses to deactivate the last active one.
+- **Booked rows print `labelFor()`**, never the raw key: it falls back to the
+  humanized key so a deleted category, or the separate hard-coded "other
+  expense" vocabulary in `StoreOtherExpenseRequest`, still reads correctly.
+  The label memo is keyed by account — flush it after any write.
+- `ApartmentFixedExpense.expense_type` (parking/internet/trash/other) is a
+  **different** vocabulary — those are recurring charges billed to a room's
+  tenant, not owner-side expense classification. Don't merge them.
+- New account-owned table ⇒ it is deleted in `AccountPurgeService`.
+
+`tests/Feature/RevenueExpense/ExpenseCategoryTest.php` pins all of it.
+
+---
+
 ## Global helpers (`app/helpers.php`)
 
 | Helper | Purpose |

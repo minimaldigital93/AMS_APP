@@ -6,6 +6,7 @@ use App\Models\ApartmentFixedExpense;
 use App\Models\Apartments;
 use App\Models\Attachment;
 use App\Models\BusinessExpense;
+use App\Models\ExpenseCategory;
 use App\Models\FiscalPeriods;
 use App\Models\Floors;
 use App\Models\KhqrPayment;
@@ -97,6 +98,9 @@ class AccountPurgeService
             BusinessExpense::withoutAccountScope()->where('account_id', $id)->delete();
             FiscalPeriods::withoutAccountScope()->where('account_id', $id)->delete();
             Settings::withoutAccountScope()->where('account_id', $id)->delete();
+            // Account-owned config with no FK to anything — it would simply be
+            // orphaned rows if left behind.
+            ExpenseCategory::withoutAccountScope()->where('account_id', $id)->delete();
 
             // 4. People. Members first, owner last — the owner delete cascades
             //    subscriptions and merchant_payment_settings.

@@ -1236,4 +1236,25 @@ return [
     'renew_plus_months' => '+:n ខែ',
     'keep_current_term' => 'រក្សារយៈពេលដដែល (បង្កើតឯកសារឡើងវិញតែប៉ុណ្ណោះ)',
     'contract_renewed' => 'បានបន្តកិច្ចសន្យាដោយជោគជ័យ។',
+
+    // Settings → Expense Categories (admin-managed vocabulary for the
+    // record-expense form; see App\Models\ExpenseCategory).
+    'expense_categories_hint' => 'គ្រប់គ្រងប្រភេទចំណាយដែលបង្ហាញក្នុងទម្រង់កត់ត្រាចំណាយ។',
+    'manage_expense_categories' => 'គ្រប់គ្រងប្រភេទ',
+    'add_expense_category' => 'បន្ថែមប្រភេទ',
+    'expense_category_name_placeholder' => 'ឧ. សេវាសម្អាត',
+    'expense_category_added' => 'បានបន្ថែមប្រភេទ ":name"។',
+    'expense_category_updated' => 'បានកែសម្រួលប្រភេទ ":name"។',
+    'expense_category_deleted' => 'បានលុបប្រភេទ ":name"។',
+    'expense_category_duplicate' => 'មានប្រភេទឈ្មោះនេះរួចហើយ។',
+    'expense_category_in_use_count' => '":name" ត្រូវបានប្រើរួចហើយក្នុងការចំណាយដែលបានកត់ត្រាចំនួន :count ដូច្នេះមិនអាចលុបបានទេ — កំណត់ត្រាទាំងនោះនឹងបាត់ឈ្មោះប្រភេទ។ សូមបិទវាជំនួសវិញ៖ វានឹងបាត់ពីទម្រង់ចំណាយ ហើយកំណត់ត្រាចាស់នៅតែរក្សាប្រភេទដដែល។',
+    'expense_category_locked_title' => 'ប្រភេទនេះមិនអាចលុបបានទេ',
+    'expense_category_deactivate_instead' => 'បិទជំនួសវិញ',
+    'expense_category_in_use_short' => 'ប្រើក្នុងចំណាយ :count',
+    'expense_category_last_active' => 'ត្រូវមានប្រភេទយ៉ាងតិចមួយបើកដំណើរការ — ទម្រង់ចំណាយត្រូវការជម្រើស។',
+    'expense_category_delete_confirm' => 'លុបប្រភេទ ":name" មែនទេ?',
+    'expense_category_key_hint' => 'ការប្តូរឈ្មោះប្រភេទមិនប៉ះពាល់ការចំណាយដែលបានកត់ត្រាឡើយ។ ប្រភេទដែលបានប្រើរួចអាចបិទបាន ប៉ុន្តែមិនអាចលុបបានទេ។',
+    'expense_categories_restore_defaults' => 'ស្តារប្រភេទលំនាំដើម',
+    'expense_categories_restore_defaults_hint' => 'បន្ថែមមកវិញនូវប្រភេទលំនាំដើមដែលបានលុប។ ប្រភេទផ្ទាល់ខ្លួន និងឈ្មោះដែលបានប្តូរនឹងមិនប៉ះពាល់ទេ។',
+    'expense_categories_defaults_restored' => 'បានស្តារប្រភេទលំនាំដើម :count។',
 ];
