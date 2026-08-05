@@ -25,12 +25,19 @@ use Carbon\Carbon;
  *     dividing by the full rent leaves it stuck at "partial".
  *
  * Returned shape per tenant id:
- *   ['rent', 'paid', 'percent', 'status', 'paid_date', 'days_stayed',
+ *   ['rent', 'paid', 'percent', 'status', 'rent_status', 'charges_status',
+ *    'charges_settled', 'paid_date', 'days_stayed',
  *    'total_days', 'day_percent', 'due_date',
  *    'cycle_percent', 'days_left', 'next_renewal_label', 'stay_label',
  *    'months_stayed']
  *
  * Status values: 'paid' | 'pending' | 'overdue' | 'upcoming'.
+ *
+ * `status` is the RENT answer and stays the bucket the ?rent_status= filter and
+ * the floor dots count. `charges_status`/`charges_settled` are carried for the
+ * badge alone (<x-bill-status>), which reserves the "Paid" label for a bill
+ * settled on both sides and prints "Rent Paid" in between — the same label the
+ * rent collection page prints for the same tenant.
  *
  * Three buckets, deliberately — the same vocabulary as the dashboard tiles and
  * the rent collection page, so one tenant never reads "Paying" on one screen
@@ -68,14 +75,20 @@ class TenantRentProgressCalculator
             ->where(function ($q) {
                 $q->whereNull('end_date')->orWhere('end_date', '>=', now());
             })
-            ->with(['payments' => function ($q) use ($currentMonth, $currentYear) {
-                // One calendar month, both panels. See the class docblock for
-                // what widening this to a fiscal period did.
-                $q->where('payment_type', 'rent')
-                    ->where('payment_status', 'paid')
-                    ->whereMonth('paid_at', $currentMonth)
-                    ->whereYear('paid_at', $currentYear);
-            }])
+            ->with([
+                'payments' => function ($q) use ($currentMonth, $currentYear) {
+                    // One calendar month, both panels. See the class docblock for
+                    // what widening this to a fiscal period did.
+                    $q->where('payment_type', 'rent')
+                        ->where('payment_status', 'paid')
+                        ->whereMonth('paid_at', $currentMonth)
+                        ->whereYear('paid_at', $currentYear);
+                },
+                // The charges side of this month's bill — label only, see
+                // progressFor(). Same window as the rent collection page.
+                'utilities' => fn ($q) => $q->where('billing_month', $currentMonth)
+                    ->where('billing_year', $currentYear),
+            ])
             ->orderByDesc('start_date')
             ->get();
 
@@ -146,11 +159,30 @@ class TenantRentProgressCalculator
             default => 'pending',
         };
 
+        // The charges side of the same month, for the badge only. The bucket
+        // above stays rent-only (see the class docblock): it is what the
+        // ?rent_status= filter and the floor dots count. What it buys is the
+        // label — "Paid" is reserved for a bill that is settled on both sides,
+        // exactly as on the rent collection page, so one tenant never reads
+        // Paid on the tenant list and Pending on the page that collects.
+        $charges = $rental->utilities ?? collect();
+        $unpaidCharges = $charges->filter(fn ($u) => ! $u->paid_status);
+        $chargesStatus = $charges->isEmpty()
+            ? 'none'
+            : ($unpaidCharges->isEmpty() ? 'paid' : 'pending');
+
+        // This page only ever shows the month still running, where 'none' means
+        // the meters have not been read yet — nothing is settled.
+        $chargesSettled = $chargesStatus === 'paid';
+
         return [
             'rent' => $monthlyRent,
             'paid' => $paidAmount,
             'percent' => $payPercent,
             'status' => $status,
+            'rent_status' => $status,
+            'charges_status' => $chargesStatus,
+            'charges_settled' => $chargesSettled,
             'paid_date' => $paidDate ? Carbon::parse($paidDate)->format('M d') : null,
             'days_stayed' => $daysStayed,
             'total_days' => $totalDaysInMonth,

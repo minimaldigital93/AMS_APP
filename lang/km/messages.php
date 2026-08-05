@@ -524,8 +524,12 @@ return [
     // is broken out by side and a row can be settled on one side only.
     'pending_split' => 'ថ្លៃជួល :rent · ការគិតថ្លៃ :charges',
     'partial' => 'ទូទាត់ផ្នែកខ្លះ',
-    // Tooltips only: a bill row shows ONE status, and these say which side of
-    // it is still open when that status is "Pending".
+    // Badge label for the gap between the two collection visits: rent is in,
+    // the charges side isn't settled yet. A label on the pending bucket, not a
+    // bucket of its own.
+    'rent_paid' => 'បង់ថ្លៃជួលរួច',
+    // Tooltips only: the row shows ONE status, and these say which side of it
+    // is still open when that status is "Rent Paid".
     'rent_paid_charges_due' => 'បង់ថ្លៃជួលរួច · នៅជំពាក់ការគិតថ្លៃ',
     'rent_paid_charges_unread' => 'បង់ថ្លៃជួលរួច · មិនទាន់អានកុងទ័រ',
     'scheduled_for' => 'កំណត់ពេលសម្រាប់',

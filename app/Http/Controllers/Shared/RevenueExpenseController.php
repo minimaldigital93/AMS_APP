@@ -993,6 +993,12 @@ abstract class RevenueExpenseController extends Controller
                     // which lines the checkout modal pre-ticks.
                     'rent_status' => $rentStatus,
                     'charges_status' => $chargesStatus,
+                    // Whether the charges side counts as done — 'none' settles
+                    // only once the month is over (see above). The badge needs
+                    // this to tell "Rent Paid" (rent in, charges still open)
+                    // apart from "Paid"; it cannot re-derive it from
+                    // charges_status alone.
+                    'charges_settled' => $chargesSettled,
                     'has_outstanding' => ! $notStartedYet && (! $paidThisMonth || $unpaidChargeTotal > 0),
                     'is_upcoming' => $isUpcoming,
                     'paid_this_month' => $paidThisMonth,

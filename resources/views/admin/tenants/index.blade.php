@@ -189,16 +189,13 @@
                                         @endif
                                     </td>
                                     <td class="px-4 lg:px-6 py-4 whitespace-nowrap">
-                                        {{-- One status, three values — the same vocabulary as the
-                                             dashboard tiles and the rent collection page. --}}
-                                        @if($status === 'paid')
-                                            <span class="px-2 py-1 text-xs font-semibold rounded-md bg-emerald-100 text-emerald-700">{{ __('messages.paid') }}</span>
-                                        @elseif($status === 'overdue')
-                                            <span class="px-2 py-1 text-xs font-semibold rounded-md bg-red-100 text-red-700">{{ __('messages.overdue') }}</span>
-                                        @elseif($status === 'upcoming')
-                                            <span class="px-2 py-1 text-xs font-semibold rounded-md bg-sky-100 text-sky-700">{{ __('messages.upcoming') }}</span>
+                                        {{-- The same badge the rent collection page prints, from the
+                                             same component: Pending · Overdue · Rent Paid · Paid,
+                                             over the same three buckets. --}}
+                                        @if($rp)
+                                            <x-bill-status :bill="$rp" />
                                         @else
-                                            <span class="px-2 py-1 text-xs font-semibold rounded-md bg-amber-100 text-amber-700">{{ __('messages.pending') }}</span>
+                                            <span class="text-[10px] text-gray-300">—</span>
                                         @endif
                                     </td>
                                     <td class="px-4 lg:px-6 py-4 whitespace-nowrap text-sm font-medium">
@@ -241,14 +238,8 @@
                                 <p class="text-xs text-gray-500 truncate">{{ $tenant->apartment?->floor?->floor_name ?? 'N/A' }} / {{ $tenant->apartment?->apartment_number ?? 'N/A' }}</p>
                             </div>
                             <!-- Status badge -->
-                            @if($status === 'paid')
-                                <span class="px-1.5 py-0.5 text-[10px] font-semibold rounded bg-emerald-100 text-emerald-700 flex-shrink-0">{{ __('messages.paid') }}</span>
-                            @elseif($status === 'overdue')
-                                <span class="px-1.5 py-0.5 text-[10px] font-semibold rounded bg-red-100 text-red-700 flex-shrink-0">{{ __('messages.overdue') }}</span>
-                            @elseif($status === 'upcoming')
-                                <span class="px-1.5 py-0.5 text-[10px] font-semibold rounded bg-sky-100 text-sky-700 flex-shrink-0">{{ __('messages.upcoming') }}</span>
-                            @else
-                                <span class="px-1.5 py-0.5 text-[10px] font-semibold rounded bg-amber-100 text-amber-700 flex-shrink-0">{{ __('messages.pending') }}</span>
+                            @if($rp)
+                                <span class="flex-shrink-0"><x-bill-status :bill="$rp" compact /></span>
                             @endif
                             <!-- Actions -->
                             <div class="flex items-center gap-1 flex-shrink-0">

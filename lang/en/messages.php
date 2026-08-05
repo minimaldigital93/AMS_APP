@@ -524,8 +524,12 @@ return [
     // is broken out by side and a row can be settled on one side only.
     'pending_split' => 'Rent :rent · Charges :charges',
     'partial' => 'Partial',
-    // Tooltips only: a bill row shows ONE status, and these say which side of
-    // it is still open when that status is "Pending".
+    // Badge label for the gap between the two collection visits: rent is in,
+    // the charges side isn't settled yet. A label on the pending bucket, not a
+    // bucket of its own.
+    'rent_paid' => 'Rent Paid',
+    // Tooltips only: the row shows ONE status, and these say which side of it
+    // is still open when that status is "Rent Paid".
     'rent_paid_charges_due' => 'Rent paid · charges due',
     'rent_paid_charges_unread' => 'Rent paid · meters not read yet',
     'scheduled_for' => 'Scheduled for',

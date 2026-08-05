@@ -320,20 +320,29 @@ invoice table.
   authority for the checkout button: a pending row with unread meters has
   nothing collectable yet.
 - **The row prints one badge** — `<x-bill-status>`
-  (`components/bill-status.blade.php`, `compact` for the mobile card). The two
-  sides survive only as its `title` tooltip ("Rent paid · charges due" /
-  "· meters not read yet"), because a second badge competing with the status
-  is exactly what was removed. `paidCount` means *fully settled* — the "N
+  (`components/bill-status.blade.php`, `compact` for the mobile card). It reads
+  **Pending · Overdue · Rent Paid · Paid**, where **"Rent Paid" is a label on
+  the pending bucket**, not a bucket: rent is in, the charges side is not
+  settled yet (`charges_settled = false`), and `status` stays `pending`. Which
+  side is open survives only as the `title` tooltip ("Rent paid · charges due" /
+  "· meters not read yet"), because a second badge competing with the status is
+  exactly what was removed. The controller passes **`charges_settled`** — the
+  component cannot re-derive it, since a `none` charges side settles in a closed
+  month and not in a running one. `paidCount` means *fully settled* — the "N
   tenants paid" line under the Collected tile excludes a rent-paid tenant whose
   meters are still unread.
 
 ### Three buckets, everywhere — paid / pending / overdue
 
-`paid`, `pending`, `overdue` is the whole payment-status vocabulary of the app.
-Do not introduce a fourth bucket (`partial`, `paying`, `unpaid`, `not billed`)
-in any view: they were consolidated in 2026-08 precisely because the same tenant
-read differently on each screen. `upcoming` is *not* a fourth payment state —
-it marks a tenancy that has not begun, so nothing is owed yet.
+`paid`, `pending`, `overdue` is the whole payment-status **bucket** vocabulary
+of the app — what every filter chip, floor dot, tile and count uses. Do not
+introduce a fourth bucket (`partial`, `paying`, `unpaid`, `not billed`) in any
+view: they were consolidated in 2026-08 precisely because the same tenant read
+differently on each screen. `upcoming` is *not* a fourth payment state — it
+marks a tenancy that has not begun, so nothing is owed yet. **"Rent Paid" is a
+badge label over the pending bucket, never a bucket** — added 2026-08 so the
+collector can see at a glance which pending rows only owe charges; nothing
+counts it separately.
 
 Every screen that states rent status derives it the same way and must keep
 agreeing:
@@ -346,9 +355,13 @@ agreeing:
   rent alone made the tile disagree with the page it opens.
 - `TenantRentProgressCalculator` — the tenant-index badge in both panels, and
   the `?rent_status=paid|pending|overdue` filter in both TenantControllers.
-  Rent-only by design (the badge sits beside a rent progress bar, and the page
-  only ever shows the current month, where a `none` charges side could never
-  settle).
+  Its `status` is **rent-only by design** (the badge sits beside a rent progress
+  bar) and stays the bucket the filter and the floor dots count. It also carries
+  `charges_status`/`charges_settled` for the current month so both panels render
+  the *same* `<x-bill-status>` the collection page does — "Rent Paid" until the
+  charges settle. Both tenant index pages print that component; don't re-inline
+  the badge markup. The page only ever shows the running month, so a `none`
+  charges side never settles there.
 - `Tenant\DashboardController` — `this_month_status` on the tenant's own
   dashboard.
 

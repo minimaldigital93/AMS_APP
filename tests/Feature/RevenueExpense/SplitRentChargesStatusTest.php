@@ -120,18 +120,38 @@ it('prints one status per row and says why on hover', function () {
     payJulyRent();
     addJulyCharge('electricity', 42.5);
 
-    // ONE badge, three possible values — no second badge, no "Partial".
-    julyBills()
-        ->assertSee(__('messages.pending'))
+    // ONE badge. Rent in, charges still owed reads "Rent Paid" — a label on
+    // the pending bucket (the row is still pending), never "Paid" and never a
+    // second badge beside it.
+    $response = julyBills();
+
+    expect(julyBill($response)['status'])->toBe('pending');
+
+    $response
+        ->assertSee(__('messages.rent_paid'))
         ->assertDontSee(__('messages.partial'))
-        // The two sides survive as the badge's tooltip.
+        // Which side is still open survives as the badge's tooltip.
         ->assertSee(__('messages.rent_paid_charges_due'));
 });
 
-it('says on hover when a pending row is only waiting on the meter reading', function () {
+it('says on hover when a rent-paid row is only waiting on the meter reading', function () {
     payJulyRent();
 
-    julyBills()->assertSee(__('messages.rent_paid_charges_unread'));
+    julyBills()
+        ->assertSee(__('messages.rent_paid'))
+        ->assertSee(__('messages.rent_paid_charges_unread'));
+});
+
+it('prints paid only once the charges are settled too', function () {
+    payJulyRent();
+    $charge = addJulyCharge('electricity', 42.5);
+    $charge->update(['paid_status' => true, 'paid_at' => '2026-07-25']);
+
+    $response = julyBills();
+
+    expect(julyBill($response)['status'])->toBe('paid');
+
+    $response->assertDontSee(__('messages.rent_paid'));
 });
 
 it('keeps the row pending once end-of-month charges are added to a rent-paid tenant', function () {

@@ -4,6 +4,7 @@ use App\Models\Apartments;
 use App\Models\Floors;
 use App\Models\Payments;
 use App\Models\Property;
+use App\Models\Utilities;
 use App\Services\Billing\BillingCycleService;
 use App\Services\Tenants\TenantRentProgressCalculator;
 use Carbon\Carbon;
@@ -108,6 +109,42 @@ it('reads paid once this month rent is actually collected', function () {
     expect($progress['paid'])->toEqual(500.0)
         ->and($progress['percent'])->toEqual(100.0)
         ->and($progress['status'])->toBe('paid');
+});
+
+/**
+ * A bill has two sides. The badge on the tenant list is the same component the
+ * rent collection page prints, so the same tenant must read the same label on
+ * both: "Rent Paid" while the charges side is still open, "Paid" only once it
+ * settles. The BUCKET stays rent-only — it is what the ?rent_status= filter and
+ * the floor dots count.
+ */
+it('labels the tenant list Rent Paid until the charges settle too', function () {
+    $f = rentProgressFixture();
+    payRent($f['rental']->id, '2026-08-10');
+
+    $charge = Utilities::create([
+        'tenant_id' => $f['tenant']->id,
+        'rental_id' => $f['rental']->id,
+        'utility_type' => 'electricity',
+        'meter_reading_in' => 0,
+        'meter_reading_out' => 0,
+        'charge_amount' => 30,
+        'billing_month' => 8,
+        'billing_year' => 2026,
+        'paid_status' => false,
+    ]);
+
+    $response = test()->actingAs($f['admin'])->get(route('admin.tenants.index'));
+    $response->assertOk()->assertSee(__('messages.rent_paid'));
+
+    // Rent-only bucket, unchanged: the filter and the dots still see 'paid'.
+    expect($response->viewData('rentProgressMap')[$f['tenant']->id]['status'])->toBe('paid');
+
+    $charge->update(['paid_status' => true, 'paid_at' => '2026-08-20']);
+
+    test()->actingAs($f['admin'])->get(route('admin.tenants.index'))
+        ->assertOk()
+        ->assertDontSee(__('messages.rent_paid'));
 });
 
 /**

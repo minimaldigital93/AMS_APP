@@ -255,8 +255,13 @@
                             'paid'   => (bool) $u->paid_status,
                         ])->values();
                     @endphp
+                    @php
+                        // Rent in, charges still open — the badge says "Rent Paid" and the
+                        // row is tinted to match. Still the pending bucket for the filter.
+                        $rentPaidOnly = $bill['rent_status'] === 'paid' && ! ($bill['charges_settled'] ?? false);
+                    @endphp
                     <tr x-show="isFloorOpen('{{ $floorId }}') && matchesFilter('{{ $bill['status'] }}', '{{ strtolower($bill['tenant']->name ?? '') }}', '{{ strtolower($bill['apartment']->apartment_number ?? '') }}')"
-                        class="hover:bg-gray-50 transition {{ $bill['status'] === 'overdue' ? 'bg-red-50/40' : ($bill['status'] === 'paid' ? 'bg-emerald-50/40' : (($isFutureMonth || ($bill['is_upcoming'] ?? false)) ? 'bg-sky-50/30' : '')) }}">
+                        class="hover:bg-gray-50 transition {{ $bill['status'] === 'overdue' ? 'bg-red-50/40' : ($bill['status'] === 'paid' ? 'bg-emerald-50/40' : ($rentPaidOnly ? 'bg-teal-50/40' : (($isFutureMonth || ($bill['is_upcoming'] ?? false)) ? 'bg-sky-50/30' : ''))) }}">
                         <td class="px-4 lg:px-6 py-4 whitespace-nowrap text-sm text-gray-600">{{ $rowNum++ }}</td>
                         <td class="px-4 lg:px-6 py-4">
                             <div class="flex items-center">
@@ -291,8 +296,10 @@
                             <p class="text-sm font-bold {{ $bill['status'] === 'paid' ? 'text-emerald-600' : 'text-slate-800' }}">{{ money($bill['total_bill']) }}</p>
                         </td>
                         <td class="px-4 lg:px-6 py-4 whitespace-nowrap text-center">
-                            {{-- One badge, three values. Paid means rent AND charges
-                                 are settled; the tooltip says which side is still open. --}}
+                            {{-- One badge, three buckets: Pending · Overdue · Rent Paid ·
+                                 Paid, where "Rent Paid" labels a pending row whose rent is
+                                 already in. Paid means rent AND charges are settled; the
+                                 tooltip says which side is still open. --}}
                             <x-bill-status :bill="$bill" :future="$isFutureMonth" />
                         </td>
                         <td class="px-4 lg:px-6 py-4 whitespace-nowrap text-sm font-medium">
@@ -344,9 +351,11 @@
                     'amount' => (float) $u->charge_amount,
                     'paid'   => (bool) $u->paid_status,
                 ])->values();
+                // Rent in, charges still open — see the desktop row.
+                $rentPaidOnly = $bill['rent_status'] === 'paid' && ! ($bill['charges_settled'] ?? false);
             @endphp
             <div x-show="isFloorOpen('{{ $floorId }}') && matchesFilter('{{ $bill['status'] }}', '{{ strtolower($bill['tenant']->name ?? '') }}', '{{ strtolower($bill['apartment']->apartment_number ?? '') }}')"
-                 class="flex items-center gap-3 px-4 py-3 active:bg-slate-50 transition {{ $bill['status'] === 'overdue' ? 'bg-red-50/40' : ($bill['status'] === 'paid' ? 'bg-emerald-50/40' : (($isFutureMonth || ($bill['is_upcoming'] ?? false)) ? 'bg-sky-50/30' : '')) }}">
+                 class="flex items-center gap-3 px-4 py-3 active:bg-slate-50 transition {{ $bill['status'] === 'overdue' ? 'bg-red-50/40' : ($bill['status'] === 'paid' ? 'bg-emerald-50/40' : ($rentPaidOnly ? 'bg-teal-50/40' : (($isFutureMonth || ($bill['is_upcoming'] ?? false)) ? 'bg-sky-50/30' : ''))) }}">
                 <span class="w-5 text-xs font-medium text-slate-400 text-center flex-shrink-0">{{ $mRowNum++ }}</span>
                 <div class="h-9 w-9 rounded-lg bg-sky-50 flex items-center justify-center flex-shrink-0">
                     <svg class="w-5 h-5 text-sky-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/></svg>
