@@ -84,12 +84,11 @@ class BreakEvenService
         $totalRevenue = (float) $income['total_income'];
         $totalExpenses = (float) $expenses['total_expenses'];
 
-        // Fetch the overlapping rentals once and derive both avg rent and the
+        // Fetch the month's occupants once and derive both avg rent and the
         // occupancy count from the collection (was two identical DB queries).
-        $activeRents = $this->activeRentalsQuery($apartmentIds, $monthStart, $monthEnd)
-            ->pluck('rent_amount');
-        $currentOccupancy = $activeRents->count();
-        $avgRentPerApartment = (float) ($currentOccupancy > 0 ? $activeRents->avg() : 0);
+        $occupants = $this->monthOccupants($apartmentIds, $monthStart, $monthEnd);
+        $currentOccupancy = $occupants->count();
+        $avgRentPerApartment = (float) ($currentOccupancy > 0 ? $occupants->avg('rent_amount') : 0);
 
         // The rentable count is today's state, but occupancy is the selected
         // month's — a room let in March and put under maintenance in July would
@@ -188,7 +187,7 @@ class BreakEvenService
 
             $income = $this->queryService->calculateIncome($start, $end);
             $expenses = $this->queryService->calculateExpenses($start, $end);
-            $occupied = $this->activeRentalsQuery($apartmentIds, $start, $end)->count();
+            $occupied = $this->monthOccupants($apartmentIds, $start, $end)->count();
 
             // Same flooring as calculate(): each month's denominator is the
             // rentable stock or that month's tenant count, whichever is larger,
@@ -482,7 +481,7 @@ class BreakEvenService
         $monthStart = Carbon::create($year, $month, 1)->startOfMonth();
         $monthEnd = $monthStart->copy()->endOfMonth();
 
-        $occupiedCount = $this->activeRentalsQuery($apartmentIds, $monthStart, $monthEnd)->count();
+        $occupiedCount = $this->monthOccupants($apartmentIds, $monthStart, $monthEnd)->count();
         if ($occupiedCount === 0) {
             return 0;
         }
@@ -506,8 +505,36 @@ class BreakEvenService
     }
 
     /**
-     * Rentals overlapping the given month window — used for both avg rent
-     * and occupancy count.
+     * The month's occupants — at most **one tenancy per room**.
+     *
+     * A room is single-occupancy, so it can only be rented once in a month.
+     * During turnover the outgoing and incoming tenancies overlap (the move-out
+     * date can be any day of the month, and the room is freed for reassignment
+     * the moment the leave is processed), so counting rentals reported 6 rooms
+     * rented out of 5 while the dashboard and the rent collection page — which
+     * both de-duplicate per apartment — said 5. Same rule as theirs: the newest
+     * tenancy that had begun by month end is the occupant of record.
+     *
+     * Every rental reaching here already started on/before $monthEnd, so the
+     * first row of each newest-first group is that occupant.
+     *
+     * @return \Illuminate\Support\Collection<int, Rentals>
+     */
+    private function monthOccupants($apartmentIds, Carbon $monthStart, Carbon $monthEnd)
+    {
+        return $this->activeRentalsQuery($apartmentIds, $monthStart, $monthEnd)
+            ->orderByDesc('start_date')
+            ->orderByDesc('id')
+            ->get(['id', 'apartment_id', 'rent_amount'])
+            ->groupBy('apartment_id')
+            ->map(fn ($rentals) => $rentals->first())
+            ->values();
+    }
+
+    /**
+     * Rentals overlapping the given month window. Callers that count rooms go
+     * through monthOccupants() instead — this raw query can return more than
+     * one row per apartment in a turnover month.
      */
     private function activeRentalsQuery($apartmentIds, Carbon $monthStart, Carbon $monthEnd): Builder
     {

@@ -368,6 +368,29 @@ agreeing:
 Anything short of settled is `pending`; "how far along" belongs to the
 percentage/progress bar next to the badge, not to a bucket of its own.
 
+### A room counts once per month — never count rentals
+
+A room is single-occupancy, so it yields exactly **one bill, and one unit of
+occupancy, per month**. During turnover the outgoing and incoming tenancies
+*overlap*: `leave_date` may be any day of the month and the room is freed for
+reassignment the moment the leave is processed. Counting `rentals` rows in a
+month window therefore double-counts every turnover room. Each of these picks
+the **newest tenancy that had begun by month end** (else the earliest future
+one, so an empty room awaiting its next tenant still shows) and must keep doing
+so:
+
+- `Shared\RevenueExpenseController::recordIncome()` — one bill row per room.
+- `DashboardStatsService::countRentPaymentStatus()` — the paid/pending/overdue
+  tiles and `bills_total` (the tile read 29 of 28 before).
+- `BreakEvenService::monthOccupants()` — `current_occupancy` ("rented X of Y"),
+  `avg_rent_per_apartment` and the health trend's `occupancy_pct`. This one
+  counted rentals until 2026-08 and reported 6 rooms rented out of 5 in a
+  turnover month while the dashboard said 5. `activeRentalsQuery()` is the raw
+  overlapping-rentals query it wraps — don't count rooms with it directly.
+
+`tests/Feature/RevenueExpense/BreakEvenOccupancyTest.php` pins break-even
+against the dashboard.
+
 Three rules this depends on:
 
 - **Never gate "Add charge" on `status`** — gate it on the two sides. A row with
