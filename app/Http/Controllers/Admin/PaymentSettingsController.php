@@ -8,15 +8,12 @@ use Illuminate\Contracts\View\View;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 
-/**
- * The landlord's KHQRPay credentials for tenant rent (Flow B): Profile ID +
- * Secret from their khqr.cc dashboard, an enable toggle, and the settlement
- * currency. Their own credentials mint dynamic QRs that are auto-verified (see
- * KhqrPaymentService / KhqrCredentials). The stored secret is never rendered
- * back — leaving the field blank on update keeps the existing one.
- */
+
 class PaymentSettingsController extends Controller
 {
+    /**
+     * Show the merchant credentials form.
+     */
     public function edit(): View
     {
         $settings = MerchantPaymentSetting::forAccount(current_account_id());
@@ -27,6 +24,9 @@ class PaymentSettingsController extends Controller
         ]);
     }
 
+    /**
+     * Save the credentials. A blank secret keeps the stored one.
+     */
     public function update(Request $request): RedirectResponse
     {
         $validated = $request->validate([

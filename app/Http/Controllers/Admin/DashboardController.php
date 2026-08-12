@@ -18,21 +18,16 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\View\View;
 
+/**
+ * The admin dashboard: month-navigated stats, fiscal summary, calendar and the
+ * floor quick-view, all scoped to the globally selected property.
+ */
 class DashboardController extends Controller
 {
     use HasDashboardMonthNavigation;
     use HasFiscalPeriodScope;
 
-    protected function fiscalPeriodsQuery(): Builder
-    {
-        return FiscalPeriods::where('user_id', Auth::id());
-    }
-
-    protected function ledgerUserId(): ?int
-    {
-        return Auth::id();
-    }
-
+ 
     public function index(Request $request): View
     {
         $activePeriod = $this->getActiveFiscalPeriod();
@@ -86,5 +81,17 @@ class DashboardController extends Controller
             'selectedMonth', 'periodMonths', 'monthNavigation', 'isFullPeriod', 'displayMonth',
             'subscriptionAlert', 'floorPlan'
         ));
+    }
+
+    /** Admins read their own fiscal periods. */
+    protected function fiscalPeriodsQuery(): Builder
+    {
+        return FiscalPeriods::where('user_id', Auth::id());
+    }
+
+    /** Admins read ledger rows under their own user_id. */
+    protected function ledgerUserId(): ?int
+    {
+        return Auth::id();
     }
 }

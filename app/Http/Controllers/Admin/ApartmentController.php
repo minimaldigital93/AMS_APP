@@ -13,6 +13,7 @@ use App\Services\Subscription\SubscriptionService;
 use App\Services\Tenants\AssignTenantException;
 use App\Services\Tenants\LeaseSyncService;
 use App\Services\Tenants\TenantAssignmentService;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -23,6 +24,9 @@ class ApartmentController extends Controller
 {
     public function __construct(private SubscriptionService $subscriptions) {}
 
+    /**
+     * Show the form for creating a new room.
+     */
     public function create(): View
     {
         $floors = Floors::all();
@@ -32,43 +36,15 @@ class ApartmentController extends Controller
         return view('admin.apartments.create', compact('floors', 'supervisors', 'statuses'));
     }
 
-    public function show(Apartments $apartment): View
-    {
-        $apartment = $apartment->load('floor', 'supervisor');
-
-        // Get the active rental for this apartment
-        $activeRental = Rentals::where('apartment_id', $apartment->id)
-            ->where(function ($q) {
-                $q->whereNull('end_date')->orWhere('end_date', '>=', now());
-            })
-            ->with('tenant')
-            ->latest('start_date')
-            ->first();
-
-        // Load the tenant's own relations for the embedded universal tenant view.
-        if ($activeRental && $activeRental->tenant) {
-            $activeRental->tenant->load(['apartment.floor', 'rentals.apartment', 'rentals.payments']);
-        }
-
-        return view('shared.apartments.show', compact('apartment', 'activeRental') + ['panel' => 'admin']);
-    }
-
-    public function edit(Apartments $apartment): View
-    {
-        $apartment = $apartment->load('floor', 'supervisor');
-        $floors = Floors::all();
-        $supervisors = User::role('supervisor')->get();
-        $statuses = Apartments::getStatuses();
-
-        return view('admin.apartments.edit', compact('apartment', 'floors', 'supervisors', 'statuses'));
-    }
-
-    public function store(Request $request)
+    /**
+     * Store a new room, subject to the account's plan room cap.
+     */
+    public function store(Request $request): RedirectResponse
     {
         $validated = $request->validate([
             'apartment_number' => [
                 'required', 'string', 'max:255',
-                // Per-floor uniqueness: a unit "101" may exist on more than one
+                // Per-floor uniqueness: unit "101" may exist on more than one
                 // floor of the same building (and across properties).
                 Rule::unique('apartments', 'apartment_number')
                     ->where('floor_id', $request->input('floor_id'))
@@ -79,18 +55,19 @@ class ApartmentController extends Controller
             'status' => Apartments::getStatusValidationRule(),
             'supervisor_id' => [
                 'nullable',
-                // Same-account supervisors only — the bare exists:users,id let a
-                // crafted request stamp another account's user (even an admin)
-                // onto the apartment (2026-07 validation audit).
+                // Same-account supervisors only — a bare exists:users,id let a
+                // crafted request stamp another account's user onto the apartment.
                 Rule::exists('users', 'id')->where('account_id', current_account_id()),
             ],
             'description' => 'nullable|string|max:65535',
         ], [
             'apartment_number.unique' => __('messages.validation_apartment_number_taken', ['number' => $request->input('apartment_number')]),
         ]);
-        $validated = convert_money_input($validated, ['monthly_rent', 'deposit', 'apartments.*.monthly_rent']);
 
-        // Enforce the account's subscription plan room cap.
+        $validated = convert_money_input($validated, ['monthly_rent']);
+
+        // The plan's room cap counts maintenance rooms too, so an account can't
+        // park rooms to slip past it.
         $accountId = current_account_id();
         if (! $this->subscriptions->canAddRooms($accountId)) {
             $plan = $this->subscriptions->activePlan($accountId);
@@ -103,14 +80,52 @@ class ApartmentController extends Controller
         return redirect()->route('admin.floors.index')->with('success', __('messages.flash_apartment_created'));
     }
 
-    public function update(Request $request, Apartments $apartment, LeaseSyncService $leases)
+    /**
+     * Show one room together with its sitting tenant, if any.
+     */
+    public function show(Apartments $apartment): View
+    {
+        $apartment = $apartment->load('floor', 'supervisor');
+
+        $activeRental = Rentals::where('apartment_id', $apartment->id)
+            ->where(function ($q) {
+                $q->whereNull('end_date')->orWhere('end_date', '>=', now());
+            })
+            ->with('tenant')
+            ->latest('start_date')
+            ->first();
+
+        // The embedded universal tenant view renders the tenant's own relations.
+        if ($activeRental && $activeRental->tenant) {
+            $activeRental->tenant->load(['apartment.floor', 'rentals.apartment', 'rentals.payments']);
+        }
+
+        return view('shared.apartments.show', compact('apartment', 'activeRental') + ['panel' => 'admin']);
+    }
+
+    /**
+     * Show the form for editing a room.
+     */
+    public function edit(Apartments $apartment): View
+    {
+        $apartment = $apartment->load('floor', 'supervisor');
+        $floors = Floors::all();
+        $supervisors = User::role('supervisor')->get();
+        $statuses = Apartments::getStatuses();
+
+        return view('admin.apartments.edit', compact('apartment', 'floors', 'supervisors', 'statuses'));
+    }
+
+    /**
+     * Update a room, keeping the sitting tenant's lease price in step.
+     */
+    public function update(Request $request, Apartments $apartment, LeaseSyncService $leases): RedirectResponse
     {
         $validated = $request->validate([
             'apartment_number' => [
                 'required', 'string', 'max:255',
-                // Per-floor uniqueness, ignoring this apartment's own row. The edit
-                // form can't move an apartment between floors, so the floor is fixed
-                // to this apartment's existing floor_id.
+                // Per-floor uniqueness, ignoring this room's own row. The edit
+                // form can't move a room between floors, so floor_id is fixed.
                 Rule::unique('apartments', 'apartment_number')
                     ->ignore($apartment->id)
                     ->where('floor_id', $apartment->floor_id)
@@ -121,31 +136,26 @@ class ApartmentController extends Controller
             'under_maintenance' => 'nullable|boolean',
             'supervisor_id' => [
                 'nullable',
-                // Same-account supervisors only — the bare exists:users,id let a
-                // crafted request stamp another account's user (even an admin)
-                // onto the apartment (2026-07 validation audit).
+                // Same-account supervisors only — a bare exists:users,id let a
+                // crafted request stamp another account's user onto the apartment.
                 Rule::exists('users', 'id')->where('account_id', current_account_id()),
             ],
             'description' => 'nullable|string|max:65535',
         ], [
             'apartment_number.unique' => __('messages.validation_apartment_number_taken', ['number' => $request->input('apartment_number')]),
         ]);
-        $validated = convert_money_input($validated, ['monthly_rent', 'deposit', 'apartments.*.monthly_rent']);
 
-        // Maintenance mode takes the unit out of the rentable stock, so it must
-        // be empty first — otherwise a living tenant's rent would silently drop
-        // out of every occupancy/expected-revenue figure while they still owe it.
-        // Move the tenant out (or to another room) before switching this on.
+        $validated = convert_money_input($validated, ['monthly_rent']);
+
+        // Maintenance drops the unit out of every occupancy/revenue figure, so
+        // it must be empty first. The toggle has its own route; this covers stale tabs.
         $wantsMaintenance = (bool) ($validated['under_maintenance'] ?? false);
         if ($wantsMaintenance && ! $apartment->under_maintenance && $apartment->isCurrentlyOccupied()) {
             return back()->withInput()->with('error', __('messages.flash_maintenance_blocked_occupied'));
         }
 
-        // The room price and the sitting tenant's rent are two different
-        // columns: `apartments.monthly_rent` is the asking price, while every
-        // bill is derived from the lease's own `rent_amount`. Repricing an
-        // occupied room has to move both, or the rent-collection page lists the
-        // new price and charges the old one.
+        // apartments.monthly_rent is the asking price; bills derive from the
+        // lease's rent_amount. A reprice must move both or they disagree.
         $newRent = (float) $validated['monthly_rent'];
         $repriced = 0;
 
@@ -162,11 +172,33 @@ class ApartmentController extends Controller
     }
 
     /**
-     * Instant-save switch for maintenance mode (its own route so the toggle on
-     * the edit page saves on click and confirms, rather than silently riding
-     * along on the main "Update Room" submit).
+     * Soft-delete an empty room.
      */
-    public function toggleMaintenance(Request $request, Apartments $apartment)
+    public function destroy(Apartments $apartment): RedirectResponse
+    {
+        // Soft-delete doesn't cascade, so deleting an occupied unit orphans the
+        // live rental ($rental->apartment === null) and breaks ledger writes.
+        if ($apartment->isCurrentlyOccupied()) {
+            return back()->with('error', __('messages.flash_apartment_has_active_tenant'));
+        }
+
+        $apartment->delete();
+
+        // Deleting from the floor edit page stays on that page.
+        $referrer = request()->headers->get('referer');
+        if ($referrer && str_contains($referrer, '/admin/floors/') && str_contains($referrer, '/edit')) {
+            return back()->with('success', __('messages.flash_apartment_deleted'));
+        }
+
+        return redirect()->route('admin.floors.index')->with('success', __('messages.flash_apartment_deleted'));
+    }
+
+    /**
+     * Instant-save switch for maintenance mode. Its own route so the toggle on
+     * the edit page saves on click and confirms, rather than silently riding
+     * along on the main "Update Room" submit.
+     */
+    public function toggleMaintenance(Request $request, Apartments $apartment): RedirectResponse
     {
         $validated = $request->validate([
             'under_maintenance' => 'required|boolean',
@@ -174,15 +206,14 @@ class ApartmentController extends Controller
 
         $wantsMaintenance = (bool) $validated['under_maintenance'];
 
-        // Double submit / stale page — nothing to do, and no flash to avoid
-        // telling the user something changed when it didn't.
+        // Double submit / stale page — nothing to do, and no flash, so we don't
+        // tell the user something changed when it didn't.
         if ($wantsMaintenance === (bool) $apartment->under_maintenance) {
             return back();
         }
 
         // Same guard as update(): the unit must be empty before it leaves the
-        // rentable stock, or a living tenant's rent would drop out of every
-        // occupancy/expected-revenue figure while they still owe it.
+        // rentable stock, or a sitting tenant's rent vanishes from the figures.
         if ($wantsMaintenance && $apartment->isCurrentlyOccupied()) {
             return back()->with('error', __('messages.flash_maintenance_blocked_occupied'));
         }
@@ -196,12 +227,15 @@ class ApartmentController extends Controller
         return back()->with('success', $message);
     }
 
-    public function assignTenant(AssignTenantRequest $request, Apartments $apartment, TenantAssignmentService $assigner)
+    /**
+     * Move a tenant — new or existing — into this room.
+     */
+    public function assignTenant(AssignTenantRequest $request, Apartments $apartment, TenantAssignmentService $assigner): RedirectResponse
     {
         $validated = $request->validated();
 
-        // Only accept uploads when creating a new tenant — prevents accidental
-        // overwrite of an existing tenant's photo/document via crafted requests.
+        // Only accept uploads when creating a new tenant — prevents a crafted
+        // request from overwriting an existing tenant's photo/document.
         $isNewTenant = $validated['tenant_option'] === 'new';
 
         try {
@@ -223,31 +257,14 @@ class ApartmentController extends Controller
         return redirect()->route('admin.floors.index')->with('success', __('messages.flash_tenant_assigned'));
     }
 
+    /**
+     * The admin's own open fiscal period — the book the assignment writes into.
+     */
     private function activeFiscalPeriod(): ?FiscalPeriods
     {
         return FiscalPeriods::where('user_id', Auth::id())
             ->where('status', 'open')
             ->orderBy('opening_date', 'desc')
             ->first();
-    }
-
-    public function destroy(Apartments $apartment)
-    {
-        // Block deletion while a tenant still lives here. Soft-delete does not
-        // cascade to rentals/tenants, so removing an occupied unit would orphan
-        // the live rental ($rental->apartment === null) and break ledger writes.
-        if ($apartment->isCurrentlyOccupied()) {
-            return back()->with('error', __('messages.flash_apartment_has_active_tenant'));
-        }
-
-        $apartment->delete();
-
-        // Check if request came from floor edit page
-        $referrer = request()->headers->get('referer');
-        if ($referrer && str_contains($referrer, '/admin/floors/') && str_contains($referrer, '/edit')) {
-            return back()->with('success', __('messages.flash_apartment_deleted'));
-        }
-
-        return redirect()->route('admin.floors.index')->with('success', __('messages.flash_apartment_deleted'));
     }
 }

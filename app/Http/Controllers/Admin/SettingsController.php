@@ -7,9 +7,9 @@ use App\Models\Settings;
 use App\Services\Billing\BillingCycleService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\View\View;
+
 
 class SettingsController extends Controller
 {
@@ -26,12 +26,13 @@ class SettingsController extends Controller
     ];
 
     /**
-     * Display the settings page
+     * The settings page: stored values plus the defaults every form field needs.
      */
     public function index(): View
     {
+        // Grouped by the prefix before the first underscore, which is how the
+        // page splits settings into its cards.
         $settings = Settings::orderBy('key')->get()->groupBy(function ($setting) {
-            // Group settings by category (prefix before first underscore)
             $parts = explode('_', $setting->key);
 
             return $parts[0] ?? 'general';
@@ -47,10 +48,8 @@ class SettingsController extends Controller
                 'company_email' => '',
                 'company_website' => '',
             ],
-            // Party "ក" on the printed rental contract. The company block above is
-            // branding; the owner is the natural person who signs, so the contract
-            // needs their gender and ID-card number too. Blank owner fields fall
-            // back to the company ones — see ContractGenerator::viewData().
+            // Party "ក" on the rental contract — the person who signs, not the
+            // company. Blank fields fall back to the company block above.
             'owner' => [
                 'owner_name' => '',
                 'owner_gender' => '',
@@ -66,10 +65,8 @@ class SettingsController extends Controller
                 'utility_parking_fee' => '',
                 'utility_internet_fee' => '',
                 'utility_garbage_fee' => '',
-                // When on, the electricity/water charge on the record-income page is
-                // computed from the meter readings (usage × the unit prices above)
-                // and the amount field is locked. Off = operator types the amount,
-                // meters still roll over. Stored as '1'/'0'.
+                // On: the charge is computed from the meter readings and locked.
+                // Off: the operator types it, meters still roll over. '1'/'0'.
                 'utility_meter_auto_calc' => '0',
             ],
             // Late-payment penalty: percent of the monthly rent charged per day
@@ -77,12 +74,8 @@ class SettingsController extends Controller
             'late' => [
                 'late_fee_percent' => '',
             ],
-            // Rent collection day. Blank keeps the original behaviour — rent is
-            // due on each tenant's own move-in day. Set it and every tenant's
-            // rent falls due on that day instead, with the move-in month
-            // prorated up to it. `billing_overdue_days` is the grace period
-            // before rent counts late; it drives the late fee and is printed in
-            // ប្រការ៥ of the contract. See BillingCycleService.
+            // Blank = rent due on each tenant's own move-in day. Set = one day
+            // for everyone, move-in month prorated. See BillingCycleService.
             'billing' => [
                 'billing_cycle_day' => '',
                 'billing_overdue_days' => (string) BillingCycleService::DEFAULT_OVERDUE_DAYS,
@@ -97,7 +90,7 @@ class SettingsController extends Controller
     }
 
     /**
-     * Update a specific setting
+     * Write one key/value pair.
      */
     public function update(Request $request): RedirectResponse
     {
@@ -113,7 +106,7 @@ class SettingsController extends Controller
     }
 
     /**
-     * Update multiple settings at once
+     * Save the whole settings form in one submit, logo included.
      */
     public function updateBatch(Request $request): RedirectResponse
     {
@@ -122,20 +115,13 @@ class SettingsController extends Controller
             'settings.*' => 'nullable|string',
             'settings.khr_exchange_rate' => 'nullable|numeric|min:1',
             'settings.owner_gender' => 'nullable|in:male,female,other',
-            // These land verbatim on a legal document, so keep them numeric.
             'settings.utility_electricity_price' => 'nullable|numeric|min:0',
             'settings.utility_water_price' => 'nullable|numeric|min:0',
             'settings.utility_parking_fee' => 'nullable|numeric|min:0',
             'settings.utility_internet_fee' => 'nullable|numeric|min:0',
             'settings.utility_garbage_fee' => 'nullable|numeric|min:0',
-            // Percent of rent charged per overdue day — not a money field.
             'settings.late_fee_percent' => 'nullable|numeric|min:0|max:100',
-            // Auto-calculate metered electricity/water charges toggle ('1'/'0').
             'settings.utility_meter_auto_calc' => 'nullable|in:0,1',
-            // Rent collection day. The 1–28 cap is the whole reason February,
-            // the 30/31-day months and leap years need no special-casing: days
-            // 29–31 don't exist in every month, so they can never be a monthly
-            // anchor. Blank = keep billing on each tenant's move-in day.
             'settings.billing_cycle_day' => 'nullable|integer|min:1|max:'.BillingCycleService::MAX_COLLECTION_DAY,
             'settings.billing_overdue_days' => 'nullable|integer|min:0|max:31',
             'company_logo' => 'nullable|image|mimes:jpeg,jpg,png,webp|max:2048',
@@ -162,11 +148,41 @@ class SettingsController extends Controller
     }
 
     /**
-     * Upload, replace, or remove the account's company logo.
-     *
-     * The stored value is the path on the `public` disk (e.g. company/abc.png),
-     * mirroring how tenant photos are handled so it renders via asset('storage/…').
+     * Remove a single setting key.
      */
+    public function destroy(Request $request): RedirectResponse
+    {
+        $request->validate([
+            'key' => 'required|string',
+        ]);
+
+        Settings::where('key', $request->key)->delete();
+        Settings::forgetCached($request->key);
+
+        return redirect()->route('admin.settings.index')
+            ->with('success', __('messages.setting_deleted'));
+    }
+
+    /**
+     * Clear every setting for this account, falling back to the defaults.
+     */
+    public function reset(): RedirectResponse
+    {
+        // Scoped delete, not truncate, and per-key eviction — Cache::flush()
+        // would drop every other account's settings from the shared store.
+        $accountId = current_account_id();
+        $keys = Settings::query()->pluck('key');
+
+        Settings::query()->delete();
+        foreach ($keys as $key) {
+            Settings::forgetCached($key, $accountId);
+        }
+
+        return redirect()->route('admin.settings.index')
+            ->with('success', __('messages.settings_reset'));
+    }
+
+
     protected function handleCompanyLogo(Request $request): void
     {
         $currentPath = Settings::get('company_logo');
@@ -189,52 +205,5 @@ class SettingsController extends Controller
             $path = $request->file('company_logo')->store('company', 'public');
             Settings::set('company_logo', $path);
         }
-    }
-
-    /**
-     * Delete a setting
-     */
-    public function destroy(Request $request): RedirectResponse
-    {
-        $request->validate([
-            'key' => 'required|string',
-        ]);
-
-        Settings::where('key', $request->key)->delete();
-        Settings::forgetCached($request->key);
-
-        return redirect()->route('admin.settings.index')
-            ->with('success', __('messages.setting_deleted'));
-    }
-
-    /**
-     * Reset settings to default
-     */
-    public function reset(): RedirectResponse
-    {
-        // Scoped delete (not truncate) so only this account's settings reset.
-        // Per-key cache eviction — Cache::flush() would drop every OTHER
-        // account's cached settings (and everything else in the shared store).
-        $accountId = current_account_id();
-        $keys = Settings::query()->pluck('key');
-
-        Settings::query()->delete();
-        foreach ($keys as $key) {
-            Settings::forgetCached($key, $accountId);
-        }
-
-        return redirect()->route('admin.settings.index')
-            ->with('success', __('messages.settings_reset'));
-    }
-
-    /**
-     * Get a specific setting value (API endpoint)
-     */
-    public function get(string $key)
-    {
-        return response()->json([
-            'key' => $key,
-            'value' => Settings::get($key),
-        ]);
     }
 }

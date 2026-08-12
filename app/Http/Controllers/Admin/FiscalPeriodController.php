@@ -17,7 +17,11 @@ use App\Services\FiscalPeriod\FiscalPeriodReportsService;
 use App\Services\FiscalPeriod\MonthClosePreflight;
 use App\Services\FiscalPeriod\MonthlyPeriodManager;
 use App\Services\Property\PropertyContext;
+use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\View\View;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class FiscalPeriodController extends Controller
 {
@@ -29,11 +33,12 @@ class FiscalPeriodController extends Controller
         private MonthClosePreflight $closePreflight,
     ) {}
 
-    // ============================================================
-    // FISCAL PERIOD CRUD
-    // ============================================================
+    // --- Fiscal period CRUD ---
 
-    public function index()
+    /**
+     * List this admin's fiscal periods.
+     */
+    public function index(): View
     {
         $fiscalPeriods = FiscalPeriods::where('user_id', Auth::id())
             ->orderBy('opening_date', 'desc')
@@ -44,11 +49,13 @@ class FiscalPeriodController extends Controller
         return view('admin.fiscalperiod.index', compact('fiscalPeriods', 'hasOpenPeriod'));
     }
 
-    public function create()
+    /**
+     * Show the form for opening a period.
+     */
+    public function create(): View|RedirectResponse
     {
-        // Only one fiscal period may be open at a time — the current one must be
-        // closed before a new one is opened (getActiveFiscalPeriod() and the
-        // fiscal.period middleware both assume a single open period).
+        // Only one period may be open at a time — getActiveFiscalPeriod() and
+        // the fiscal.period middleware both assume exactly one.
         if ($this->hasOpenPeriod()) {
             return redirect()
                 ->route('admin.fiscalperiod.index')
@@ -58,7 +65,10 @@ class FiscalPeriodController extends Controller
         return view('admin.fiscalperiod.open_close_periods');
     }
 
-    public function store(StoreFiscalPeriodRequest $request)
+    /**
+     * Open a period and generate its monthly skeleton.
+     */
+    public function store(StoreFiscalPeriodRequest $request): RedirectResponse
     {
         // Authoritative guard: refuse a second open period even if the UI is bypassed.
         if ($this->hasOpenPeriod()) {
@@ -73,8 +83,6 @@ class FiscalPeriodController extends Controller
             ...$data,
             'user_id' => Auth::id(),
             'status' => 'open',
-            // No opening balance sheet is collected at creation; the carry-forward
-            // seed starts at zero (opening_assets/liabilities/equity default to 0).
             'opening_balance' => 0,
             'closing_balance' => 0,
         ]);
@@ -89,7 +97,7 @@ class FiscalPeriodController extends Controller
     /**
      * Dashboard view — financial summary + monthly periods with live numbers.
      */
-    public function show(FiscalPeriods $fiscalperiod, PropertyContext $propertyContext)
+    public function show(FiscalPeriods $fiscalperiod, PropertyContext $propertyContext): View
     {
         $this->authorizeUser($fiscalperiod);
 
@@ -104,9 +112,8 @@ class FiscalPeriodController extends Controller
         );
         $balanceSummary = $this->balanceSheetService->summary($fiscalperiod);
 
-        // A single-property view has no cash seed of its own — the fiscal
-        // period's opening balance is account-wide — so its running balance
-        // starts at zero.
+        // The opening balance is account-wide, so a single-property view has no
+        // cash seed of its own and starts at zero.
         $periodOpening = $consolidated ? (float) $fiscalperiod->opening_balance : 0.0;
 
         return view('admin.fiscalperiod.show', compact(
@@ -115,14 +122,20 @@ class FiscalPeriodController extends Controller
         ));
     }
 
-    public function edit(FiscalPeriods $fiscalperiod)
+    /**
+     * Show the form for editing a period's dates and opening figures.
+     */
+    public function edit(FiscalPeriods $fiscalperiod): View
     {
         $this->authorizeUser($fiscalperiod);
 
         return view('admin.fiscalperiod.edit', compact('fiscalperiod'));
     }
 
-    public function update(UpdateFiscalPeriodRequest $request, FiscalPeriods $fiscalperiod)
+    /**
+     * Update a period, regenerating the monthly skeleton if its dates moved.
+     */
+    public function update(UpdateFiscalPeriodRequest $request, FiscalPeriods $fiscalperiod): RedirectResponse
     {
         $this->authorizeUser($fiscalperiod);
 
@@ -132,9 +145,8 @@ class FiscalPeriodController extends Controller
             || $fiscalperiod->closing_date->toDateString() !== $data['closing_date'];
 
         if ($datesChanged) {
-            // The monthly skeleton must mirror the period range. Frozen months
-            // can't be resized, and shrinking must never strand ledger rows
-            // outside every report window.
+            // The monthly skeleton mirrors the period range: frozen months can't
+            // be resized, and shrinking must not strand ledger rows outside it.
             if ($fiscalperiod->monthlyPeriods()->where('status', '!=', 'open')->exists()) {
                 return back()->with('error', __('messages.flash_fp_dates_locked_closed_months'));
             }
@@ -169,14 +181,13 @@ class FiscalPeriodController extends Controller
             ->with('success', __('messages.flash_fp_updated'));
     }
 
-    public function destroy(FiscalPeriods $fiscalperiod)
+    /**
+     * Delete an open period that has never been posted to.
+     */
+    public function destroy(FiscalPeriods $fiscalperiod): RedirectResponse
     {
         $this->authorizeUser($fiscalperiod);
 
-        // A closed period is frozen history, and accounts.fiscal_period_id is
-        // ON DELETE CASCADE — deleting a period with ledger rows would silently
-        // hard-delete its entire income/expense history. Refuse both cases;
-        // only an open period with no recorded transactions can be removed.
         if ($fiscalperiod->status === 'closed' || $fiscalperiod->accounts()->exists()) {
             return redirect()
                 ->route('admin.fiscalperiod.index')
@@ -192,11 +203,12 @@ class FiscalPeriodController extends Controller
             ->with('success', __('messages.flash_fp_deleted'));
     }
 
-    // ============================================================
-    // BALANCE SHEET
-    // ============================================================
+    // --- Balance sheet ---
 
-    public function balanceSheet(FiscalPeriods $fiscalperiod)
+    /**
+     * The period's balance sheet items, grouped by type.
+     */
+    public function balanceSheet(FiscalPeriods $fiscalperiod): View
     {
         $this->authorizeUser($fiscalperiod);
 
@@ -210,7 +222,10 @@ class FiscalPeriodController extends Controller
         return view('admin.fiscalperiod.balance_sheet_items', compact('fiscalperiod', 'balanceSheetItems', 'summary'));
     }
 
-    public function storeBalanceItem(StoreBalanceSheetItemRequest $request, FiscalPeriods $fiscalperiod)
+    /**
+     * Add a balance sheet item to the period.
+     */
+    public function storeBalanceItem(StoreBalanceSheetItemRequest $request, FiscalPeriods $fiscalperiod): RedirectResponse
     {
         $this->authorizeUser($fiscalperiod);
 
@@ -223,7 +238,10 @@ class FiscalPeriodController extends Controller
         return back()->with('success', __('messages.flash_bs_item_added'));
     }
 
-    public function deleteBalanceItem(FiscalPeriods $fiscalperiod, BalanceSheet $balanceSheet)
+    /**
+     * Remove a balance sheet item from the period.
+     */
+    public function deleteBalanceItem(FiscalPeriods $fiscalperiod, BalanceSheet $balanceSheet): RedirectResponse
     {
         $this->authorizeUser($fiscalperiod);
 
@@ -236,20 +254,21 @@ class FiscalPeriodController extends Controller
         return back()->with('success', __('messages.flash_bs_item_deleted'));
     }
 
-    public function closeperiod(CloseFiscalPeriodRequest $request, FiscalPeriods $fiscalperiod)
+    /**
+     * Close the period once every month inside it is frozen.
+     */
+    public function closeperiod(CloseFiscalPeriodRequest $request, FiscalPeriods $fiscalperiod): RedirectResponse
     {
         $this->authorizeUser($fiscalperiod);
 
-        // Every month must be frozen first — a period closed over open months
-        // leaves un-carried balances behind, and the whole close reads from
-        // the months' chain.
+        // Every month must be frozen first — the close reads the months' chain,
+        // and an open month leaves its balance un-carried.
         if ($fiscalperiod->monthlyPeriods()->where('status', 'open')->exists()) {
             return back()->with('error', __('messages.flash_fp_close_months_first'));
         }
 
-        // The closing balance is COMPUTED from the ledger's carry-forward
-        // cascade, never taken from the form (the old client-supplied value
-        // let the frozen figure diverge from the books).
+        // Computed from the carry-forward cascade, never taken from the form —
+        // the old client-supplied value let the frozen figure drift.
         $this->monthlyManager->recalculateBalances($fiscalperiod);
 
         $fiscalperiod->update(['status' => 'closed']);
@@ -259,11 +278,12 @@ class FiscalPeriodController extends Controller
             ->with('success', __('messages.flash_fp_closed'));
     }
 
-    // ============================================================
-    // MONTHLY PERIOD MANAGEMENT
-    // ============================================================
+    // --- Monthly periods ---
 
-    public function showMonth(FiscalPeriods $fiscalperiod, MonthlyPeriod $monthlyPeriod, PropertyContext $propertyContext)
+    /**
+     * One month's figures, balances and pre-close unpaid check.
+     */
+    public function showMonth(FiscalPeriods $fiscalperiod, MonthlyPeriod $monthlyPeriod, PropertyContext $propertyContext): View
     {
         $this->authorizeUser($fiscalperiod);
         $this->ensureMonthBelongsTo($fiscalperiod, $monthlyPeriod);
@@ -286,9 +306,8 @@ class FiscalPeriodController extends Controller
 
         $balanceSheet = $this->balanceSheetService->summaryAsOf($fiscalperiod, $monthlyPeriod);
 
-        // Pre-close check: who still owes rent/utilities for this month. Only
-        // needed on the consolidated (whole-account) view where the close
-        // button lives, and only while the month is still open.
+        // Who still owes rent/utilities. Only needed where the close button
+        // lives (consolidated view) and only while the month is open.
         $unpaidPreflight = ($consolidated && $monthlyPeriod->canClose())
             ? $this->closePreflight->unpaidFor($monthlyPeriod)
             : null;
@@ -300,7 +319,10 @@ class FiscalPeriodController extends Controller
         ));
     }
 
-    public function closeMonth(CloseMonthlyPeriodRequest $request, FiscalPeriods $fiscalperiod, MonthlyPeriod $monthlyPeriod)
+    /**
+     * Freeze a month, book any owner withdrawal and carry the balance forward.
+     */
+    public function closeMonth(CloseMonthlyPeriodRequest $request, FiscalPeriods $fiscalperiod, MonthlyPeriod $monthlyPeriod): RedirectResponse
     {
         $this->authorizeUser($fiscalperiod);
         $this->ensureMonthBelongsTo($fiscalperiod, $monthlyPeriod);
@@ -311,9 +333,8 @@ class FiscalPeriodController extends Controller
 
         $withdrawal = (float) $request->validated()['owner_withdrawal'];
 
-        // A profit withdrawal can't exceed the cash actually available at month
-        // end (opening balance + net income). Guard so the carry-forward never
-        // goes negative from an over-draw.
+        // A withdrawal can't exceed month-end cash (opening + net income), or
+        // the carry-forward goes negative.
         $financials = $this->financials->forMonth($fiscalperiod, $monthlyPeriod);
         $availableCash = $monthlyPeriod->opening_balance + $financials['net_income'];
         if ($withdrawal > $availableCash + 0.01) {
@@ -354,7 +375,10 @@ class FiscalPeriodController extends Controller
         return back()->with('success', $msg);
     }
 
-    public function reopenMonth(FiscalPeriods $fiscalperiod, MonthlyPeriod $monthlyPeriod)
+    /**
+     * Reopen the most recently closed month, if the chain allows it.
+     */
+    public function reopenMonth(FiscalPeriods $fiscalperiod, MonthlyPeriod $monthlyPeriod): RedirectResponse
     {
         $this->authorizeUser($fiscalperiod);
         $this->ensureMonthBelongsTo($fiscalperiod, $monthlyPeriod);
@@ -373,7 +397,10 @@ class FiscalPeriodController extends Controller
         return back()->with('success', __('messages.flash_mp_reopened', ['month' => $monthlyPeriod->name]));
     }
 
-    public function recalculateBalances(FiscalPeriods $fiscalperiod)
+    /**
+     * Re-run the carry-forward cascade across every month of the period.
+     */
+    public function recalculateBalances(FiscalPeriods $fiscalperiod): RedirectResponse
     {
         $this->authorizeUser($fiscalperiod);
 
@@ -385,23 +412,17 @@ class FiscalPeriodController extends Controller
         );
     }
 
-    // ============================================================
-    // REPORTS + EXPORTS
-    // ============================================================
+    // --- Reports and exports ---
 
-    public function reports(FiscalPeriods $fiscalperiod, PropertyContext $propertyContext)
+    /**
+     * Income statement, cash flow, trial balance and the monthly breakdown.
+     */
+    public function reports(FiscalPeriods $fiscalperiod, PropertyContext $propertyContext): View
     {
         $this->authorizeUser($fiscalperiod);
 
-        // Reports follow the global top-bar property selector, so the whole app
-        // shares one active-property context (null = the "All properties"
-        // consolidated view).
         $selectedProperty = $propertyContext->activeProperty();
         $selectedPropertyId = $selectedProperty?->id;
-
-        // Balance sheet & trial balance use account-level opening figures and
-        // owner draws, so they always reflect the whole account — never a
-        // single property.
         $balanceSheetItems = $fiscalperiod->balanceSheets()->get();
         $summary = $this->balanceSheetService->summary($fiscalperiod);
         $monthlyPeriods = $fiscalperiod->monthlyPeriods()->orderBy('start_date')->get();
@@ -427,7 +448,10 @@ class FiscalPeriodController extends Controller
         ));
     }
 
-    public function printMonthlyPDF(FiscalPeriods $fiscalperiod, MonthlyPeriod $monthlyPeriod, PropertyContext $propertyContext)
+    /**
+     * Printable one-month report.
+     */
+    public function printMonthlyPDF(FiscalPeriods $fiscalperiod, MonthlyPeriod $monthlyPeriod, PropertyContext $propertyContext): View
     {
         $this->authorizeUser($fiscalperiod);
         $this->ensureMonthBelongsTo($fiscalperiod, $monthlyPeriod);
@@ -445,7 +469,10 @@ class FiscalPeriodController extends Controller
         ));
     }
 
-    public function exportCSV(FiscalPeriods $fiscalperiod, PropertyContext $propertyContext)
+    /**
+     * Stream the period's figures as CSV.
+     */
+    public function exportCSV(FiscalPeriods $fiscalperiod, PropertyContext $propertyContext): StreamedResponse
     {
         $this->authorizeUser($fiscalperiod);
 
@@ -464,9 +491,8 @@ class FiscalPeriodController extends Controller
             function () use ($fiscalperiod, $balanceSheetItems, $summary, $periodFinancials, $scopeLabel) {
                 $file = fopen('php://output', 'w');
 
-                // Formula-injection guard: a user-entered value starting with
-                // = + - @ (or tab/CR) executes as a formula when the CSV is
-                // opened in Excel/Sheets. Prefixing with ' forces plain text.
+                // Formula-injection guard: a value starting = + - @ (or tab/CR)
+                // executes in Excel/Sheets; a leading ' forces plain text.
                 $safe = function ($value) {
                     $value = (string) $value;
 
@@ -525,9 +551,7 @@ class FiscalPeriodController extends Controller
         );
     }
 
-    // ============================================================
-    // HELPERS
-    // ============================================================
+    // --- Helpers ---
 
     /**
      * Resolve the active property scope for the fiscal-period display pages.
@@ -603,8 +627,11 @@ class FiscalPeriodController extends Controller
      * Consolidated uses the stored account-wide carry-forward; a per-property
      * scope rebuilds the running balance live from that property's net income
      * (starting at zero, owner draws excluded).
+     *
+     * @param  Collection<int, MonthlyPeriod>  $monthlyPeriods
+     * @return Collection<int, MonthlyPeriod>
      */
-    private function attachLiveFinancials($monthlyPeriods, FiscalPeriods $fiscalPeriod, bool $consolidated, ?int $propertyId)
+    private function attachLiveFinancials(Collection $monthlyPeriods, FiscalPeriods $fiscalPeriod, bool $consolidated, ?int $propertyId): Collection
     {
         $running = 0.0;
 
@@ -640,6 +667,9 @@ class FiscalPeriodController extends Controller
         }
     }
 
+    /**
+     * A period is only ever readable/writable by the admin who owns it.
+     */
     private function authorizeUser(FiscalPeriods $fiscalperiod): void
     {
         if ($fiscalperiod->user_id !== Auth::id()) {

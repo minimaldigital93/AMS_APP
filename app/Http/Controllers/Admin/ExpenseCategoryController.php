@@ -8,15 +8,12 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
 
-/**
- * Settings → Expense Categories. Owns the account's expense vocabulary, which
- * the record-expense form reads (see Shared\RevenueExpenseController).
- *
- * Admin-only, like every other settings page that writes account-wide config —
- * the supervisor settings page is pinned to its own key list on purpose.
- */
+
 class ExpenseCategoryController extends Controller
 {
+    /**
+     * The category list, with the booked-expense count that gates deletion.
+     */
     public function index(): View
     {
         // First visit materialises the starter set, so the page is never empty.
@@ -24,14 +21,16 @@ class ExpenseCategoryController extends Controller
 
         $categories = ExpenseCategory::ordered()->get();
 
-        // Categories stamped on booked expenses can be renamed and retired but
-        // not deleted — the expense stores the key, so deleting would strand it.
-        // The count is what the page's "can't delete" dialog reports.
+        // A category on booked expenses can be renamed and retired but not
+        // deleted. This count is what the "can't delete" dialog reports.
         $usage = ExpenseCategory::usageByKey();
 
         return view('admin.settings.expense_categories', compact('categories', 'usage'));
     }
 
+    /**
+     * Add a category. Its key is derived from the name once and never changes.
+     */
     public function store(Request $request): RedirectResponse
     {
         $validated = $request->validate([

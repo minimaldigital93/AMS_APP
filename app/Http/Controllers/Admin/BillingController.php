@@ -14,15 +14,14 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 
-/**
- * Self-service billing for an admin account: view plan + usage, and renew or
- * upgrade by paying the plan price via KHQR. Reuses the same KhqrPaymentService
- * subscription path as the public signup funnel.
- */
+
 class BillingController extends Controller
 {
     public function __construct(private SubscriptionService $subscriptions) {}
 
+    /**
+     * The billing page: current plan, usage against its caps, and the upgrade grid.
+     */
     public function index(): View
     {
         $accountId = current_account_id();
@@ -35,6 +34,9 @@ class BillingController extends Controller
         ]);
     }
 
+    /**
+     * Start a renewal or upgrade: mint a subscription QR and hand off to KHQRPay.
+     */
     public function renew(Request $request, KhqrPaymentService $khqr): RedirectResponse
     {
         $validated = $request->validate([
@@ -82,6 +84,7 @@ class BillingController extends Controller
         return back()->with('success', __('messages.subscription_cancelled'));
     }
 
+    /** The hosted checkout page for a pending subscription payment. */
     public function checkout(string $token): View|RedirectResponse
     {
         $payment = $this->resolveSubscriptionPayment($token);
@@ -99,6 +102,7 @@ class BillingController extends Controller
         ]);
     }
 
+    /** Poll endpoint the checkout page calls until the payment lands. */
     public function status(string $token, KhqrPaymentService $khqr): JsonResponse
     {
         $payment = $khqr->pollAndAdvance($this->resolveSubscriptionPayment($token));

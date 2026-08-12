@@ -273,7 +273,6 @@ Route::middleware(['auth', 'role:admin|superadmin', 'subscription.active'])->gro
     Route::put('/admin/settings', [SettingsController::class, 'update'])->name('admin.settings.update');
     Route::delete('/admin/settings/reset', [SettingsController::class, 'reset'])->name('admin.settings.reset');
     Route::delete('/admin/settings', [SettingsController::class, 'destroy'])->name('admin.settings.destroy');
-    Route::get('/admin/settings/{key}', [SettingsController::class, 'get'])->name('admin.settings.get');
 
     // Revenue & Expense Management Routes (requires active fiscal period)
     Route::middleware(['fiscal.period'])->group(function () {

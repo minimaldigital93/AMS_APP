@@ -5,7 +5,9 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\User;
 use App\Services\Subscription\SubscriptionService;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
@@ -13,28 +15,13 @@ use Illuminate\Validation\Rules\Password;
 use Illuminate\View\View;
 use Spatie\Permission\Models\Role;
 
+
 class UserController extends Controller
 {
-    public function __construct(private SubscriptionService $subscriptions) {}
 
-    /**
-     * Roles an admin is allowed to assign when creating/editing team members.
-     * Admins cannot create superadmins or other admins.
-     */
     private const ASSIGNABLE_ROLES = ['supervisor', 'tenant'];
 
-    /**
-     * The {user} route parameter binds against the GLOBAL users table (User is
-     * deliberately not account-scoped so login lookups work), so every action
-     * that mutates a bound user must assert the target is a supervisor/tenant
-     * on THIS admin's team. 404 on a foreign account (don't reveal the id
-     * exists); 403 on an admin/superadmin target (never manageable here).
-     */
-    private function authorizeTeamMember(User $user): void
-    {
-        abort_unless($user->account_id === current_account_id(), 404);
-        abort_if($user->hasAnyRole(['admin', 'superadmin']), 403);
-    }
+    public function __construct(private SubscriptionService $subscriptions) {}
 
     public function index(Request $request): View
     {
@@ -42,12 +29,6 @@ class UserController extends Controller
         $query = User::where('account_id', current_account_id())
             ->with('roles', 'permissions', 'tenants.apartment.floor');
 
-        // Follow the global active-property selection (null = "All properties",
-        // no narrowing). Admins/superadmins are account-level and appear under
-        // every property; supervisors show under their assigned properties and
-        // tenant users under the property they rent in. Users not yet attached
-        // to any property stay visible everywhere, mirroring the null-property
-        // convention in FiltersByProperty.
         $propertyId = current_property_id();
         if ($propertyId !== null) {
             $query->where(function ($q) use ($propertyId) {
@@ -61,7 +42,6 @@ class UserController extends Controller
             });
         }
 
-        // Filter by role
         if ($request->filled('role')) {
             $role = $request->get('role');
             $query->whereHas('roles', function ($q) use ($role) {
@@ -69,7 +49,6 @@ class UserController extends Controller
             });
         }
 
-        // Search - search in name and phone
         if ($request->filled('search')) {
             $search = $request->get('search');
             $query->where(function ($q) use ($search) {
@@ -78,14 +57,8 @@ class UserController extends Controller
             });
         }
 
-        // Load the full set (accounts are building-scale) rather than paginating,
-        // so tenant users stay grouped by floor and suspended users can be pulled
-        // into their own list — mirroring the active-tenants page, which also
-        // loads everything to keep floors contiguous.
         $all = $query->get();
 
-        // Suspended users (former tenants after move-out) live in their own list
-        // below the active roster.
         [$suspended, $active] = $all->partition(fn (User $u) => ($u->status ?? null) === 'suspended');
 
         $users = $active->sortBy(fn (User $u) => $this->userSortKey($u), SORT_NATURAL | SORT_FLAG_CASE)->values();
@@ -93,8 +66,7 @@ class UserController extends Controller
 
         $roles = Role::whereIn('name', self::ASSIGNABLE_ROLES)->get();
 
-        // Summary card counts (active roster grouped by role bucket, plus the
-        // separate suspended list). Uses the already-loaded collections so no
+        // Summary card counts, taken off the already-loaded collections so no
         // extra queries are fired.
         $adminCount = $active->filter(fn (User $u) => $u->hasAnyRole(['admin', 'superadmin']))->count();
         $supervisorCount = $active->filter(fn (User $u) => $u->hasRole('supervisor'))->count();
@@ -108,37 +80,8 @@ class UserController extends Controller
     }
 
     /**
-     * Ordering key for the user roster: role bucket first (admins/superadmins →
-     * supervisors → tenants → roleless), then within the tenant bucket by floor +
-     * apartment so tenant users collate exactly like the active-tenants page
-     * (floor id zero-padded so Ground/G sorts before 1, 2, 3…; apartment number
-     * stays natural). Tenants without an apartment sort last via the max-id
-     * sentinel; non-tenants keep name order within their bucket.
+     * Show the form for adding a team member.
      */
-    private function userSortKey(User $user): string
-    {
-        $role = $user->roles->first()?->name;
-
-        $rank = match ($role) {
-            'superadmin', 'admin' => 0,
-            'supervisor' => 1,
-            'tenant' => 2,
-            default => 3,
-        };
-
-        $apartment = $role === 'tenant'
-            ? $user->tenants->whereIn('status', ['active', 'pending'])->first()?->apartment
-            : null;
-
-        return sprintf(
-            '%d|%020d|%s|%s',
-            $rank,
-            $apartment?->floor?->id ?? PHP_INT_MAX,
-            $apartment?->apartment_number ?? '~',
-            $user->name,
-        );
-    }
-
     public function create(): View
     {
         $roles = Role::whereIn('name', self::ASSIGNABLE_ROLES)->get();
@@ -146,16 +89,10 @@ class UserController extends Controller
         return view('admin.users.create', compact('roles'));
     }
 
-    public function edit(User $user): View
-    {
-        $this->authorizeTeamMember($user);
-
-        $roles = Role::whereIn('name', self::ASSIGNABLE_ROLES)->get();
-
-        return view('admin.users.edit', compact('user', 'roles'));
-    }
-
-    public function store(Request $request)
+    /**
+     * Create a team member, subject to the account's plan staff cap.
+     */
+    public function store(Request $request): RedirectResponse
     {
         $validated = $request->validate([
             'name' => 'required|string|max:255',
@@ -164,7 +101,7 @@ class UserController extends Controller
             'role' => ['required', Rule::in(self::ASSIGNABLE_ROLES)],
         ]);
 
-        // Enforce the account's subscription plan staff (supervisor) cap.
+        // Only supervisors count against the plan's staff cap; tenant logins don't.
         if ($validated['role'] === 'supervisor') {
             $accountId = current_account_id();
             if (! $this->subscriptions->canAddStaff($accountId)) {
@@ -187,7 +124,22 @@ class UserController extends Controller
         return redirect()->route('admin.users.index')->with('success', __('messages.flash_user_created'));
     }
 
-    public function update(Request $request, User $user)
+    /**
+     * Show the form for editing a team member.
+     */
+    public function edit(User $user): View
+    {
+        $this->authorizeTeamMember($user);
+
+        $roles = Role::whereIn('name', self::ASSIGNABLE_ROLES)->get();
+
+        return view('admin.users.edit', compact('user', 'roles'));
+    }
+
+    /**
+     * Update a team member's details, role and login password.
+     */
+    public function update(Request $request, User $user): RedirectResponse
     {
         $this->authorizeTeamMember($user);
 
@@ -229,45 +181,9 @@ class UserController extends Controller
     }
 
     /**
-     * Reset a team member's (or the admin's own) login password to a freshly
-     * generated one-time password, shown once in the flash message so the admin
-     * can hand it over. The phone number — their login identifier — is left
-     * untouched. (A fixed default like "12345678" was guessable by anyone who
-     * knew a phone number; random-per-reset closes that.)
+     * Remove a team member.
      */
-    public function resetPassword(User $user)
-    {
-        $this->authorizePasswordManagement($user);
-
-        $password = Str::random(10);
-        $user->forceFill(['password' => Hash::make($password)])->save();
-
-        // Sticky: the message contains the new password — it must stay on
-        // screen until it has been copied (plain 'success' auto-dismisses).
-        return back()->with('success_sticky', __('messages.flash_account_password_reset', [
-            'name' => $user->name,
-            'password' => $password,
-        ]));
-    }
-
-    /**
-     * Admins may manage passwords for their own account and for the
-     * supervisors/tenants on their team — never another admin or superadmin.
-     */
-    private function authorizePasswordManagement(User $user): void
-    {
-        // Always allowed to manage your own password.
-        if ($user->id === auth()->id()) {
-            return;
-        }
-
-        // Otherwise the target must be a supervisor/tenant on the admin's team —
-        // never another admin or a superadmin.
-        abort_unless($user->account_id === current_account_id(), 404);
-        abort_if($user->hasAnyRole(['admin', 'superadmin']), 403);
-    }
-
-    public function destroy(User $user)
+    public function destroy(User $user): RedirectResponse
     {
         $this->authorizeTeamMember($user);
 
@@ -276,7 +192,23 @@ class UserController extends Controller
         return redirect()->route('admin.users.index')->with('success', __('messages.flash_user_deleted'));
     }
 
-    public function updateRole(Request $request, User $user)
+
+    public function resetPassword(User $user): RedirectResponse
+    {
+        $this->authorizePasswordManagement($user);
+
+        $password = Str::random(10);
+        $user->forceFill(['password' => Hash::make($password)])->save();
+        return back()->with('success_sticky', __('messages.flash_account_password_reset', [
+            'name' => $user->name,
+            'password' => $password,
+        ]));
+    }
+
+    /**
+     * Switch a team member's role from the roster's inline role picker.
+     */
+    public function updateRole(Request $request, User $user): RedirectResponse
     {
         // Cross-account targets 404 (the friendlier admin-role flash below only
         // applies to this account's own rows).
@@ -309,7 +241,10 @@ class UserController extends Controller
         return redirect()->route('admin.users.index')->with('success', __('messages.flash_user_role_updated'));
     }
 
-    public function assignPermissions(Request $request, User $user)
+    /**
+     * Replace a team member's direct permissions (on top of their role).
+     */
+    public function assignPermissions(Request $request, User $user): RedirectResponse
     {
         $this->authorizeTeamMember($user);
 
@@ -321,5 +256,46 @@ class UserController extends Controller
         $user->syncPermissions($validated['permissions'] ?? []);
 
         return redirect()->route('admin.users.index')->with('success', __('messages.flash_permissions_updated'));
+    }
+
+    private function authorizeTeamMember(User $user): void
+    {
+        abort_unless($user->account_id === current_account_id(), 404);
+        abort_if($user->hasAnyRole(['admin', 'superadmin']), 403);
+    }
+
+    private function authorizePasswordManagement(User $user): void
+    {
+        // Always allowed to manage your own password.
+        if ($user->id === Auth::id()) {
+            return;
+        }
+
+        abort_unless($user->account_id === current_account_id(), 404);
+        abort_if($user->hasAnyRole(['admin', 'superadmin']), 403);
+    }
+
+    private function userSortKey(User $user): string
+    {
+        $role = $user->roles->first()?->name;
+
+        $rank = match ($role) {
+            'superadmin', 'admin' => 0,
+            'supervisor' => 1,
+            'tenant' => 2,
+            default => 3,
+        };
+
+        $apartment = $role === 'tenant'
+            ? $user->tenants->whereIn('status', ['active', 'pending'])->first()?->apartment
+            : null;
+
+        return sprintf(
+            '%d|%020d|%s|%s',
+            $rank,
+            $apartment?->floor?->id ?? PHP_INT_MAX,
+            $apartment?->apartment_number ?? '~',
+            $user->name,
+        );
     }
 }

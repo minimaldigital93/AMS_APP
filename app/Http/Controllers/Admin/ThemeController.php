@@ -11,16 +11,13 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 
-/**
- * Theme Settings — lets a user browse the theme catalog and pick one.
- *
- * The choice is per-user (users.theme) so it survives logout/login, and a
- * mirror cookie is set so the login screen keeps the same look on this device.
- */
 class ThemeController extends Controller
 {
     public function __construct(private readonly ThemeService $themes) {}
 
+    /**
+     * The theme catalog, with the user's current pick highlighted.
+     */
     public function index(): View
     {
         return view('admin.settings.theme', [
@@ -29,10 +26,6 @@ class ThemeController extends Controller
         ]);
     }
 
-    /**
-     * Persist the chosen theme. Responds with JSON for the live switcher
-     * (fetch) and redirects back for a non-JS form fallback.
-     */
     public function update(Request $request): JsonResponse|RedirectResponse
     {
         $validated = $request->validate([

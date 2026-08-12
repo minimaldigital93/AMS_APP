@@ -6,6 +6,7 @@ use App\Models\Attachment;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
 
 /**
@@ -33,7 +34,7 @@ class AttachmentService
                 'mime_type' => $file->getMimeType(),
                 'size' => $file->getSize(),
                 'sort_order' => ++$nextSort,
-                'uploaded_by' => auth()->id(),
+                'uploaded_by' => Auth::id(),
             ]);
         });
     }

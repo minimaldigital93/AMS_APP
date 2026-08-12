@@ -16,6 +16,7 @@ use App\Services\Platform\AccountPurgeService;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
@@ -256,7 +257,7 @@ class AccountsController extends Controller
     {
         // Only customer account owners are deletable here. Never let a superadmin
         // delete themselves or another platform admin through this screen.
-        if ($account->id === auth()->id() || $account->hasRole('superadmin')) {
+        if ($account->id === Auth::id() || $account->hasRole('superadmin')) {
             return back()->with('error', __('messages.flash_account_delete_forbidden'));
         }
 

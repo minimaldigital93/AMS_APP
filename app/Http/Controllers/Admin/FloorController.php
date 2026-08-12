@@ -6,24 +6,26 @@ use App\Http\Controllers\Controller;
 use App\Models\Floors;
 use App\Models\Property;
 use App\Models\Tenants;
+use App\Services\Property\PropertyContext;
 use App\Services\Subscription\SubscriptionService;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 
+
 class FloorController extends Controller
 {
     public function __construct(private SubscriptionService $subscriptions) {}
 
-    public function index(Request $request, \App\Services\Property\PropertyContext $propertyContext): View
+    /**
+     * The floors list, with each floor's rooms rendered inline underneath.
+     */
+    public function index(Request $request, PropertyContext $propertyContext): View
     {
         $query = Floors::query();
-
-        // When the top-bar is on a single property, that already scopes the list.
-        // When it's on "All properties", offer a per-page property filter so the
-        // user can narrow to one building without changing the global selection.
         $showingAll = $propertyContext->showingAllProperties();
         $properties = collect();
         $selectedPropertyId = null;
@@ -50,9 +52,8 @@ class FloorController extends Controller
             });
         }
 
-        // Rooms are now listed inline under each floor (the merged "Floors And
-        // Rooms" page), so eager-load everything the room rows read — tenants,
-        // rentals and their paid payments — or the view goes N+1 per room.
+        // Rooms render inline under each floor, so eager-load everything the
+        // room rows read or the view goes N+1 per room.
         $floors = $query->with(['property', 'apartments' => function ($query) {
             $query->with([
                 'supervisor',
@@ -61,12 +62,8 @@ class FloorController extends Controller
             ])->orderBy('apartment_number');
         }])->withCount('apartments')->get();
 
-        // Natural sort (Floor 1, Floor 2, ... Floor 10) rather than alphabetical
-        // (which would put "Floor 10" before "Floor 2") — grouped by property
-        // first so "All properties" lists floors building by building instead of
-        // interleaving them in creation order. Free-text floor names mean this
-        // has to happen in PHP (strnatcasecmp), not the DB, so we paginate the
-        // sorted collection manually instead of Floors::paginate().
+        // Natural sort by property then floor name ("Floor 2" before "Floor 10").
+        // Free-text names force it into PHP, hence the manual paginator.
         $sortedFloors = $floors->sort(function ($a, $b) {
             $propertyOrder = strnatcasecmp($a->property?->name ?? '', $b->property?->name ?? '');
 
@@ -98,108 +95,22 @@ class FloorController extends Controller
         return view('admin.floors.index', compact('floors', 'showingAll', 'properties', 'selectedPropertyId', 'availableTenants', 'allFloors'));
     }
 
+    /**
+     * Show the form for creating a floor, with optional rooms in the same submit.
+     */
     public function create(): View
     {
         // Floors are always added to the globally selected property (top-bar
         // selector) — there is no per-form property picker.
-        $activeProperty = app(\App\Services\Property\PropertyContext::class)->activeProperty();
+        $activeProperty = app(PropertyContext::class)->activeProperty();
 
         return view('admin.floors.create', compact('activeProperty'));
     }
 
     /**
-     * 3D visualization of all floors and their apartments,
-     * highlighting available vs occupied units.
+     * Store a floor plus any rooms listed on the form, subject to the room cap.
      */
-    public function plan3d(): View
-    {
-        $floors = Floors::forActiveProperty()->with(['apartments' => function ($query) {
-            $query->orderBy('apartment_number')
-                ->with([
-                    'tenants' => fn ($q) => $q->whereNull('archived_at'),
-                    'rentals' => fn ($q) => $q->active()->latest('start_date'),
-                ]);
-        }])->orderBy('id')->get();
-
-        // Shape data for the renderer.
-        $floorsData = $floors->map(function ($floor) {
-            return [
-                'id' => $floor->id,
-                'name' => $floor->floor_name,
-                'apartments' => $floor->apartments->map(function ($apt) {
-                    $tenant = $apt->tenants->first();
-                    // Only surface stay progress for genuinely occupied units. A
-                    // moved-out tenant leaves a rental whose end_date is today/
-                    // future — still matched by active() — so gate on a present
-                    // tenant + occupied status, else a freed unit shows both the
-                    // assign button and a lingering progress gauge.
-                    $stay = ($tenant && $apt->status === 'occupied')
-                        ? ($apt->rentals->first()?->stayProgress() ?? [])
-                        : [];
-
-                    return [
-                        'id' => $apt->id,
-                        'number' => $apt->apartment_number,
-                        'status' => $apt->status,
-                        'under_maintenance' => (bool) $apt->under_maintenance,
-                        'rent' => (float) $apt->monthly_rent,
-                        'tenant' => $tenant?->name,
-                        'tenant_id' => $tenant?->id,
-                        'stay_label' => $stay['stay_label'] ?? null,
-                        'cycle_percent' => $stay['cycle_percent'] ?? null,
-                        'days_left' => $stay['days_left'] ?? null,
-                        'next_renewal_label' => $stay['next_renewal_label'] ?? null,
-                    ];
-                })->values(),
-            ];
-        })->values();
-
-        // Units under maintenance are out of the rentable stock — reported on
-        // their own rather than folded into available/total, so the layout's
-        // occupancy figures measure only units that can actually be rented.
-        $summary = [
-            'floors' => $floors->count(),
-            'total' => $floors->sum(fn ($f) => $f->apartments->where('under_maintenance', false)->count()),
-            'available' => $floors->sum(fn ($f) => $f->apartments->where('under_maintenance', false)->where('status', 'available')->count()),
-            'occupied' => $floors->sum(fn ($f) => $f->apartments->where('under_maintenance', false)->where('status', 'occupied')->count()),
-            'maintenance' => $floors->sum(fn ($f) => $f->apartments->where('under_maintenance', true)->count()),
-        ];
-
-        // Unassigned active tenants for the "Existing Tenant" tab of the assign-tenant modal
-        $availableTenants = Tenants::where('status', 'active')->whereNull('apartment_id')->get();
-
-        return view('shared.apartments.plan3d', compact('floorsData', 'summary', 'availableTenants') + ['panel' => 'admin']);
-    }
-
-    public function edit(Floors $floor): View
-    {
-        $floor->load('apartments');
-        $properties = Property::orderBy('name')->get();
-
-        // Lightweight list of floors powering the "which floor to edit" selector
-        // at the top of the page. Scoped to the globally active property (top-bar
-        // selection) so the picker only offers floors of the building being viewed
-        // — falling back to every floor when "All properties" is selected, matching
-        // the index list. Grouped by property, then ordered by floor id (creation
-        // order) so Ground/G sorts before 1, 2, 3… — matching the active-tenants
-        // view. Sorting on the free-text floor_name would push "G" after the
-        // numbered floors, so it's the id (zero-padded for SORT_NATURAL) we
-        // collate on.
-        $allFloors = Floors::forActiveProperty()->with('property')->get()
-            ->sortBy(
-                fn ($f) => sprintf('%s|%020d', $f->property?->name ?? '~', $f->id),
-                SORT_NATURAL | SORT_FLAG_CASE
-            )
-            ->map(fn ($f) => [
-                'id' => $f->id,
-                'name' => $f->floor_name,
-                'property' => $f->property?->name,
-            ])->values();
-
-        return view('admin.floors.edit', compact('floor', 'properties', 'allFloors'));
-    }
-
-    public function store(Request $request)
+    public function store(Request $request): RedirectResponse
     {
         // The floor always belongs to the globally selected property; resolve it
         // server-side rather than trusting a form field.
@@ -222,11 +133,6 @@ class FloorController extends Controller
             'apartments' => 'nullable|array',
             'apartments.*.apartment_number' => [
                 'required', 'string', 'max:255', 'distinct',
-                // Uniqueness is per-floor (matching the DB index on
-                // floor_id + apartment_number). This is a brand-new floor, so no
-                // existing room can belong to it yet — `distinct` is what stops the
-                // batch from listing the same number twice. A unit "101" may still
-                // exist on other floors of this property (and in other properties).
             ],
             'apartments.*.monthly_rent' => 'nullable|numeric|min:0|max:99999999.99',
             'apartments.*.status' => 'nullable|in:available,occupied',
@@ -234,7 +140,8 @@ class FloorController extends Controller
             'floor_name.unique' => __('messages.validation_floor_name_taken'),
             'apartments.*.apartment_number.distinct' => __('messages.validation_apartment_number_taken_generic'),
         ]);
-        $validated = convert_money_input($validated, ['monthly_rent', 'deposit', 'apartments.*.monthly_rent']);
+
+        $validated = convert_money_input($validated, ['apartments.*.monthly_rent']);
 
         // Floors are unlimited on every plan; only the room cap applies here.
         $accountId = current_account_id();
@@ -273,20 +180,39 @@ class FloorController extends Controller
         return redirect()->route('admin.floors.index')->with('success', $message);
     }
 
-    public function update(Request $request, Floors $floor)
+    /**
+     * Show the form for editing a floor (and adding rooms to it).
+     */
+    public function edit(Floors $floor): View
+    {
+        $floor->load('apartments');
+        $properties = Property::orderBy('name')->get();
+        $allFloors = Floors::forActiveProperty()->with('property')->get()
+            ->sortBy(
+                fn ($f) => sprintf('%s|%020d', $f->property?->name ?? '~', $f->id),
+                SORT_NATURAL | SORT_FLAG_CASE
+            )
+            ->map(fn ($f) => [
+                'id' => $f->id,
+                'name' => $f->floor_name,
+                'property' => $f->property?->name,
+            ])->values();
+
+        return view('admin.floors.edit', compact('floor', 'properties', 'allFloors'));
+    }
+
+
+    public function update(Request $request, Floors $floor): RedirectResponse
     {
         $action = $request->input('action', 'update_floor');
 
-        // ACTION: Add New Apartment to Existing Floor
+        // Add one room to an existing floor.
         if ($action === 'add_apartment') {
             $validated = $request->validate([
                 'apartment_number' => [
                     'required',
                     'string',
                     'max:255',
-                    // Per-floor uniqueness (matching the DB index): the same unit
-                    // number may live on other floors of this property, just not
-                    // twice on this one.
                     Rule::unique('apartments', 'apartment_number')
                         ->where('floor_id', $floor->id)
                         ->whereNull('deleted_at'),
@@ -295,9 +221,8 @@ class FloorController extends Controller
             ], [
                 'apartment_number.unique' => __('messages.validation_apartment_number_taken', ['number' => $request->input('apartment_number')]),
             ]);
-            $validated = convert_money_input($validated, ['monthly_rent', 'deposit', 'apartments.*.monthly_rent']);
 
-            // Enforce the account's subscription plan room cap.
+            $validated = convert_money_input($validated, ['monthly_rent']);
             $accountId = current_account_id();
             if (! $this->subscriptions->canAddRooms($accountId)) {
                 $plan = $this->subscriptions->activePlan($accountId);
@@ -306,7 +231,6 @@ class FloorController extends Controller
                     ->with('error', __('messages.flash_plan_limit_rooms', ['plan' => $plan?->name, 'max' => $plan?->max_rooms]));
             }
 
-            // Create the apartment
             try {
                 $floor->apartments()->create([
                     'apartment_number' => $validated['apartment_number'],
@@ -324,7 +248,6 @@ class FloorController extends Controller
             }
         }
 
-        // ACTION: Update Floor Information
         $validated = $request->validate([
             'property_id' => [
                 'required',
@@ -342,7 +265,6 @@ class FloorController extends Controller
         ], [
             'floor_name.unique' => __('messages.validation_floor_name_taken'),
         ]);
-        $validated = convert_money_input($validated, ['monthly_rent', 'deposit', 'apartments.*.monthly_rent']);
 
         try {
             $floor->update([
@@ -363,11 +285,13 @@ class FloorController extends Controller
         }
     }
 
-    public function destroy(Floors $floor)
+    /**
+     * Soft-delete an empty floor.
+     */
+    public function destroy(Floors $floor): RedirectResponse
     {
-        // Don't orphan rooms — a soft-deleted floor leaves its apartments pointing
-        // at an invisible floor ($apartment->floor === null). Require it be empty
-        // first (apartments() already excludes soft-deleted rooms).
+        // A soft-deleted floor leaves its rooms pointing at an invisible parent
+        // ($apartment->floor === null), so require it be empty first.
         if ($floor->apartments()->exists()) {
             return back()->with('error', __('messages.flash_floor_has_apartments'));
         }
@@ -375,5 +299,60 @@ class FloorController extends Controller
         $floor->delete();
 
         return redirect()->route('admin.floors.index')->with('success', __('messages.flash_floor_deleted'));
+    }
+
+    public function plan3d(): View
+    {
+        $floors = Floors::forActiveProperty()->with(['apartments' => function ($query) {
+            $query->orderBy('apartment_number')
+                ->with([
+                    'tenants' => fn ($q) => $q->whereNull('archived_at'),
+                    'rentals' => fn ($q) => $q->active()->latest('start_date'),
+                ]);
+        }])->orderBy('id')->get();
+
+        $floorsData = $floors->map(function ($floor) {
+            return [
+                'id' => $floor->id,
+                'name' => $floor->floor_name,
+                'apartments' => $floor->apartments->map(function ($apt) {
+                    $tenant = $apt->tenants->first();
+                    // A moved-out tenant's rental still matches active(), so gate
+                    // on tenant + occupied or a freed unit keeps its progress gauge.
+                    $stay = ($tenant && $apt->status === 'occupied')
+                        ? ($apt->rentals->first()?->stayProgress() ?? [])
+                        : [];
+
+                    return [
+                        'id' => $apt->id,
+                        'number' => $apt->apartment_number,
+                        'status' => $apt->status,
+                        'under_maintenance' => (bool) $apt->under_maintenance,
+                        'rent' => (float) $apt->monthly_rent,
+                        'tenant' => $tenant?->name,
+                        'tenant_id' => $tenant?->id,
+                        'stay_label' => $stay['stay_label'] ?? null,
+                        'cycle_percent' => $stay['cycle_percent'] ?? null,
+                        'days_left' => $stay['days_left'] ?? null,
+                        'next_renewal_label' => $stay['next_renewal_label'] ?? null,
+                    ];
+                })->values(),
+            ];
+        })->values();
+
+        // Maintenance units are reported on their own, not folded into
+        // available/total, so occupancy counts only rentable stock.
+        $summary = [
+            'floors' => $floors->count(),
+            'total' => $floors->sum(fn ($f) => $f->apartments->where('under_maintenance', false)->count()),
+            'available' => $floors->sum(fn ($f) => $f->apartments->where('under_maintenance', false)->where('status', 'available')->count()),
+            'occupied' => $floors->sum(fn ($f) => $f->apartments->where('under_maintenance', false)->where('status', 'occupied')->count()),
+            'maintenance' => $floors->sum(fn ($f) => $f->apartments->where('under_maintenance', true)->count()),
+        ];
+
+        // Feeds the "Existing Tenant" tab of the assign-tenant modal.
+        $availableTenants = Tenants::where('status', 'active')->whereNull('apartment_id')->get();
+
+        return view('shared.apartments.plan3d', compact('floorsData', 'summary', 'availableTenants') + ['panel' => 'admin']);
     }
 }

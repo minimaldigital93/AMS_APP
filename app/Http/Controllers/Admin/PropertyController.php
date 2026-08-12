@@ -11,15 +11,14 @@ use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 
-/**
- * Admin CRUD for properties (buildings) — the top of the property tree. A
- * property may be assigned to one supervisor, who then only sees that property's
- * floors/rooms/tenants (see Supervisor controllers).
- */
+
 class PropertyController extends Controller
 {
     public function __construct(private SubscriptionService $subscriptions) {}
 
+    /**
+     * The property list, with floor/room counts and the plan usage summary.
+     */
     public function index(Request $request): View
     {
         $query = Property::with('supervisor')
@@ -39,6 +38,9 @@ class PropertyController extends Controller
         return view('admin.properties.index', compact('properties', 'usage'));
     }
 
+    /**
+     * Show the form for creating a property.
+     */
     public function create(): View
     {
         return view('admin.properties.create', [
@@ -46,14 +48,9 @@ class PropertyController extends Controller
         ]);
     }
 
-    public function edit(Property $property): View
-    {
-        return view('admin.properties.edit', [
-            'property' => $property,
-            'supervisors' => User::where('account_id', current_account_id())->role('supervisor')->orderBy('name')->get(),
-        ]);
-    }
-
+    /**
+     * Store a property, subject to the account's plan property cap.
+     */
     public function store(Request $request): RedirectResponse
     {
         $validated = $this->validateProperty($request);
@@ -70,6 +67,20 @@ class PropertyController extends Controller
         return redirect()->route('admin.properties.index')->with('success', __('messages.flash_property_created'));
     }
 
+    /**
+     * Show the form for editing a property.
+     */
+    public function edit(Property $property): View
+    {
+        return view('admin.properties.edit', [
+            'property' => $property,
+            'supervisors' => User::where('account_id', current_account_id())->role('supervisor')->orderBy('name')->get(),
+        ]);
+    }
+
+    /**
+     * Update a property.
+     */
     public function update(Request $request, Property $property): RedirectResponse
     {
         $property->update($this->validateProperty($request));
@@ -77,6 +88,9 @@ class PropertyController extends Controller
         return redirect()->route('admin.properties.index')->with('success', __('messages.flash_property_updated'));
     }
 
+    /**
+     * Soft-delete an empty property.
+     */
     public function destroy(Property $property): RedirectResponse
     {
         // Don't orphan floors/rooms — require the property be empty first.

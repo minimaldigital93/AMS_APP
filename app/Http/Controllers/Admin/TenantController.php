@@ -14,6 +14,7 @@ use App\Models\Rentals;
 use App\Models\Tenants;
 use App\Models\User;
 use App\Services\Attachments\AttachmentService;
+use App\Services\Property\PropertyContext;
 use App\Services\Tenants\LeaseSyncService;
 use App\Services\Tenants\TenantLeaveProcessor;
 use App\Services\Tenants\TenantPendingChargesQuery;
@@ -38,44 +39,18 @@ class TenantController extends Controller
     ) {}
 
     /**
-     * Constrain archived (apartment_id-cleared) tenants to the active property.
-     * They keep their property linkage only through leave history, so match on
-     * either a still-set apartment or the apartment recorded on a leave row.
+     * The active-tenant roster, grouped property → floor → room.
      */
-    private function scopeArchivedToActiveProperty(Builder $query, int|null|false $propertyId = false): Builder
+    public function index(Request $request, PropertyContext $propertyContext): View
     {
-        // `false` = caller didn't specify → fall back to the globally active
-        // property. An explicit null means "no narrowing" (the consolidated view).
-        if ($propertyId === false) {
-            $propertyId = current_property_id();
-        }
 
-        if ($propertyId === null) {
-            return $query;
-        }
-
-        return $query->where(function (Builder $q) use ($propertyId) {
-            $q->whereHas('apartment.floor', fn (Builder $s) => $s->where('property_id', $propertyId))
-                ->orWhereHas('leaves.apartment.floor', fn (Builder $s) => $s->where('property_id', $propertyId));
-        });
-    }
-
-    public function index(Request $request, \App\Services\Property\PropertyContext $propertyContext): View
-    {
-        // "All properties" mode shows every building consolidated (grouped by
-        // property in the view); otherwise everything stays scoped to the active
-        // property. Null scope = no narrowing.
         $showingAll = $propertyContext->showingAllProperties();
         $scopeId = $showingAll ? null : current_property_id();
 
-        // Columns are table-qualified because the "All properties" ordering below
-        // joins apartments/floors/properties, which share column names (status,
-        // name) with tenants and would otherwise be ambiguous.
         $query = Tenants::whereIn('tenants.status', ['active', 'pending'])
             ->with(['apartment.floor.property'])
             ->forProperty($scopeId);
 
-        // Search filter
         if ($request->has('search') && ! empty($request->search)) {
             $search = $request->search;
             $query->where(function (Builder $q) use ($search) {
@@ -84,29 +59,17 @@ class TenantController extends Controller
             });
         }
 
-        // Apartment filter
         if ($request->has('apartment') && ! empty($request->apartment)) {
             $query->where('tenants.apartment_id', $request->apartment);
         }
 
-        // Status filter
         if ($request->has('status') && ! empty($request->status)) {
             $query->where('tenants.status', $request->status);
         }
 
-        // Fetch the full set (no pagination) so the floor grouping in the view
-        // stays intact — a paginated slice would split a floor across pages.
-        // Accounts are building-scale, so loading every active tenant is cheap.
+
         $tenants = $query->orderBy('tenants.id', 'desc')->get();
 
-        // Group by property → floor → apartment so each building and floor stays
-        // contiguous. Floors follow the same order as the 3D floor view
-        // (Floors::orderBy('id') — Ground/G first, then 1, 2, 3…) by sorting on
-        // the floor id (zero-padded so it collates correctly under SORT_NATURAL)
-        // rather than the free-text floor_name, which would push "G" after the
-        // numbered floors. apartment_number stays natural (Room 2 before Room 10).
-        // Tenants without an apartment (pending) sort last via the '~' / max-id
-        // sentinels.
         $tenants = $tenants->sortBy(
             fn ($t) => sprintf(
                 '%s|%020d|%s',
@@ -119,9 +82,6 @@ class TenantController extends Controller
 
         $rentProgressMap = $this->rentProgressCalculator->map($tenants);
 
-        // Rent-progress filter (paid / pending / overdue — the same three
-        // buckets everywhere). Progress is computed, not stored, so filter the
-        // already-loaded collection.
         $rentStatus = $request->input('rent_status');
         if (in_array($rentStatus, ['paid', 'overdue', 'pending'], true)) {
             $tenants = $tenants->filter(
@@ -129,9 +89,7 @@ class TenantController extends Controller
             )->values();
         }
 
-        // Statistics counts (across all records, not just current page), scoped to
-        // the effective property. Archived tenants have apartment_id cleared, so they
-        // are matched through their leave history.
+
         $activeTenantCount = Tenants::where('status', 'active')->forProperty($scopeId)->count();
         $archivedTenantCount = $this->scopeArchivedToActiveProperty(Tenants::onlyTrashed(), $scopeId)->count();
         $totalDeposits = Tenants::where('status', 'active')->forProperty($scopeId)->sum('deposit');
@@ -140,7 +98,286 @@ class TenantController extends Controller
     }
 
     /**
-     * Display archived tenants (soft deleted)
+     * Show the form for checking in a new tenant.
+     */
+    public function create(): View
+    {
+        $apartments = Apartments::rentable()
+            ->where('status', 'available')
+            ->with('floor')
+            ->get();
+
+        return view('shared.tenants.create', compact('apartments') + ['panel' => 'admin']);
+    }
+
+    /**
+     * Check a tenant in: login, tenant row, room occupancy, lease and deposit.
+     */
+    public function store(Request $request, AttachmentService $attachments): RedirectResponse
+    {
+        $minBirthDate = now()->subYears(16)->toDateString();
+        $minMoveInDate = now()->subDays(3)->toDateString();
+
+        $validated = $request->validate([
+
+            'apartment_id' => [
+                'required',
+                Rule::exists('apartments', 'id')
+                    ->where('status', 'available')
+                    ->where('under_maintenance', 0)
+                    ->whereNull('deleted_at'),
+            ],
+            'name' => 'required|string|max:255',
+            'gender' => 'nullable|in:male,female,other',
+            'email' => 'nullable|email|max:255',
+            'phone' => [
+                'required', 'string', 'max:20', 'regex:/^[0-9+\-\s()]+$/',
+                Rule::unique('tenants', 'phone')->where('account_id', current_account_id())->whereNull('deleted_at'),
+                Rule::unique('users', 'phone'),
+            ],
+            'id_card_number' => 'nullable|string|max:50',
+            'address' => 'nullable|string',
+            'date_of_birth' => 'nullable|date|before_or_equal:'.$minBirthDate,
+            'move_in_date' => 'required|date|after_or_equal:'.$minMoveInDate,
+            'move_out_date' => 'nullable|date|after:move_in_date',
+            'status' => 'required|in:pending,active,inactive',
+            'deposit' => 'nullable|numeric|min:0|max:99999999.99',
+            'photo' => 'nullable|file|mimes:jpeg,jpg,png,gif,webp,heic,heif|max:10240',
+            'documents' => 'nullable|array|max:4',
+            'documents.*' => 'file|mimes:pdf,jpg,jpeg,png,heic,heif|max:10240',
+            'notes' => 'nullable|string',
+        ], [
+            'apartment_id.exists' => __('messages.validation_apartment_unavailable'),
+            'photo.uploaded' => __('messages.validation_photo_upload_failed', ['max' => '10 MB']),
+            'photo.max' => __('messages.validation_photo_too_large', ['max' => '10 MB']),
+            'photo.mimes' => __('messages.validation_photo_type'),
+            'documents.*.uploaded' => __('messages.validation_photo_upload_failed', ['max' => '10 MB']),
+            'phone.unique' => __('messages.validation_phone_taken'),
+            'phone.regex' => __('messages.phone_must_be_english'),
+            'date_of_birth.before_or_equal' => __('messages.tenant_must_be_18'),
+            'move_in_date.after_or_equal' => __('messages.move_in_date_min'),
+        ]);
+
+        $validated = convert_money_input($validated, ['deposit']);
+
+        if ($request->hasFile('photo') && $request->file('photo')->isValid()) {
+            try {
+                $photoPath = $request->file('photo')->store('tenants', 'public');
+                $validated['photo_path'] = $photoPath;
+            } catch (\Exception $e) {
+                Log::error('Photo upload failed: '.$e->getMessage());
+            }
+        }
+
+        $tenant = DB::transaction(function () use ($validated) {
+            // No Hash::make() — the User model's 'hashed' cast does it.
+            $tenantUser = User::forceCreate([
+                'name' => $validated['name'],
+                'phone' => $validated['phone'],
+                'password' => \Illuminate\Support\Str::random(16), // handed out via the reset-password flow
+                'account_id' => current_account_id(),
+            ]);
+            $tenantUser->assignRole('tenant');
+
+            $validated['user_id'] = $tenantUser->id;
+            $tenant = Tenants::create($validated);
+
+            $apartment = Apartments::findOrFail($validated['apartment_id']);
+            $apartment->update(['status' => 'occupied']);
+
+            $rental = Rentals::create([
+                'apartment_id' => $apartment->id,
+                'tenant_id' => $tenant->id,
+                'start_date' => Carbon::parse($validated['move_in_date']),
+                'end_date' => ($validated['move_out_date'] ?? null) ? Carbon::parse($validated['move_out_date']) : null,
+                'rent_amount' => $apartment->monthly_rent,
+                'payment_due_day' => Carbon::parse($validated['move_in_date'])->day,
+                'deposit' => $validated['deposit'] ?? 0,
+            ]);
+
+            $depositAmount = $validated['deposit'] ?? 0;
+            if ($depositAmount > 0) {
+                $activePeriod = FiscalPeriods::where('user_id', Auth::id())
+                    ->where('status', 'open')
+                    ->orderBy('opening_date', 'desc')
+                    ->first();
+
+                if ($activePeriod) {
+                    $reference = 'deposit:rental:'.$rental->id;
+
+                    Accounts::firstOrCreate(
+                        ['reference_number' => $reference],
+                        [
+                            'fiscal_period_id' => $activePeriod->id,
+                            'property_id' => $apartment->property_id ?? $apartment->floor?->property_id,
+                            'payment_id' => null,
+                            'user_id' => Auth::id(),
+                            'account_type' => Accounts::TYPE_INCOME,
+                            'category' => Accounts::CAT_DEPOSIT_INCOME,
+                            'description' => '[Apt '.$apartment->apartment_number.'] Security deposit received — '.$tenant->name,
+                            'amount' => $depositAmount,
+                            'transaction_date' => $validated['move_in_date'],
+                            'note' => 'Deposit collected on move-in',
+                            'reference_number' => $reference,
+                        ]
+                    );
+                }
+            }
+
+            return $tenant;
+        });
+
+        if ($request->hasFile('documents')) {
+            $attachments->storeMany($tenant, $request->file('documents'), Attachment::KIND_TENANT_DOCUMENT, 'tenants/documents');
+        }
+
+        return redirect()->route('admin.tenants.index')
+            ->with('success', __('messages.flash_tenant_created'));
+    }
+
+    /**
+     * The tenant profile page.
+     */
+    public function show(Tenants $tenant): View
+    {
+        $tenant->load(['apartment.floor', 'rentals.apartment', 'rentals.payments', 'utilities', 'attachments']);
+
+        return view('shared.tenants.show', compact('tenant') + ['panel' => 'admin']);
+    }
+
+    /**
+     * Show the form for editing a tenant.
+     */
+    public function edit(Tenants $tenant): View
+    {
+        $apartments = Apartments::where(function ($q) use ($tenant) {
+            $q->where(fn ($sub) => $sub->where('status', 'available')->where('under_maintenance', false))
+                ->orWhere('id', $tenant->apartment_id);
+        })
+            ->get();
+
+        return view('admin.tenants.edit', compact('tenant', 'apartments'));
+    }
+
+    /**
+     * Update a tenant, moving rooms and re-syncing the lease when asked.
+     */
+    public function update(Request $request, Tenants $tenant, AttachmentService $attachments, LeaseSyncService $leases): RedirectResponse
+    {
+        $validated = $request->validate([
+            'apartment_id' => [
+                'required',
+                Rule::exists('apartments', 'id')->whereNull('deleted_at')->where(
+                    fn ($q) => $q->where(
+                        fn ($sub) => $sub->where('status', 'available')->where('under_maintenance', false)
+                    )->orWhere('id', $tenant->apartment_id)
+                ),
+            ],
+            'name' => 'required|string|max:255',
+            'gender' => 'nullable|in:male,female,other',
+            'email' => 'nullable|email|max:255',
+            'phone' => [
+                'required', 'string', 'max:20',
+                Rule::unique('tenants', 'phone')->ignore($tenant->id)->where('account_id', current_account_id())->whereNull('deleted_at'),
+            ],
+            'id_card_number' => 'nullable|string|max:50',
+            'address' => 'nullable|string',
+            'date_of_birth' => 'nullable|date',
+            'move_in_date' => 'required|date',
+            'status' => 'required|in:pending,active,inactive',
+            'deposit' => 'nullable|numeric|min:0|max:99999999.99',
+            'photo' => 'nullable|file|mimes:jpeg,jpg,png,gif,webp,heic,heif|max:10240',
+            'documents' => 'nullable|array|max:4',
+            'documents.*' => 'file|mimes:pdf,jpg,jpeg,png,heic,heif|max:10240',
+            'notes' => 'nullable|string',
+        ], [
+            'apartment_id.exists' => __('messages.validation_apartment_unavailable'),
+            'photo.uploaded' => __('messages.validation_photo_upload_failed', ['max' => '10 MB']),
+            'photo.max' => __('messages.validation_photo_too_large', ['max' => '10 MB']),
+            'photo.mimes' => __('messages.validation_photo_type'),
+            'documents.*.uploaded' => __('messages.validation_photo_upload_failed', ['max' => '10 MB']),
+            'phone.unique' => __('messages.validation_phone_taken'),
+        ]);
+
+        $validated = convert_money_input($validated, ['deposit']);
+
+        if ($request->hasFile('photo') && $request->file('photo')->isValid()) {
+            try {
+                if ($tenant->photo_path && Storage::disk('public')->exists($tenant->photo_path)) {
+                    Storage::disk('public')->delete($tenant->photo_path);
+                }
+
+                $photoPath = $request->file('photo')->store('tenants', 'public');
+                $validated['photo_path'] = $photoPath;
+            } catch (\Exception $e) {
+                Log::error('Photo update failed: '.$e->getMessage());
+            }
+        }
+
+        DB::transaction(function () use ($tenant, $validated, $leases) {
+            $oldApartmentId = $tenant->apartment_id;
+            $newApartmentId = $validated['apartment_id'];
+
+            if ($oldApartmentId != $newApartmentId) {
+                Apartments::where('id', $oldApartmentId)->update(['status' => 'available']);
+                Apartments::where('id', $newApartmentId)->update(['status' => 'occupied']);
+
+                $activeRental = Rentals::where('tenant_id', $tenant->id)
+                    ->where('apartment_id', $oldApartmentId)
+                    ->where(function ($q) {
+                        $q->whereNull('end_date')->orWhere('end_date', '>=', now());
+                    })
+                    ->latest()
+                    ->first();
+
+                if ($activeRental) {
+                    $activeRental->update(['end_date' => now()]);
+                }
+
+                $newApartment = Apartments::find($newApartmentId);
+                Rentals::create([
+                    'apartment_id' => $newApartmentId,
+                    'tenant_id' => $tenant->id,
+                    'start_date' => Carbon::parse($validated['move_in_date']),
+                    'end_date' => null,
+                    'rent_amount' => $newApartment->monthly_rent,
+                    'payment_due_day' => Carbon::parse($validated['move_in_date'])->day,
+                    'deposit' => $validated['deposit'] ?? 0,
+                ]);
+            }
+
+            $tenant->update($validated);
+
+            // Rent and arrears derive from the lease, not this row — carry the
+            // edit across or profile and bill disagree. No-op after a room move.
+            $leases->syncFromTenantEdit($tenant);
+        });
+
+        if ($request->hasFile('documents')) {
+            $attachments->storeMany($tenant, $request->file('documents'), Attachment::KIND_TENANT_DOCUMENT, 'tenants/documents');
+        }
+
+        return redirect()->route('admin.tenants.show', $tenant->id)
+            ->with('success', __('messages.flash_tenant_updated'));
+    }
+
+    /**
+     * Remove one uploaded document from a tenant's file.
+     */
+    public function destroyDocument(Tenants $tenant, Attachment $attachment, AttachmentService $attachments): RedirectResponse
+    {
+        abort_unless(
+            $attachment->attachable_type === Tenants::class && $attachment->attachable_id === $tenant->id,
+            404
+        );
+
+        $attachments->delete($attachment);
+
+        return redirect()->back()->with('success', __('messages.flash_attachment_removed'));
+    }
+
+    /**
+     * The archive: tenants who have moved out (soft-deleted).
      */
     public function archived(Request $request): View
     {
@@ -178,28 +415,19 @@ class TenantController extends Controller
     }
 
     /**
-     * Show leave form for a tenant
+     * The move-out form: settlement preview and the charges still outstanding.
      */
-    public function leave(Tenants $tenant): View|RedirectResponse
+    public function leave(Tenants $tenant): View
     {
-        // Check if tenant exists
-        if (! $tenant) {
-            return redirect()->route('admin.tenants.index')
-                ->with('error', __('messages.flash_tenant_not_found'));
-        }
-
         $tenant->load(['apartment', 'rentals']);
 
-        // Get the current active rental (allow any rental, not just active ones)
         $rental = $tenant->rentals()
             ->where('apartment_id', $tenant->apartment_id)
             ->latest()
             ->first();
 
-        // If no rental exists, create a rental object with data from apartment
         if (! $rental) {
             $rental = new Rentals;
-            $rental->id = null;
             $rental->apartment_id = $tenant->apartment_id;
             $rental->tenant_id = $tenant->id;
             $rental->rent_amount = $tenant->apartment?->monthly_rent ?? 0;
@@ -212,18 +440,8 @@ class TenantController extends Controller
         return view('shared.tenants.leave', compact('tenant', 'rental', 'pendingCharges') + ['panel' => 'admin']);
     }
 
-    /**
-     * Process tenant leave and create settlement.
-     *
-     * Pipeline:
-     *   1. Validate input
-     *   2. processor->prepare() — resolve rental, parse charges, compute settlement
-     *   3. processor->persist() — write TenantLeave row + stamp rental.end_date
-     *   4. recordAdminLeaveAccounting() — admin-specific ledger writes
-     *      (per-payment, per-utility income; deposit refund expense)
-     *   5. processor->finalize() — archive tenant + free apartment + suspend user
-     */
-    public function processLeave(ProcessTenantLeaveRequest $request, Tenants $tenant)
+
+    public function processLeave(ProcessTenantLeaveRequest $request, Tenants $tenant): RedirectResponse
     {
         try {
             $validated = $request->validated();
@@ -252,19 +470,25 @@ class TenantController extends Controller
         }
     }
 
-    /**
-     * Admin-specific ledger writes for tenant leave.
-     *
-     * Differs from supervisor (which records summary aggregates only):
-     *   - Per-payment income row for each selected pending charge
-     *   - Per-utility income row split by type (electricity/water → utility_income;
-     *     internet/parking/trash/other → other_income)
-     *   - A deposit-refund expense entry (cash returned to tenant) so the
-     *     original deposit_income is offset on the books
-     *
-     * Skipped silently when no fiscal period is open (the leave still proceeds
-     * but the settlement is not recorded — see Log::warning below).
-     */
+
+    private function scopeArchivedToActiveProperty(Builder $query, int|null|false $propertyId = false): Builder
+    {
+
+        if ($propertyId === false) {
+            $propertyId = current_property_id();
+        }
+
+        if ($propertyId === null) {
+            return $query;
+        }
+
+        return $query->where(function (Builder $q) use ($propertyId) {
+            $q->whereHas('apartment.floor', fn (Builder $s) => $s->where('property_id', $propertyId))
+                ->orWhereHas('leaves.apartment.floor', fn (Builder $s) => $s->where('property_id', $propertyId));
+        });
+    }
+
+
     private function recordAdminLeaveAccounting(Tenants $tenant, array $context): void
     {
         $settlement = $context['settlement'];
@@ -290,9 +514,8 @@ class TenantController extends Controller
         }
 
         $apartmentNumber = $tenant->apartment->apartment_number ?? 'N/A';
-        // Attribute every settlement entry to the apartment's property so it
-        // lands in the right building's books (payment-linked rows self-derive
-        // via Accounts' creating hook; the payment-less rows below need it set).
+        // Payment-linked rows self-derive the property via Accounts' creating
+        // hook; the payment-less rows below need it set explicitly.
         $propertyId = $tenant->apartment?->floor?->property_id ?? $tenant->apartment?->property_id;
 
         // 1) Pro-rata rent payment + income entry
@@ -436,316 +659,5 @@ class TenantController extends Controller
                 ]);
             }
         }
-    }
-
-    /**
-     * Show create tenant form
-     */
-    public function create(): View
-    {
-        $apartments = Apartments::rentable()
-            ->where('status', 'available')
-            ->with('floor')
-            ->get();
-
-        return view('shared.tenants.create', compact('apartments') + ['panel' => 'admin']);
-    }
-
-    /**
-     * Store a newly created tenant
-     */
-    public function store(Request $request, AttachmentService $attachments): RedirectResponse
-    {
-        $minBirthDate = now()->subYears(16)->toDateString();
-        $minMoveInDate = now()->subDays(3)->toDateString();
-
-        $validated = $request->validate([
-            // The room must actually be vacant AND in the rentable stock — the
-            // create form only lists those units, but the raw id is
-            // client-supplied: an occupied unit would be double-booked, and a
-            // unit under maintenance is excluded from every occupancy/revenue
-            // figure, so housing a tenant there would hide their rent.
-            'apartment_id' => [
-                'required',
-                // NB: 0, not false — Rule::exists serialises its wheres into the
-                // rule string, where a bool false becomes '' and matches nothing.
-                Rule::exists('apartments', 'id')
-                    ->where('status', 'available')
-                    ->where('under_maintenance', 0)
-                    ->whereNull('deleted_at'),
-            ],
-            'name' => 'required|string|max:255',
-            'gender' => 'nullable|in:male,female,other',
-            'email' => 'nullable|email|max:255',
-            'phone' => [
-                'required', 'string', 'max:20', 'regex:/^[0-9+\-\s()]+$/',
-                // Per-account uniqueness so each admin's tenants are independent.
-                Rule::unique('tenants', 'phone')->where('account_id', current_account_id())->whereNull('deleted_at'),
-                // Global (not per-account): login is a single Auth::attempt() by
-                // phone, so the users table is one global login namespace.
-                Rule::unique('users', 'phone'),
-            ],
-            'id_card_number' => 'nullable|string|max:50',
-            'address' => 'nullable|string',
-            'date_of_birth' => 'nullable|date|before_or_equal:'.$minBirthDate,
-            'move_in_date' => 'required|date|after_or_equal:'.$minMoveInDate,
-            'move_out_date' => 'nullable|date|after:move_in_date',
-            'status' => 'required|in:pending,active,inactive',
-            'deposit' => 'nullable|numeric|min:0|max:99999999.99',
-            'photo' => 'nullable|file|mimes:jpeg,jpg,png,gif,webp,heic,heif|max:10240',
-            'documents' => 'nullable|array|max:4',
-            'documents.*' => 'file|mimes:pdf,jpg,jpeg,png,heic,heif|max:10240',
-            'notes' => 'nullable|string',
-        ], [
-            'apartment_id.exists' => __('messages.validation_apartment_unavailable'),
-            'photo.uploaded' => __('messages.validation_photo_upload_failed', ['max' => '10 MB']),
-            'photo.max' => __('messages.validation_photo_too_large', ['max' => '10 MB']),
-            'photo.mimes' => __('messages.validation_photo_type'),
-            'documents.*.uploaded' => __('messages.validation_photo_upload_failed', ['max' => '10 MB']),
-            'phone.unique' => __('messages.validation_phone_taken'),
-            'phone.regex' => __('messages.phone_must_be_english'),
-            'date_of_birth.before_or_equal' => __('messages.tenant_must_be_18'),
-            'move_in_date.after_or_equal' => __('messages.move_in_date_min'),
-        ]);
-        $validated = convert_money_input($validated, ['monthly_rent', 'deposit', 'apartments.*.monthly_rent']);
-
-        // Handle photo upload - SEPARATE from validation
-        if ($request->hasFile('photo') && $request->file('photo')->isValid()) {
-            try {
-                $photoPath = $request->file('photo')->store('tenants', 'public');
-                $validated['photo_path'] = $photoPath;
-            } catch (\Exception $e) {
-                // If photo upload fails, continue without it
-                Log::error('Photo upload failed: '.$e->getMessage());
-            }
-        }
-
-        // One transaction for the whole check-in (login + tenant + occupancy +
-        // rental + deposit income): a failure partway must not leave an orphan
-        // login or an occupied room without a rental.
-        $tenant = DB::transaction(function () use ($validated) {
-            // Create a user account for the tenant with default password
-            // Do NOT call Hash::make() here — the User model's 'hashed' cast handles it
-            $tenantUser = User::forceCreate([
-                'name' => $validated['name'],
-                'phone' => $validated['phone'],
-                'password' => \Illuminate\Support\Str::random(16), // handed out via the reset-password flow
-                'account_id' => current_account_id(),
-            ]);
-            $tenantUser->assignRole('tenant');
-
-            $validated['user_id'] = $tenantUser->id;
-            $tenant = Tenants::create($validated);
-
-            // Update apartment status to occupied
-            $apartment = Apartments::findOrFail($validated['apartment_id']);
-            $apartment->update(['status' => 'occupied']);
-
-            // Auto-create Rental record
-            $rental = Rentals::create([
-                'apartment_id' => $apartment->id,
-                'tenant_id' => $tenant->id,
-                'start_date' => Carbon::parse($validated['move_in_date']),
-                'end_date' => ($validated['move_out_date'] ?? null) ? Carbon::parse($validated['move_out_date']) : null,
-                'rent_amount' => $apartment->monthly_rent,
-                // Rent falls due on the move-in day each month — the same
-                // default TenantAssignmentService stores, and what ប្រការ៤ of
-                // the contract prints.
-                'payment_due_day' => Carbon::parse($validated['move_in_date'])->day,
-                'deposit' => $validated['deposit'] ?? 0,
-            ]);
-
-            // Auto-record deposit income when a deposit amount is set
-            $depositAmount = $validated['deposit'] ?? 0;
-            if ($depositAmount > 0) {
-                $activePeriod = FiscalPeriods::where('user_id', Auth::id())
-                    ->where('status', 'open')
-                    ->orderBy('opening_date', 'desc')
-                    ->first();
-
-                if ($activePeriod) {
-                    $reference = 'deposit:rental:'.$rental->id;
-
-                    Accounts::firstOrCreate(
-                        ['reference_number' => $reference],
-                        [
-                            'fiscal_period_id' => $activePeriod->id,
-                            'property_id' => $apartment->property_id ?? $apartment->floor?->property_id,
-                            'payment_id' => null,
-                            'user_id' => Auth::id(),
-                            'account_type' => Accounts::TYPE_INCOME,
-                            'category' => Accounts::CAT_DEPOSIT_INCOME,
-                            'description' => '[Apt '.$apartment->apartment_number.'] Security deposit received — '.$tenant->name,
-                            'amount' => $depositAmount,
-                            'transaction_date' => $validated['move_in_date'],
-                            'note' => 'Deposit collected on move-in',
-                            'reference_number' => $reference,
-                        ]
-                    );
-                }
-            }
-
-            return $tenant;
-        });
-
-        // File writes can't roll back, so documents are stored only after the
-        // check-in has committed.
-        if ($request->hasFile('documents')) {
-            $attachments->storeMany($tenant, $request->file('documents'), Attachment::KIND_TENANT_DOCUMENT, 'tenants/documents');
-        }
-
-        return redirect()->route('admin.tenants.index')
-            ->with('success', __('messages.flash_tenant_created'));
-    }
-
-    /**
-     * Show tenant details
-     */
-    public function show(Tenants $tenant): View
-    {
-        $tenant->load(['apartment.floor', 'rentals.apartment', 'rentals.payments', 'utilities', 'attachments']);
-
-        return view('shared.tenants.show', compact('tenant') + ['panel' => 'admin']);
-    }
-
-    /**
-     * Show edit tenant form
-     */
-    public function edit(Tenants $tenant): View
-    {
-        // Movable targets = vacant rentable stock, plus the tenant's own room so
-        // saving the form without a room change always validates.
-        $apartments = Apartments::where(function ($q) use ($tenant) {
-            $q->where(fn ($sub) => $sub->where('status', 'available')->where('under_maintenance', false))
-                ->orWhere('id', $tenant->apartment_id);
-        })
-            ->get();
-
-        return view('admin.tenants.edit', compact('tenant', 'apartments'));
-    }
-
-    /**
-     * Update a tenant
-     */
-    public function update(Request $request, Tenants $tenant, AttachmentService $attachments, LeaseSyncService $leases): RedirectResponse
-    {
-        $validated = $request->validate([
-            // Moving rooms requires the target to be vacant (keeping the
-            // tenant's current room is always allowed).
-            'apartment_id' => [
-                'required',
-                Rule::exists('apartments', 'id')->whereNull('deleted_at')->where(
-                    fn ($q) => $q->where(
-                        fn ($sub) => $sub->where('status', 'available')->where('under_maintenance', false)
-                    )->orWhere('id', $tenant->apartment_id)
-                ),
-            ],
-            'name' => 'required|string|max:255',
-            'gender' => 'nullable|in:male,female,other',
-            'email' => 'nullable|email|max:255',
-            'phone' => [
-                'required', 'string', 'max:20',
-                Rule::unique('tenants', 'phone')->ignore($tenant->id)->where('account_id', current_account_id())->whereNull('deleted_at'),
-            ],
-            'id_card_number' => 'nullable|string|max:50',
-            'address' => 'nullable|string',
-            'date_of_birth' => 'nullable|date',
-            'move_in_date' => 'required|date',
-            'status' => 'required|in:pending,active,inactive',
-            'deposit' => 'nullable|numeric|min:0|max:99999999.99',
-            'photo' => 'nullable|file|mimes:jpeg,jpg,png,gif,webp,heic,heif|max:10240',
-            'documents' => 'nullable|array|max:4',
-            'documents.*' => 'file|mimes:pdf,jpg,jpeg,png,heic,heif|max:10240',
-            'notes' => 'nullable|string',
-        ], [
-            'apartment_id.exists' => __('messages.validation_apartment_unavailable'),
-            'photo.uploaded' => __('messages.validation_photo_upload_failed', ['max' => '10 MB']),
-            'photo.max' => __('messages.validation_photo_too_large', ['max' => '10 MB']),
-            'photo.mimes' => __('messages.validation_photo_type'),
-            'documents.*.uploaded' => __('messages.validation_photo_upload_failed', ['max' => '10 MB']),
-            'phone.unique' => __('messages.validation_phone_taken'),
-        ]);
-        $validated = convert_money_input($validated, ['monthly_rent', 'deposit', 'apartments.*.monthly_rent']);
-
-        // Handle photo upload - SEPARATE from validation
-        if ($request->hasFile('photo') && $request->file('photo')->isValid()) {
-            try {
-                // Delete old photo if exists
-                if ($tenant->photo_path && Storage::disk('public')->exists($tenant->photo_path)) {
-                    Storage::disk('public')->delete($tenant->photo_path);
-                }
-
-                $photoPath = $request->file('photo')->store('tenants', 'public');
-                $validated['photo_path'] = $photoPath;
-            } catch (\Exception $e) {
-                // If photo upload fails, continue without updating photo
-                Log::error('Photo update failed: '.$e->getMessage());
-            }
-        }
-
-        // Room move + tenant update in one transaction so a failure can't leave
-        // two rooms flipped with no matching rental (or vice versa).
-        DB::transaction(function () use ($tenant, $validated, $leases) {
-            $oldApartmentId = $tenant->apartment_id;
-            $newApartmentId = $validated['apartment_id'];
-
-            if ($oldApartmentId != $newApartmentId) {
-                // Free old apartment
-                Apartments::where('id', $oldApartmentId)->update(['status' => 'available']);
-                // Occupy new apartment
-                Apartments::where('id', $newApartmentId)->update(['status' => 'occupied']);
-
-                // Update active rental
-                $activeRental = Rentals::where('tenant_id', $tenant->id)
-                    ->where('apartment_id', $oldApartmentId)
-                    ->where(function ($q) {
-                        $q->whereNull('end_date')->orWhere('end_date', '>=', now());
-                    })
-                    ->latest()
-                    ->first();
-
-                if ($activeRental) {
-                    $activeRental->update(['end_date' => now()]);
-                }
-
-                $newApartment = Apartments::find($newApartmentId);
-                Rentals::create([
-                    'apartment_id' => $newApartmentId,
-                    'tenant_id' => $tenant->id,
-                    'start_date' => Carbon::parse($validated['move_in_date']),
-                    'end_date' => null,
-                    'rent_amount' => $newApartment->monthly_rent,
-                    'payment_due_day' => Carbon::parse($validated['move_in_date'])->day,
-                    'deposit' => $validated['deposit'] ?? 0,
-                ]);
-            }
-
-            $tenant->update($validated);
-
-            // Rent, due day and arrears are all derived from the lease, not
-            // from this row — carry the edited move-in date / deposit across or
-            // the profile and the bill disagree. No-op after a room move: the
-            // rental created just above already holds the new values.
-            $leases->syncFromTenantEdit($tenant);
-        });
-
-        if ($request->hasFile('documents')) {
-            $attachments->storeMany($tenant, $request->file('documents'), Attachment::KIND_TENANT_DOCUMENT, 'tenants/documents');
-        }
-
-        return redirect()->route('admin.tenants.show', $tenant->id)
-            ->with('success', __('messages.flash_tenant_updated'));
-    }
-
-    public function destroyDocument(Tenants $tenant, Attachment $attachment, AttachmentService $attachments): RedirectResponse
-    {
-        abort_unless(
-            $attachment->attachable_type === Tenants::class && $attachment->attachable_id === $tenant->id,
-            404
-        );
-
-        $attachments->delete($attachment);
-
-        return redirect()->back()->with('success', __('messages.flash_attachment_removed'));
     }
 }

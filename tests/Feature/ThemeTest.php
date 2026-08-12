@@ -66,11 +66,17 @@ it('shows the theme settings page to an admin', function () {
         ->assertSee('Light Green');
 });
 
-it('the theme route is not swallowed by the /admin/settings/{key} wildcard', function () {
+it('has no /admin/settings/{key} wildcard to swallow settings sub-pages', function () {
     $admin = makeAdmin();
 
-    // GET /admin/settings/theme must hit ThemeController@index (a full page),
-    // not SettingsController@get (which returns JSON {key:'theme'}).
+    // There used to be a GET /admin/settings/{key} JSON endpoint (nothing ever
+    // called it) that shadowed every settings sub-page registered after it —
+    // /admin/settings/theme returned {key:'theme'} instead of the page. It is
+    // gone: an unknown segment must 404, not leak a setting value.
+    $this->actingAs($admin)
+        ->get('/admin/settings/company_name')
+        ->assertNotFound();
+
     $this->actingAs($admin)
         ->get(route('admin.settings.theme'))
         ->assertOk()
