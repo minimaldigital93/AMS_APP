@@ -1,4 +1,12 @@
 {{-- Desktop table row for a single user. Expects: $user, $roles, $number --}}
+@php
+    // The account owner's row IS the account (every account_id points at it) and
+    // your own row belongs to Profile — both are locked here. Co-admins are
+    // ordinary team members and stay manageable.
+    $isOwner = $user->getKey() === current_account_id();
+    $isSelf = $user->getKey() === auth()->id();
+    $rowLocked = $isOwner || $isSelf || $user->hasRole('superadmin');
+@endphp
 <tr class="hover:bg-gray-50 transition {{ ($user->status ?? null) === 'suspended' ? 'bg-gray-50/60' : '' }}">
     <td class="px-4 py-3 text-gray-600">{{ $number }}</td>
     <td class="px-4 py-3 font-medium text-gray-900">{{ $user->name }}</td>
@@ -24,8 +32,8 @@
         <span class="px-3 py-1 text-sm font-semibold rounded-full {{ $user->status === 'active' ? 'bg-green-100 text-green-700' : (($user->status ?? null) === 'suspended' ? 'bg-amber-100 text-amber-700' : 'bg-gray-100 text-gray-700') }}">{{ status_label($user->status ?? 'unknown') }}</span>
     </td>
     <td class="px-4 py-3">
-        @if($user->hasAnyRole(['admin', 'superadmin']))
-            <span class="inline-flex items-center gap-1.5 text-xs font-medium text-gray-400">
+        @if($rowLocked)
+            <span class="inline-flex items-center gap-1.5 text-xs font-medium text-gray-400" title="{{ $isSelf ? __('messages.your_own_account') : __('messages.account_owner') }}">
                 <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
                 </svg>
@@ -37,7 +45,7 @@
                 @method('PATCH')
                 <select name="role" onchange="this.form.submit()" class="w-40 xl:w-52 px-2 py-1 text-xs font-medium rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-slate-400">
                     <option value="">{{ __('messages.assign_role') }}</option>
-                    @foreach($roles->whereIn('name', ['supervisor', 'tenant']) as $role)
+                    @foreach($roles as $role)
                         <option value="{{ $role->id }}" {{ $user->roles->contains($role->id) ? 'selected' : '' }}>{{ ucfirst($role->name) }}</option>
                     @endforeach
                 </select>
@@ -45,8 +53,9 @@
         @endif
     </td>
     <td class="px-4 py-3 flex items-center gap-3">
-        {{-- Admin/superadmin rows aren't manageable here (the controller 403s) --}}
-        @unless($user->hasAnyRole(['admin', 'superadmin']))
+        {{-- The owner row, your own row and superadmins aren't manageable here
+             (authorizeTeamMember() 403s them) --}}
+        @unless($rowLocked)
         <a href="{{ route('admin.users.edit', $user) }}"
            class="text-sky-600 hover:text-sky-700 p-2 rounded-lg bg-sky-50/20 hover:bg-sky-50/40 transition" title="{{ __('messages.edit_user') }}">
             <svg class="w-[18px] h-[18px]" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">

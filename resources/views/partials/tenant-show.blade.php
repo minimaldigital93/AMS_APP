@@ -70,6 +70,41 @@
     }
     $rawStatus = method_exists($tenant, 'trashed') && $tenant->trashed() ? 'departed' : $tenant->status;
     $statusDisplay = status_label($rawStatus);
+
+    // --- Vehicles & parking -------------------------------------------------
+    // A priced vehicle IS the tenant's parking charge: the bill run sums them
+    // into the month's single `parking` Utilities row (see
+    // MonthlyBillingService), which is the lane every downstream money flow
+    // already reads. Nothing is charged from this card directly — it only says
+    // what the next bill run will charge, and whether it already did.
+    $vehicles = $tenant->vehicles;
+    $vehicleFee = $tenant->vehicleParkingFee();
+    $canEditVehicles = in_array($role, ['admin', 'supervisor'], true)
+        && ! (method_exists($tenant, 'trashed') && $tenant->trashed());
+
+    // Verify against what parking was actually billed this month on the current
+    // lease. 'unbilled' just means the bill run hasn't been done yet.
+    $thisMonth = now();
+    $parkingRow = $contractRental
+        ? $histUtilities->first(fn ($u) => $u->utility_type === 'parking'
+            && (int) $u->billing_month === $thisMonth->month
+            && (int) $u->billing_year === $thisMonth->year)
+        : null;
+    $parkingState = match (true) {
+        $vehicleFee <= 0 => null,
+        $parkingRow === null => 'unbilled',
+        // The vehicle list changed after the charge was raised — the billed
+        // figure stands (it is owed or already collected money); the mismatch
+        // is flagged so someone decides, rather than silently restated.
+        abs((float) $parkingRow->charge_amount - $vehicleFee) > 0.005 => 'mismatch',
+        $parkingRow->paid_status => 'paid',
+        default => 'billed',
+    };
+    // A room-level fixed parking cost is superseded by priced vehicles (only
+    // one parking charge per room per month exists to be billed).
+    $fixedParking = $vehicleFee > 0
+        ? ($tenant->apartment?->activeFixedExpenses ?? collect())->firstWhere('expense_type', 'parking')
+        : null;
 @endphp
 
 <div class="max-w-4xl mx-auto space-y-6" x-data="{ showHistory: false }">
@@ -197,6 +232,114 @@
                 </p>
             </div>
         </div>
+    </div>
+
+    {{-- 3b. Vehicles & Parking — a priced vehicle becomes the tenant's monthly
+         parking charge on the next bill run. --}}
+    <div class="bg-white rounded-xl border border-slate-100 p-6"
+         x-data="{ addVehicle: {{ $errors->hasAny(['vehicle_type', 'vehicle_model', 'plate_number', 'monthly_fee']) ? 'true' : 'false' }} }">
+        <div class="flex items-center justify-between gap-3 mb-4">
+            <h3 class="text-sm font-medium text-slate-500 uppercase tracking-wide">{{ __('messages.vehicles_parking') }}</h3>
+            @if($canEditVehicles)
+            <button type="button" x-on:click="addVehicle = ! addVehicle"
+                    class="inline-flex items-center gap-1.5 text-sm font-medium px-3 py-1.5 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 transition">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" x-bind:d="addVehicle ? 'M6 18L18 6M6 6l12 12' : 'M12 4v16m8-8H4'"/></svg>
+                <span x-text="addVehicle ? @js(__('messages.cancel')) : @js(__('messages.add_vehicle'))"></span>
+            </button>
+            @endif
+        </div>
+
+        {{-- Add form --}}
+        @if($canEditVehicles)
+        <form x-cloak x-show="addVehicle" method="POST" action="{{ route($role.'.tenants.vehicles.store', $tenant) }}"
+              class="mb-4 grid grid-cols-1 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_auto] gap-2 items-start bg-slate-50 rounded-lg p-3">
+            @csrf
+            <div>
+                <select name="vehicle_type" required
+                        class="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg bg-white {{ $errors->has('vehicle_type') ? 'border-red-400' : '' }} {{ $ringCls }}">
+                    @foreach(\App\Models\TenantVehicle::TYPES as $vt)
+                        <option value="{{ $vt }}" @selected(old('vehicle_type') === $vt)>{{ __('messages.vehicle_type_'.$vt) }}</option>
+                    @endforeach
+                </select>
+                @error('vehicle_type')<p class="text-xs text-red-500 mt-1">{{ $message }}</p>@enderror
+            </div>
+            <div>
+                {{-- Description only — the plate is the identity, the model is
+                     what the guard on the gate recognises. --}}
+                <input type="text" name="vehicle_model" maxlength="50" value="{{ old('vehicle_model') }}"
+                       placeholder="{{ __('messages.vehicle_model_placeholder') }}"
+                       class="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg {{ $errors->has('vehicle_model') ? 'border-red-400' : '' }} {{ $ringCls }}">
+                @error('vehicle_model')<p class="text-xs text-red-500 mt-1">{{ $message }}</p>@enderror
+            </div>
+            <div>
+                <input type="text" name="plate_number" required maxlength="30" value="{{ old('plate_number') }}"
+                       placeholder="{{ __('messages.plate_number_placeholder') }}"
+                       class="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg uppercase {{ $errors->has('plate_number') ? 'border-red-400' : '' }} {{ $ringCls }}">
+                @error('plate_number')<p class="text-xs text-red-500 mt-1">{{ $message }}</p>@enderror
+            </div>
+            <div>
+                <input type="number" name="monthly_fee" step="0.01" min="0" value="{{ old('monthly_fee') }}"
+                       placeholder="{{ __('messages.monthly_parking_fee') }} ({{ currency_symbol() }})"
+                       class="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg text-right {{ $errors->has('monthly_fee') ? 'border-red-400' : '' }} {{ $ringCls }}">
+                @error('monthly_fee')<p class="text-xs text-red-500 mt-1">{{ $message }}</p>@enderror
+            </div>
+            <button type="submit" class="px-4 py-2 rounded-lg text-white text-sm font-medium {{ $btnCls }} transition">{{ __('messages.save') }}</button>
+            <p class="sm:col-span-5 text-xs text-slate-400">{{ __('messages.vehicle_fee_hint') }}</p>
+        </form>
+        @endif
+
+        {{-- Assigned vehicles --}}
+        @if($vehicles->isEmpty())
+            <p class="text-sm text-slate-400">{{ __('messages.no_vehicles') }}</p>
+        @else
+            <ul class="divide-y divide-slate-100 border border-slate-100 rounded-lg">
+                @foreach($vehicles as $vehicle)
+                <li class="flex items-center gap-3 px-3 py-2.5">
+                    <span class="text-sm text-slate-600 w-24 shrink-0">{{ __('messages.vehicle_type_'.$vehicle->vehicle_type) }}</span>
+                    <span class="text-sm text-slate-500 w-32 shrink-0 truncate">{{ $vehicle->vehicle_model ?: '—' }}</span>
+                    <span class="text-sm font-semibold text-slate-800 tracking-wide flex-1 truncate">{{ $vehicle->plate_number }}</span>
+                    <span class="text-sm tabular-nums {{ $vehicle->isBillable() ? 'font-semibold text-slate-800' : 'text-slate-400' }}">
+                        {{ $vehicle->isBillable() ? money($vehicle->monthly_fee).'/'.__('messages.mo') : __('messages.no_charge') }}
+                    </span>
+                    @if($canEditVehicles)
+                    <form action="{{ route($role.'.tenants.vehicles.destroy', [$tenant, $vehicle]) }}" method="POST"
+                          data-confirm="{{ __('messages.remove_vehicle_confirm', ['plate' => $vehicle->plate_number]) }}">
+                        @csrf @method('DELETE')
+                        <button type="submit" class="text-red-500 hover:text-red-600 text-base leading-none px-1" title="{{ __('messages.delete') }}">&times;</button>
+                    </form>
+                    @endif
+                </li>
+                @endforeach
+            </ul>
+
+            {{-- Verification against the parking actually billed this month --}}
+            @if($parkingState)
+            <div class="mt-3 flex flex-wrap items-center justify-between gap-2 text-sm">
+                <span class="text-slate-500">{{ __('messages.monthly_parking_fee') }} · {{ $thisMonth->format('M Y') }}</span>
+                <span class="flex items-center gap-2">
+                    <span class="font-semibold text-slate-800 tabular-nums">{{ money($vehicleFee) }}</span>
+                    @switch($parkingState)
+                        @case('paid')
+                            <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium bg-emerald-50 text-emerald-600">{{ __('messages.parking_billed_paid') }}</span>
+                            @break
+                        @case('billed')
+                            <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium bg-amber-50 text-amber-600">{{ __('messages.parking_billed_unpaid') }}</span>
+                            @break
+                        @case('mismatch')
+                            <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium bg-red-50 text-red-600">{{ __('messages.parking_billed_mismatch', ['amount' => money($parkingRow->charge_amount)]) }}</span>
+                            @break
+                        @default
+                            <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium bg-slate-100 text-slate-500">{{ __('messages.parking_not_billed_yet') }}</span>
+                    @endswitch
+                </span>
+            </div>
+            @if($fixedParking)
+            <p class="mt-2 text-xs text-amber-600">{{ __('messages.parking_supersedes_fixed', ['name' => $fixedParking->expense_name, 'amount' => money($fixedParking->amount)]) }}</p>
+            @endif
+            @elseif($vehicleFee <= 0)
+            <p class="mt-3 text-xs text-slate-400">{{ __('messages.vehicles_no_charge_note') }}</p>
+            @endif
+        @endif
     </div>
 
     {{-- 4. Payment Information & History --}}

@@ -7,7 +7,6 @@ use App\Models\Accounts;
 use App\Models\FiscalPeriods;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
-use Illuminate\Support\Facades\Auth;
 
 /**
  * Admin panel Revenue & Expense. All behaviour lives in the shared base; this
@@ -22,16 +21,16 @@ class RevenueExpenseController extends SharedRevenueExpenseController
         return 'admin';
     }
 
-    /** Admins read their own fiscal periods. */
+    /** Admins read the account's fiscal periods (co-admins share the owner's). */
     protected function fiscalPeriodsQuery(): Builder
     {
-        return FiscalPeriods::where('user_id', Auth::id());
+        return FiscalPeriods::where('user_id', current_account_id());
     }
 
-    /** Admins write/read ledger rows under their own user_id. */
+    /** The books hang off the account owner's user id, not the acting admin's. */
     protected function ledgerUserId(): ?int
     {
-        return Auth::id();
+        return current_account_id();
     }
 
     protected function khqrRoutePrefix(): string
@@ -46,10 +45,10 @@ class RevenueExpenseController extends SharedRevenueExpenseController
             ->with('warning', __($messageKey));
     }
 
-    /** Admin authorization: the row must belong to the current user. */
+    /** Admin authorization: the row must belong to the acting admin's account. */
     protected function authorizeOtherExpenseDelete(Accounts $expense): void
     {
-        if ($expense->user_id !== Auth::id()) {
+        if ($expense->user_id !== current_account_id()) {
             abort(403);
         }
     }

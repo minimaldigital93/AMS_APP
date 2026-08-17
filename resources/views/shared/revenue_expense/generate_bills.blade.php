@@ -85,13 +85,21 @@
                     @if(count($bill['fixed_expenses']) > 0)
                     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
                         @foreach($bill['fixed_expenses'] as $expIndex => $expense)
+                        {{-- Vehicle parking has no fixed-expense template to tick: the bill
+                             run derives it from the tenant's registered vehicles, so it
+                             carries no form inputs and rides with the apartment checkbox. --}}
+                        @php $fromVehicles = $expense['from_vehicles'] ?? false; @endphp
                         <div class="border rounded-lg p-3 {{ $expense['is_billed'] ? 'bg-green-50 border-green-200' : 'bg-yellow-50 border-yellow-200' }}">
+                            @unless($fromVehicles)
                             <input type="hidden" name="bills[{{ $billIndex }}][expenses][{{ $expIndex }}][expense_id]" value="{{ $expense['id'] }}">
+                            @endunless
                             <div class="flex items-center justify-between mb-2">
                                 <div class="flex items-center gap-2">
+                                    @unless($fromVehicles)
                                     <input type="checkbox" name="bills[{{ $billIndex }}][expenses][{{ $expIndex }}][selected]" value="1"
                                         class="expense-checkbox w-4 h-4 text-blue-600 rounded focus:ring-blue-500 cursor-pointer"
                                         {{ $expense['is_billed'] ? 'disabled' : 'checked' }}>
+                                    @endunless
                                     @php
                                         $icons = ['parking' => '🚗', 'internet' => '📡', 'trash' => '🗑️', 'other' => '📋'];
                                     @endphp
@@ -107,10 +115,14 @@
                                 @endif
                             </div>
                             <div>
+                                @if($fromVehicles)
+                                <p class="text-right text-sm font-semibold text-red-600">{{ money($expense['amount']) }}</p>
+                                @else
                                 <input type="number" name="bills[{{ $billIndex }}][expenses][{{ $expIndex }}][amount]"
                                     step="0.01" min="0" value="{{ $expense['amount'] }}"
                                     class="w-full px-2 py-1 text-sm text-right border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500 font-semibold text-red-600"
                                     {{ $expense['is_billed'] ? 'readonly' : '' }}>
+                                @endif
                             </div>
                         </div>
                         @endforeach

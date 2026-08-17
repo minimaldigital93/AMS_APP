@@ -19,7 +19,6 @@ use App\Services\FiscalPeriod\MonthlyPeriodManager;
 use App\Services\Property\PropertyContext;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\RedirectResponse;
-use Illuminate\Support\Facades\Auth;
 use Illuminate\View\View;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
@@ -40,7 +39,7 @@ class FiscalPeriodController extends Controller
      */
     public function index(): View
     {
-        $fiscalPeriods = FiscalPeriods::where('user_id', Auth::id())
+        $fiscalPeriods = FiscalPeriods::where('user_id', current_account_id())
             ->orderBy('opening_date', 'desc')
             ->paginate(15);
 
@@ -81,7 +80,7 @@ class FiscalPeriodController extends Controller
 
         $fiscalPeriod = FiscalPeriods::create([
             ...$data,
-            'user_id' => Auth::id(),
+            'user_id' => current_account_id(),
             'status' => 'open',
             'opening_balance' => 0,
             'closing_balance' => 0,
@@ -232,7 +231,7 @@ class FiscalPeriodController extends Controller
         BalanceSheet::create([
             ...$request->validated(),
             'fiscal_period_id' => $fiscalperiod->id,
-            'user_id' => Auth::id(),
+            'user_id' => current_account_id(),
         ]);
 
         return back()->with('success', __('messages.flash_bs_item_added'));
@@ -668,11 +667,12 @@ class FiscalPeriodController extends Controller
     }
 
     /**
-     * A period is only ever readable/writable by the admin who owns it.
+     * A period is only ever readable/writable within the account that owns it
+     * (the owner's user id — co-admins share the same books).
      */
     private function authorizeUser(FiscalPeriods $fiscalperiod): void
     {
-        if ($fiscalperiod->user_id !== Auth::id()) {
+        if ($fiscalperiod->user_id !== current_account_id()) {
             abort(403, 'Unauthorized access');
         }
     }
@@ -683,7 +683,7 @@ class FiscalPeriodController extends Controller
      */
     private function hasOpenPeriod(): bool
     {
-        return FiscalPeriods::where('user_id', Auth::id())
+        return FiscalPeriods::where('user_id', current_account_id())
             ->where('status', 'open')
             ->exists();
     }

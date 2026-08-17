@@ -23,7 +23,6 @@ use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
@@ -67,7 +66,6 @@ class TenantController extends Controller
             $query->where('tenants.status', $request->status);
         }
 
-
         $tenants = $query->orderBy('tenants.id', 'desc')->get();
 
         $tenants = $tenants->sortBy(
@@ -88,7 +86,6 @@ class TenantController extends Controller
                 fn ($t) => ($rentProgressMap[$t->id]['status'] ?? 'unknown') === $rentStatus
             )->values();
         }
-
 
         $activeTenantCount = Tenants::where('status', 'active')->forProperty($scopeId)->count();
         $archivedTenantCount = $this->scopeArchivedToActiveProperty(Tenants::onlyTrashed(), $scopeId)->count();
@@ -197,7 +194,7 @@ class TenantController extends Controller
 
             $depositAmount = $validated['deposit'] ?? 0;
             if ($depositAmount > 0) {
-                $activePeriod = FiscalPeriods::where('user_id', Auth::id())
+                $activePeriod = FiscalPeriods::where('user_id', current_account_id())
                     ->where('status', 'open')
                     ->orderBy('opening_date', 'desc')
                     ->first();
@@ -211,7 +208,7 @@ class TenantController extends Controller
                             'fiscal_period_id' => $activePeriod->id,
                             'property_id' => $apartment->property_id ?? $apartment->floor?->property_id,
                             'payment_id' => null,
-                            'user_id' => Auth::id(),
+                            'user_id' => current_account_id(),
                             'account_type' => Accounts::TYPE_INCOME,
                             'category' => Accounts::CAT_DEPOSIT_INCOME,
                             'description' => '[Apt '.$apartment->apartment_number.'] Security deposit received — '.$tenant->name,
@@ -240,7 +237,7 @@ class TenantController extends Controller
      */
     public function show(Tenants $tenant): View
     {
-        $tenant->load(['apartment.floor', 'rentals.apartment', 'rentals.payments', 'utilities', 'attachments']);
+        $tenant->load(['apartment.floor', 'apartment.activeFixedExpenses', 'rentals.apartment', 'rentals.payments', 'utilities', 'attachments', 'vehicles']);
 
         return view('shared.tenants.show', compact('tenant') + ['panel' => 'admin']);
     }
@@ -440,7 +437,6 @@ class TenantController extends Controller
         return view('shared.tenants.leave', compact('tenant', 'rental', 'pendingCharges') + ['panel' => 'admin']);
     }
 
-
     public function processLeave(ProcessTenantLeaveRequest $request, Tenants $tenant): RedirectResponse
     {
         try {
@@ -470,7 +466,6 @@ class TenantController extends Controller
         }
     }
 
-
     private function scopeArchivedToActiveProperty(Builder $query, int|null|false $propertyId = false): Builder
     {
 
@@ -488,7 +483,6 @@ class TenantController extends Controller
         });
     }
 
-
     private function recordAdminLeaveAccounting(Tenants $tenant, array $context): void
     {
         $settlement = $context['settlement'];
@@ -499,7 +493,7 @@ class TenantController extends Controller
         $extraCharges = $context['extra_charges'] ?? [];
         $depositAction = $context['deposit_action'] ?? 'return_deposit';
 
-        $activePeriod = FiscalPeriods::where('user_id', Auth::id())
+        $activePeriod = FiscalPeriods::where('user_id', current_account_id())
             ->where('status', 'open')
             ->orderBy('opening_date', 'desc')
             ->first();
@@ -536,7 +530,7 @@ class TenantController extends Controller
             Accounts::create([
                 'fiscal_period_id' => $activePeriod->id,
                 'payment_id' => $rentPayment->id,
-                'user_id' => Auth::id(),
+                'user_id' => current_account_id(),
                 'account_type' => Accounts::TYPE_INCOME,
                 'category' => Accounts::CAT_RENT_INCOME,
                 'description' => '[Apt '.$apartmentNumber.'] Leave settlement - pro-rata rent',
@@ -561,7 +555,7 @@ class TenantController extends Controller
             Accounts::create([
                 'fiscal_period_id' => $activePeriod->id,
                 'payment_id' => $charge->id,
-                'user_id' => Auth::id(),
+                'user_id' => current_account_id(),
                 'account_type' => Accounts::TYPE_INCOME,
                 'category' => $category,
                 'description' => '[Apt '.$apartmentNumber.'] Leave settlement - '.ucfirst($charge->payment_type).': '.($charge->note ?: '-'),
@@ -587,7 +581,7 @@ class TenantController extends Controller
                 'fiscal_period_id' => $activePeriod->id,
                 'property_id' => $propertyId,
                 'payment_id' => null,
-                'user_id' => Auth::id(),
+                'user_id' => current_account_id(),
                 'account_type' => Accounts::TYPE_INCOME,
                 'category' => $category,
                 'description' => '[Apt '.$apartmentNumber.'] Leave settlement - '.ucfirst($util->utility_type).' '.Carbon::create($util->billing_year, $util->billing_month)->format('M Y'),
@@ -603,7 +597,7 @@ class TenantController extends Controller
                 'fiscal_period_id' => $activePeriod->id,
                 'property_id' => $propertyId,
                 'payment_id' => null,
-                'user_id' => Auth::id(),
+                'user_id' => current_account_id(),
                 'account_type' => Accounts::TYPE_INCOME,
                 'category' => Accounts::CAT_OTHER_INCOME,
                 'description' => '[Apt '.$apartmentNumber.'] Leave settlement - Damage/Extra: '.$extra['description'],
@@ -633,7 +627,7 @@ class TenantController extends Controller
             Accounts::create([
                 'fiscal_period_id' => $activePeriod->id,
                 'payment_id' => $depositPayment->id,
-                'user_id' => Auth::id(),
+                'user_id' => current_account_id(),
                 'account_type' => Accounts::TYPE_INCOME,
                 'category' => Accounts::CAT_RENT_INCOME,
                 'description' => '[Apt '.$apartmentNumber.'] Deposit as last rent — '.$tenant->name,
@@ -649,7 +643,7 @@ class TenantController extends Controller
                     'fiscal_period_id' => $activePeriod->id,
                     'property_id' => $propertyId,
                     'payment_id' => null,
-                    'user_id' => Auth::id(),
+                    'user_id' => current_account_id(),
                     'account_type' => Accounts::TYPE_EXPENSE,
                     'category' => Accounts::CAT_DEPOSIT_EXPENSE,
                     'description' => '[Apt '.$apartmentNumber.'] Deposit refunded — '.$tenant->name,

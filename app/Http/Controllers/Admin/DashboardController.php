@@ -27,7 +27,6 @@ class DashboardController extends Controller
     use HasDashboardMonthNavigation;
     use HasFiscalPeriodScope;
 
- 
     public function index(Request $request): View
     {
         $activePeriod = $this->getActiveFiscalPeriod();
@@ -52,7 +51,7 @@ class DashboardController extends Controller
             ? null
             : (new DashboardCalendarService($this->ledgerUserId(), null, $propertyId))->build($activePeriod, $displayMonth);
 
-        $recentTransactions = Accounts::where('user_id', Auth::id())
+        $recentTransactions = Accounts::where('user_id', $this->ledgerUserId())
             ->forProperty($propertyId)
             ->whereBetween('transaction_date', [
                 $dateRange['start']->copy()->startOfDay(),
@@ -83,15 +82,15 @@ class DashboardController extends Controller
         ));
     }
 
-    /** Admins read their own fiscal periods. */
+    /** Admins read the account's fiscal periods (co-admins share the owner's). */
     protected function fiscalPeriodsQuery(): Builder
     {
-        return FiscalPeriods::where('user_id', Auth::id());
+        return FiscalPeriods::where('user_id', current_account_id());
     }
 
-    /** Admins read ledger rows under their own user_id. */
+    /** The books hang off the account owner's user id, not the acting admin's. */
     protected function ledgerUserId(): ?int
     {
-        return Auth::id();
+        return current_account_id();
     }
 }

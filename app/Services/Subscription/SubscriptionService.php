@@ -138,10 +138,19 @@ class SubscriptionService
         return Apartments::withoutAccountScope()->where('account_id', $accountId)->count();
     }
 
-    /** Staff = supervisor users on the account. */
+    /**
+     * Staff = the account's supervisor and co-admin logins.
+     *
+     * The account owner is excluded (their user id IS the account id) — they
+     * are the subscription, not a seat under it. Co-admins count so an account
+     * can't hand out unlimited admin logins to sidestep the cap.
+     */
     public function staffCount(int $accountId): int
     {
-        return User::where('account_id', $accountId)->role('supervisor')->count();
+        return User::where('account_id', $accountId)
+            ->whereKeyNot($accountId)
+            ->role(['supervisor', 'admin'])
+            ->count();
     }
 
     /**

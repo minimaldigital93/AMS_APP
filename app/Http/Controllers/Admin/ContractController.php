@@ -13,17 +13,6 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
-/**
- * Rental-contract PDF actions: preview, download, print and regenerate.
- *
- * Registered inside the admin route group (role:admin|superadmin +
- * subscription.active), and every action re-checks the RentalsPolicy. Rentals
- * are route-model-bound, so the account global scope already 404s a lease that
- * belongs to another account.
- *
- * PDF failures never surface a framework error page — they log the exception
- * and bounce back with a "unable to generate contract" flash.
- */
 class ContractController extends Controller
 {
     public function __construct(private ContractGenerator $contracts) {}
@@ -52,18 +41,15 @@ class ContractController extends Controller
             return back()->with('error', __('messages.contract_generate_failed'));
         }
 
-        return Storage::disk(ContractGenerator::DISK)->download(
+        /** @var \Illuminate\Filesystem\FilesystemAdapter $disk */
+        $disk = Storage::disk(ContractGenerator::DISK);
+
+        return $disk->download(
             $rental->contract_path,
             $this->contracts->downloadName($rental)
         );
     }
 
-    /**
-     * On-screen "view + print" page. It embeds the stored PDF (which mPDF has
-     * already shaped AND justified — a browser rendering the contract HTML
-     * directly cannot justify Khmer) and prints that, so preview and print give
-     * identical, correctly-justified output on every device. See the blade.
-     */
     public function view(Rentals $rental): Response|RedirectResponse
     {
         Gate::authorize('manageContract', $rental);
@@ -78,13 +64,6 @@ class ContractController extends Controller
         ]);
     }
 
-    /**
-     * Regenerate the PDF from current data, keeping the same contract number.
-     *
-     * The "Regenerate / Renew" dialog may also pass `renew_months` (3/6/12) to
-     * extend the fixed lease term before the PDF is rebuilt — a plain regenerate
-     * when it is absent.
-     */
     public function regenerate(Request $request, Rentals $rental): RedirectResponse
     {
         Gate::authorize('manageContract', $rental);
@@ -108,11 +87,6 @@ class ContractController extends Controller
         return back()->with('success', __($renewMonths ? 'messages.contract_renewed' : 'messages.contract_regenerated'));
     }
 
-    /**
-     * Make sure a current PDF exists on disk, generating it on demand when it is
-     * missing (e.g. an old lease, or a generation that failed at assignment
-     * time). Returns false on failure so callers can flash instead of 500ing.
-     */
     private function ensurePdf(Rentals $rental): bool
     {
         if ($rental->hasContract()) {

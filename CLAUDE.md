@@ -91,9 +91,37 @@ When adding a customer-owned model: add `use BelongsToAccount;` and an `account_
 ### `current_account_id()` (`app/helpers.php`)
 
 Returns the account id for the current request:
-- **Admin** → their own `user.id` (admin's `account_id` points to themselves).
-- **Supervisor / Tenant** → their `users.account_id` (which points to their admin).
+- **Account owner (admin)** → their own `user.id` (the owner's `account_id` points to themselves).
+- **Co-admin / Supervisor / Tenant** → their `users.account_id` (which points to the owner).
 - **Unauthenticated (login, signup, seeders, console)** → `null` → the scope is a no-op so global lookups still work.
+
+### An account can have more than one admin
+
+Team management (`Admin\UserController`) hands out `admin`, `supervisor` and
+`tenant`. An assigned **admin is a co-admin of the same account**, not a second
+account: their row keeps `account_id` = the owner's id, so `current_account_id()`
+— and with it every `BelongsToAccount` query, the subscription gate and the
+billing pages — resolves to the owner's data. Two consequences carry the design:
+
+- **The books hang off the account owner's user id, never the acting admin's.**
+  `fiscal_periods.user_id` and `accounts.user_id` are the account's ledger, so
+  every admin-side `ledgerUserId()` / `fiscalPeriodsQuery()` /
+  `FiscalPeriods::where('user_id', …)` / ledger-row write uses
+  `current_account_id()`, **not `Auth::id()`** — including
+  `EnsureFiscalPeriodExists`. For the owner the two are identical; for a
+  co-admin `Auth::id()` would open a *second* set of books and silently drop
+  their income and expenses out of the owner's reports. `Auth::id()` stays
+  correct for actor attribution (`managed_by`, `created_by`, `uploaded_by`).
+- **The owner row is not a team member.** `authorizeTeamMember()` 403s the
+  account owner (their user id *is* the account id), any superadmin, and your
+  own row — self-service belongs to Profile, and a co-admin could otherwise
+  demote or delete themselves. `updateRole()` refuses the same three.
+  `_row`/`_card` mirror the rule as `$rowLocked`.
+- Co-admins occupy a **staff seat** (`SubscriptionService::staffCount()` counts
+  supervisors *and* admins, excluding the owner) — otherwise the plan's
+  `max_staff` cap is bypassed by handing out admin logins.
+
+`tests/Feature/CoAdminTest.php` pins all of it.
 
 ### SuperAdmin reads across all accounts
 
@@ -117,7 +145,7 @@ Supervisors are further scoped to **properties assigned to them** (`properties.s
 |-------|-------|-----------|
 | `role:X` | `RoleMiddleware` | Aborts 401 if not authenticated; 403 if user lacks the pipe-delimited role(s). |
 | `subscription.active` | `EnsureSubscriptionActive` | Superadmin is exempt. Admin with no active subscription → `admin.billing.index`. Supervisor with no active subscription → `supervisor.dashboard` with a warning (they can't renew). |
-| `fiscal.period` | `EnsureFiscalPeriodExists` | Admin: requires their own open `FiscalPeriods` row; else → `admin.fiscalperiod.create`. Supervisor: requires any admin's open period; else → `supervisor.dashboard` with a warning. |
+| `fiscal.period` | `EnsureFiscalPeriodExists` | Admin: requires an open `FiscalPeriods` row on their **account** (`current_account_id()`, so co-admins share the owner's); else → `admin.fiscalperiod.create`. Supervisor: requires any admin's open period; else → `supervisor.dashboard` with a warning. |
 | `SetLocale` | `SetLocale` | Runs on every web request. Priority: `session('locale')` → DB `Settings.app_locale` → `config('app.locale')`. Supported: `en`, `km`. |
 
 ---
@@ -213,6 +241,7 @@ Implement `App\Contracts\PaymentGateway` (three methods: `provider()`, `verify()
 
 - Admin must have an open `FiscalPeriods` row before accessing any financial routes gated by `fiscal.period`.
 - **Supervisor writes land in the admin's books** — a supervisor doesn't own fiscal periods; they use the admin's open period.
+- **A period is owned by the account, not the user who opened it.** `fiscal_periods.user_id` is the account owner's id, so the admin-side `fiscalPeriodsQuery()`/`ledgerUserId()` return `current_account_id()`, never `Auth::id()` — see "An account can have more than one admin".
 - `HasFiscalPeriodScope` trait (in controller Concerns) provides shared helpers: `getActiveFiscalPeriod()`, `resolveActivePeriod()`, `getAllFiscalPeriods()`, `buildPeriodMonths()`, `getFilteredDateRange()`. Controllers implement two abstract methods: `fiscalPeriodsQuery()` (which periods are visible) and `ledgerUserId()` (which user's ledger rows to read/write).
 
 ---
@@ -472,6 +501,77 @@ Rules behind it:
 
 `tests/Feature/RevenueExpense/PrintReceiptTest.php` pins all of it;
 `SharedPanelViewsTest` renders both modes in both panels.
+
+---
+
+## Tenant vehicles are the parking charge — they are not a third billing lane
+
+A tenant's vehicles live in `tenant_vehicles` (`App\Models\TenantVehicle`,
+`BelongsToAccount`): type (car/tuktuk/motorbike), plate, monthly fee. They are
+added and removed on the **tenant detail page** — the "Vehicles & Parking" card
+in `partials/tenant-show.blade.php`, written by `Shared\TenantVehicleController`
+with the usual thin Admin/Supervisor subclasses.
+
+A vehicle with a fee above zero **is** the tenant's parking charge. It does not
+get a billing path of its own: `MonthlyBillingService` sums the tenant's priced
+vehicles into the month's single `parking` `Utilities` row, and from there the
+money rides the parking lane that already existed — the rent-collection bill
+row, checkout, `CAT_OTHER_INCOME`, the receipt, the move-out settlement's
+`parking_charge`, `parkingRevenue` on the reports. Adding a lane instead would
+have meant restating every one of those.
+
+Rules the design turns on:
+
+- **One room, one parking charge per month** — `(rental, utility_type, month,
+  year)` is unique, so two vehicles are one row for their combined fee, never
+  two rows. That uniqueness is enforced in code, not by the DB:
+  `MonthlyBillingService::bill()` skips an already-billed pair, and
+  `IncomeRecordingService::SINGLE_PER_MONTH_TYPES` (`parking`, `internet`,
+  `trash`) makes the **hand-entry** path upsert the open row. Operators enter
+  the month's charges on the rent collection page *before* taking the payment
+  and re-open the Add-Charge modal to correct a figure — that used to
+  `create()` a second row and double the charge. Two rules ride along: a
+  **paid** row is booked money and is never mutated (a fresh row is raised
+  beside it), and **`other` stays additive** — it is the ad-hoc bucket with no
+  template, so two unrelated one-offs in a month are legitimate.
+  Because a re-save *corrects*, the modal **opens on the month's existing
+  charges** — `recordIncome()` ships `$chargeContext`
+  (`{rental: {type: {amount, editing, total, count, paid}}}`) and every type
+  with a still-open row comes up ticked and prefilled, so the operator edits
+  the figure on screen instead of retyping it blind. `editing` is the
+  authority there: it is only set for the upserting types, so a **paid** row
+  and an **`other`** row report what is recorded without prefilling it (a save
+  on either adds a row rather than replacing one) — and a parking row already
+  on the bill keeps its chip enabled even with no priced vehicle left to quote
+  from, or there would be a charge no one could correct.
+  `tests/Feature/RevenueExpense/RecurringChargeUpsertTest.php` pins it.
+- **Priced vehicles supersede the room's fixed `parking`
+  `ApartmentFixedExpense`** for that rental. Only one of the two could win the
+  row anyway; billing both would charge the same spot twice. The tenant card
+  says so when both exist. Both bill runs skip the template, and so must every
+  page that states what a room costs, or it quotes a parking charge that will
+  never be billed on top of the one that will: the two bill views read
+  `from_vehicles`, and the rent-collection page, the printable bill and the
+  bill summary go through `RevenueExpenseController::fixedExpensesFor()`.
+- **A blank fee records the vehicle without billing it** (parking included in
+  the rent) — that zero is the backward-compatibility seam, the same shape as
+  the rent-collection day's null.
+- **The card never writes money.** It says what the *next* bill run will charge
+  and whether it already did (`parkingState`: not billed / billed / paid /
+  mismatch). Deleting a vehicle leaves billed charges alone — they are owed or
+  collected money, not a description of today's vehicle list. A mismatch
+  between the vehicle total and the billed figure is **flagged, not
+  auto-corrected**.
+- The vehicle line on the two bill-generation views is **read-only and carries
+  no form inputs** — it has no `apartment_fixed_expenses` id, which
+  `ProcessMonthlyBillsRequest` requires. `processSelected()` gates on the
+  apartment checkbox alone for the same reason: a rental whose whole bill is
+  vehicle parking posts no `expenses` array at all.
+- Plates are normalised (upper, trimmed) and unique per account, so the same
+  vehicle can't be registered under two tenants and billed twice.
+- New account-owned table ⇒ it is deleted in `AccountPurgeService`.
+
+`tests/Feature/Tenants/TenantVehicleTest.php` pins all of it.
 
 ---
 

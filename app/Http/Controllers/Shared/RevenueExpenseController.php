@@ -237,6 +237,29 @@ abstract class RevenueExpenseController extends Controller
         return new MonthlyBillingService;
     }
 
+    /**
+     * A room's fixed costs as they apply to THIS rental: the `parking` template
+     * drops out when the tenant keeps priced vehicles.
+     *
+     * A room's parking is one charge however many vehicles it covers, and when
+     * the tenant has priced vehicles those are the authority — the bill run
+     * raises the vehicle total and skips the template (MonthlyBillingService).
+     * Every page that states what a room costs has to make the same swap or it
+     * quotes a parking charge that will never be billed, on top of the one that
+     * will.
+     *
+     * @param  \Illuminate\Support\Collection<int, \App\Models\ApartmentFixedExpense>  $fixedExpenses
+     * @return \Illuminate\Support\Collection<int, \App\Models\ApartmentFixedExpense>
+     */
+    private function fixedExpensesFor(Rentals $rental, $fixedExpenses)
+    {
+        if ($this->billingService()->vehicleParkingFee($rental) <= 0) {
+            return $fixedExpenses;
+        }
+
+        return $fixedExpenses->reject(fn ($fe) => $fe->expense_type === 'parking')->values();
+    }
+
     public function index()
     {
         // Allow switching fiscal periods via ?period=ID
@@ -299,7 +322,9 @@ abstract class RevenueExpenseController extends Controller
         $apartments = $this->scopeApartments()
             ->with(['floor', 'activeFixedExpenses', 'fixedExpenses', 'rentals' => function ($q) use ($activePeriod, $periodOpen, $periodClose, $currentMonth, $currentYear) {
                 $q->orderBy('start_date', 'desc')
-                    ->with(['tenant', 'payments' => function ($pq) use ($activePeriod) {
+                    // vehicles: the bills section derives the tenant's parking
+                    // charge from them (see the billSummary build below).
+                    ->with(['tenant.vehicles', 'payments' => function ($pq) use ($activePeriod) {
                         $pq->where('payment_status', 'paid')
                             ->whereHas('accounts', function ($aq) use ($activePeriod) {
                                 $aq->where('fiscal_period_id', $activePeriod->id);
@@ -562,7 +587,27 @@ abstract class RevenueExpenseController extends Controller
                 $expenseItems = [];
                 $totalForApt = 0;
 
+                // Parking off the tenant's vehicles — read-only, and it stands
+                // in for the room's fixed `parking` template. Same rule as the
+                // standalone bill-generation page and MonthlyBillingService.
+                $vehicleFee = $this->billingService()->vehicleParkingFee($rental);
+                if ($vehicleFee > 0) {
+                    $expenseItems[] = [
+                        'id' => null,
+                        'name' => __('messages.vehicle_parking'),
+                        'type' => 'parking',
+                        'amount' => $vehicleFee,
+                        'is_billed' => in_array('parking', $billedTypes, true),
+                        'from_vehicles' => true,
+                    ];
+                    $totalForApt += $vehicleFee;
+                }
+
                 foreach ($fixedExpenses as $fe) {
+                    if ($fe->expense_type === 'parking' && $vehicleFee > 0) {
+                        continue;
+                    }
+
                     $isBilled = in_array($fe->expense_type, $billedTypes);
                     $expenseItems[] = [
                         'id' => $fe->id,
@@ -570,6 +615,7 @@ abstract class RevenueExpenseController extends Controller
                         'type' => $fe->expense_type,
                         'amount' => $fe->amount,
                         'is_billed' => $isBilled,
+                        'from_vehicles' => false,
                     ];
                     $totalForApt += $fe->amount;
                 }
@@ -747,7 +793,9 @@ abstract class RevenueExpenseController extends Controller
                 })
                     ->orderBy('start_date', 'desc')
                     ->orderBy('id', 'desc')
-                    ->with(['tenant', 'payments' => function ($pq) use ($activePeriod, $currentMonth, $currentYear) {
+                    // vehicles: the Add-Charge modal quotes parking off the
+                    // tenant's own priced vehicles (see $vehicleContext below).
+                    ->with(['tenant.vehicles', 'payments' => function ($pq) use ($activePeriod, $currentMonth, $currentYear) {
                         // Count a payment as "this month's" if it lands inside the
                         // active fiscal period window OR within the month being
                         // viewed. The month fallback guards against an active period
@@ -920,8 +968,10 @@ abstract class RevenueExpenseController extends Controller
                     ? 'none'
                     : ($unpaidCharges->isEmpty() ? 'paid' : 'pending');
 
-                // Fixed expenses for the apartment
-                $fixedExpenses = $apartment->activeFixedExpenses ?? collect();
+                // Fixed expenses for the apartment — minus a `parking` template
+                // the tenant's priced vehicles supersede, which the bill run
+                // will never raise for this rental.
+                $fixedExpenses = $this->fixedExpensesFor($rental, $apartment->activeFixedExpenses ?? collect());
                 $totalFixed = $fixedExpenses->sum('amount');
 
                 // Total bill = rent + utilities + fixed expenses.
@@ -1137,6 +1187,65 @@ abstract class RevenueExpenseController extends Controller
             }
         }
 
+        // ===== VEHICLE PARKING CONTEXT (Add-Charge parking prefill) =====
+        // A priced vehicle IS the tenant's parking charge: the bill run sums the
+        // tenant's priced vehicles into the room's single `parking` row (see
+        // MonthlyBillingService). So the modal quotes that same figure instead of
+        // the account-wide default fee, and a tenant with no priced vehicle has
+        // no parking to charge at all — the chip is greyed out rather than
+        // offering an amount nothing on the tenant page accounts for.
+        $vehicleContext = [];
+        foreach ($tenantBillsAll as $bill) {
+            $tenant = $bill['tenant'];
+            $billable = $tenant ? $tenant->vehicles->filter->isBillable() : collect();
+            $fee = $tenant ? $tenant->vehicleParkingFee() : 0.0;
+
+            $vehicleContext[$bill['rental']->id] = [
+                'count' => $billable->count(),
+                'fee' => $fee,
+                // Display-currency string, ready to drop into the amount field.
+                'amount' => $fee > 0 ? money_input($fee) : '',
+                'plates' => $billable->pluck('plate_number')->implode(', '),
+                // Parking already raised for this month — one room, one parking
+                // charge, so the modal warns instead of quietly duplicating it.
+                'billed' => (bool) $bill['utilities']->firstWhere('utility_type', 'parking'),
+            ];
+        }
+
+        // ===== EXISTING CHARGES (Add-Charge modal preload) =====
+        // Operators enter the month's charges before taking the payment and come
+        // back to correct a figure, so the modal opens on what is already on the
+        // bill rather than on an empty form. For the types that upsert
+        // (metered + SINGLE_PER_MONTH_TYPES) the open row is the row a re-save
+        // corrects, so it is prefilled and the panel says it is an edit; `other`
+        // is additive and only reports what is recorded, since prefilling it
+        // would invite a duplicate of a legitimate one-off.
+        $upsertChargeTypes = array_merge(
+            IncomeRecordingService::METERED_TYPES,
+            IncomeRecordingService::SINGLE_PER_MONTH_TYPES
+        );
+
+        $chargeContext = [];
+        foreach ($tenantBillsAll as $bill) {
+            $byType = [];
+            foreach ($bill['utilities']->groupBy('utility_type') as $type => $rows) {
+                // A paid row is booked money and is never mutated — only a still
+                // open row can be corrected in place.
+                $open = in_array($type, $upsertChargeTypes, true)
+                    ? $rows->where('paid_status', false)->sortBy('id')->last()
+                    : null;
+
+                $byType[$type] = [
+                    'amount' => $open ? money_input((float) $open->charge_amount) : '',
+                    'editing' => (bool) $open,
+                    'total' => money_input((float) $rows->sum('charge_amount')),
+                    'count' => $rows->count(),
+                    'paid' => $rows->where('paid_status', false)->isEmpty(),
+                ];
+            }
+            $chargeContext[$bill['rental']->id] = $byType;
+        }
+
         $meterAutoCalc = filter_var(settings('utility_meter_auto_calc'), FILTER_VALIDATE_BOOLEAN);
         $electricityRate = money_input((float) settings('utility_electricity_price', 0));
         $waterRate = money_input((float) settings('utility_water_price', 0));
@@ -1153,7 +1262,8 @@ abstract class RevenueExpenseController extends Controller
             'selectedDate', 'prevDate', 'nextDate',
             'isCurrentMonth', 'isFutureMonth', 'isPastMonth',
             'currentMonth', 'currentYear',
-            'meterContext', 'meterAutoCalc', 'electricityRate', 'waterRate'
+            'meterContext', 'meterAutoCalc', 'electricityRate', 'waterRate',
+            'vehicleContext', 'chargeContext', 'upsertChargeTypes'
         ));
     }
 
@@ -1166,9 +1276,13 @@ abstract class RevenueExpenseController extends Controller
         $rental = Rentals::with('tenant')->findOrFail($validated['rental_id']);
         $this->authorizeRentalAccess($rental);
         $period = $this->getActiveFiscalPeriod();
-        if ($period) {
-            $this->incomeService($period)->addTenantCharge($rental, $validated);
-        }
+        $charge = $period
+            ? $this->incomeService($period)->addTenantCharge($rental, $validated)
+            : null;
+
+        // Recurring types are one row per month, so a repeat save corrects the
+        // open charge rather than stacking a second one — say which happened.
+        $wasCorrected = $charge && ! $charge->wasRecentlyCreated;
 
         // An opening reading (metered type, meter-in only, no closing reading and
         // no amount) gets a dedicated message — "$0.00 added" would read wrongly.
@@ -1178,7 +1292,7 @@ abstract class RevenueExpenseController extends Controller
 
         $successMsg = $isOpeningReading
             ? __('messages.flash_opening_reading_saved')
-            : __('messages.flash_charge_added', [
+            : __($wasCorrected ? 'messages.flash_charge_updated' : 'messages.flash_charge_added', [
                 'type' => ucfirst($validated['charge_type']),
                 'amount' => number_format((float) ($validated['charge_amount'] ?? 0), 2),
                 'name' => $rental->tenant->name ?? __('messages.tenant'),
@@ -1361,8 +1475,8 @@ abstract class RevenueExpenseController extends Controller
         $dueDay = min($dueDay, Carbon::create($currentYear, $currentMonth)->daysInMonth);
         $dueDate = Carbon::create($currentYear, $currentMonth, $dueDay);
 
-        // Fixed expenses
-        $fixedExpenses = $rental->apartment->activeFixedExpenses ?? collect();
+        // Fixed expenses (priced vehicles supersede the room's parking template)
+        $fixedExpenses = $this->fixedExpensesFor($rental, $rental->apartment->activeFixedExpenses ?? collect());
 
         // Calculate totals
         $totalUtilities = $utilities->sum('charge_amount');
@@ -1448,7 +1562,9 @@ abstract class RevenueExpenseController extends Controller
             ->orderBy('utility_type')
             ->get();
 
-        $fixedExpenses = $rental->apartment?->activeFixedExpenses ?? collect();
+        // The parking charge row already prints the vehicle total; the room's
+        // superseded template must not print a second parking line beside it.
+        $fixedExpenses = $this->fixedExpensesFor($rental, $rental->apartment?->activeFixedExpenses ?? collect());
 
         $body = $payment
             ? $this->receiptForPayment($payment, $period, $month, $year)
@@ -2063,7 +2179,7 @@ abstract class RevenueExpenseController extends Controller
                     $q2->whereNull('end_date')->orWhere('end_date', '>=', now());
                 })
                     ->orderBy('start_date', 'desc')
-                    ->with(['tenant', 'utilities' => function ($uq) use ($currentMonth, $currentYear) {
+                    ->with(['tenant.vehicles', 'utilities' => function ($uq) use ($currentMonth, $currentYear) {
                         $uq->where('billing_month', $currentMonth)
                             ->where('billing_year', $currentYear);
                     }]);
@@ -2073,6 +2189,7 @@ abstract class RevenueExpenseController extends Controller
         // Build per-apartment bill summary
         $billSummary = [];
         $totalMonthlyExpenses = 0;
+        $billing = $this->billingService();
 
         foreach ($apartments as $apartment) {
             if ($apartment->rentals->isEmpty()) {
@@ -2091,7 +2208,29 @@ abstract class RevenueExpenseController extends Controller
                 $expenses = [];
                 $totalForApt = 0;
 
+                // Parking off the tenant's registered vehicles. It has no
+                // fixed-expense template to tick — the bill run derives it from
+                // the vehicle list — so it is shown read-only, and it takes the
+                // room's fixed `parking` template's place when present (same
+                // rule MonthlyBillingService applies).
+                $vehicleFee = $billing->vehicleParkingFee($rental);
+                if ($vehicleFee > 0) {
+                    $expenses[] = [
+                        'id' => null,
+                        'name' => __('messages.vehicle_parking'),
+                        'type' => 'parking',
+                        'amount' => $vehicleFee,
+                        'is_billed' => in_array('parking', $billedTypes, true),
+                        'from_vehicles' => true,
+                    ];
+                    $totalForApt += $vehicleFee;
+                }
+
                 foreach ($fixedExpenses as $fe) {
+                    if ($fe->expense_type === 'parking' && $vehicleFee > 0) {
+                        continue;
+                    }
+
                     $isBilled = in_array($fe->expense_type, $billedTypes);
                     $expenses[] = [
                         'id' => $fe->id,
@@ -2099,6 +2238,7 @@ abstract class RevenueExpenseController extends Controller
                         'type' => $fe->expense_type,
                         'amount' => $fe->amount,
                         'is_billed' => $isBilled,
+                        'from_vehicles' => false,
                     ];
                     $totalForApt += $fe->amount;
                 }

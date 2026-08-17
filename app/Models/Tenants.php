@@ -100,6 +100,25 @@ class Tenants extends Model
         return $this->hasMany(TenantLeave::class, 'tenant_id');
     }
 
+    public function vehicles(): HasMany
+    {
+        return $this->hasMany(TenantVehicle::class, 'tenant_id')->orderBy('id');
+    }
+
+    /**
+     * The tenant's monthly parking charge derived from their vehicles: the sum
+     * of every priced vehicle. Zero when they keep no vehicle, or keep only
+     * unpriced ones (parking included in the rent).
+     *
+     * This is the amount MonthlyBillingService writes into the month's single
+     * `parking` Utilities row — a room's parking is one charge, however many
+     * vehicles it covers, because (rental, type, month, year) is unique.
+     */
+    public function vehicleParkingFee(): float
+    {
+        return round((float) $this->vehicles->sum('monthly_fee'), 2);
+    }
+
     /**
      * Month-by-month rent payment history for this tenant, newest first.
      *

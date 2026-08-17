@@ -15,7 +15,6 @@ use App\Services\Tenants\LeaseSyncService;
 use App\Services\Tenants\TenantAssignmentService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
@@ -262,7 +261,7 @@ class ApartmentController extends Controller
      */
     private function activeFiscalPeriod(): ?FiscalPeriods
     {
-        return FiscalPeriods::where('user_id', Auth::id())
+        return FiscalPeriods::where('user_id', current_account_id())
             ->where('status', 'open')
             ->orderBy('opening_date', 'desc')
             ->first();

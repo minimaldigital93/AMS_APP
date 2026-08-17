@@ -22,8 +22,14 @@ class DashboardController extends Controller
 
         // ── Headline numbers shown on the overview cards ─────────────────
         $activeSubscriptions = Subscription::query()->where('status', 'active')->count();
-        $accountsCount = User::role('admin')->count();
-        $newAccountsThisMonth = User::role('admin')->where('created_at', '>=', $monthStart)->count();
+        // One account = one OWNER admin (account_id points at itself). An
+        // account may also have co-admins; counting every admin user would
+        // inflate the account count by them.
+        // (Same owner-row test AccountsController@index lists by, so the tile
+        // and the accounts list can't disagree.)
+        $accountsCount = User::role('admin')->whereColumn('account_id', 'id')->count();
+        $newAccountsThisMonth = User::role('admin')->whereColumn('account_id', 'id')
+            ->where('created_at', '>=', $monthStart)->count();
 
         // Monthly recurring revenue = sum of price of every active subscription's plan.
         $mrr = (float) Subscription::query()

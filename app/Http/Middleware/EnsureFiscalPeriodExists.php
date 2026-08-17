@@ -14,7 +14,9 @@ class EnsureFiscalPeriodExists
      * Gate routes that record financial transactions on the presence of an
      * open fiscal period.
      *
-     * Admin:      must have their own open period.
+     * Admin:      must have an open period on their ACCOUNT. The books hang
+     *             off the account owner's user id, so a co-admin shares the
+     *             owner's periods rather than opening a second set.
      * Supervisor: writes land in the admin's books (see CLAUDE.md sec. 2), so
      *             we require that at least one admin has an open period.
      *             Supervisors can't open admin periods themselves, so on
@@ -30,7 +32,7 @@ class EnsureFiscalPeriodExists
         $user = Auth::user();
 
         if ($user->hasRole('admin')) {
-            $hasPeriod = FiscalPeriods::where('user_id', $user->id)
+            $hasPeriod = FiscalPeriods::where('user_id', current_account_id())
                 ->where('status', 'open')
                 ->exists();
 

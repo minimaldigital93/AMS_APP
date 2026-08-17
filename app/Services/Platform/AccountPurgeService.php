@@ -17,6 +17,7 @@ use App\Models\Rentals;
 use App\Models\Settings;
 use App\Models\TenantLeave;
 use App\Models\Tenants;
+use App\Models\TenantVehicle;
 use App\Models\User;
 use App\Models\Utilities;
 use App\Services\Audit\AuditLogger;
@@ -86,6 +87,7 @@ class AccountPurgeService
 
             // 2. Occupancy chain, children before parents (floors.property_id
             //    is RESTRICT, so floors must go before properties).
+            TenantVehicle::withoutAccountScope()->where('account_id', $id)->delete();
             Rentals::withoutAccountScope()->withTrashed()->where('account_id', $id)->forceDelete();
             Tenants::withoutAccountScope()->withTrashed()->where('account_id', $id)->forceDelete();
             Apartments::withoutAccountScope()->withTrashed()->where('account_id', $id)->forceDelete();

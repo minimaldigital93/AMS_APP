@@ -8,6 +8,7 @@ use App\Http\Controllers\Admin\FloorController;
 use App\Http\Controllers\Admin\RevenueExpenseController;
 use App\Http\Controllers\Admin\SettingsController;
 use App\Http\Controllers\Admin\TenantController;
+use App\Http\Controllers\Admin\TenantVehicleController;
 use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\KhqrCallbackController;
 use App\Http\Controllers\ProfileController;
@@ -20,6 +21,7 @@ use App\Http\Controllers\Supervisor\DashboardController as SupervisorDashboardCo
 use App\Http\Controllers\Supervisor\RevenueExpenseController as SupervisorRevenueExpenseController;
 use App\Http\Controllers\Supervisor\SettingsController as SupervisorSettingsController;
 use App\Http\Controllers\Supervisor\TenantController as SupervisorTenantController;
+use App\Http\Controllers\Supervisor\TenantVehicleController as SupervisorTenantVehicleController;
 use App\Http\Controllers\Tenant\DashboardController as TenantDashboardController;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
@@ -213,6 +215,8 @@ Route::middleware(['auth', 'role:admin|superadmin', 'subscription.active'])->gro
     Route::get('/admin/tenants/{tenant}/edit', [TenantController::class, 'edit'])->name('admin.tenants.edit');
     Route::put('/admin/tenants/{tenant}', [TenantController::class, 'update'])->name('admin.tenants.update');
     Route::delete('/admin/tenants/{tenant}/documents/{attachment}', [TenantController::class, 'destroyDocument'])->name('admin.tenants.destroy_document');
+    Route::post('/admin/tenants/{tenant}/vehicles', [TenantVehicleController::class, 'store'])->name('admin.tenants.vehicles.store');
+    Route::delete('/admin/tenants/{tenant}/vehicles/{vehicle}', [TenantVehicleController::class, 'destroy'])->name('admin.tenants.vehicles.destroy');
     Route::get('/admin/tenants/{tenant}', [TenantController::class, 'show'])->name('admin.tenants.show');
 
     // Rental Contract Routes — PDF preview / download / print / regenerate for a
@@ -347,6 +351,8 @@ Route::middleware(['auth', 'role:supervisor|admin|superadmin', 'subscription.act
     Route::delete('/tenants/{tenant}/documents/{attachment}', [SupervisorTenantController::class, 'destroyDocument'])->name('supervisor.tenants.destroy_document');
     Route::get('/tenants/{tenant}/leave', [SupervisorTenantController::class, 'leave'])->name('supervisor.tenants.leave');
     Route::post('/tenants/{tenant}/process-leave', [SupervisorTenantController::class, 'processLeave'])->name('supervisor.tenants.processLeave');
+    Route::post('/tenants/{tenant}/vehicles', [SupervisorTenantVehicleController::class, 'store'])->name('supervisor.tenants.vehicles.store');
+    Route::delete('/tenants/{tenant}/vehicles/{vehicle}', [SupervisorTenantVehicleController::class, 'destroy'])->name('supervisor.tenants.vehicles.destroy');
     Route::get('/tenants/{tenant}', [SupervisorTenantController::class, 'show'])->name('supervisor.tenants.show');
 
     // Apartment Management

@@ -603,7 +603,9 @@
                             <svg class="w-5 h-5 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/></svg>
                         </div>
                         <div class="min-w-0">
-                            <p class="font-semibold text-slate-800 text-sm truncate">{{ __('messages.add_charge') }} — <span class="text-sky-600" x-text="chargeApt"></span></p>
+                            {{-- The modal opens on the month's existing charges when there are
+                                 any, so it says which of the two visits this is. --}}
+                            <p class="font-semibold text-slate-800 text-sm truncate"><span x-text="chargeModalTitle()"></span> — <span class="text-sky-600" x-text="chargeApt"></span></p>
                             <p class="text-xs text-slate-400 truncate"><span x-text="chargeTenant"></span> · {{ $selectedDate->format('F Y') }}</p>
                         </div>
                     </div>
@@ -619,13 +621,34 @@
                             <p class="text-xs text-slate-400 mb-2">{{ __('messages.tap_charge_types_hint') }}</p>
                             <div class="grid grid-cols-3 gap-2">
                                 @foreach($chargeTypeMeta as $type => $meta)
+                                {{-- Parking is the one type the tenant's own record decides: with no
+                                     priced vehicle on their detail page there is nothing to charge,
+                                     so the chip greys out instead of quoting a default fee. --}}
                                 <button type="button" @click="toggleCharge('{{ $type }}')"
-                                    class="relative flex flex-col items-center gap-1.5 py-3 rounded-xl border transition select-none"
-                                    :class="charges.{{ $type }}.active ? '{{ $meta['active'] }}' : 'border-slate-200 hover:border-slate-300 hover:bg-slate-50'">
-                                    <span class="w-8 h-8 rounded-lg flex items-center justify-center {{ $meta['chip'] }}">
+                                    :disabled="chargeDisabled('{{ $type }}')"
+                                    :title="chargeDisabled('{{ $type }}') ? @js(__('messages.parking_needs_vehicle')) : ''"
+                                    class="relative flex flex-col items-center gap-1.5 py-3 rounded-xl border transition select-none disabled:cursor-not-allowed"
+                                    :class="chargeDisabled('{{ $type }}')
+                                        ? 'border-slate-100 bg-slate-50 opacity-60'
+                                        : (charges.{{ $type }}.active ? '{{ $meta['active'] }}' : 'border-slate-200 hover:border-slate-300 hover:bg-slate-50')">
+                                    <span class="w-8 h-8 rounded-lg flex items-center justify-center"
+                                        :class="chargeDisabled('{{ $type }}') ? 'bg-slate-100 text-slate-300' : '{{ $meta['chip'] }}'">
                                         <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="{{ $meta['icon'] }}"/></svg>
                                     </span>
-                                    <span class="text-xs font-medium leading-tight" :class="charges.{{ $type }}.active ? '{{ $meta['text'] }}' : 'text-slate-500'">{{ $meta['label'] }}</span>
+                                    <span class="text-xs font-medium leading-tight"
+                                        :class="chargeDisabled('{{ $type }}') ? 'text-slate-300' : (charges.{{ $type }}.active ? '{{ $meta['text'] }}' : 'text-slate-500')">{{ $meta['label'] }}</span>
+                                    @if($type === 'parking')
+                                    {{-- How many vehicles this charge covers, and what they come to.
+                                         Once the month's parking is on the bill the recorded figure
+                                         is the more useful one — that is what a save edits. --}}
+                                    <span x-show="vehicleParkingInfo().fee > 0 && chargeInfo('parking').count === 0" x-cloak
+                                        class="text-[10px] font-semibold text-orange-600 leading-none"
+                                        x-text="vehicleParkingSummary()"></span>
+                                    @endif
+                                    {{-- What this month already carries for the type. --}}
+                                    <span x-show="chargeInfo('{{ $type }}').count > 0" x-cloak
+                                        class="text-[10px] font-semibold text-amber-600 leading-none"
+                                        x-text="chargeExistingLabel('{{ $type }}')"></span>
                                     <span x-show="charges.{{ $type }}.active" x-cloak
                                         class="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full {{ $meta['badge'] }} text-white flex items-center justify-center shadow-sm">
                                         <svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="3" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
@@ -678,6 +701,30 @@
                                 </div>
                                 <p x-show="chargeUsageInvalid('{{ $type }}')" class="text-xs text-red-500">{{ __('messages.meter_out_lt_in') }}</p>
                                 <p x-show="charges.{{ $type }}.meter_in !== '' && charges.{{ $type }}.meter_out === ''" x-cloak class="text-[11px] text-slate-400">{{ __('messages.meter_in_only_hint') }}</p>
+                                @endif
+
+                                @if($type === 'parking')
+                                {{-- Where the prefilled amount came from, and a warning if this
+                                     month's parking was already raised: a room bills ONE parking
+                                     charge per month, so a second row here would double-charge it. --}}
+                                <p class="flex items-center gap-1.5 text-[11px] text-slate-500">
+                                    <svg class="w-3.5 h-3.5 text-orange-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M13 16V6a1 1 0 00-1-1H4a1 1 0 00-1 1v10a1 1 0 001 1h1m8-1a1 1 0 01-1 1H9m4-1V8a1 1 0 011-1h2.586a1 1 0 01.707.293l3.414 3.414a1 1 0 01.293.707V16a1 1 0 01-1 1h-1m-6 0a2 2 0 104 0m-4 0a2 2 0 11-4 0m10 0a2 2 0 104 0"/></svg>
+                                    <span x-text="vehicleParkingDetail()"></span>
+                                </p>
+                                @endif
+
+                                {{-- What saving this panel does to the month's bill. A type with
+                                     an open row is an EDIT of that row (the amount above is the
+                                     figure it will overwrite); a settled one gets a separate
+                                     charge beside it, since paid rows are booked money; `other`
+                                     is the ad-hoc bucket and always adds another one-off. --}}
+                                <p x-show="chargeInfo('{{ $type }}').editing" x-cloak
+                                    class="text-[11px] text-amber-600" x-text="chargeEditNote('{{ $type }}')"></p>
+                                <p x-show="chargeInfo('{{ $type }}').paid" x-cloak
+                                    class="text-[11px] text-amber-600">{{ __('messages.charge_paid_note') }}</p>
+                                @if($type === 'other')
+                                <p x-show="chargeInfo('other').count > 0 && !chargeInfo('other').paid" x-cloak
+                                    class="text-[11px] text-slate-500" x-text="chargeAdditiveNote('other')"></p>
                                 @endif
 
                                 <div>
@@ -1016,11 +1063,17 @@ function billingManager() {
         // Default monthly fees from Settings (stored in USD, shown in the display
         // currency). Only flat-fee types have a default; electricity/water are
         // metered and "other" has no configured fee. Blank when unset.
+        // Parking is NOT here: it is quoted per tenant off their registered
+        // vehicles (vehicleParking below), not off an account-wide fee.
         chargeDefaults: @js([
             'internet' => filled(settings('utility_internet_fee')) ? money_input(settings('utility_internet_fee')) : '',
-            'parking'  => filled(settings('utility_parking_fee')) ? money_input(settings('utility_parking_fee')) : '',
             'trash'    => filled(settings('utility_garbage_fee')) ? money_input(settings('utility_garbage_fee')) : '',
         ]),
+        // Per-rental parking, derived from the tenant's priced vehicles:
+        // {rentalId: {count, fee, amount, plates, billed}}. A priced vehicle IS
+        // the parking charge (MonthlyBillingService sums them into the room's
+        // single `parking` row), so this is both the prefill and the gate.
+        vehicleParking: @js($vehicleContext),
         // Metered billing (electricity/water). When on, the amount is computed from
         // the readings (usage × unit rate) and locked; the rates are display-currency
         // and the final charge is recomputed server-side. meterContext carries the
@@ -1029,6 +1082,16 @@ function billingManager() {
         meterAutoCalc: {{ $meterAutoCalc ? 'true' : 'false' }},
         meterRates: { electricity: {{ (float) $electricityRate }}, water: {{ (float) $waterRate }} },
         meterContext: @js($meterContext),
+        // What this month's bill already carries, per rental:
+        // {rentalId: {type: {amount, editing, total, count, paid}}}. Charges are
+        // entered before the payment is taken and corrected on a later visit, so
+        // the modal opens on the figures already recorded instead of on a blank
+        // form — the operator edits what they can see.
+        existingCharges: @js($chargeContext),
+        // The types a re-save CORRECTS in place (IncomeRecordingService upserts
+        // them). `other` is deliberately absent: it is the ad-hoc bucket and
+        // stays additive, so it is reported but never prefilled.
+        upsertTypes: @js(array_values($upsertChargeTypes)),
         freshCharges() {
             return Object.fromEntries(this.chargeTypes.map(t => [t, { active: false, meter_in: '', meter_out: '', amount: '' }]));
         },
@@ -1240,20 +1303,103 @@ function billingManager() {
                 this.charges[t].meter_out = ctx.out ?? '';
                 this.syncMeterAmount(t);
             });
+            // Open on the charges already recorded for the month: every type with
+            // a still-open row comes up selected and prefilled, so correcting a
+            // figure is an edit of what the operator sees and the save updates
+            // that row instead of raising a second one.
+            this.chargeTypes.forEach(t => {
+                if (!this.chargeInfo(t).editing) return;
+                this.charges[t].active = true;
+                // In auto-calc mode the metered amount is derived from the seeded
+                // readings; fall back to the stored amount when there is none.
+                if (!this.isMetered(t) || this.charges[t].amount === '') {
+                    this.charges[t].amount = this.chargeInfo(t).amount;
+                }
+            });
+            // Parking is decided on the tenant page: a priced vehicle IS the
+            // month's parking charge, so the chip opens ticked and prefilled
+            // with the vehicle total the bill run would raise — the operator
+            // shouldn't have to remember the tenant has a car. Only when the
+            // month has no parking row yet: an open one is already seeded above
+            // (an edit), and a settled one is booked money a second row would
+            // double-charge.
+            const vp = this.vehicleParkingInfo();
+            if (vp.fee > 0 && !vp.billed && this.chargeInfo('parking').count === 0) {
+                this.charges.parking.active = true;
+                this.charges.parking.amount = vp.amount;
+            }
             this.isSubmitting = false;
             this.showAddCharge = true;
         },
 
+        // What the open modal's rental already has on this month's bill for a
+        // type. `editing` = a still-open row a save will correct; `paid` = the
+        // month's rows are settled, so a save records a separate charge.
+        chargeInfo(type) {
+            const byType = this.existingCharges[this.chargeRentalId] || {};
+            return byType[type] || { amount: '', editing: false, total: '', count: 0, paid: false };
+        },
+        chargeModalTitle() {
+            return this.chargeTypes.some(t => this.chargeInfo(t).editing)
+                ? @js(__('messages.edit_charges'))
+                : @js(__('messages.add_charge'));
+        },
+        chargeExistingLabel(type) {
+            return '{{ currency_symbol() }}' + this.chargeInfo(type).total;
+        },
+        chargeEditNote(type) {
+            return @js(__('messages.charge_edit_note')).replace(':amount', this.chargeExistingLabel(type));
+        },
+        chargeAdditiveNote(type) {
+            return @js(__('messages.charge_additive_note')).replace(':amount', this.chargeExistingLabel(type));
+        },
+
+        // The parking side of the open modal: what the tenant's registered
+        // vehicles come to. Zero fee = no priced vehicle on the tenant page, so
+        // there is nothing to bill and the chip stays greyed out.
+        vehicleParkingInfo() {
+            return this.vehicleParking[this.chargeRentalId]
+                || { count: 0, fee: 0, amount: '', plates: '', billed: false };
+        },
+        chargeDisabled(type) {
+            if (type !== 'parking') return false;
+            // A parking row already on the bill (raised from the room's fixed
+            // cost, or before the vehicle was removed) stays editable — there is
+            // a real charge to correct even with nothing to quote from.
+            return this.vehicleParkingInfo().fee <= 0 && !this.chargeInfo('parking').editing;
+        },
+        // "2 · $30.00" on the chip.
+        vehicleParkingSummary() {
+            const v = this.vehicleParkingInfo();
+            return v.count + ' · {{ currency_symbol() }}' + v.amount;
+        },
+        vehicleParkingDetail() {
+            const v = this.vehicleParkingInfo();
+            const label = @js(__('messages.parking_from_vehicles')).replace(':count', v.count);
+            return v.plates ? label + ' — ' + v.plates : label;
+        },
+
         toggleCharge(type) {
+            if (this.chargeDisabled(type)) return;
             const c = this.charges[type];
             c.active = !c.active;
             if (c.active) {
+                const existing = this.chargeInfo(type);
                 if (this.isMetered(type)) {
                     // (Re)seed the continuous meter reading when re-opening the panel.
                     const ctx = this.meterCtx(type);
                     if (c.meter_in === '') c.meter_in = ctx.start ?? '';
                     if (c.meter_out === '') c.meter_out = ctx.out ?? '';
                     this.syncMeterAmount(type);
+                    if (c.amount === '') c.amount = existing.amount;
+                } else if (existing.editing) {
+                    // Re-ticking a type already on the bill returns to the figure
+                    // a save would overwrite, not to the account default fee.
+                    if (!c.amount) c.amount = existing.amount;
+                } else if (type === 'parking') {
+                    // The tenant's own vehicle total — the same figure the bill
+                    // run would raise, so the two can't disagree.
+                    if (!c.amount) c.amount = this.vehicleParkingInfo().amount;
                 } else if (!c.amount && this.chargeDefaults[type]) {
                     // Prefill the configured default fee (internet/parking/trash) when
                     // the amount is still empty; the user can override before saving.

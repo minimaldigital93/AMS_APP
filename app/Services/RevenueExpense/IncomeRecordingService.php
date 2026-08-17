@@ -30,6 +30,18 @@ class IncomeRecordingService
     /** Types billed off a continuous meter (usage = out − in). */
     public const METERED_TYPES = ['electricity', 'water'];
 
+    /**
+     * Recurring charges a room raises at most ONCE per month — the same
+     * (rental, utility_type, month, year) invariant `MonthlyBillingService::bill()`
+     * enforces for the bill run (one room, one parking charge, however many
+     * vehicles it covers). Operators enter these by hand on the rent-collection
+     * page *before* taking the payment and routinely re-open the modal to correct
+     * a figure, so a second save must EDIT the open row, never stack a second
+     * charge on top of it. `other` is deliberately excluded: it is the ad-hoc
+     * bucket, and two unrelated one-off charges in a month are legitimate.
+     */
+    public const SINGLE_PER_MONTH_TYPES = ['parking', 'internet', 'trash'];
+
     public function __construct(
         private int $userId,
         private FiscalPeriods $period,
@@ -212,7 +224,7 @@ class IncomeRecordingService
             return $this->recordMeteredCharge($rental, $type, $billingMonth, $billingYear, $meterIn, $meterOut, $data);
         }
 
-        return Utilities::create([
+        $attrs = [
             'tenant_id' => $rental->tenant_id,
             'rental_id' => $rental->id,
             'utility_type' => $type,
@@ -224,7 +236,35 @@ class IncomeRecordingService
             'billing_year' => $billingYear,
             'paid_status' => false,
             'paid_at' => null,
-        ]);
+        ];
+
+        // Recurring types are one row per month: re-saving the modal corrects the
+        // open charge instead of raising a second one beside it.
+        if (in_array($type, self::SINGLE_PER_MONTH_TYPES, true)) {
+            if ($existing = $this->openChargeRow($rental, $type, $billingMonth, $billingYear)) {
+                $existing->update($attrs);
+
+                return $existing;
+            }
+        }
+
+        return Utilities::create($attrs);
+    }
+
+    /**
+     * The still-unpaid charge row for a (rental, type, month) — the one a repeat
+     * save should correct. A paid row is booked money and is never mutated; a
+     * fresh row is created alongside it instead.
+     */
+    private function openChargeRow(Rentals $rental, string $type, int $month, int $year): ?Utilities
+    {
+        return Utilities::where('rental_id', $rental->id)
+            ->where('utility_type', $type)
+            ->where('billing_month', $month)
+            ->where('billing_year', $year)
+            ->where('paid_status', false)
+            ->latest('id')
+            ->first();
     }
 
     /**
@@ -249,13 +289,7 @@ class IncomeRecordingService
             'paid_at' => null,
         ];
 
-        $existing = Utilities::where('rental_id', $rental->id)
-            ->where('utility_type', $type)
-            ->where('billing_month', $month)
-            ->where('billing_year', $year)
-            ->where('paid_status', false)
-            ->latest('id')
-            ->first();
+        $existing = $this->openChargeRow($rental, $type, $month, $year);
 
         if ($existing) {
             $existing->update($attrs);

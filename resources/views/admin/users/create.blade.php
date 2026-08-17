@@ -85,6 +85,7 @@
                 @error('role')
                     <p class="text-red-600 text-sm mt-1">{{ $message }}</p>
                 @enderror
+                <p class="text-gray-500 text-sm mt-1">{{ __('messages.admin_role_hint') }}</p>
             </div>
 
             <!-- Buttons -->

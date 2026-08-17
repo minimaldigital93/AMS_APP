@@ -15,11 +15,21 @@ use Illuminate\Validation\Rules\Password;
 use Illuminate\View\View;
 use Spatie\Permission\Models\Role;
 
-
 class UserController extends Controller
 {
+    /**
+     * Roles an account owner may hand out from this page.
+     *
+     * 'admin' is a CO-ADMIN of the same account, not a second account: the row
+     * keeps account_id = the owner's id, so current_account_id() (and with it
+     * every BelongsToAccount query, the subscription gate, and the fiscal
+     * period / ledger lookups) resolves to the owner's books. The owner row
+     * itself is never editable from here — see authorizeTeamMember().
+     */
+    private const ASSIGNABLE_ROLES = ['admin', 'supervisor', 'tenant'];
 
-    private const ASSIGNABLE_ROLES = ['supervisor', 'tenant'];
+    /** Roles that occupy a seat under the plan's staff cap. */
+    private const STAFF_ROLES = ['admin', 'supervisor'];
 
     public function __construct(private SubscriptionService $subscriptions) {}
 
@@ -101,8 +111,9 @@ class UserController extends Controller
             'role' => ['required', Rule::in(self::ASSIGNABLE_ROLES)],
         ]);
 
-        // Only supervisors count against the plan's staff cap; tenant logins don't.
-        if ($validated['role'] === 'supervisor') {
+        // Staff logins (co-admins and supervisors) count against the plan's
+        // staff cap; tenant logins don't.
+        if (in_array($validated['role'], self::STAFF_ROLES, true)) {
             $accountId = current_account_id();
             if (! $this->subscriptions->canAddStaff($accountId)) {
                 $plan = $this->subscriptions->activePlan($accountId);
@@ -152,8 +163,10 @@ class UserController extends Controller
             'password' => ['nullable', Password::defaults()],
         ]);
 
-        // Block promoting a non-supervisor into a supervisor past the staff cap.
-        if ($validated['role'] === 'supervisor' && ! $user->hasRole('supervisor')
+        // Block promoting a tenant login into a staff seat past the staff cap
+        // (admin ⇄ supervisor swaps occupy the same seat, so they're free).
+        if (in_array($validated['role'], self::STAFF_ROLES, true)
+            && ! $user->hasAnyRole(self::STAFF_ROLES)
             && ! $this->subscriptions->canAddStaff(current_account_id())) {
             $plan = $this->subscriptions->activePlan(current_account_id());
 
@@ -192,13 +205,13 @@ class UserController extends Controller
         return redirect()->route('admin.users.index')->with('success', __('messages.flash_user_deleted'));
     }
 
-
     public function resetPassword(User $user): RedirectResponse
     {
         $this->authorizePasswordManagement($user);
 
         $password = Str::random(10);
         $user->forceFill(['password' => Hash::make($password)])->save();
+
         return back()->with('success_sticky', __('messages.flash_account_password_reset', [
             'name' => $user->name,
             'password' => $password,
@@ -214,9 +227,16 @@ class UserController extends Controller
         // applies to this account's own rows).
         abort_unless($user->account_id === current_account_id(), 404);
 
-        // Never allow switching/demoting an admin or superadmin via the role picker.
-        if ($user->hasAnyRole(['admin', 'superadmin'])) {
+        // The account owner's own role is fixed (their user id IS the account
+        // id every row hangs off), and a superadmin is never demoted from here.
+        // Co-admins are ordinary team members and may be switched.
+        if ($this->isAccountOwner($user) || $user->hasRole('superadmin')) {
             return back()->with('error', __('messages.flash_cannot_change_admin_role'));
+        }
+
+        // No self-demotion — a co-admin would lock themselves out mid-request.
+        if ($user->getKey() === Auth::id()) {
+            return back()->with('error', __('messages.flash_cannot_change_own_role'));
         }
 
         $validated = $request->validate([
@@ -228,8 +248,9 @@ class UserController extends Controller
 
         $role = Role::findById($validated['role']);
 
-        // Block promoting a non-supervisor into a supervisor past the staff cap.
-        if ($role->name === 'supervisor' && ! $user->hasRole('supervisor')
+        // Block promoting a tenant login into a staff seat past the staff cap.
+        if (in_array($role->name, self::STAFF_ROLES, true)
+            && ! $user->hasAnyRole(self::STAFF_ROLES)
             && ! $this->subscriptions->canAddStaff(current_account_id())) {
             $plan = $this->subscriptions->activePlan(current_account_id());
 
@@ -258,10 +279,24 @@ class UserController extends Controller
         return redirect()->route('admin.users.index')->with('success', __('messages.flash_permissions_updated'));
     }
 
+    /**
+     * Is this row the account owner — the user whose id every account_id points
+     * at? Their row is the account itself, so it is never managed from here
+     * (they edit themselves under Profile).
+     */
+    private function isAccountOwner(User $user): bool
+    {
+        return $user->getKey() === current_account_id();
+    }
+
     private function authorizeTeamMember(User $user): void
     {
         abort_unless($user->account_id === current_account_id(), 404);
-        abort_if($user->hasAnyRole(['admin', 'superadmin']), 403);
+        abort_if($user->hasRole('superadmin'), 403);
+        abort_if($this->isAccountOwner($user), 403);
+        // A co-admin editing their own row here could demote or delete
+        // themselves; that belongs to Profile, not team management.
+        abort_if($user->getKey() === Auth::id(), 403);
     }
 
     private function authorizePasswordManagement(User $user): void
@@ -272,7 +307,8 @@ class UserController extends Controller
         }
 
         abort_unless($user->account_id === current_account_id(), 404);
-        abort_if($user->hasAnyRole(['admin', 'superadmin']), 403);
+        abort_if($user->hasRole('superadmin'), 403);
+        abort_if($this->isAccountOwner($user), 403);
     }
 
     private function userSortKey(User $user): string

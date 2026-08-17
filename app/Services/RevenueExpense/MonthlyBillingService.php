@@ -17,6 +17,14 @@ use Illuminate\Support\Facades\DB;
  * The (rental_id, utility_type, billing_month, billing_year) invariant is
  * enforced here: if a charge already exists for that combination, it's
  * skipped (not duplicated).
+ *
+ * Parking is the one type with a second source: the tenant's registered
+ * vehicles (tenant_vehicles). A room's parking is ONE charge however many
+ * vehicles it covers — the invariant above leaves room for exactly one — so the
+ * tenant's priced vehicles are summed into it. When a tenant has priced
+ * vehicles they are the authority and the room's fixed `parking` template is
+ * skipped for that rental; billing both would mean charging the same spot
+ * twice, and only one of the two could win the row anyway.
  */
 class MonthlyBillingService
 {
@@ -35,19 +43,35 @@ class MonthlyBillingService
             $totalAmount = 0.0;
 
             foreach ($bills as $billData) {
-                if (empty($billData['selected']) || empty($billData['expenses'])) {
+                // Only the apartment checkbox gates the row now: vehicle
+                // parking has no template to tick, so a rental whose whole bill
+                // is vehicle parking posts no `expenses` array at all and used
+                // to be skipped here.
+                if (empty($billData['selected'])) {
                     continue;
                 }
 
-                $rental = Rentals::with(['tenant', 'apartment'])->findOrFail($billData['rental_id']);
+                $rental = Rentals::with(['tenant.vehicles', 'apartment'])->findOrFail($billData['rental_id']);
 
-                foreach ($billData['expenses'] as $expData) {
+                // Vehicles first, so a tenant with priced vehicles wins the
+                // single parking row over the room's fixed template below.
+                $vehicleFee = $this->vehicleParkingFee($rental);
+                if ($vehicleFee > 0 && $this->bill($rental, 'parking', $vehicleFee, $billingDate)) {
+                    $recordedCount++;
+                    $totalAmount += $vehicleFee;
+                }
+
+                foreach ($billData['expenses'] ?? [] as $expData) {
                     if (empty($expData['selected'])) {
                         continue;
                     }
 
                     $fixedExpense = ApartmentFixedExpense::findOrFail($expData['expense_id']);
                     $amount = (float) $expData['amount'];
+
+                    if ($fixedExpense->expense_type === 'parking' && $vehicleFee > 0) {
+                        continue;
+                    }
 
                     if ($this->bill($rental, $fixedExpense->expense_type, $amount, $billingDate)) {
                         $recordedCount++;
@@ -77,7 +101,7 @@ class MonthlyBillingService
                 ->with(['activeFixedExpenses', 'rentals' => function ($q) {
                     $q->where(function ($q2) {
                         $q2->whereNull('end_date')->orWhere('end_date', '>=', now());
-                    })->with('tenant');
+                    })->with('tenant.vehicles');
                 }])
                 ->get();
 
@@ -86,7 +110,19 @@ class MonthlyBillingService
                     // ensure description has access to apartment number without re-loading
                     $rental->setRelation('apartment', $apartment);
 
+                    // Vehicles first — see the class docblock: priced vehicles
+                    // are the authority for the room's single parking charge.
+                    $vehicleFee = $this->vehicleParkingFee($rental);
+                    if ($vehicleFee > 0 && $this->bill($rental, 'parking', $vehicleFee, $billingDate)) {
+                        $recordedCount++;
+                        $totalAmount += $vehicleFee;
+                    }
+
                     foreach ($apartment->activeFixedExpenses as $fe) {
+                        if ($fe->expense_type === 'parking' && $vehicleFee > 0) {
+                            continue;
+                        }
+
                         if ($this->bill($rental, $fe->expense_type, (float) $fe->amount, $billingDate)) {
                             $recordedCount++;
                             $totalAmount += (float) $fe->amount;
@@ -97,6 +133,28 @@ class MonthlyBillingService
 
             return ['count' => $recordedCount, 'total' => $totalAmount];
         });
+    }
+
+    /**
+     * What this rental's tenant owes for parking off their registered
+     * vehicles: the sum of every priced one. Zero when the tenant keeps no
+     * vehicle, or keeps only unpriced ones (parking included in the rent) —
+     * in which case the room's fixed `parking` template, if any, still applies.
+     *
+     * Public so the bill-generation page can show the same figure it is about
+     * to charge (see RevenueExpenseController::generateMonthlyBills()).
+     */
+    public function vehicleParkingFee(Rentals $rental): float
+    {
+        $tenant = $rental->tenant;
+
+        if (! $tenant) {
+            return 0.0;
+        }
+
+        $tenant->loadMissing('vehicles');
+
+        return $tenant->vehicleParkingFee();
     }
 
     /**
