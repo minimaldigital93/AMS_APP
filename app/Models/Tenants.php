@@ -181,6 +181,9 @@ class Tenants extends Model
                         ?? (float) $rental->rent_amount,
                     'paid' => (bool) $rentPayment,
                     'paid_at' => $rentPayment?->paid_at,
+                    // The row the payment-history modal reverses when the rent
+                    // was recorded by mistake (PaymentReversalService).
+                    'payment_id' => $rentPayment?->id,
                     // Total of everything the tenant actually paid this month.
                     'amount_paid' => $monthPayments->isNotEmpty() ? (float) $monthPayments->sum('amount') : null,
                     'pay_date' => $payDate->toDateString(),

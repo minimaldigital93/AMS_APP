@@ -33,6 +33,7 @@ use App\Services\RevenueExpense\BreakEvenService;
 use App\Services\RevenueExpense\ExpenseRecordingService;
 use App\Services\RevenueExpense\IncomeRecordingService;
 use App\Services\RevenueExpense\MonthlyBillingService;
+use App\Services\RevenueExpense\PaymentReversalService;
 use App\Services\RevenueExpense\RevenueExpenseQueryService;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
@@ -1439,6 +1440,33 @@ abstract class RevenueExpenseController extends Controller
         return back()->with('success', __('messages.flash_outstanding_collected', [
             'amount' => number_format($result['total'], 2),
             'name' => $tenant->name,
+        ]));
+    }
+
+    /**
+     * Reverse a payment recorded by mistake, from the tenant's payment history.
+     *
+     * Every rent/charge status in the app is derived from the Payments row and
+     * utilities.paid_status, so undoing the payment walks the statuses back on
+     * their own: dropping the charges payment turns a "Paid" bill into "Rent
+     * Paid" (still the pending bucket), and dropping the rent payment takes it
+     * to pending/overdue. See PaymentReversalService for the closed-period rule.
+     */
+    public function reversePayment(Payments $payment)
+    {
+        $payment->loadMissing('rental.apartment.floor');
+        if ($payment->rental) {
+            $this->authorizeRentalAccess($payment->rental);
+        }
+
+        $result = app(PaymentReversalService::class)->reverse($payment);
+
+        if (! $result['reversed']) {
+            return back()->with('error', __('messages.flash_payment_reverse_blocked_'.$result['reason']));
+        }
+
+        return back()->with('success', __('messages.flash_payment_reversed', [
+            'amount' => number_format($result['amount'], 2),
         ]));
     }
 

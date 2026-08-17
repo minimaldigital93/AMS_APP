@@ -15,7 +15,6 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 
-
 class FloorController extends Controller
 {
     public function __construct(private SubscriptionService $subscriptions) {}
@@ -80,6 +79,11 @@ class FloorController extends Controller
             ['path' => LengthAwarePaginator::resolveCurrentPath(), 'query' => $request->query()]
         );
 
+        // Summary cards count the whole filtered set, not the visible page —
+        // the list is paginated in PHP above.
+        $floorCount = $sortedFloors->count();
+        $roomCount = $sortedFloors->sum('apartments_count');
+
         // Lightweight list of every floor (not just the current page) that powers
         // the universal "Edit floor" selector in the header.
         $allFloors = $sortedFloors->map(fn ($floor) => [
@@ -92,7 +96,7 @@ class FloorController extends Controller
         // assign-tenant modal embedded on this page.
         $availableTenants = Tenants::where('status', 'active')->whereNull('apartment_id')->get();
 
-        return view('admin.floors.index', compact('floors', 'showingAll', 'properties', 'selectedPropertyId', 'availableTenants', 'allFloors'));
+        return view('admin.floors.index', compact('floors', 'showingAll', 'properties', 'selectedPropertyId', 'availableTenants', 'allFloors', 'floorCount', 'roomCount'));
     }
 
     /**
@@ -200,7 +204,6 @@ class FloorController extends Controller
 
         return view('admin.floors.edit', compact('floor', 'properties', 'allFloors'));
     }
-
 
     public function update(Request $request, Floors $floor): RedirectResponse
     {

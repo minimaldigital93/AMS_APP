@@ -444,6 +444,42 @@ Three rules this depends on:
 was the status and totals layer that assumed one payment.
 `tests/Feature/RevenueExpense/SplitRentChargesStatusTest.php` pins all of it.
 
+### A mistaken payment is reversed, not corrected in place
+
+Because every status is derived, undoing a payment is the whole correction:
+drop the `Payments` row, drop the `Accounts` rows it booked, put the charge rows
+it settled back to unpaid — and the statuses walk backwards on their own.
+Reversing the charges payment takes a **Paid** bill to **Rent Paid** (still the
+pending bucket); reversing the rent payment takes it to **pending/overdue**.
+`App\Services\RevenueExpense\PaymentReversalService` is the only path;
+`Shared\RevenueExpenseController::reversePayment()` (`…revenue_expense.reverse_payment`,
+DELETE) is its one caller, driven by the undo button on each recorded payment in
+the **payment-history modal** of the tenant detail page (`<x-reverse-payment>`).
+
+- **Only the current month can be undone.** The window is the ledger row's
+  `transaction_date` — when the money was *booked*, not the month it billed —
+  so July's rent collected on Aug 3 is reversible through August (that late
+  collection is the everyday mistake) while July's own collection is not. A
+  reversal deletes ledger rows; an earlier month's revenue has already been
+  read and reported, and is corrected by an adjustment in the open month
+  instead. Checked before the closed-period/month reasons so the flash doesn't
+  advise reopening a month that reopening wouldn't help.
+- **Closed money is never restated.** A payment whose ledger rows sit in a
+  closed fiscal period or a closed `MonthlyPeriod` is refused — reopen the month
+  first. Same rule as `LeaseSyncService`'s deposit row. (The route also sits
+  behind `fiscal.period`, so the closed-*period* case is a service-level guard.)
+- **The Payments row is soft-deleted, the Accounts rows are deleted outright** —
+  income never received must not sit in the books, which is how every other
+  ledger-undo path here behaves. `AuditLogger` records `payment.reversed`.
+- **A charges payment is matched to its rows by `paid_at`**, the same join
+  `printReceipt()` uses (utilities carry no `payment_id`). An empty set is
+  legitimate (a hand-recorded utilities payment settled no rows); a non-empty
+  set whose total doesn't reconcile means two batches share the timestamp, and
+  the reversal is **refused rather than guessed**.
+- Reversal does **not** refund a KHQR transaction — it corrects the books only.
+
+`tests/Feature/RevenueExpense/PaymentReversalTest.php` pins all of it.
+
 ### Both sides of a checkout settle the *billed* month
 
 The checkout form's date field defaults to **today**, and rent is collected

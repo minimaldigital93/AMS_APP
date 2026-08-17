@@ -32,6 +32,36 @@
         </div>
     </div>
 
+    <!-- Statistics Section — counts span every page, not just the visible one. -->
+    <div class="grid grid-cols-2 gap-4 sm:gap-6">
+        <div class="bg-white rounded-xl border border-slate-100 p-5 sm:p-6 summary-card" data-card="neutral">
+            <div class="flex items-center">
+                <div class="p-3 rounded-full bg-slate-50">
+                    <svg class="w-6 h-6 text-slate-600" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M2.25 21h19.5m-18-18v18m10.5-18v18m6-13.5V21M6.75 6.75h.75m-.75 3h.75m-.75 3h.75m3-6h.75m-.75 3h.75m-.75 3h.75M6.75 21v-3.375c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21M3 3h12m-.75 4.5H21m-3.75 3H21m-3.75 3H21" />
+                    </svg>
+                </div>
+                <div class="ml-4">
+                    <p class="text-slate-500 text-sm">{{ __('messages.floors') }}</p>
+                    <p id="floorCount" class="text-2xl font-bold text-slate-800">{{ $floorCount }}</p>
+                </div>
+            </div>
+        </div>
+        <div class="bg-white rounded-xl border border-slate-100 p-5 sm:p-6 summary-card" data-card="occupancy">
+            <div class="flex items-center">
+                <div class="p-3 rounded-full bg-slate-50">
+                    <svg class="w-6 h-6 text-slate-600" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M2.25 12l8.954-8.955c.44-.439 1.152-.439 1.591 0L21.75 12M4.5 9.75V21a.75.75 0 00.75.75H9.75V16.5a.75.75 0 01.75-.75h3a.75.75 0 01.75.75v5.25h4.5a.75.75 0 00.75-.75V9.75" />
+                    </svg>
+                </div>
+                <div class="ml-4">
+                    <p class="text-slate-500 text-sm">{{ __('messages.rooms') }}</p>
+                    <p id="roomCount" class="text-2xl font-bold text-slate-800">{{ $roomCount }}</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Floors (each expands to its rooms) -->
     <div class="space-y-5">
         @forelse($floors as $floor)

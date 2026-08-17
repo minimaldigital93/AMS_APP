@@ -45,6 +45,33 @@
     $histMeterRows = $histUtilities->whereIn('utility_type', $meteredTypes)->values();
     $histOtherRows = $histUtilities->whereNotIn('utility_type', $meteredTypes)->values();
     $histRentPaidTotal = (float) $histRentRows->where('paid', true)->sum(fn ($r) => $r['amount_paid'] ?? $r['rent_amount']);
+
+    // Reversing a payment recorded by mistake. Rent rows carry their payment id
+    // directly; a charge row is settled in a batch, so it resolves to the
+    // utilities payment stamped with the same paid_at (the join
+    // PaymentReversalService and printReceipt() both use) — undoing it puts
+    // every charge in that batch back to unpaid.
+    $reversalService = app(\App\Services\RevenueExpense\PaymentReversalService::class);
+    $canReversePayments = in_array($role, ['admin', 'supervisor'], true);
+    $histPayments = $canReversePayments && $contractRental
+        ? $contractRental->payments()->where('payment_status', 'paid')->get()
+        : collect();
+    $reversible = [];
+    foreach ($histPayments as $p) {
+        $reversible[$p->id] = $reversalService->canReverse($p);
+    }
+    // The utilities payment that settled a given charge row, when it can be
+    // reversed on its own.
+    $chargePayment = function ($utility) use ($histPayments, $reversible) {
+        if (! $utility->paid_status || ! $utility->paid_at) {
+            return null;
+        }
+        $payment = $histPayments->first(fn ($p) => $p->payment_type === 'utilities'
+            && $p->paid_at
+            && $p->paid_at->eq($utility->paid_at));
+
+        return $payment && ($reversible[$payment->id] ?? false) ? $payment : null;
+    };
     $histChargesPaidTotal = (float) $histUtilities->where('paid_status', true)->sum('charge_amount');
     $histChargesUnpaidTotal = (float) $histUtilities->where('paid_status', false)->sum('charge_amount');
 
@@ -699,6 +726,12 @@
                                         <span class="text-sm font-medium text-slate-700 w-20 shrink-0">{{ $row['label'] }}</span>
                                         <span class="text-sm font-semibold {{ $row['paid'] ? 'text-emerald-700' : 'text-slate-400' }} flex-1 text-right">{{ money($row['amount_paid'] ?? $row['rent_amount']) }}</span>
                                         <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium w-16 justify-center shrink-0 {{ $row['paid'] ? 'bg-emerald-50 text-emerald-600' : 'bg-red-50 text-red-600' }}">{{ $row['paid'] ? __('messages.paid') : __('messages.unpaid') }}</span>
+                                        @if($row['payment_id'] && ($reversible[$row['payment_id']] ?? false))
+                                            <x-reverse-payment :payment-id="$row['payment_id']" :role="$role"
+                                                :confirm="__('messages.reverse_rent_confirm', ['month' => $row['label'], 'amount' => money($row['rent_amount'])])" />
+                                        @else
+                                            <span class="w-7 shrink-0"></span>
+                                        @endif
                                     </div>
                                 @endforeach
                             </div>
@@ -723,6 +756,7 @@
                                             <th class="text-right font-medium px-3 py-2">{{ __('messages.usage') }}</th>
                                             <th class="text-right font-medium px-3 py-2">{{ __('messages.amount') }}</th>
                                             <th class="text-right font-medium px-3 py-2">{{ __('messages.status') }}</th>
+                                            <th class="w-8 px-1 py-2"><span class="sr-only">{{ __('messages.reverse_payment') }}</span></th>
                                         </tr>
                                     </thead>
                                     <tbody class="divide-y divide-slate-100">
@@ -738,6 +772,13 @@
                                                 <td class="px-3 py-2 text-right font-semibold text-slate-800 tabular-nums">{{ money($row->charge_amount) }}</td>
                                                 <td class="px-3 py-2 text-right">
                                                     <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium {{ $row->paid_status ? 'bg-emerald-50 text-emerald-600' : 'bg-red-50 text-red-600' }}">{{ $row->paid_status ? __('messages.paid') : __('messages.unpaid') }}</span>
+                                                </td>
+                                                <td class="px-1 py-2">
+                                                    @php($chargePmt = $chargePayment($row))
+                                                    @if($chargePmt)
+                                                        <x-reverse-payment :payment-id="$chargePmt->id" :role="$role"
+                                                            :confirm="__('messages.reverse_charges_confirm', ['amount' => money($chargePmt->amount), 'date' => $chargePmt->paid_at?->format('M d, Y')])" />
+                                                    @endif
                                                 </td>
                                             </tr>
                                         @endforeach
@@ -763,6 +804,13 @@
                                         <span class="text-xs text-slate-400 flex-1">{{ \Carbon\Carbon::create($row->billing_year, $row->billing_month)->format('M Y') }}</span>
                                         <span class="text-sm font-semibold text-slate-800 tabular-nums">{{ money($row->charge_amount) }}</span>
                                         <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium w-16 justify-center shrink-0 {{ $row->paid_status ? 'bg-emerald-50 text-emerald-600' : 'bg-red-50 text-red-600' }}">{{ $row->paid_status ? __('messages.paid') : __('messages.unpaid') }}</span>
+                                        @php($chargePmt = $chargePayment($row))
+                                        @if($chargePmt)
+                                            <x-reverse-payment :payment-id="$chargePmt->id" :role="$role"
+                                                :confirm="__('messages.reverse_charges_confirm', ['amount' => money($chargePmt->amount), 'date' => $chargePmt->paid_at?->format('M d, Y')])" />
+                                        @else
+                                            <span class="w-7 shrink-0"></span>
+                                        @endif
                                     </div>
                                 @endforeach
                             </div>
