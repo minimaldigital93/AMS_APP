@@ -190,24 +190,6 @@
                                             $monthTextColor = 'text-sky-500';
                                         }
 
-                                        $rental = $apartment->rentals()->where('tenant_id', $tenant->id)->latest()->first();
-                                        $expectedAmount = $rental->rent_amount ?? $apartment->monthly_rent ?? 0;
-                                        $paidAmount = 0.0;
-                                        $paymentPercent = 0;
-
-                                        if ($expectedAmount > 0 && $rental) {
-                                            try {
-                                                $paidAmount = (float) $rental->payments()
-                                                    ->whereNotNull('paid_at')
-                                                    ->whereBetween('due_date', [$periodStart->toDateString(), $periodEnd->toDateString()])
-                                                    ->sum('amount');
-                                                $paymentPercent = min(100, max(0, round(($paidAmount / $expectedAmount) * 100, 1)));
-                                            } catch (\Exception $e) {
-                                                $paidAmount = 0.0;
-                                                $paymentPercent = 0;
-                                            }
-                                        }
-
                                         $hasMonthlyPeriod = true;
                                     }
                                 @endphp
@@ -217,16 +199,7 @@
                                     <div class="w-32" title="{{ $periodStart->format('M d') }}–{{ $periodEnd->format('M d') }} ({{ $periodPercent }}%, {{ $periodDaysLeft }}d left)">
                                         <div class="flex items-center justify-between mb-1">
                                             <span class="text-[11px] font-medium {{ $monthTextColor }}">
-                                                @if($paymentPercent >= 100)
-                                                    <span class="inline-flex items-center gap-1 text-emerald-500">
-                                                        <svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="3" viewBox="0 0 24 24">
-                                                            <path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5" />
-                                                        </svg>
-                                                        {{ __('messages.paid') }}
-                                                    </span>
-                                                @else
-                                                    {{ $periodDaysLeft }}d left
-                                                @endif
+                                                {{ $periodDaysLeft }}d left
                                             </span>
                                             <span class="text-[11px] font-medium {{ $monthTextColor }}">{{ $periodPercent }}%</span>
                                         </div>
