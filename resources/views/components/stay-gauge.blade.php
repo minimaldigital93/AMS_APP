@@ -1,6 +1,6 @@
 @props([
     'percent' => null,   // int|float|null — arc fill 0–100 (current monthly-cycle progress); null = no fixed cycle
-    'label' => null,     // center text, e.g. "8 mo", "1 yr 2 mo" (total stay duration)
+    'label' => null,     // center text — the day within the current rental month, e.g. "24/31". NOT total tenure.
     'size' => 64,        // px width of the half-donut (height follows the 100×56 viewBox)
     'tip' => null,       // tooltip text; falls back to the centre label
 ])
@@ -39,7 +39,7 @@
                   stroke-linecap="round" stroke-dasharray="3 7" opacity="0.75"/>
         @endif
 
-        {{-- Center tenure label --}}
+        {{-- Centre: day of the current rental month --}}
         <text x="50" y="47" text-anchor="middle" class="fill-slate-700 font-bold" style="font-size:17px">{{ $label }}</text>
     </svg>
 </div>

@@ -397,6 +397,8 @@ return [
     'vehicles_parking' => 'Vehicles & Parking',
     'add_vehicle' => 'Add vehicle',
     'no_vehicles' => 'No vehicle registered.',
+    'manage_vehicles' => 'Manage vehicles',
+    'add_vehicle_on_management_page' => 'Register one on Property Management → Vehicles.',
     'vehicle_type_car' => 'Car',
     'vehicle_type_tuktuk' => 'Tuk-tuk',
     'vehicle_type_motorbike' => 'Motorbike',
@@ -415,11 +417,38 @@ return [
     'parking_supersedes_fixed' => 'The room’s fixed cost “:name” (:amount) is not billed while these vehicles carry a fee.',
     'remove_vehicle_confirm' => 'Remove vehicle :plate? Charges already billed stay on the tenant’s account.',
     'flash_vehicle_added' => 'Vehicle :plate has been added.',
+    'flash_vehicle_updated' => 'Vehicle :plate has been updated.',
     'flash_vehicle_removed' => 'Vehicle :plate has been removed.',
     'validation_plate_taken' => 'This plate number is already registered.',
+    'validation_vehicle_room_changed' => ':name is no longer in that room. Reload the page and try again.',
     // Add-Charge modal: parking is quoted off the tenant's registered vehicles.
     'parking_needs_vehicle' => 'No vehicle with a parking fee — add one on the tenant page first.',
     'parking_from_vehicles' => 'From :count registered vehicle(s)',
+
+    // Vehicle management page (Property Management → Vehicles). Vehicles are
+    // registered against a tenant; the room is derived through them, which is
+    // what "unverified" below flags when it comes back empty.
+    'vehicles' => 'Vehicles',
+    'vehicle_management' => 'Vehicle Management',
+    'search_vehicles' => 'Search plate, model, tenant or room',
+    'plate_no' => 'Plate no.',
+    'vehicle_info' => 'Vehicle information',
+    'fee_per_month' => 'Monthly fee',
+    'total_vehicles' => 'Registered vehicles',
+    'parking_billed_monthly' => 'Parking billed monthly',
+    'vehicles_paying_free' => ':paying paying · :free no charge',
+    'vehicles_by_type' => 'By type',
+    'parking_revenue_this_month' => 'Parking revenue this month',
+    'amount_outstanding' => ':amount outstanding',
+    'vehicles_need_attention' => ':count need attention',
+    'vehicle_count' => '{0} No vehicle|{1} :count vehicle|[2,*] :count vehicles',
+    'clear_filters' => 'Clear filters',
+    'no_vehicles_match' => 'No vehicle matches these filters.',
+    'no_vehicles_yet' => 'No vehicle has been registered yet.',
+    'vehicles_unverified' => 'Needs attention',
+    'vehicles_unverified_hint' => 'These vehicles no longer belong to a tenant in a room. Charges already billed for them stay on the tenant’s account.',
+    'vehicle_tenant_departed' => 'Tenant has moved out',
+    'vehicle_no_room' => ':name has no room assigned',
 
     'method' => 'Method',
     'cash' => 'Cash',
@@ -865,6 +894,10 @@ return [
     'select_tenant' => 'Select Tenant',
     'select_a_floor' => 'Select a floor',
     'stay_duration' => 'Stay Duration',
+    // The rental-month gauge describes the CURRENT month only — the day within
+    // it, never the tenancy's total length. See Rentals::stayProgress().
+    'rental_month' => 'Rental Month',
+    'rental_day_of' => 'Day :day of :days',
     'renews_on' => 'Renews :date',
     'cannot_be_undone' => 'This action cannot be undone',
     'delete_apt_confirm' => 'Are you absolutely sure you want to delete this room?',

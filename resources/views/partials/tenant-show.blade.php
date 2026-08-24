@@ -262,62 +262,35 @@
     </div>
 
     {{-- 3b. Vehicles & Parking — a priced vehicle becomes the tenant's monthly
-         parking charge on the next bill run. --}}
-    <div class="bg-white rounded-xl border border-slate-100 p-6"
-         x-data="{ addVehicle: {{ $errors->hasAny(['vehicle_type', 'vehicle_model', 'plate_number', 'monthly_fee']) ? 'true' : 'false' }} }">
+         parking charge on the next bill run.
+
+         This card **reads**. Registering and repricing a vehicle happens on
+         Property Management → Vehicles, which owns the whole add/edit workflow;
+         duplicating its form here meant two copies of the same markup and only
+         one of them could edit. What is left is what only this page can say:
+         what this tenant keeps, and whether the parking it implies has actually
+         been billed. Removing a wrongly-registered vehicle stays here because
+         it is a fact about this tenant, not about the building. --}}
+    <div class="bg-white rounded-xl border border-slate-100 p-6">
         <div class="flex items-center justify-between gap-3 mb-4">
             <h3 class="text-sm font-medium text-slate-500 uppercase tracking-wide">{{ __('messages.vehicles_parking') }}</h3>
             @if($canEditVehicles)
-            <button type="button" x-on:click="addVehicle = ! addVehicle"
-                    class="inline-flex items-center gap-1.5 text-sm font-medium px-3 py-1.5 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 transition">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" x-bind:d="addVehicle ? 'M6 18L18 6M6 6l12 12' : 'M12 4v16m8-8H4'"/></svg>
-                <span x-text="addVehicle ? @js(__('messages.cancel')) : @js(__('messages.add_vehicle'))"></span>
-            </button>
+            {{-- Deep-linked to this tenant's room, so the page opens on the row
+                 the button was pressed from (its search reaches room + tenant). --}}
+            <a href="{{ route($role.'.vehicles.index', array_filter(['search' => $tenant->apartment?->apartment_number ?: $tenant->name])) }}"
+               class="inline-flex items-center gap-1.5 text-sm font-medium px-3 py-1.5 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 transition">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 17a2 2 0 11-4 0 2 2 0 014 0zm10 0a2 2 0 11-4 0 2 2 0 014 0zM3 13h18l-1.5-5.5A2 2 0 0017.6 6H6.4a2 2 0 00-1.9 1.5L3 13z"/></svg>
+                {{ __('messages.manage_vehicles') }}
+            </a>
             @endif
         </div>
-
-        {{-- Add form --}}
-        @if($canEditVehicles)
-        <form x-cloak x-show="addVehicle" method="POST" action="{{ route($role.'.tenants.vehicles.store', $tenant) }}"
-              class="mb-4 grid grid-cols-1 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_auto] gap-2 items-start bg-slate-50 rounded-lg p-3">
-            @csrf
-            <div>
-                <select name="vehicle_type" required
-                        class="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg bg-white {{ $errors->has('vehicle_type') ? 'border-red-400' : '' }} {{ $ringCls }}">
-                    @foreach(\App\Models\TenantVehicle::TYPES as $vt)
-                        <option value="{{ $vt }}" @selected(old('vehicle_type') === $vt)>{{ __('messages.vehicle_type_'.$vt) }}</option>
-                    @endforeach
-                </select>
-                @error('vehicle_type')<p class="text-xs text-red-500 mt-1">{{ $message }}</p>@enderror
-            </div>
-            <div>
-                {{-- Description only — the plate is the identity, the model is
-                     what the guard on the gate recognises. --}}
-                <input type="text" name="vehicle_model" maxlength="50" value="{{ old('vehicle_model') }}"
-                       placeholder="{{ __('messages.vehicle_model_placeholder') }}"
-                       class="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg {{ $errors->has('vehicle_model') ? 'border-red-400' : '' }} {{ $ringCls }}">
-                @error('vehicle_model')<p class="text-xs text-red-500 mt-1">{{ $message }}</p>@enderror
-            </div>
-            <div>
-                <input type="text" name="plate_number" required maxlength="30" value="{{ old('plate_number') }}"
-                       placeholder="{{ __('messages.plate_number_placeholder') }}"
-                       class="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg uppercase {{ $errors->has('plate_number') ? 'border-red-400' : '' }} {{ $ringCls }}">
-                @error('plate_number')<p class="text-xs text-red-500 mt-1">{{ $message }}</p>@enderror
-            </div>
-            <div>
-                <input type="number" name="monthly_fee" step="0.01" min="0" value="{{ old('monthly_fee') }}"
-                       placeholder="{{ __('messages.monthly_parking_fee') }} ({{ currency_symbol() }})"
-                       class="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg text-right {{ $errors->has('monthly_fee') ? 'border-red-400' : '' }} {{ $ringCls }}">
-                @error('monthly_fee')<p class="text-xs text-red-500 mt-1">{{ $message }}</p>@enderror
-            </div>
-            <button type="submit" class="px-4 py-2 rounded-lg text-white text-sm font-medium {{ $btnCls }} transition">{{ __('messages.save') }}</button>
-            <p class="sm:col-span-5 text-xs text-slate-400">{{ __('messages.vehicle_fee_hint') }}</p>
-        </form>
-        @endif
 
         {{-- Assigned vehicles --}}
         @if($vehicles->isEmpty())
             <p class="text-sm text-slate-400">{{ __('messages.no_vehicles') }}</p>
+            @if($canEditVehicles)
+            <p class="mt-1 text-xs text-slate-400">{{ __('messages.add_vehicle_on_management_page') }}</p>
+            @endif
         @else
             <ul class="divide-y divide-slate-100 border border-slate-100 rounded-lg">
                 @foreach($vehicles as $vehicle)

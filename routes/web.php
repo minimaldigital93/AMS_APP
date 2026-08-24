@@ -194,6 +194,11 @@ Route::middleware(['auth', 'role:admin|superadmin', 'subscription.active'])->gro
     Route::post('/admin/apartments/{apartment}/assign-tenant', [ApartmentController::class, 'assignTenant'])->name('admin.apartments.assignTenant');
     Route::delete('/admin/apartments/{apartment}', [ApartmentController::class, 'destroy'])->name('admin.apartments.destroy');
 
+    // Vehicle Management — every registered vehicle by floor and room. Read
+    // only; its forms post to the tenant vehicle routes below, which are the
+    // one write path (shared with the tenant detail card).
+    Route::get('/admin/vehicles', [\App\Http\Controllers\Admin\VehicleController::class, 'index'])->name('admin.vehicles.index');
+
     // User Management Routes
     Route::get('/admin/users', [UserController::class, 'index'])->name('admin.users.index');
     Route::get('/admin/users/create', [UserController::class, 'create'])->name('admin.users.create');
@@ -216,7 +221,11 @@ Route::middleware(['auth', 'role:admin|superadmin', 'subscription.active'])->gro
     Route::put('/admin/tenants/{tenant}', [TenantController::class, 'update'])->name('admin.tenants.update');
     Route::delete('/admin/tenants/{tenant}/documents/{attachment}', [TenantController::class, 'destroyDocument'])->name('admin.tenants.destroy_document');
     Route::post('/admin/tenants/{tenant}/vehicles', [TenantVehicleController::class, 'store'])->name('admin.tenants.vehicles.store');
-    Route::delete('/admin/tenants/{tenant}/vehicles/{vehicle}', [TenantVehicleController::class, 'destroy'])->name('admin.tenants.vehicles.destroy');
+    Route::put('/admin/tenants/{tenant}/vehicles/{vehicle}', [TenantVehicleController::class, 'update'])->name('admin.tenants.vehicles.update');
+    // withTrashed: a tenant who moves out is soft-deleted, which leaves their
+    // vehicles behind with no room. The vehicle management page lists those as
+    // unverified, and this is the route that clears them.
+    Route::delete('/admin/tenants/{tenant}/vehicles/{vehicle}', [TenantVehicleController::class, 'destroy'])->withTrashed()->name('admin.tenants.vehicles.destroy');
     Route::get('/admin/tenants/{tenant}', [TenantController::class, 'show'])->name('admin.tenants.show');
 
     // Rental Contract Routes — PDF preview / download / print / regenerate for a
@@ -353,7 +362,8 @@ Route::middleware(['auth', 'role:supervisor|admin|superadmin', 'subscription.act
     Route::get('/tenants/{tenant}/leave', [SupervisorTenantController::class, 'leave'])->name('supervisor.tenants.leave');
     Route::post('/tenants/{tenant}/process-leave', [SupervisorTenantController::class, 'processLeave'])->name('supervisor.tenants.processLeave');
     Route::post('/tenants/{tenant}/vehicles', [SupervisorTenantVehicleController::class, 'store'])->name('supervisor.tenants.vehicles.store');
-    Route::delete('/tenants/{tenant}/vehicles/{vehicle}', [SupervisorTenantVehicleController::class, 'destroy'])->name('supervisor.tenants.vehicles.destroy');
+    Route::put('/tenants/{tenant}/vehicles/{vehicle}', [SupervisorTenantVehicleController::class, 'update'])->name('supervisor.tenants.vehicles.update');
+    Route::delete('/tenants/{tenant}/vehicles/{vehicle}', [SupervisorTenantVehicleController::class, 'destroy'])->withTrashed()->name('supervisor.tenants.vehicles.destroy');
     Route::get('/tenants/{tenant}', [SupervisorTenantController::class, 'show'])->name('supervisor.tenants.show');
 
     // Apartment Management
@@ -361,6 +371,10 @@ Route::middleware(['auth', 'role:supervisor|admin|superadmin', 'subscription.act
     Route::get('/apartments', [SupervisorApartmentController::class, 'index'])->name('supervisor.apartments.index');
     Route::get('/apartments/{apartment}', [SupervisorApartmentController::class, 'show'])->name('supervisor.apartments.show');
     Route::post('/apartments/{apartment}/assign-tenant', [SupervisorApartmentController::class, 'assignTenant'])->name('supervisor.apartments.assignTenant');
+
+    // Vehicle Management — same shared page as the admin panel, scoped to the
+    // supervisor's assigned properties.
+    Route::get('/vehicles', [\App\Http\Controllers\Supervisor\VehicleController::class, 'index'])->name('supervisor.vehicles.index');
 
     // Revenue & Expense (requires an admin to have an open fiscal period)
     Route::middleware(['fiscal.period'])->group(function () {

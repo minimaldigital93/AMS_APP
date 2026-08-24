@@ -30,7 +30,12 @@ class StoreTenantVehicleRequest extends FormRequest
             // actually catches a re-registration of the same vehicle.
             'plate_number' => [
                 'required', 'string', 'max:30',
-                Rule::unique('tenant_vehicles', 'plate_number')->where('account_id', current_account_id()),
+                // On an edit the row being corrected is itself the match, so it
+                // is ignored — a resubmit that leaves the plate alone must not
+                // collide with itself.
+                Rule::unique('tenant_vehicles', 'plate_number')
+                    ->where('account_id', current_account_id())
+                    ->ignore($this->route('vehicle')),
             ],
             // Blank price = a vehicle that is recorded but not billed (parking
             // included in the rent). Only a fee above zero becomes a charge.

@@ -378,6 +378,16 @@
                 </span>
                 <span class="nav-text truncate sidebar-label">{{ __('messages.apartments') }}</span>
             </a>
+
+            {{-- Vehicles (registered per tenant, listed by floor and room) --}}
+            <a href="{{ route('supervisor.vehicles.index') }}" class="submenu-item nav-link flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm {{ request()->routeIs('supervisor.vehicles.*') ? 'text-emerald-700 active' : 'text-gray-700 hover:text-emerald-700' }} transition-all sidebar-transition">
+                <span class="nav-icon sidebar-transition">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 17h8m-9-4h10l-1.2-3.6A2 2 0 0014.9 8H9.1a2 2 0 00-1.9 1.4L6 13zm-1 0h12a1 1 0 011 1v3H5v-3a1 1 0 011-1z" />
+                    </svg>
+                </span>
+                <span class="nav-text truncate sidebar-label">{{ __('messages.vehicles') }}</span>
+            </a>
         </div>
     </div>
 

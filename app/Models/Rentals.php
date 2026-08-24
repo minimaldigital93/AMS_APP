@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Models\Concerns\BelongsToAccount;
 use App\Models\Concerns\FiltersByProperty;
+use App\Services\Billing\BillingCycleService;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -173,25 +174,49 @@ class Rentals extends Model
     // Derived attributes
 
     /**
-     * Stay/tenure figures for the rolling monthly lease. The lease term is one
-     * month from the start day and auto-renews each month while the unit stays
-     * occupied, so rather than a fixed end date we track progress through the
-     * *current* monthly cycle (latest anniversary on/before today → next one).
+     * Stay/tenure figures for the rolling monthly lease. The lease auto-renews
+     * each month while the unit stays occupied, so rather than a fixed end date
+     * we track progress through the *current* rental month.
      *
-     * Single source of truth for stay figures across the app (tenant index,
-     * floor plan, …).
+     * Which month that is belongs to `BillingCycleService`, not to this model:
+     * when the account nominates a rent collection day every tenant's rental
+     * month runs collection day → collection day and they all renew together.
+     * This used to anchor on each tenant's own move-in anniversary, so with a
+     * collection day of the 1st five tenants read five different renewal dates
+     * and an arc that restarted mid-month — a tenant who moved in on the 22nd
+     * showed 6% and "29 days left" on the 24th, while his August rent was in
+     * fact 74% through and due in 8 days, and the gauge's amber/rose "renewal
+     * imminent" colour fired on the wrong date for everyone. The first month is
+     * short (move-in → the following collection day) and reads as such.
      *
-     * @return array{cycle_percent: int|null, days_left: int|null, next_renewal_label: string|null, stay_label: string|null, months_stayed: int}
+     * No collection day set ⇒ `periodFor()` returns null and the original
+     * move-in-anniversary cycle stands — the same backward-compatibility seam
+     * every other billing caller keeps.
+     *
+     * Every figure here describes the CURRENT rental month and nothing else —
+     * `cycle_label` is the day of that month ("24/31"), so it resets with the
+     * arc on every collection day. It is deliberately not the tenancy's total
+     * length: a cumulative "3 mo" in the gauge centre made a monthly gauge read
+     * as a tenure counter, which is a different question (and one nobody
+     * collecting this month's rent is asking). Neither is it time lived — the
+     * cycle is the billing month, so a tenant who moved in mid-cycle is on day
+     * N of the month's days, not day N of their stay.
+     *
+     * Single source of truth for rental-cycle figures across the app (tenant
+     * index, floor plan, floors/apartments lists).
+     *
+     * @return array{cycle_percent: int|null, days_left: int|null, next_renewal_label: string|null, cycle_label: string|null, cycle_day: int, cycle_days: int}
      */
-    public function stayProgress(): array
+    public function stayProgress(?BillingCycleService $cycles = null): array
     {
         if (! $this->start_date) {
             return [
                 'cycle_percent' => null,
                 'days_left' => null,
                 'next_renewal_label' => null,
-                'stay_label' => null,
-                'months_stayed' => 0,
+                'cycle_label' => null,
+                'cycle_day' => 0,
+                'cycle_days' => 0,
             ];
         }
 
@@ -201,17 +226,35 @@ class Rentals extends Model
             $now = $start->copy();
         }
 
-        // Total tenure — the "stay duration" shown in the gauge centre.
-        $monthsStayed = (int) $start->diffInMonths($now);
+        // The rental month the tenant is currently in. Callers that already
+        // hold the service pass it; the rest resolve it here (settings are
+        // memoised per request, so this costs no extra queries).
+        $cycles ??= app(BillingCycleService::class);
+        $period = $cycles->periodFor($this, $now->month, $now->year);
 
-        // Current renewal cycle: start_date + N whole months → +1 month. Use the
-        // no-overflow variants so a start day of e.g. the 31st lands on month-end
-        // rather than spilling into the next month.
-        $cycleStart = $start->copy()->addMonthsNoOverflow($monthsStayed);
-        if ($cycleStart->gt($now)) {
-            $cycleStart->subMonthNoOverflow();
+        // `periodFor()` returns the period that *starts* in the given month —
+        // exactly one does — which on any day before the collection day is
+        // still in the future. Until the 28th of a day-28 account the tenant is
+        // living in last month's period, so step back to it. The move-in month
+        // never needs this: its period starts on the move-in date itself.
+        if ($period && $period->start->copy()->startOfDay()->gt($now)) {
+            $previous = $now->copy()->startOfMonth()->subMonthNoOverflow();
+            $period = $cycles->periodFor($this, $previous->month, $previous->year) ?? $period;
         }
-        $cycleEnd = $cycleStart->copy()->addMonthNoOverflow();
+
+        if ($period) {
+            $cycleStart = $period->start->copy()->startOfDay();
+            $cycleEnd = $period->end->copy()->startOfDay();
+        } else {
+            // Legacy cycle: start_date + N whole months → +1 month. Use the
+            // no-overflow variants so a start day of e.g. the 31st lands on
+            // month-end rather than spilling into the next month.
+            $cycleStart = $start->copy()->addMonthsNoOverflow((int) $start->diffInMonths($now));
+            if ($cycleStart->gt($now)) {
+                $cycleStart->subMonthNoOverflow();
+            }
+            $cycleEnd = $cycleStart->copy()->addMonthNoOverflow();
+        }
 
         // If the tenant is actually leaving (a real end_date falls inside this
         // cycle), the cycle ends there instead of renewing.
@@ -223,41 +266,23 @@ class Rentals extends Model
         }
 
         $cycleDays = max(1, (int) $cycleStart->diffInDays($cycleEnd));
-        $elapsedDays = (int) $cycleStart->diffInDays($now);
+        $elapsedDays = max(0, (int) $cycleStart->diffInDays($now));
         $cyclePercent = (int) min(round(($elapsedDays / $cycleDays) * 100), 100);
         $daysLeft = max(0, (int) $now->copy()->startOfDay()->diffInDays($cycleEnd->copy()->startOfDay()));
+
+        // Where in THIS rental month the tenant is. Counted inclusively — the
+        // collection day itself is day 1, the same way the tenant index counts
+        // `days_stayed` — and capped so a cycle that has run out reads as its
+        // own last day rather than one past it.
+        $cycleDay = min($elapsedDays + 1, $cycleDays);
 
         return [
             'cycle_percent' => $cyclePercent,
             'days_left' => $daysLeft,
             'next_renewal_label' => $cycleEnd->format('M j'),
-            'stay_label' => $this->durationLabel($monthsStayed, $start, $now),
-            'months_stayed' => $monthsStayed,
+            'cycle_label' => $cycleDay.'/'.$cycleDays,
+            'cycle_day' => $cycleDay,
+            'cycle_days' => $cycleDays,
         ];
-    }
-
-    /**
-     * Human-friendly tenure label, e.g. "1 yr 2 mo", "8 mo", "12 days".
-     */
-    private function durationLabel(int $months, Carbon $start, Carbon $end): string
-    {
-        if ($months < 1) {
-            $days = (int) $start->diffInDays($end);
-
-            return $days <= 1 ? '1 day' : "{$days} days";
-        }
-
-        $years = intdiv($months, 12);
-        $rem = $months % 12;
-
-        $parts = [];
-        if ($years > 0) {
-            $parts[] = "{$years} yr";
-        }
-        if ($rem > 0 || $years === 0) {
-            $parts[] = "{$rem} mo";
-        }
-
-        return implode(' ', $parts);
     }
 }

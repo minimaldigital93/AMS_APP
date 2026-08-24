@@ -118,6 +118,23 @@ it('renders the shared apartment pages in both panels', function () {
     $this->get(route('supervisor.apartments.show', $f['room']))->assertOk();
 });
 
+it('renders the shared vehicle management page in both panels', function () {
+    $f = sharedViewsFixture();
+
+    App\Models\TenantVehicle::create([
+        'tenant_id' => $f['tenant']->id,
+        'vehicle_type' => 'motorbike',
+        'plate_number' => 'SV-0001',
+        'monthly_fee' => 10,
+    ]);
+
+    $this->actingAs($f['admin']);
+    $this->get(route('admin.vehicles.index'))->assertOk()->assertSee('SV-0001');
+
+    $this->actingAs($f['sup']);
+    $this->get(route('supervisor.vehicles.index'))->assertOk()->assertSee('SV-0001');
+});
+
 it('still records a tenant gender, email and id card from both panels', function () {
     $f = sharedViewsFixture();
 

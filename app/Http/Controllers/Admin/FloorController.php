@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Floors;
 use App\Models\Property;
 use App\Models\Tenants;
+use App\Services\Billing\BillingCycleService;
 use App\Services\Property\PropertyContext;
 use App\Services\Subscription\SubscriptionService;
 use Illuminate\Http\RedirectResponse;
@@ -304,7 +305,7 @@ class FloorController extends Controller
         return redirect()->route('admin.floors.index')->with('success', __('messages.flash_floor_deleted'));
     }
 
-    public function plan3d(): View
+    public function plan3d(BillingCycleService $cycles): View
     {
         $floors = Floors::forActiveProperty()->with(['apartments' => function ($query) {
             $query->orderBy('apartment_number')
@@ -314,16 +315,16 @@ class FloorController extends Controller
                 ]);
         }])->orderBy('id')->get();
 
-        $floorsData = $floors->map(function ($floor) {
+        $floorsData = $floors->map(function ($floor) use ($cycles) {
             return [
                 'id' => $floor->id,
                 'name' => $floor->floor_name,
-                'apartments' => $floor->apartments->map(function ($apt) {
+                'apartments' => $floor->apartments->map(function ($apt) use ($cycles) {
                     $tenant = $apt->tenants->first();
                     // A moved-out tenant's rental still matches active(), so gate
                     // on tenant + occupied or a freed unit keeps its progress gauge.
                     $stay = ($tenant && $apt->status === 'occupied')
-                        ? ($apt->rentals->first()?->stayProgress() ?? [])
+                        ? ($apt->rentals->first()?->stayProgress($cycles) ?? [])
                         : [];
 
                     return [
@@ -334,8 +335,10 @@ class FloorController extends Controller
                         'rent' => (float) $apt->monthly_rent,
                         'tenant' => $tenant?->name,
                         'tenant_id' => $tenant?->id,
-                        'stay_label' => $stay['stay_label'] ?? null,
+                        'cycle_label' => $stay['cycle_label'] ?? null,
                         'cycle_percent' => $stay['cycle_percent'] ?? null,
+                        'cycle_day' => $stay['cycle_day'] ?? null,
+                        'cycle_days' => $stay['cycle_days'] ?? null,
                         'days_left' => $stay['days_left'] ?? null,
                         'next_renewal_label' => $stay['next_renewal_label'] ?? null,
                     ];

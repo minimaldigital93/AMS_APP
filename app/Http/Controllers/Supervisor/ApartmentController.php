@@ -9,6 +9,7 @@ use App\Models\Apartments;
 use App\Models\FiscalPeriods;
 use App\Models\Rentals;
 use App\Models\Tenants;
+use App\Services\Billing\BillingCycleService;
 use App\Services\Tenants\AssignTenantException;
 use App\Services\Tenants\TenantAssignmentService;
 use Illuminate\Http\Request;
@@ -57,7 +58,7 @@ class ApartmentController extends Controller
      * 3D visualization of all floors and their apartments,
      * highlighting available vs occupied units. Mirrors the admin view.
      */
-    public function plan3d(): View
+    public function plan3d(BillingCycleService $cycles): View
     {
         $floors = $this->supervisorVisibleFloors()->forActiveProperty()->with(['apartments' => function ($query) {
             $query->orderBy('apartment_number')
@@ -67,11 +68,11 @@ class ApartmentController extends Controller
                 ]);
         }])->orderBy('id')->get();
 
-        $floorsData = $floors->map(function ($floor) {
+        $floorsData = $floors->map(function ($floor) use ($cycles) {
             return [
                 'id' => $floor->id,
                 'name' => $floor->floor_name,
-                'apartments' => $floor->apartments->map(function ($apt) {
+                'apartments' => $floor->apartments->map(function ($apt) use ($cycles) {
                     $tenant = $apt->tenants->first();
                     // Only surface stay progress for genuinely occupied units. A
                     // moved-out tenant leaves a rental whose end_date is today/
@@ -79,7 +80,7 @@ class ApartmentController extends Controller
                     // tenant + occupied status, else a freed unit shows both the
                     // assign button and a lingering progress gauge.
                     $stay = ($tenant && $apt->status === 'occupied')
-                        ? ($apt->rentals->first()?->stayProgress() ?? [])
+                        ? ($apt->rentals->first()?->stayProgress($cycles) ?? [])
                         : [];
 
                     return [
@@ -90,8 +91,10 @@ class ApartmentController extends Controller
                         'rent' => (float) $apt->monthly_rent,
                         'tenant' => $tenant?->name,
                         'tenant_id' => $tenant?->id,
-                        'stay_label' => $stay['stay_label'] ?? null,
+                        'cycle_label' => $stay['cycle_label'] ?? null,
                         'cycle_percent' => $stay['cycle_percent'] ?? null,
+                        'cycle_day' => $stay['cycle_day'] ?? null,
+                        'cycle_days' => $stay['cycle_days'] ?? null,
                         'days_left' => $stay['days_left'] ?? null,
                         'next_renewal_label' => $stay['next_renewal_label'] ?? null,
                     ];

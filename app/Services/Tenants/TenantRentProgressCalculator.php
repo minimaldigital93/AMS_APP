@@ -28,8 +28,8 @@ use Carbon\Carbon;
  *   ['rent', 'paid', 'percent', 'status', 'rent_status', 'charges_status',
  *    'charges_settled', 'paid_date', 'days_stayed',
  *    'total_days', 'day_percent', 'due_date',
- *    'cycle_percent', 'days_left', 'next_renewal_label', 'stay_label',
- *    'months_stayed']
+ *    'cycle_percent', 'days_left', 'next_renewal_label', 'cycle_label',
+ *    'cycle_day', 'cycle_days']
  *
  * Status values: 'paid' | 'pending' | 'overdue' | 'upcoming'.
  *
@@ -100,7 +100,7 @@ class TenantRentProgressCalculator
             }
 
             $rentProgressMap[$rental->tenant_id] = $this->progressFor($rental, $currentMonth, $currentYear)
-                + $rental->stayProgress();
+                + $rental->stayProgress($this->cycles);
         }
 
         return $rentProgressMap;

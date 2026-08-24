@@ -141,14 +141,16 @@
                                             </a>
                                         @endif
 
-                                        {{-- Stay duration (half-donut: monthly cycle progress, total stay in centre) --}}
-                                        @if(!$isAvailable && !empty($apt['stay_label']))
+                                        {{-- Rental month (half-donut: progress through the current rental
+                                             month, the day within it in the centre — this month only,
+                                             never the tenancy's total length) --}}
+                                        @if(!$isAvailable && !empty($apt['cycle_label']))
                                             <div class="mt-1 flex flex-col items-center">
                                                 <x-stay-gauge
                                                     :percent="$apt['cycle_percent']"
-                                                    :label="$apt['stay_label']"
+                                                    :label="$apt['cycle_label']"
                                                     :size="64"
-                                                    :tip="__('messages.stay_duration').': '.$apt['stay_label'].' · '.__('messages.renews_on', ['date' => $apt['next_renewal_label']])" />
+                                                    :tip="__('messages.rental_month').': '.__('messages.rental_day_of', ['day' => $apt['cycle_day'], 'days' => $apt['cycle_days']]).' · '.__('messages.renews_on', ['date' => $apt['next_renewal_label']])" />
                                             </div>
                                         @endif
 

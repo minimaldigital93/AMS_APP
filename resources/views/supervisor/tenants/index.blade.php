@@ -120,9 +120,10 @@
                                     @php $rp = $rentProgressMap[$tenant->id] ?? null; @endphp
                                     @if($rp)
                                     @php
-                                        // Progress tracks the tenant's monthly rent cycle from their
-                                        // stay/move-in date (renews on the monthly anniversary), not the
-                                        // calendar month. Source: Rentals::stayProgress().
+                                        // Progress through the tenant's current rental month — the
+                                        // account's rent collection day when one is set (so every
+                                        // tenant renews together), else their move-in anniversary.
+                                        // Source: Rentals::stayProgress().
                                         $dp = $rp['cycle_percent'] ?? 0;
                                         $daysRemaining = $rp['days_left'] ?? 0;
                                     @endphp

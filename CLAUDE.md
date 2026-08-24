@@ -278,8 +278,31 @@ owed stays derived from the calendar, as it always has been here.
   (the tenant-index badge, both panels), `ContractGenerator` (ប្រការ៤ due day,
   ប្រការ៥ grace). The last two read `rentals.rent_amount` raw until 2026-08 and
   reported a phantom shortfall on every fully-paid prorated move-in month.
+- **Which month it is is the same question**, so `Rentals::stayProgress()`
+  derives its cycle from `periodFor()` too. It is the **one** implementation of
+  the rental-month cycle, feeding the floor-plan gauge (`x-stay-gauge`), the
+  "Progress / days left" bar on both tenant index pages, and the rental-month
+  column on the floors list and the supervisor apartments list. Those last two
+  inlined their own copy in Blade off `tenants.move_in_date` until 2026-08 —
+  don't reintroduce one. All of them anchored on each tenant's own move-in
+  anniversary until then: under a collection day of the 1st, five tenants read
+  five different renewal dates and an arc that restarted mid-month, so a tenant
+  who moved in on the 22nd showed 6% and "29 days left" on the 24th while his
+  August rent was 74% through and due in 8 days. Two traps if you touch it:
+  `periodFor()` returns the period that **starts** in the month asked for, so
+  on any day before the collection day you must step back a month or the cycle
+  start is in the future; and **every figure it returns is about the current
+  rental month only** — `cycle_label` is the day within that month ("24/31",
+  collection day = day 1, capped at the cycle's length), so it resets with the
+  arc every cycle. It is deliberately neither time lived (`stay_label` /
+  `months_stayed`, removed 2026-08 — nobody collecting rent has a use for days
+  lived) nor the tenancy's running total (`months_billed`, "3 mo", removed
+  right after: a cumulative count in a monthly gauge reads as a tenure counter,
+  which is a different question from how far through *this* month the tenant
+  is). Keys are `cycle_label`/`cycle_day`/`cycle_days`.
 - `tests/Feature/Billing/RentCollectionDayTest.php` pins both rules *and* the
-  no-collection-day backward-compatibility contract.
+  no-collection-day backward-compatibility contract;
+  `tests/Feature/Billing/StayProgressCycleTest.php` pins the gauge cycle.
 
 ---
 
@@ -544,9 +567,20 @@ Rules behind it:
 
 A tenant's vehicles live in `tenant_vehicles` (`App\Models\TenantVehicle`,
 `BelongsToAccount`): type (car/tuktuk/motorbike), plate, monthly fee. They are
-added and removed on the **tenant detail page** — the "Vehicles & Parking" card
-in `partials/tenant-show.blade.php`, written by `Shared\TenantVehicleController`
-with the usual thin Admin/Supervisor subclasses.
+registered, repriced and removed on **Property Management → Vehicles**
+(`Shared\VehicleController`), written by `Shared\TenantVehicleController` with
+the usual thin Admin/Supervisor subclasses.
+
+The "Vehicles & Parking" card on the tenant detail page
+(`partials/tenant-show.blade.php`) is **read-only plus a "Manage vehicles" link**
+deep-linked to that tenant's room. It carried a second copy of the add form
+until 2026-08 — same controller, duplicated markup, and only the management
+page could *edit*, so a typo'd plate had to be deleted and re-created. What is
+left on the card is what only it can say: this tenant's vehicles and whether the
+parking they imply was actually billed (`parkingState`). Delete stays there —
+that is a fact about the tenant, not the building — which is why the write
+routes still default to redirecting back to the tenant page when
+`redirect_to` is absent. Don't reintroduce a form here.
 
 A vehicle with a fee above zero **is** the tenant's parking charge. It does not
 get a billing path of its own: `MonthlyBillingService` sums the tenant's priced
@@ -608,6 +642,59 @@ Rules the design turns on:
 - New account-owned table ⇒ it is deleted in `AccountPurgeService`.
 
 `tests/Feature/Tenants/TenantVehicleTest.php` pins all of it.
+
+### The vehicle management page reads; the tenant card's controller writes
+
+**Property Management → Vehicles** (`Shared\VehicleController`,
+`views/shared/vehicles/index.blade.php`, `{panel}.vehicles.index`) lays every
+registered vehicle out by floor → room → tenant, with search, a type chip and
+per-room add/edit/delete. The floors are collapsible cards, which is the floor
+filter — a select beside them was a second way to say the same thing, and a
+"with vehicles only" chip hid exactly the rooms where the next vehicle gets
+added; both were dropped in 2026-08 along with the `floor`/`only` query params.
+It owns the add/edit workflow but is
+not a second implementation: its controller only reads, and each of its forms
+posts to the **tenant** vehicle routes — `Shared\TenantVehicleController`, the
+one write path, which the tenant-detail card still uses for delete — carrying
+`redirect_to=vehicles` so the flash lands back on the page that submitted.
+Don't grow a write path here.
+
+- **A vehicle belongs to a tenant; the room is derived through them**
+  (`TenantVehicle::room()` → `tenant.apartment`). There is deliberately no
+  `apartment_id` column: a tenant who changes room takes their vehicles with
+  them, so a stored room would be a copy that goes stale — the same reason rent
+  is derived rather than invoiced. `FiltersByProperty` on the model follows the
+  same path (`tenant.apartment.floor`).
+- **That derivation is the verification.** Each form posts the room it was
+  *drawn under*; `verifyRoom()` refuses the write when the tenant is no longer
+  in it (stale tab after a room move). Vehicles whose derivation comes back
+  empty are collected into the page's amber **"Needs attention"** block rather
+  than hidden — a departed tenant is soft-deleted, so the FK cascade never
+  fires and their vehicles would otherwise be invisible everywhere. The two
+  destroy routes are bound `->withTrashed()` precisely so those can be cleared.
+  Supervisors don't get that block: a room-less vehicle has no property to match
+  against their assignments.
+- Deleting a vehicle still leaves billed charges alone, and an **edit only
+  restates what the next bill run will charge** — a parking charge already
+  raised keeps its figure and the tenant card flags the difference
+  (`parkingState` 'mismatch'). Closed money is not restated from here either.
+- The plate-uniqueness rule `->ignore($this->route('vehicle'))` so a resubmit
+  that leaves the plate alone doesn't collide with itself.
+- **The four summary tiles answer two different questions.** Registered, the
+  monthly parking fees and the type breakdown come off the *vehicle* rows —
+  what the next bill run will charge; **Parking revenue this month** comes off
+  the `parking` `Utilities` rows — money actually collected (keyed on `paid_at`,
+  the same definition the income statement's parking line uses), with this
+  month's unpaid parking as its outstanding sub-line. Don't merge them: a free
+  vehicle is registered and bills nothing, and a billed charge outlives the
+  vehicle that raised it. All of them describe the property, never the filtered
+  view. The type tile is an **inline SVG donut** built in the Blade `@php` block
+  (`$donutColors`, arcs as `stroke-dasharray` on one `r=30` ring, total in the
+  centre) — three fixed slices don't justify pulling Chart.js onto the page, and
+  an inline ring prints with the rest of the card.
+
+`tests/Feature/Tenants/VehicleManagementTest.php` pins the page, both write
+verbs and the verification; `SharedPanelViewsTest` renders it as both roles.
 
 ---
 

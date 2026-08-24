@@ -135,7 +135,7 @@
                             <th class="px-4 py-3 text-left text-[11px] font-medium text-slate-400 uppercase tracking-wider">{{ __('messages.tenant') }}</th>
                             <th class="px-4 py-3 text-left text-[11px] font-medium text-slate-400 uppercase tracking-wider">{{ __('messages.monthly_rent') }}</th>
                             <th class="px-4 py-3 text-left text-[11px] font-medium text-slate-400 uppercase tracking-wider">{{ __('messages.status') }}</th>
-                            <th class="px-4 py-3 text-left text-[11px] font-medium text-slate-400 uppercase tracking-wider">{{ __('messages.stay_duration') }}</th>
+                            <th class="px-4 py-3 text-left text-[11px] font-medium text-slate-400 uppercase tracking-wider">{{ __('messages.rental_month') }}</th>
                             <th class="px-4 py-3 text-left text-[11px] font-medium text-slate-400 uppercase tracking-wider">{{ __('messages.supervisor') }}</th>
                             <th class="px-4 py-3 text-right text-[11px] font-medium text-slate-400 uppercase tracking-wider">{{ __('messages.actions') }}</th>
                         </tr>
@@ -206,53 +206,33 @@
                             </td>
                             <td class="px-4 py-3">
                                 @php
-                                    $hasMonthlyPeriod = false;
+                                    // Progress through the current rental month. This used to derive
+                                    // its own cycle from the tenant's move-in day, which ignored the
+                                    // account's rent collection day and disagreed with the floor plan
+                                    // and the tenant list for the same room. Rentals::stayProgress()
+                                    // is the one implementation — see it for the rules.
+                                    $stayRental = $tenant ? $apartment->rentals->where('tenant_id', $tenant->id)->sortByDesc('id')->first() : null;
+                                    $stay = $stayRental?->stayProgress();
+                                    $periodPercent = $stay['cycle_percent'] ?? null;
+                                    $periodDaysLeft = $stay['days_left'] ?? 0;
 
-                                    if($tenant && $tenant->move_in_date) {
-                                        $moveInDate = \Carbon\Carbon::parse($tenant->move_in_date);
-                                        $today = now();
-
-                                        if ($tenant->move_out_date) {
-                                            $moveOutDate = \Carbon\Carbon::parse($tenant->move_out_date);
-                                        }
-
-                                        $billingDay = $moveInDate->day;
-                                        if ($today->day >= $billingDay) {
-                                            $periodStart = $today->copy()->day($billingDay)->startOfDay();
-                                        } else {
-                                            $prevMonth = $today->copy()->subMonth();
-                                            $periodStart = $prevMonth->day(min($billingDay, $prevMonth->daysInMonth))->startOfDay();
-                                        }
-                                        $periodEnd = $periodStart->copy()->addMonth()->subDay()->endOfDay();
-                                        if ($periodStart->lt($moveInDate)) $periodStart = $moveInDate->copy();
-                                        if ($tenant->move_out_date && $periodEnd->gt($moveOutDate)) $periodEnd = $moveOutDate->copy()->endOfDay();
-
-                                        $periodTotalDays = max(1, $periodStart->diffInDays($periodEnd));
-                                        $periodDaysPassed = max(0, min($periodTotalDays, $periodStart->diffInDays($today)));
-                                        $periodPercent = min(100, max(0, round(($periodDaysPassed / $periodTotalDays) * 100, 1)));
-                                        $periodDaysLeft = max(0, (int)$today->diffInDays($periodEnd, false));
-
-                                        if ($periodPercent >= 80) {
-                                            $monthBarColor = 'bg-red-400';
-                                            $monthTextColor = 'text-red-500';
-                                        } elseif ($periodPercent >= 50) {
-                                            $monthBarColor = 'bg-amber-400';
-                                            $monthTextColor = 'text-amber-500';
-                                        } else {
-                                            $monthBarColor = 'bg-sky-400';
-                                            $monthTextColor = 'text-sky-500';
-                                        }
-
-                                        $hasMonthlyPeriod = true;
-                                    }
+                                    $monthBarColor = match(true) {
+                                        $periodPercent >= 80 => 'bg-red-400',
+                                        $periodPercent >= 50 => 'bg-amber-400',
+                                        default => 'bg-sky-400',
+                                    };
+                                    $monthTextColor = match(true) {
+                                        $periodPercent >= 80 => 'text-red-500',
+                                        $periodPercent >= 50 => 'text-amber-500',
+                                        default => 'text-sky-500',
+                                    };
                                 @endphp
 
-                                @if($tenant && $tenant->move_in_date)
-                                    @if($hasMonthlyPeriod)
-                                    <div class="w-32" title="{{ $periodStart->format('M d') }}–{{ $periodEnd->format('M d') }} ({{ $periodPercent }}%, {{ $periodDaysLeft }}d left)">
+                                @if($periodPercent !== null)
+                                    <div class="w-32" title="{{ __('messages.rental_month') }}: {{ __('messages.rental_day_of', ['day' => $stay['cycle_day'], 'days' => $stay['cycle_days']]) }} · {{ __('messages.renews_on', ['date' => $stay['next_renewal_label']]) }}">
                                         <div class="flex items-center justify-between mb-1">
                                             <span class="text-[11px] font-medium {{ $monthTextColor }}">
-                                                {{ $periodDaysLeft }}d left
+                                                {{ __('messages.days_left', ['days' => $periodDaysLeft]) }}
                                             </span>
                                             <span class="text-[11px] font-medium {{ $monthTextColor }}">{{ $periodPercent }}%</span>
                                         </div>
@@ -260,7 +240,6 @@
                                             <div class="h-full rounded-full {{ $monthBarColor }}" style="width: {{ $periodPercent }}%"></div>
                                         </div>
                                     </div>
-                                    @endif
                                 @else
                                     <span class="text-slate-300 text-xs">—</span>
                                 @endif
