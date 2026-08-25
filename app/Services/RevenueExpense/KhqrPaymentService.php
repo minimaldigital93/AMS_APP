@@ -7,6 +7,7 @@ use App\Models\FiscalPeriods;
 use App\Models\KhqrPayment;
 use App\Models\MerchantPaymentSetting;
 use App\Models\MonthlyPeriod;
+use App\Models\Plan;
 use App\Models\Rentals;
 use App\Models\Subscription;
 use App\Models\User;
@@ -104,8 +105,18 @@ class KhqrPaymentService
      * Create a pending KhqrPayment for a plan SUBSCRIPTION (signup or renewal)
      * + mint the QR with the PLATFORM credentials (Flow A — money goes to the
      * super admin).
+     *
+     * $plan/$cycle are what the customer is BUYING. They are carried on the
+     * payment rather than written to the subscription up front, because an
+     * upgrade must not take effect until the money lands: the plan's caps are
+     * read straight off subscriptions.plan_id (SubscriptionService::usage()),
+     * so a customer who picked a bigger plan and abandoned checkout would
+     * otherwise hold the bigger caps for free until their current term ran out.
+     * finalizeSubscription() is the one place that applies them. Omit both to
+     * re-mint for whatever the subscription already says (the signup path,
+     * where the row is still `pending` and grants nothing either way).
      */
-    public function createSubscriptionQr(Subscription $subscription, float $amount): KhqrPayment
+    public function createSubscriptionQr(Subscription $subscription, float $amount, ?Plan $plan = null, ?string $cycle = null): KhqrPayment
     {
         // Fallback guard: with no platform KHQRPay credentials configured (the
         // cleared / unconfigured state), don't call the gateway with empty creds
@@ -142,7 +153,12 @@ class KhqrPaymentService
             'status' => 'pending',
             'settlement_target' => 'platform',
             'channel' => 'api',
-            'checkout_payload' => ['type' => 'subscription', 'subscription_id' => $subscription->id],
+            'checkout_payload' => [
+                'type' => 'subscription',
+                'subscription_id' => $subscription->id,
+                'plan_id' => $plan?->id ?? $subscription->plan_id,
+                'billing_cycle' => $cycle ?? $subscription->billing_cycle,
+            ],
             'expires_at' => now()->addMinutes($this->qrTtlMinutes()),
         ]);
 
@@ -188,6 +204,152 @@ class KhqrPaymentService
         return rtrim($creds->baseUrl, '/')
             .'/api/payment/request/'.$creds->profileId
             .'?'.http_build_query($params);
+    }
+
+    /**
+     * Preflight the PLATFORM gateway before handing a customer's browser to the
+     * hosted checkout URL, and say WHY it can't be used.
+     *
+     * redirect()->away() is a one-way door. Once the browser is on khqr.cc, a
+     * profile that cannot transact answers the checkout request with a raw JSON
+     * body — {"responseCode":1,"responseMessage":"Bakong Token Required…"} —
+     * and the customer is left staring at a JSON file on someone else's domain,
+     * with no way for this app to say what happened or offer a retry. So ask
+     * first, and keep them on our own page with a warning when the answer is
+     * bad.
+     *
+     * The probe is the read-only check-transaction call the status poll already
+     * makes every few seconds, so it is safe to repeat — and, crucially, it does
+     * NOT open the single-use hosted-checkout session that a GET on the checkout
+     * URL itself would consume (see createSubscriptionQr).
+     *
+     * It FAILS OPEN by design: only an answer that positively shows the profile
+     * cannot transact is a fault. A timeout, a network blip or a plain
+     * "transaction not found" (the healthy answer for the throwaway id we probe
+     * with) all return null — blocking a working checkout on a flaky probe
+     * would cost real money. A healthy verdict is cached briefly so back-to-back
+     * checkouts don't each pay for the round trip; a fault is never cached, so
+     * fixing the profile takes effect on the next click.
+     *
+     * Call it BEFORE minting anything: a refusal then leaves no half-finished
+     * signup or orphan QR behind, the same as the missing-credentials guard.
+     *
+     * @return string|null human-readable reason, or null when checkout may proceed
+     */
+    public function platformCheckoutFault(): ?string
+    {
+        if (config('services.khqrpay.demo')) {
+            return null;
+        }
+
+        $creds = KhqrCredentials::platform();
+        if (! $creds->isConfigured()) {
+            return __('messages.khqr_payment_settings_missing');
+        }
+
+        $healthyKey = 'khqr:platform:reachable:'.$creds->profileId;
+        if (Cache::get($healthyKey)) {
+            return null;
+        }
+
+        $endpoint = rtrim($creds->baseUrl, '/')
+            .'/api/'.$creds->profileId
+            .'/payment-gateway/v1/payments/check-transv2-khqrcc';
+
+        // A transaction id that deliberately does not exist at the gateway: we
+        // are asking whether the PROFILE can answer at all, not about a payment.
+        $probe = 'PREFLIGHT-'.now()->format('YmdHis').'-'.random_int(100000, 999999);
+
+        try {
+            $response = Http::asForm()->acceptJson()
+                ->connectTimeout(3)->timeout(6)
+                ->post($endpoint, [
+                    'transaction_id' => $probe,
+                    'hash' => sha1($creds->secret.$probe),
+                ]);
+        } catch (\Throwable $e) {
+            // Unreachable ≠ misconfigured. Let the customer through; the hosted
+            // page may well load for them even if our server-side call blipped.
+            Log::warning('KHQRPay preflight unreachable', ['msg' => $e->getMessage()]);
+
+            return null;
+        }
+
+        // khqr.cc answers a profile that isn't provisioned for live payments
+        // with a 5xx (the 502 seen on this integration), and a wrong secret with
+        // 401/403 ("Invalid Security Hash"). Those are exactly the states where
+        // the hosted checkout renders a JSON body instead of a payment form.
+        if ($response->serverError() || in_array($response->status(), [401, 403], true)) {
+            Log::warning('KHQRPay preflight failed', [
+                'status' => $response->status(),
+                'body' => $response->body(),
+            ]);
+
+            return __('messages.subscription_gateway_unavailable');
+        }
+
+        // A 404 is the everyday HEALTHY answer, not a fault: the probe id
+        // deliberately does not exist at the gateway, so a correctly configured
+        // profile replies 404 "Transaction Not Found". A bad profile id answers
+        // 404 too ("Merchant Profile Not Found"), so this one is decided on the
+        // MESSAGE, never the status. Counting every 404 as a fault blocked
+        // checkout on a perfectly healthy profile — the exact false alarm this
+        // guard exists to avoid, and the reason it is written to fail open.
+        if ($response->status() === 404) {
+            $message = (string) ($response->json('responseMessage') ?? '');
+
+            if ($this->isConfigurationRefusal($message)) {
+                Log::warning('KHQRPay preflight failed', [
+                    'status' => 404,
+                    'body' => $response->body(),
+                ]);
+
+                return __('messages.subscription_gateway_unavailable');
+            }
+
+            return null;
+        }
+
+        if (! $response->successful()) {
+            return null; // anything else is ambiguous — fail open
+        }
+
+        $body = $response->json() ?? [];
+        $code = (int) ($body['responseCode'] ?? 0);
+        $message = (string) ($body['responseMessage'] ?? '');
+
+        if ($code !== 0 && $this->isConfigurationRefusal($message)) {
+            Log::warning('KHQRPay preflight refused', ['code' => $code, 'message' => $message]);
+
+            return __('messages.subscription_gateway_unavailable');
+        }
+
+        Cache::put($healthyKey, true, now()->addSeconds(60));
+
+        return null;
+    }
+
+    /**
+     * Does this gateway refusal describe the PROFILE rather than the payment?
+     *
+     * The everyday non-zero answer is "transaction not found" — the transaction
+     * genuinely doesn't exist at the gateway until the payer opens the checkout
+     * page, so it must never read as a fault. Only messages that name a
+     * credential, token or profile problem do, because those are the ones that
+     * will still be true when the browser arrives.
+     */
+    private function isConfigurationRefusal(string $message): bool
+    {
+        $needles = ['token', 'configur', 'unauthor', 'hash', 'profile', 'permission', 'disabled', 'suspend', 'credential'];
+        $haystack = strtolower($message);
+
+        foreach ($needles as $needle) {
+            if (str_contains($haystack, $needle)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /**
@@ -368,6 +530,8 @@ class KhqrPaymentService
         // A non-zero responseCode (e.g. "transaction not found yet") means the
         // payment has NOT settled — treat it as unpaid, never as confirmed.
         if (isset($body['responseCode']) && (int) $body['responseCode'] !== 0) {
+            $this->logVerifyRefusal($row, (int) $body['responseCode'], (string) ($body['responseMessage'] ?? ''));
+
             return false;
         }
 
@@ -396,6 +560,33 @@ class KhqrPaymentService
         }
 
         return $paid;
+    }
+
+    /**
+     * Record WHY the provider refused to confirm a transaction.
+     *
+     * The status poll runs every few seconds for the QR's whole lifetime, and
+     * "transaction not found yet" is the normal pre-payment answer — logging
+     * every refusal would write hundreds of lines per QR. So each distinct
+     * (transaction, responseCode) pair is logged once and then latched for the
+     * QR's lifetime. That is enough to see a configuration refusal (a lapsed
+     * Bakong OpenAPI token answers every poll with the same non-zero code, so
+     * without this the QR just expires with no trace) while a routine
+     * not-found costs exactly one line.
+     */
+    private function logVerifyRefusal(KhqrPayment $row, int $code, string $message): void
+    {
+        $latch = 'khqr:verify:refused:'.$row->transaction_id.':'.$code;
+        if (! Cache::add($latch, true, now()->addMinutes($this->qrTtlMinutes()))) {
+            return;
+        }
+
+        Log::warning('KHQRPay verify refused', [
+            'tran' => $row->transaction_id,
+            'target' => $row->settlement_target,
+            'code' => $code,
+            'message' => $message,
+        ]);
     }
 
     /**
@@ -683,9 +874,19 @@ class KhqrPaymentService
                 return;
             }
 
-            $days = $subscription->billing_cycle === 'yearly'
+            // The plan/cycle the customer actually PAID for, carried on the
+            // payment row (see createSubscriptionQr). An upgrade lands HERE and
+            // nowhere else, so an abandoned checkout leaves the live plan alone.
+            // Falls back to the subscription for rows minted before this field
+            // existed, and for a plan deleted between minting and payment.
+            $payload = $locked->checkout_payload ?? [];
+            $plan = (isset($payload['plan_id']) ? Plan::find((int) $payload['plan_id']) : null)
+                ?? $subscription->plan;
+            $cycle = $payload['billing_cycle'] ?? $subscription->billing_cycle;
+
+            $days = $cycle === 'yearly'
                 ? 365
-                : ($subscription->plan?->billing_period_days ?? 30);
+                : ($plan?->billing_period_days ?? 30);
 
             // Early renewals EXTEND the remaining time instead of resetting it.
             $base = ($subscription->expires_at !== null && $subscription->expires_at->isFuture() && $subscription->status !== 'trialing')
@@ -694,6 +895,8 @@ class KhqrPaymentService
 
             $subscription->forceFill([
                 'status' => 'active',
+                'plan_id' => $plan?->id ?? $subscription->plan_id,
+                'billing_cycle' => $cycle,
                 'price_paid' => $locked->amount, // snapshot — plan price may change later
                 'started_at' => $subscription->started_at ?? now(),
                 'expires_at' => $base->addDays($days),
@@ -720,7 +923,7 @@ class KhqrPaymentService
             // Actor is null here — activation runs from a webhook / poll / cron.
             app(\App\Services\Audit\AuditLogger::class)->record('subscription.activated', $subscription, [
                 'transaction_id' => $locked->transaction_id,
-                'plan' => $subscription->plan?->slug,
+                'plan' => $plan?->slug, // the purchased plan; ->plan is stale after the forceFill
                 'amount' => (float) $locked->amount,
                 'currency' => $locked->currency,
                 'expires_at' => $subscription->expires_at?->toIso8601String(),

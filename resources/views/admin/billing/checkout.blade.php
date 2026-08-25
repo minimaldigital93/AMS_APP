@@ -21,6 +21,12 @@
             <div class="space-y-1">
                 <span class="text-sm text-gray-500">{{ __('messages.payment_waiting') }}</span>
                 <p x-show="countdown" class="text-xs text-gray-400">{{ __('messages.payment_expires_in') }} <span class="font-medium tabular-nums" x-text="countdown"></span></p>
+                {{-- The poll kept failing. Say so rather than spinning silently —
+                     the payment may still land, so this is a warning beside the
+                     spinner, not a terminal state. --}}
+                <p x-show="stalled" x-cloak class="mt-3 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-xs leading-relaxed text-amber-800">
+                    {{ __('messages.payment_gateway_unreachable') }}
+                </p>
             </div>
         </template>
         <template x-if="state === 'paid'">
@@ -44,8 +50,12 @@
 <script>
     function khqrBillingCheckout({ statusUrl, redirectUrl, expiresAt }) {
         const OPEN = ['pending', 'qr_generated', 'waiting_payment'];
+        // Two consecutive bad polls before we warn: a single blip self-heals.
+        const STALL_AFTER = 2;
         return {
             state: 'waiting', // waiting | paid | failed
+            stalled: false,
+            misses: 0,
             timer: null,
             countdown: '',
             countdownTimer: null,
@@ -63,11 +73,17 @@
                 this.countdownTimer = setInterval(tick, 1000);
             },
             stopCountdown() { if (this.countdownTimer) clearInterval(this.countdownTimer); this.countdownTimer = null; },
+            // A failed poll never stops the polling — the payment can still land.
+            // It only raises a visible warning once it keeps failing.
+            miss() { if (++this.misses >= STALL_AFTER) this.stalled = true; },
             async poll() {
                 try {
                     const res = await fetch(statusUrl, { headers: { 'Accept': 'application/json' } });
-                    if (!res.ok) return;
+                    if (!res.ok) return this.miss();
                     const data = await res.json();
+                    if (data.gateway_error) return this.miss();
+                    this.misses = 0;
+                    this.stalled = false;
                     if (data.paid) {
                         this.state = 'paid';
                         this.stop();
@@ -78,7 +94,7 @@
                         this.state = 'failed';
                         this.stop();
                     }
-                } catch (e) {}
+                } catch (e) { this.miss(); }
             },
         };
     }

@@ -14,7 +14,6 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 
-
 class BillingController extends Controller
 {
     public function __construct(private SubscriptionService $subscriptions) {}
@@ -47,14 +46,34 @@ class BillingController extends Controller
         $cycle = ($validated['billing_cycle'] ?? 'monthly') === 'yearly' && $plan->hasYearly() ? 'yearly' : 'monthly';
         $accountId = current_account_id();
 
+        // Ask the gateway whether it can take a payment BEFORE minting anything.
+        // redirect()->away() below is a one-way door: once the browser is on
+        // khqr.cc, a profile that can't transact answers with a raw JSON body
+        // and this page never gets to say what went wrong. Refuse here so the
+        // billing page shows the warning instead — and leaves no orphan QR.
+        if ($fault = $khqr->platformCheckoutFault()) {
+            return back()->with('error', $fault);
+        }
+
         // One subscription row per account — reuse it for renewals/upgrades.
-        $subscription = Subscription::updateOrCreate(
-            ['account_id' => $accountId],
-            ['plan_id' => $plan->id, 'billing_cycle' => $cycle]
-        );
+        //
+        // The chosen plan is deliberately NOT written here: caps are read from
+        // subscriptions.plan_id, so stamping an upgrade before payment hands the
+        // customer the bigger plan's caps for free the moment they abandon
+        // checkout. It rides on the payment instead and is applied by
+        // KhqrPaymentService::finalizeSubscription() once the money lands.
+        // A brand-new row is safe to write — `pending` grants no access.
+        $subscription = Subscription::firstOrNew(['account_id' => $accountId]);
+        if (! $subscription->exists) {
+            $subscription->fill([
+                'plan_id' => $plan->id,
+                'billing_cycle' => $cycle,
+                'status' => 'pending',
+            ])->save();
+        }
 
         try {
-            $row = $khqr->createSubscriptionQr($subscription, $plan->priceFor($cycle));
+            $row = $khqr->createSubscriptionQr($subscription, $plan->priceFor($cycle), $plan, $cycle);
         } catch (KhqrPlatformCredentialsMissingException $e) {
             report($e);
 
@@ -105,11 +124,22 @@ class BillingController extends Controller
     /** Poll endpoint the checkout page calls until the payment lands. */
     public function status(string $token, KhqrPaymentService $khqr): JsonResponse
     {
-        $payment = $khqr->pollAndAdvance($this->resolveSubscriptionPayment($token));
+        $payment = $this->resolveSubscriptionPayment($token);
+        $gatewayError = false;
+
+        try {
+            $payment = $khqr->pollAndAdvance($payment);
+        } catch (\Throwable $e) {
+            // Never let a gateway failure 500 the poll — the page swallows a
+            // non-OK response and would spin forever. Say so instead.
+            report($e);
+            $gatewayError = true;
+        }
 
         return response()->json([
             'status' => $payment->status,
             'paid' => $payment->isPaid(),
+            'gateway_error' => $gatewayError,
             'expires_at' => $payment->expires_at?->toIso8601String(),
             'redirect' => $payment->isPaid() ? route('admin.billing.index') : null,
         ]);

@@ -9,8 +9,13 @@
          x-init="start()"
          class="text-center text-white">
 
+        {{-- Null-safe: a superadmin can delete a Plan while a checkout is still
+             in flight, and a 500 here would replace the "your payment is
+             confirming" page with an error page mid-payment. --}}
         <p class="text-sm text-white/80">
-            {{ $payment->subscription->plan->name }} {{ __('plan') }} —
+            @if ($payment->subscription?->plan)
+                {{ $payment->subscription->plan->name }} {{ __('plan') }} —
+            @endif
             <span class="font-semibold">${{ number_format($payment->amount, 2) }}/{{ __('mo') }}</span>
         </p>
 
@@ -26,6 +31,12 @@
                         {{ __('messages.payment_waiting') }}
                     </div>
                     <p x-show="countdown" class="text-xs text-white/50">{{ __('messages.payment_expires_in') }} <span class="font-medium tabular-nums" x-text="countdown"></span></p>
+                    {{-- The poll kept failing. Say so rather than spinning
+                         silently — the payment may still land, so this is a
+                         warning beside the spinner, not a terminal state. --}}
+                    <p x-show="stalled" x-cloak class="mt-3 rounded-lg border border-amber-400/40 bg-amber-500/15 px-3 py-2 text-xs leading-relaxed text-amber-100">
+                        {{ __('messages.payment_gateway_unreachable') }}
+                    </p>
                 </div>
             </template>
 
@@ -39,7 +50,7 @@
                 <div class="rounded-xl border border-amber-400/40 bg-amber-500/15 px-4 py-4 text-left">
                     <p class="font-semibold text-amber-100">{{ __('messages.payment_session_ended') }}</p>
                     <p class="mt-1 text-xs leading-relaxed text-amber-100/80">{{ __('messages.payment_session_ended_hint') }}</p>
-                    <a href="{{ route('subscribe.create', ['plan' => $payment->subscription->plan->slug]) }}"
+                    <a href="{{ route('subscribe.create', array_filter(['plan' => $payment->subscription?->plan?->slug])) }}"
                        class="mt-3 inline-block rounded-lg bg-amber-400/90 px-4 py-2 text-sm font-semibold text-amber-950 hover:bg-amber-300 transition">
                         {{ __('messages.payment_try_again') }}
                     </a>
@@ -56,8 +67,13 @@
         function khqrCheckout({ statusUrl, loginUrl, expiresAt }) {
             // Open states the gateway may still advance to "paid".
             const OPEN = ['pending', 'qr_generated', 'waiting_payment'];
+            // Two consecutive bad polls before we warn: a single network blip or
+            // a server hiccup is normal and self-heals on the next tick.
+            const STALL_AFTER = 2;
             return {
                 state: 'waiting', // waiting | paid | failed
+                stalled: false,
+                misses: 0,
                 timer: null,
                 countdown: '',
                 countdownTimer: null,
@@ -88,11 +104,21 @@
                     if (this.countdownTimer) clearInterval(this.countdownTimer);
                     this.countdownTimer = null;
                 },
+                // A failed poll never stops the polling — the payment can still
+                // land. It only raises a visible warning once it keeps failing,
+                // so the customer isn't left reading a spinner that means
+                // nothing.
+                miss() {
+                    if (++this.misses >= STALL_AFTER) this.stalled = true;
+                },
                 async poll() {
                     try {
                         const res = await fetch(statusUrl, { headers: { 'Accept': 'application/json' } });
-                        if (!res.ok) return; // transient server hiccup — keep polling
+                        if (!res.ok) return this.miss(); // transient server hiccup — keep polling
                         const data = await res.json();
+                        if (data.gateway_error) return this.miss();
+                        this.misses = 0;
+                        this.stalled = false;
 
                         if (data.paid) {
                             this.state = 'paid';
@@ -108,7 +134,7 @@
                             this.state = 'failed';
                             this.stop();
                         }
-                    } catch (e) { /* network blip — keep polling */ }
+                    } catch (e) { this.miss(); /* network blip — keep polling */ }
                 },
             };
         }

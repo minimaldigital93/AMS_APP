@@ -221,6 +221,44 @@ Similarly stored as VARCHAR. Active-access states: `active` and `trialing` (use 
 
 One free trial per account (`trialUsed()` check). Cancelled status grants access until `expires_at`.
 
+### A plan change takes effect when the money lands, nowhere else
+
+Plan caps are read straight off `subscriptions.plan_id`
+(`SubscriptionService::usage()` → `activePlan()` → `activeSubscription()->plan`),
+and `activeSubscription()` filters on `status` + `expires_at` only — it has no
+idea whether the plan it returns was paid for. So **the plan a customer is
+buying must never be written to a live subscription before payment**.
+`Admin\BillingController::renew()` stamped it up front until 2026-08: a customer
+on Basic who clicked upgrade to Pro, hit the khqr.cc page and closed the tab
+kept Pro's room/staff caps free until their Basic term expired.
+
+- The purchase (`plan_id` + `billing_cycle`) rides on the **KhqrPayment**'s
+  `checkout_payload`, stamped by `createSubscriptionQr($subscription, $amount,
+  $plan, $cycle)`, and `finalizeSubscription()` is the **one** place that
+  applies it. It falls back to the subscription's own values, which is what
+  keeps rows minted before this existed (and the 2-arg `TestKhqrQr` call)
+  working.
+- Writing plan/cycle onto a **brand-new** row is fine and `renew()` still does
+  it (`firstOrNew` + `status = 'pending'`) — a pending subscription is not an
+  active one, so it grants nothing. The signup funnel relies on this: the
+  checkout view reads `$payment->subscription->plan->name`.
+- An abandoned choice is **deliberately lost**, not remembered. There is
+  nowhere to remember it that doesn't also grant it.
+- **An upgrade carries every leftover day, at the new plan.** `finalizeSubscription()`
+  extends from the existing `expires_at` (not from today) *and* switches
+  `plan_id`, so 20 days left on Basic + a Pro month = **50 days of Pro**, with
+  the 20 upgraded free. Confirmed as the intended money rule 2026-08; proration
+  (converting the unused *value* into fewer new-plan days) and forfeiting the
+  remainder were both considered and rejected. Don't "fix" this into proration
+  — it changes what every upgrade is worth.
+- `SuperAdmin\AccountsController::changePlan()` is the sanctioned override — it
+  sets the plan active with no payment, for money collected out-of-band. Note it
+  *resets* `expires_at` from today (the paid path **extends** from the existing
+  one) and writes no `KhqrPayment`, so it never shows in Superadmin → Payments
+  or platform finance revenue.
+
+`tests/Feature/Subscription/BillingCycleTest.php` pins all of it.
+
 ### Adding a payment provider
 
 Implement `App\Contracts\PaymentGateway` (three methods: `provider()`, `verify()`, `validateWebhook()`) and register the driver in `App\Services\Payment\PaymentManager`.
@@ -234,6 +272,67 @@ Implement `App\Contracts\PaymentGateway` (three methods: `provider()`, `verify()
 ### SaaS signup funnel
 
 `/subscribe` → checkout → KHQR → activate — all in the `guest` middleware group in `web.php`.
+
+### `redirect()->away()` is a one-way door — preflight the gateway first
+
+Both subscription entry points (`SubscriptionController::store()`,
+`Admin\BillingController::renew()`) hand the browser to khqr.cc's hosted
+checkout. Once it is there, a profile that cannot transact answers with a raw
+JSON body — `{"responseCode":1,"responseMessage":"Bakong Token Required…"}` —
+and the customer is left reading a JSON file on someone else's domain, with no
+way for this app to say what happened or offer a retry. That was the behaviour
+until 2026-08.
+
+`KhqrPaymentService::platformCheckoutFault()` is the gate. Call it **before
+minting anything** — a refusal then leaves no half-finished signup and no orphan
+QR, matching the missing-credentials guard — and flash its return value as
+`error` on the form the customer is already on.
+
+- **It probes the read-only `check-transv2-khqrcc` endpoint**, the same call the
+  status poll makes every few seconds. Never GET the hosted-checkout URL to test
+  it: those sessions are single-use on khqr.cc's side (see
+  `createSubscriptionQr`), so the probe would consume the session the customer
+  is about to be sent to. It probes a **throwaway transaction id** — the question
+  is whether the *profile* can answer, not whether a payment landed.
+- **It fails open, deliberately.** Only a positive showing that the profile
+  can't transact is a fault: 5xx (the unprovisioned-profile signature here),
+  401/403/404, or a non-zero `responseCode` whose message names a credential
+  problem (`isConfigurationRefusal()`). A timeout, a network blip, or a plain
+  "transaction not found" all pass — blocking a working checkout on a flaky
+  probe costs real money. A healthy verdict is cached 60s; a fault never is.
+- **The status poll never 500s.** Both `status()` endpoints catch `Throwable`
+  and return `gateway_error: true` with the row's unchanged status. The checkout
+  pages warn after two consecutive bad polls (`stalled`) but keep polling — the
+  payment can still land, so it is a warning beside the spinner, not a terminal
+  state. A non-OK response used to be silently swallowed and the customer
+  watched the spinner forever.
+- Checkout views read `$payment->subscription?->plan?->…`: a superadmin can
+  delete a Plan mid-checkout, and a 500 there replaces "confirming your payment"
+  with an error page mid-payment.
+
+`tests/Feature/Subscription/CheckoutPreflightTest.php` pins it.
+
+### Signup takes over the row it matches — so only never-activated rows qualify
+
+`provisionOwner()` reuses an existing owner row on the same phone (new password,
+`status` reset to `inactive`) rather than stacking a duplicate, which
+`users_phone_unique` would reject anyway. That is right for an abandoned signup
+and catastrophic for a real account: it resets the customer's login and, once
+the payment finalizes, hands the payer that account's data.
+
+**`subscriptions.started_at` is the line.** Both `finalizeSubscription()` and
+`startTrial()` stamp it, so it means "this account was ever activated" — paid or
+trialed. The phone-uniqueness rule treats such an owner as **taken even once the
+subscription lapses**, and `provisionOwner()` re-checks it as defence in depth
+against a stale form. Until 2026-08 the rule only looked at *live* subscriptions,
+so any expired customer's phone was free to re-register against.
+
+A lapsed owner never needs to re-register: `ExpireSubscriptions` only flips
+`subscriptions.status` and never touches `users.status`, so they still sign in
+(`LoginRequest` gates on `users.status`) and renew on the billing page — which
+`EnsureSubscriptionActive` exempts precisely so there is no lockout loop.
+
+`tests/Feature/Subscription/SignupPhoneTakeoverTest.php` pins it.
 
 ---
 

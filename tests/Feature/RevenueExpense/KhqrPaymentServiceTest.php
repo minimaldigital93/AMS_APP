@@ -5,7 +5,9 @@ use App\Models\KhqrPayment;
 use App\Models\MerchantPaymentSetting;
 use App\Models\Payments;
 use App\Services\RevenueExpense\KhqrPaymentService;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 
 beforeEach(function () {
     config()->set('services.khqrpay.base_url', 'https://khqr.cc');
@@ -203,6 +205,44 @@ it('verify confirms an api payment only once the status reads PAID', function ()
     ]);
 
     expect($this->service->verify($row))->toBeTrue();
+});
+
+it('logs a provider refusal once per transaction instead of silently reading unpaid', function () {
+    $row = KhqrPayment::create([
+        'transaction_id' => 'SUB-VERIFY-3',
+        'subscription_id' => null,
+        'amount' => 500,
+        'currency' => 'USD',
+        'status' => 'pending',
+        'settlement_target' => 'platform',
+        'channel' => 'api',
+        'provider_ref' => 'deadbeef',
+        'checkout_payload' => ['type' => 'subscription'],
+    ]);
+
+    // The refusal a lapsed Bakong OpenAPI token gives on EVERY poll: without a
+    // log line the QR just expires with no trace of why it never confirmed.
+    Http::fake([
+        'khqr.cc/*' => Http::response([
+            'responseCode' => 1,
+            'responseMessage' => 'Bakong Token Required: No active official Bakong OpenAPI token configured.',
+        ], 200),
+    ]);
+
+    Log::shouldReceive('warning')
+        ->once()
+        ->withArgs(fn (string $msg, array $ctx) => $msg === 'KHQRPay verify refused'
+            && $ctx['tran'] === 'SUB-VERIFY-3'
+            && $ctx['code'] === 1
+            && str_contains($ctx['message'], 'Bakong Token Required'));
+    Log::shouldReceive('info', 'debug')->zeroOrMoreTimes();
+
+    // Three polls, one warning: the poll runs every few seconds for the QR's
+    // whole life, so an unlatched log would flood.
+    foreach (range(1, 3) as $_) {
+        Cache::forget('khqr:verify:'.$row->transaction_id); // skip the verify cooldown
+        expect($this->service->verify($row))->toBeFalse();
+    }
 });
 
 it('finalize records Payments + Accounts exactly once (idempotent)', function () {
