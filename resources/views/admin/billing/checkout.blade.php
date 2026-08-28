@@ -52,6 +52,8 @@
         const OPEN = ['pending', 'qr_generated', 'waiting_payment'];
         // Two consecutive bad polls before we warn: a single blip self-heals.
         const STALL_AFTER = 2;
+        // Paced for a metered Bakong token — see subscribe/checkout.blade.php.
+        const POLL_MS = 10000;
         return {
             state: 'waiting', // waiting | paid | failed
             stalled: false,
@@ -59,7 +61,7 @@
             timer: null,
             countdown: '',
             countdownTimer: null,
-            start() { this.poll(); this.timer = setInterval(() => this.poll(), 3000); this.startCountdown(); },
+            start() { this.poll(); this.timer = setInterval(() => this.poll(), POLL_MS); this.startCountdown(); },
             stop() { if (this.timer) clearInterval(this.timer); this.timer = null; this.stopCountdown(); },
             startCountdown() {
                 const deadline = expiresAt ? Date.parse(expiresAt) : NaN;

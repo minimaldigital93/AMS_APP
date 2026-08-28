@@ -70,6 +70,11 @@
             // Two consecutive bad polls before we warn: a single network blip or
             // a server hiccup is normal and self-heals on the next tick.
             const STALL_AFTER = 2;
+            // Every poll can cost a live Bakong request (server-side cooldown
+            // gates it, this is the second bound). The webhook is the real
+            // settlement path — polling is the fallback, so it is paced for a
+            // metered token, not for the fastest possible confirmation.
+            const POLL_MS = 10000;
             return {
                 state: 'waiting', // waiting | paid | failed
                 stalled: false,
@@ -79,7 +84,7 @@
                 countdownTimer: null,
                 start() {
                     this.poll();
-                    this.timer = setInterval(() => this.poll(), 3000);
+                    this.timer = setInterval(() => this.poll(), POLL_MS);
                     this.startCountdown();
                 },
                 stop() {

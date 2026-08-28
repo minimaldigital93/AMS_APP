@@ -47,26 +47,6 @@ class SubscriptionController extends Controller
     {
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255'],
-            // The users table is one global login namespace (Auth::attempt()
-            // is a single lookup by phone), so a phone is "taken" when ANY
-            // user row holds it — a member login (supervisor/tenant) of any
-            // account, a platform superadmin, a suspended owner, or an owner
-            // with a live (active/trialing, unexpired) subscription.
-            //
-            // The one deliberate exception: *never-activated owner rows* —
-            // abandoned signups that never paid and never trialed. Their phone
-            // stays free so the person can finish registering; provisionOwner()
-            // then takes over that existing row rather than minting a duplicate
-            // (which the users_phone_unique index would reject anyway).
-            //
-            // An owner whose subscription EVER started (paid or trialed) stays
-            // taken even once it lapses. Signup takes over the row it matches —
-            // new password, status reset to `inactive` — so a free phone there
-            // would let anyone reset a lapsed customer's login and, on payment,
-            // walk into their account and its data. They have no need to
-            // re-register either: expiry only flips subscriptions.status and
-            // never users.status (see ExpireSubscriptions), so a lapsed owner
-            // still signs in normally and renews on the billing page.
             'phone' => [
                 'required', 'string', 'max:255',
                 Rule::unique('users', 'phone')->where(fn ($q) => $q

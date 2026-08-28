@@ -12,6 +12,7 @@ use App\Models\Rentals;
 use App\Models\Subscription;
 use App\Models\User;
 use Carbon\Carbon;
+use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
@@ -511,9 +512,21 @@ class KhqrPaymentService
         // KHQRPay expects sha1(profile_key . transaction_id)
         $params['hash'] = sha1($creds->secret.$row->transaction_id);
 
+        // Retry ONLY a failed connection, never an HTTP error response. Laravel's
+        // retry() treats any non-2xx as retryable by default (PendingRequest
+        // rethrows the response when no `when` callback is given), and `throw:
+        // false` suppresses the final exception WITHOUT suppressing that retry —
+        // so a gateway answering 502 (the unprovisioned-profile signature here)
+        // silently cost two Bakong requests per verify instead of one. This poll
+        // runs every few seconds for a QR's whole lifetime against a token with a
+        // hard daily request quota, so doubling it is the difference between a
+        // working checkout and a quota that is empty by mid-morning. A refusal is
+        // already read as "unpaid" below; only a connection blip is worth a second
+        // attempt.
         try {
             $response = Http::asForm()->acceptJson()
-                ->connectTimeout(3)->timeout(8)->retry(2, 200, throw: false)
+                ->connectTimeout(3)->timeout(8)
+                ->retry(2, 200, when: fn ($e) => $e instanceof ConnectionException, throw: false)
                 ->post($endpoint, $params);
         } catch (\Throwable $e) {
             Log::warning('KHQRPay verify error', ['tran' => $row->transaction_id, 'msg' => $e->getMessage()]);

@@ -1566,7 +1566,10 @@ function billingManager() {
 
         startKhqrPoll() {
             this.stopKhqrPoll();
-            this.khqrTimer = setInterval(() => this.checkKhqr(), 3500);
+            // 10s, not 3.5s: every poll can cost the landlord's metered Bakong
+            // token a live request. The webhook settles the payment; this poll
+            // only moves the modal along, so it is paced for the quota.
+            this.khqrTimer = setInterval(() => this.checkKhqr(), 10000);
         },
 
         stopKhqrPoll() {

@@ -5,6 +5,7 @@ use App\Models\KhqrPayment;
 use App\Models\MerchantPaymentSetting;
 use App\Models\Payments;
 use App\Services\RevenueExpense\KhqrPaymentService;
+use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
@@ -277,4 +278,62 @@ it('finalize records Payments + Accounts exactly once (idempotent)', function ()
     $payment = Payments::sole();
     expect($payment->payment_method)->toBe('khqr');
     expect($payment->transaction_reference)->toBe('KHQR-TEST-1');
+});
+
+/**
+ * The Bakong token is rated per DAY, and this poll runs every few seconds for a
+ * QR's whole lifetime — so what one refusal costs is a quota question, not a
+ * cosmetic one. Laravel's retry() rethrows any non-2xx to trigger the next
+ * attempt unless a `when` callback says otherwise, and `throw: false` only
+ * suppresses the FINAL exception. Without the callback a 502 (the
+ * unprovisioned-profile signature on this integration) quietly cost two
+ * requests per verify and halved the usable quota.
+ */
+it('spends exactly one Bakong request on a gateway error response, never retrying it', function () {
+    $row = KhqrPayment::create([
+        'transaction_id' => 'SUB-RETRY-1',
+        'subscription_id' => null,
+        'amount' => 500,
+        'currency' => 'USD',
+        'status' => 'pending',
+        'settlement_target' => 'platform',
+        'channel' => 'api',
+        'provider_ref' => 'deadbeef',
+        'checkout_payload' => ['type' => 'subscription'],
+    ]);
+
+    $attempts = 0;
+    Http::fake(function () use (&$attempts) {
+        $attempts++;
+
+        return Http::response(['responseCode' => 1, 'responseMessage' => 'Bad Gateway'], 502);
+    });
+
+    expect($this->service->verify($row))->toBeFalse(); // an error still reads "unpaid"
+    expect($attempts)->toBe(1);
+});
+
+/** A connection blip is the one case still worth a second attempt. */
+it('still retries a failed connection, which costs the gateway nothing', function () {
+    $row = KhqrPayment::create([
+        'transaction_id' => 'SUB-RETRY-2',
+        'subscription_id' => null,
+        'amount' => 500,
+        'currency' => 'USD',
+        'status' => 'pending',
+        'settlement_target' => 'platform',
+        'channel' => 'api',
+        'provider_ref' => 'deadbeef',
+        'checkout_payload' => ['type' => 'subscription'],
+    ]);
+
+    $attempts = 0;
+    Http::fake(function () use (&$attempts) {
+        $attempts++;
+
+        throw new ConnectionException('connection timed out');
+    });
+
+    expect($this->service->verify($row))->toBeFalse();
+    expect($attempts)->toBe(2);
 });
