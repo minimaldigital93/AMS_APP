@@ -51,8 +51,11 @@ class BillingController extends Controller
         // khqr.cc, a profile that can't transact answers with a raw JSON body
         // and this page never gets to say what went wrong. Refuse here so the
         // billing page shows the warning instead — and leaves no orphan QR.
+        // khqr_fault is the popup's trigger: the billing page flashes `error`
+        // for ordinary failures too, and a diagnostics dialog is only the right
+        // answer when the GATEWAY is what refused.
         if ($fault = $khqr->platformCheckoutFault()) {
-            return back()->with('error', $fault);
+            return back()->with('error', $fault)->with('khqr_fault', true);
         }
 
         // One subscription row per account — reuse it for renewals/upgrades.
@@ -77,17 +80,53 @@ class BillingController extends Controller
         } catch (KhqrPlatformCredentialsMissingException $e) {
             report($e);
 
-            return back()->with('error', $e->getMessage());
+            return back()->with('error', $e->getMessage())->with('khqr_fault', true);
         } catch (\Throwable $e) {
             // Don't 500 the billing page when KHQRPay is down / misconfigured.
             report($e);
 
-            return back()->with('error', __('messages.subscription_payment_unavailable'));
+            return back()->with('error', __('messages.subscription_payment_unavailable'))->with('khqr_fault', true);
         }
 
         return redirect()->away(
             $khqr->subscriptionCheckoutUrl($row, route('admin.billing.checkout', $row->public_token))
         );
+    }
+
+    /**
+     * Live gateway diagnostics behind the "payment problem" popup.
+     *
+     * Answers the question a failed checkout leaves behind — WHICH part of the
+     * KHQR setup is refusing — instead of the one sentence the customer-facing
+     * flash can say. Admin-only, because `detail` quotes the gateway verbatim
+     * and names the profile id: it is the fix-it view, not the apology.
+     *
+     * Never 500s. This is the page someone opens precisely because something is
+     * already broken, so a failure here has to report itself rather than
+     * replace the popup with an error.
+     */
+    public function diagnostics(KhqrPaymentService $khqr): JsonResponse
+    {
+        try {
+            $report = $khqr->platformDiagnostics();
+            $report['last_fault'] = $khqr->lastPlatformCheckoutFault();
+
+            return response()->json($report);
+        } catch (\Throwable $e) {
+            report($e);
+
+            return response()->json([
+                'healthy' => false,
+                'checks' => [[
+                    'key' => 'diagnostics',
+                    'label' => __('messages.khqr_diag_failed'),
+                    'state' => 'fail',
+                    'detail' => $e->getMessage(),
+                ]],
+                'checked_at' => now()->toIso8601String(),
+                'last_fault' => null,
+            ]);
+        }
     }
 
     /** Self-service cancel: keep access until the period ends, just stop renewing. */

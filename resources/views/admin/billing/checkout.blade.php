@@ -44,8 +44,22 @@
         </template>
     </div>
 
-    <a href="{{ route('admin.billing.index') }}" class="mt-6 inline-block text-sm text-gray-500 underline">{{ __('Back to billing') }}</a>
+    {{-- The spinner cannot tell "not paid yet" from "khqr.cc showed you a JSON
+         error and you came back" — the row just sits in qr_generated either way.
+         This is how the second case gets diagnosed instead of waiting out the
+         QR's whole TTL. --}}
+    <button type="button" x-on:click="$dispatch('khqr-diagnostics')"
+            class="mt-6 block w-full text-sm text-gray-500 underline hover:text-gray-700">
+        {{ __('messages.khqr_diag_checkout_help') }}
+    </button>
+
+    <a href="{{ route('admin.billing.index') }}" class="mt-3 inline-block text-sm text-gray-500 underline">{{ __('Back to billing') }}</a>
 </div>
+
+<x-khqr-diagnostics
+    :endpoint="route('admin.billing.diagnostics')"
+    :retry-url="route('admin.billing.index')"
+    :settings-url="auth()->user()?->hasRole('superadmin') ? route('superadmin.settings.payment') : null" />
 
 <script>
     function khqrBillingCheckout({ statusUrl, redirectUrl, expiresAt }) {

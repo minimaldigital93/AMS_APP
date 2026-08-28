@@ -165,6 +165,10 @@ Route::middleware(['auth', 'role:admin|superadmin', 'subscription.active'])->gro
     Route::post('/admin/billing/cancel', [\App\Http\Controllers\Admin\BillingController::class, 'cancel'])->name('admin.billing.cancel');
     Route::get('/admin/billing/checkout/{token}', [\App\Http\Controllers\Admin\BillingController::class, 'checkout'])->name('admin.billing.checkout');
     Route::get('/admin/billing/checkout/{token}/status', [\App\Http\Controllers\Admin\BillingController::class, 'status'])->name('admin.billing.status');
+    // Live KHQR gateway diagnostics behind the "payment problem" popup. Throttled
+    // because each call costs real requests against a metered Bakong token.
+    Route::get('/admin/billing/diagnostics', [\App\Http\Controllers\Admin\BillingController::class, 'diagnostics'])
+        ->middleware('throttle:10,1')->name('admin.billing.diagnostics');
 
     // Property Management Routes
     Route::get('/admin/properties', [\App\Http\Controllers\Admin\PropertyController::class, 'index'])->name('admin.properties.index');

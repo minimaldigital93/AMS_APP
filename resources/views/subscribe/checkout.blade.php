@@ -61,7 +61,19 @@
         <p class="mt-6 text-xs text-white/60" x-show="state === 'waiting'">
             {{ __('Once your payment is confirmed you’ll be redirected to sign in. You can keep this page open.') }}
         </p>
+
+        {{-- The spinner cannot tell "not paid yet" from "the payment page showed
+             an error and you came back" — the row sits in qr_generated either
+             way. Without this the customer's only option is to watch it until
+             the QR expires. --}}
+        <button type="button" x-on:click="$dispatch('khqr-diagnostics')"
+                class="mt-3 text-xs text-white/70 underline underline-offset-2 hover:text-white">
+            {{ __('messages.khqr_diag_checkout_help') }}
+        </button>
     </div>
+
+    <x-khqr-diagnostics
+        :retry-url="route('subscribe.create', array_filter(['plan' => $payment->subscription?->plan?->slug]))" />
 
     <script>
         function khqrCheckout({ statusUrl, loginUrl, expiresAt }) {

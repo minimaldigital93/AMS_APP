@@ -18,6 +18,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 
 /**
  * KHQRPay (khqr.cc) client + payment finalizer for BOTH settlement targets:
@@ -212,25 +213,38 @@ class KhqrPaymentService
      * hosted checkout URL, and say WHY it can't be used.
      *
      * redirect()->away() is a one-way door. Once the browser is on khqr.cc, a
-     * profile that cannot transact answers the checkout request with a raw JSON
-     * body — {"responseCode":1,"responseMessage":"Bakong Token Required…"} —
-     * and the customer is left staring at a JSON file on someone else's domain,
-     * with no way for this app to say what happened or offer a retry. So ask
-     * first, and keep them on our own page with a warning when the answer is
+     * profile that cannot transact answers the hosted-checkout request with a
+     * raw JSON body — {"responseCode":1,"responseMessage":"Bakong Token Required…"}
+     * — and the customer is left staring at a JSON file on someone else's
+     * domain, with no way for this app to say what happened or offer a retry. So
+     * ask first, and keep them on our own page with a warning when the answer is
      * bad.
      *
-     * The probe is the read-only check-transaction call the status poll already
-     * makes every few seconds, so it is safe to repeat — and, crucially, it does
-     * NOT open the single-use hosted-checkout session that a GET on the checkout
-     * URL itself would consume (see createSubscriptionQr).
+     * TWO probes, because they answer different questions and only the second
+     * one catches the failure above:
+     *
+     *  - the read-only check-transaction call (probeCheckTransaction) says
+     *    whether the profile ANSWERS at all — wrong secret, wrong profile id,
+     *    gateway down;
+     *  - the handoff probe (probeHandoff) asks the hosted-checkout endpoint the
+     *    customer is about to be sent to whether it will render a payment form
+     *    or a JSON refusal. A profile can pass the first and fail the second:
+     *    checking a transaction needs no Bakong token, taking money does. That
+     *    gap is why customers still landed on the JSON page while this guard
+     *    reported healthy.
+     *
+     * The handoff probe uses a THROWAWAY transaction id, never the customer's.
+     * khqr.cc checkout sessions are single-use, so probing the row's own URL
+     * would burn the session the customer is about to open (see
+     * createSubscriptionQr) — that, and not the request itself, is what must
+     * never be done. Its verdict is cached for minutes rather than seconds so a
+     * burst of checkouts costs one throwaway session, not one each.
      *
      * It FAILS OPEN by design: only an answer that positively shows the profile
      * cannot transact is a fault. A timeout, a network blip or a plain
      * "transaction not found" (the healthy answer for the throwaway id we probe
      * with) all return null — blocking a working checkout on a flaky probe
-     * would cost real money. A healthy verdict is cached briefly so back-to-back
-     * checkouts don't each pay for the round trip; a fault is never cached, so
-     * fixing the profile takes effect on the next click.
+     * would cost real money.
      *
      * Call it BEFORE minting anything: a refusal then leaves no half-finished
      * signup or orphan QR behind, the same as the missing-credentials guard.
@@ -253,12 +267,203 @@ class KhqrPaymentService
             return null;
         }
 
+        $profile = $this->probeCheckTransaction($creds);
+        if ($profile['outcome'] === 'fault') {
+            $this->rememberCheckoutFault($creds, $profile);
+
+            return __('messages.subscription_gateway_unavailable');
+        }
+
+        $handoff = $this->probeHandoff($creds);
+        if ($handoff['outcome'] === 'fault') {
+            $this->rememberCheckoutFault($creds, $handoff);
+
+            return __('messages.subscription_gateway_unavailable');
+        }
+
+        // Only cache "healthy" when BOTH probes actually said so — an unknown
+        // (timeout, blip) is let through but must not silence the next check.
+        if ($profile['outcome'] === 'ok' && $handoff['outcome'] === 'ok') {
+            Cache::put($healthyKey, true, now()->addSeconds(60));
+        }
+
+        return null;
+    }
+
+    /**
+     * Stash the gateway's own words about the last refusal, for the diagnostics
+     * popup to show.
+     *
+     * The customer gets one sentence; whoever has to FIX the profile needs the
+     * status code and the verbatim responseMessage, and by the time they open
+     * the popup the probe may well answer differently (or be served from the
+     * healthy cache). Logged too — this is the short-term copy the UI reads.
+     * Never cached under the healthy key: a fault must re-probe on the next
+     * click so a fixed profile works immediately.
+     */
+    private function rememberCheckoutFault(KhqrCredentials $creds, array $probe): void
+    {
+        Log::warning('KHQRPay checkout preflight failed', [
+            'probe' => $probe['probe'] ?? null,
+            'status' => $probe['status'] ?? null,
+            'message' => $probe['message'] ?? null,
+        ]);
+
+        try {
+            Cache::put(self::lastFaultKey($creds), [
+                'probe' => $probe['probe'] ?? null,
+                'status' => $probe['status'] ?? null,
+                'message' => $probe['message'] ?? null,
+                'at' => Carbon::now()->toIso8601String(),
+            ], now()->addHours(6));
+        } catch (\Throwable $e) {
+            // Instrumentation only — never fail a checkout guard over the cache.
+        }
+    }
+
+    /**
+     * The last refusal the preflight recorded, if it is still remembered.
+     *
+     * The diagnostics popup re-probes live, but a gateway is allowed to answer
+     * differently a minute later (and a healthy verdict is cached for a minute
+     * either way). Without this, the report could come back all-green to
+     * someone who is standing in front of the failure — so show what actually
+     * blocked the last checkout alongside the fresh run.
+     *
+     * @return array{probe: ?string, status: ?int, message: ?string, at: ?string}|null
+     */
+    public function lastPlatformCheckoutFault(): ?array
+    {
+        try {
+            $fault = Cache::get(self::lastFaultKey(KhqrCredentials::platform()));
+        } catch (\Throwable $e) {
+            return null;
+        }
+
+        return is_array($fault) ? $fault : null;
+    }
+
+    private static function lastFaultKey(KhqrCredentials $creds): string
+    {
+        return 'khqr:platform:last-fault:'.$creds->profileId;
+    }
+
+    /**
+     * Everything the diagnostics popup and `php artisan khqr:diagnose` show.
+     *
+     * One live run of the same probes the preflight uses, reported check by
+     * check instead of collapsed into a single yes/no, plus the settings that
+     * can only be verified by a human (the webhook URL has to be pasted into
+     * the khqr.cc profile — nothing here can read it back, and when it is
+     * missing the payment succeeds and the checkout page spins forever waiting
+     * for a callback that never arrives).
+     *
+     * `detail` is TECHNICAL and may quote the gateway verbatim, so only show it
+     * to an admin — never on the public signup page. The secret is never
+     * included, only whether one is set.
+     *
+     * @return array{healthy: bool, checks: array<int, array{key: string, label: string, state: string, detail: ?string}>, checked_at: string}
+     */
+    public function platformDiagnostics(): array
+    {
+        $creds = KhqrCredentials::platform();
+        $checks = [];
+        $webhook = [
+            'key' => 'webhook',
+            'label' => __('messages.khqr_diag_webhook'),
+            'state' => 'info',
+            'detail' => route('khqr.callback'),
+        ];
+
+        if (config('services.khqrpay.demo')) {
+            return [
+                'healthy' => true,
+                'checks' => [[
+                    'key' => 'demo',
+                    'label' => __('messages.khqr_diag_demo'),
+                    'state' => 'warn',
+                    'detail' => __('messages.khqr_diag_demo_detail'),
+                ]],
+                'checked_at' => Carbon::now()->toIso8601String(),
+            ];
+        }
+
+        // 1. Credentials. Name the blank field — "not configured" alone has sent
+        //    people looking in .env, where these have not lived since the
+        //    platform settings moved into the DB (see KhqrCredentials).
+        $missing = array_keys(array_filter([
+            __('messages.khqrpay_profile_id') => blank($creds->profileId),
+            __('messages.khqrpay_secret') => blank($creds->secret),
+            'base_url' => blank($creds->baseUrl),
+        ]));
+        $checks[] = [
+            'key' => 'credentials',
+            'label' => __('messages.khqr_diag_credentials'),
+            'state' => $missing === [] ? 'ok' : 'fail',
+            'detail' => $missing === []
+                ? $creds->baseUrl.' · '.__('messages.khqrpay_profile_id').' '.$creds->profileId
+                : __('messages.khqr_diag_credentials_missing', ['fields' => implode(', ', $missing)]),
+        ];
+
+        if ($missing !== []) {
+            $checks[] = $webhook;
+
+            return ['healthy' => false, 'checks' => $checks, 'checked_at' => Carbon::now()->toIso8601String()];
+        }
+
+        // 2 + 3. The two live probes, reported separately: answering a
+        //        transaction query and being able to open a checkout are
+        //        different permissions at the gateway.
+        foreach ([
+            ['profile', __('messages.khqr_diag_profile'), $this->probeCheckTransaction($creds)],
+            ['handoff', __('messages.khqr_diag_handoff'), $this->probeHandoff($creds)],
+        ] as [$key, $label, $probe]) {
+            $checks[] = [
+                'key' => $key,
+                'label' => $label,
+                'state' => match ($probe['outcome']) {
+                    'ok' => 'ok',
+                    'fault' => 'fail',
+                    default => 'warn',
+                },
+                'detail' => $this->probeDetail($probe),
+            ];
+        }
+
+        $checks[] = $webhook;
+
+        return [
+            'healthy' => ! collect($checks)->contains(fn (array $c) => $c['state'] === 'fail'),
+            'checks' => $checks,
+            'checked_at' => Carbon::now()->toIso8601String(),
+        ];
+    }
+
+    /** One readable line about a probe's answer: HTTP status plus the gateway's own words. */
+    private function probeDetail(array $probe): string
+    {
+        $parts = array_filter([
+            $probe['status'] ? 'HTTP '.$probe['status'] : null,
+            $probe['message'] ?: null,
+        ]);
+
+        return $parts === [] ? __('messages.khqr_diag_no_detail') : implode(' · ', $parts);
+    }
+
+    /**
+     * Probe 1 — can the profile answer a read-only transaction query?
+     *
+     * Uses a transaction id that deliberately does not exist at the gateway: we
+     * are asking whether the PROFILE can answer at all, not about a payment.
+     *
+     * @return array{outcome: string, probe: string, status: ?int, message: string}
+     */
+    private function probeCheckTransaction(KhqrCredentials $creds): array
+    {
         $endpoint = rtrim($creds->baseUrl, '/')
             .'/api/'.$creds->profileId
             .'/payment-gateway/v1/payments/check-transv2-khqrcc';
 
-        // A transaction id that deliberately does not exist at the gateway: we
-        // are asking whether the PROFILE can answer at all, not about a payment.
         $probe = 'PREFLIGHT-'.now()->format('YmdHis').'-'.random_int(100000, 999999);
 
         try {
@@ -273,20 +478,23 @@ class KhqrPaymentService
             // page may well load for them even if our server-side call blipped.
             Log::warning('KHQRPay preflight unreachable', ['msg' => $e->getMessage()]);
 
-            return null;
+            return ['outcome' => 'unknown', 'probe' => 'profile', 'status' => null, 'message' => $e->getMessage()];
         }
+
+        $message = (string) ($response->json('responseMessage') ?? '');
+        $out = fn (string $outcome) => [
+            'outcome' => $outcome,
+            'probe' => 'profile',
+            'status' => $response->status(),
+            'message' => $message ?: Str::limit($response->body(), 200),
+        ];
 
         // khqr.cc answers a profile that isn't provisioned for live payments
         // with a 5xx (the 502 seen on this integration), and a wrong secret with
         // 401/403 ("Invalid Security Hash"). Those are exactly the states where
         // the hosted checkout renders a JSON body instead of a payment form.
         if ($response->serverError() || in_array($response->status(), [401, 403], true)) {
-            Log::warning('KHQRPay preflight failed', [
-                'status' => $response->status(),
-                'body' => $response->body(),
-            ]);
-
-            return __('messages.subscription_gateway_unavailable');
+            return $out('fault');
         }
 
         // A 404 is the everyday HEALTHY answer, not a fault: the probe id
@@ -297,37 +505,85 @@ class KhqrPaymentService
         // checkout on a perfectly healthy profile — the exact false alarm this
         // guard exists to avoid, and the reason it is written to fail open.
         if ($response->status() === 404) {
-            $message = (string) ($response->json('responseMessage') ?? '');
-
-            if ($this->isConfigurationRefusal($message)) {
-                Log::warning('KHQRPay preflight failed', [
-                    'status' => 404,
-                    'body' => $response->body(),
-                ]);
-
-                return __('messages.subscription_gateway_unavailable');
-            }
-
-            return null;
+            return $out($this->isConfigurationRefusal($message) ? 'fault' : 'ok');
         }
 
         if (! $response->successful()) {
-            return null; // anything else is ambiguous — fail open
+            return $out('unknown'); // anything else is ambiguous — fail open
         }
 
-        $body = $response->json() ?? [];
-        $code = (int) ($body['responseCode'] ?? 0);
-        $message = (string) ($body['responseMessage'] ?? '');
+        $code = (int) ($response->json('responseCode') ?? 0);
 
-        if ($code !== 0 && $this->isConfigurationRefusal($message)) {
-            Log::warning('KHQRPay preflight refused', ['code' => $code, 'message' => $message]);
+        return $out($code !== 0 && $this->isConfigurationRefusal($message) ? 'fault' : 'ok');
+    }
 
-            return __('messages.subscription_gateway_unavailable');
+    /**
+     * Probe 2 — will the hosted checkout page actually render a payment form?
+     *
+     * This is the one that catches "Bakong Token Required": a profile can pass
+     * probe 1 and still refuse to take money, and until this existed the only
+     * thing that discovered it was the customer, on khqr.cc, reading JSON.
+     *
+     * Signed exactly like the real handoff (subscriptionCheckoutUrl) but with a
+     * throwaway transaction id and a token amount, so the single-use session it
+     * opens is one nobody will ever be sent to. A payment form answers as HTML;
+     * a refusal answers as JSON with a non-zero responseCode — telling those two
+     * apart IS the check.
+     *
+     * @return array{outcome: string, probe: string, status: ?int, message: string}
+     */
+    private function probeHandoff(KhqrCredentials $creds): array
+    {
+        if (! config('services.khqrpay.handoff_preflight')) {
+            return ['outcome' => 'unknown', 'probe' => 'handoff', 'status' => null, 'message' => __('messages.khqr_diag_handoff_disabled')];
         }
 
-        Cache::put($healthyKey, true, now()->addSeconds(60));
+        $probe = 'PREFLIGHT-'.now()->format('YmdHis').'-'.random_int(100000, 999999);
+        $params = [
+            'transaction_id' => $probe,
+            'amount' => '0.01',
+            'success_url' => route('login'),
+            'remark' => 'preflight',
+        ];
+        $params['hash'] = $this->sign($params, $creds->secret);
 
-        return null;
+        $url = rtrim($creds->baseUrl, '/').'/api/payment/request/'.$creds->profileId;
+
+        try {
+            $response = Http::acceptJson()
+                ->connectTimeout(3)->timeout(6)
+                ->get($url, $params);
+        } catch (\Throwable $e) {
+            Log::warning('KHQRPay handoff preflight unreachable', ['msg' => $e->getMessage()]);
+
+            return ['outcome' => 'unknown', 'probe' => 'handoff', 'status' => null, 'message' => $e->getMessage()];
+        }
+
+        $body = $response->json();
+        $message = is_array($body) ? (string) ($body['responseMessage'] ?? '') : '';
+        $out = fn (string $outcome) => [
+            'outcome' => $outcome,
+            'probe' => 'handoff',
+            'status' => $response->status(),
+            'message' => $message ?: Str::limit(strip_tags($response->body()), 200),
+        ];
+
+        if ($response->serverError() || in_array($response->status(), [401, 403], true)) {
+            return $out('fault');
+        }
+
+        // A JSON body here is the failure mode itself: the endpoint that should
+        // have rendered a payment form answered with a refusal envelope. That is
+        // literally what the customer would have been shown.
+        if (is_array($body) && (int) ($body['responseCode'] ?? 0) !== 0) {
+            return $out('fault');
+        }
+
+        if (! $response->successful()) {
+            return $out('unknown');
+        }
+
+        return $out('ok');
     }
 
     /**
@@ -491,6 +747,62 @@ class KhqrPaymentService
      * to the row's own credentials, with the same amount/currency defence the
      * webhook applies. Any error / non-success / mismatch reads as "unpaid".
      */
+    /**
+     * Bakong meters this app's token per calendar day, so the only number that
+     * matters operationally is "how many live provider calls have we spent
+     * today". Nothing else records it: a successful verify writes no log line,
+     * and only refusals are logged (latched to one line per transaction), so a
+     * busy day can leave no trace at all in laravel.log.
+     *
+     * Counted per settlement target as well as in total, because the two draw on
+     * different credentials — platform rows spend the SaaS operator's token,
+     * merchant rows spend the individual landlord's — and a shared total cannot
+     * say which one is running out.
+     *
+     * Best-effort by design: this is instrumentation wrapped around a payment
+     * check, and a cache hiccup must never turn a working verify into a failed
+     * one. Same rule AuditLogger follows.
+     */
+    private function recordProviderCall(?string $target = null): void
+    {
+        $target ??= 'unknown';
+
+        foreach ([self::usageKey(), self::usageKey($target)] as $key) {
+            try {
+                // add() only writes when the key is absent, so it seeds the
+                // counter without clobbering a concurrent increment. The database
+                // cache store's increment() is a no-op on a missing key, which is
+                // why seeding cannot be skipped.
+                Cache::add($key, 0, now()->addDays(3));
+                Cache::increment($key);
+            } catch (\Throwable $e) {
+                // Deliberately swallowed — see the docblock.
+            }
+        }
+    }
+
+    /**
+     * Live provider calls spent on the given day (default today), optionally for
+     * one settlement target. Surfaced by `php artisan khqr:usage`.
+     */
+    public static function providerCallsOn(?string $target = null, ?Carbon $day = null): int
+    {
+        try {
+            return (int) Cache::get(self::usageKey($target, $day), 0);
+        } catch (\Throwable $e) {
+            return 0;
+        }
+    }
+
+    private static function usageKey(?string $target = null, ?Carbon $day = null): string
+    {
+        $date = ($day ?? Carbon::now())->format('Y-m-d');
+
+        return $target === null
+            ? "khqr:calls:{$date}"
+            : "khqr:calls:{$date}:{$target}";
+    }
+
     private function queryProviderPaid(KhqrPayment $row): bool
     {
         $creds = $this->credentialsFor($row);
@@ -523,6 +835,13 @@ class KhqrPaymentService
         // working checkout and a quota that is empty by mid-morning. A refusal is
         // already read as "unpaid" below; only a connection blip is worth a second
         // attempt.
+        // Count it BEFORE the call, not after: a request that times out or is
+        // refused still spent the quota. The Bakong token is metered per day and
+        // a successful verify logs nothing, so without this the only record that
+        // a request happened is on the provider's side — which is why working out
+        // where a day's quota went once took a code audit instead of a query.
+        $this->recordProviderCall($row->settlement_target);
+
         try {
             $response = Http::asForm()->acceptJson()
                 ->connectTimeout(3)->timeout(8)

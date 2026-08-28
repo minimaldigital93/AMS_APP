@@ -58,6 +58,14 @@ return [
         'verify_cooldown' => (int) env('KHQRPAY_VERIFY_COOLDOWN', 4),
         // Minutes a minted QR stays payable before it's considered expired.
         'qr_ttl' => (int) env('KHQRPAY_QR_TTL', 30),
+        // Preflight the HOSTED-CHECKOUT endpoint (not just the read-only
+        // check-transaction one) before handing a customer's browser to
+        // khqr.cc. It is the only probe that catches a profile which can answer
+        // queries but cannot take money ("Bakong Token Required") — the state
+        // that used to dump customers on a raw JSON page. It costs one signed
+        // request against a THROWAWAY transaction id per checkout burst; turn it
+        // off only if khqr.cc objects to the unused sessions it opens.
+        'handoff_preflight' => (bool) env('KHQRPAY_HANDOFF_PREFLIGHT', true),
     ],
 
 ];

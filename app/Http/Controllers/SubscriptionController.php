@@ -102,8 +102,12 @@ class SubscriptionController extends Controller
         // so the customer sees a warning on this form with their input intact —
         // and, like the missing-credentials guard, no half-finished signup is
         // left behind.
+        // khqr_fault opens the "payment could not be started" popup on the form
+        // — see resources/views/components/khqr-diagnostics.blade.php. The guest
+        // copy of it never probes the gateway, so it says what happened and what
+        // to do without exposing the profile's internals.
         if ($fault = $khqr->platformCheckoutFault()) {
-            return back()->withInput()->with('error', $fault);
+            return back()->withInput()->with('error', $fault)->with('khqr_fault', true);
         }
 
         try {
@@ -122,14 +126,14 @@ class SubscriptionController extends Controller
         } catch (KhqrPlatformCredentialsMissingException $e) {
             report($e);
 
-            return back()->withInput()->with('error', $e->getMessage());
+            return back()->withInput()->with('error', $e->getMessage())->with('khqr_fault', true);
         } catch (\Throwable $e) {
             // A KHQRPay outage / misconfiguration must not 500 the public signup
             // page — roll back (the transaction already did) and show a friendly
             // message instead of an uncaught exception.
             report($e);
 
-            return back()->withInput()->with('error', __('messages.subscription_payment_unavailable'));
+            return back()->withInput()->with('error', __('messages.subscription_payment_unavailable'))->with('khqr_fault', true);
         }
 
         return redirect()->away(

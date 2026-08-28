@@ -4,8 +4,21 @@
     @if (session('error'))
         <div class="mt-4 rounded-lg border border-red-400/40 bg-red-500/20 px-4 py-3 text-sm text-red-100">
             {{ session('error') }}
+            @if (session('khqr_fault'))
+                <button type="button" x-on:click="$dispatch('khqr-diagnostics')"
+                        class="mt-1 block underline underline-offset-2 hover:text-white">
+                    {{ __('messages.khqr_diag_open') }}
+                </button>
+            @endif
         </div>
     @endif
+
+    {{-- No endpoint: the public form never probes the gateway. The detail lines
+         quote the gateway and name the profile id, and an unauthenticated probe
+         route would be a free way to spend a metered Bakong token. --}}
+    <x-khqr-diagnostics
+        :reason="session('khqr_fault') ? session('error') : null"
+        :auto-open="(bool) session('khqr_fault')" />
 
     <form method="POST" action="{{ route('subscribe.store') }}"
           x-data="{ plan: '{{ $selected->slug }}', cycle: '{{ $cycle ?? 'monthly' }}', trials: {{ \Illuminate\Support\Js::from($plans->pluck('trial_days', 'slug')) }}, submitting: false }"

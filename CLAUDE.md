@@ -288,12 +288,25 @@ minting anything** — a refusal then leaves no half-finished signup and no orph
 QR, matching the missing-credentials guard — and flash its return value as
 `error` on the form the customer is already on.
 
-- **It probes the read-only `check-transv2-khqrcc` endpoint**, the same call the
-  status poll makes every few seconds. Never GET the hosted-checkout URL to test
-  it: those sessions are single-use on khqr.cc's side (see
-  `createSubscriptionQr`), so the probe would consume the session the customer
-  is about to be sent to. It probes a **throwaway transaction id** — the question
-  is whether the *profile* can answer, not whether a payment landed.
+- **It runs TWO probes, and only the second one catches the reported failure.**
+  `probeCheckTransaction()` asks the read-only `check-transv2-khqrcc` endpoint
+  whether the profile answers at all (wrong secret, wrong profile id, gateway
+  down). `probeHandoff()` asks the hosted-checkout endpoint the customer is
+  about to be sent to whether it will render a payment form or a JSON refusal.
+  **Checking a transaction and taking money are different permissions at
+  khqr.cc**: this account passed probe 1 with a healthy `404 Transaction Not
+  Found` and answered probe 2 with `422 Bakong Token Required: No active
+  official Bakong OpenAPI token configured` — so until 2026-08 the guard
+  reported healthy and customers still landed on the JSON page. A payment form
+  answers as HTML; a refusal answers as JSON with a non-zero `responseCode`, and
+  telling those apart *is* the check.
+- **Both probe a throwaway transaction id, never the row's own.** khqr.cc
+  checkout sessions are single-use (see `createSubscriptionQr`), so GETting the
+  *customer's* checkout URL would burn the session they are about to open —
+  that, and not the request itself, is what must never be done. The handoff
+  probe opens a throwaway session nobody will ever be sent to.
+  `services.khqrpay.handoff_preflight` (`KHQRPAY_HANDOFF_PREFLIGHT`, default on)
+  turns it off if khqr.cc ever objects to those unused sessions.
 - **It fails open, deliberately.** Only a positive showing that the profile
   can't transact is a fault: 5xx (the unprovisioned-profile signature here),
   401/403/404, or a non-zero `responseCode` whose message names a credential
@@ -306,9 +319,45 @@ QR, matching the missing-credentials guard — and flash its return value as
   payment can still land, so it is a warning beside the spinner, not a terminal
   state. A non-OK response used to be silently swallowed and the customer
   watched the spinner forever.
+- **A healthy verdict is only cached when both probes said so.** An `unknown`
+  (timeout, blip) is let through but never silences the next check, or one
+  timeout buys a broken gateway a free minute of handoffs.
 - Checkout views read `$payment->subscription?->plan?->…`: a superadmin can
   delete a Plan mid-checkout, and a 500 there replaces "confirming your payment"
   with an error page mid-payment.
+
+#### …and when it does refuse, a popup says which part
+
+One flash sentence is all the customer needs; whoever has to *fix* the profile
+needs to know which check failed and in whose words.
+`<x-khqr-diagnostics>` (`components/khqr-diagnostics.blade.php`) is that popup,
+and `KhqrPaymentService::platformDiagnostics()` is the one report behind it —
+also printed by `php artisan khqr:diagnose`, which exists because the failure
+can lock the operator out of the very page the popup lives on (no active
+subscription + a gateway that won't take payment leaves nowhere in the UI to
+stand).
+
+- **Two audiences, one component, and the difference is `endpoint`.** With it
+  (billing page, admin checkout) the popup runs the live checks and quotes the
+  gateway verbatim. Without it (public signup form, signup checkout) it says
+  what happened, that no money moved, and what to do — **never** the probe
+  results: `detail` names the profile id and the gateway's internals, and an
+  unauthenticated probe route would be a free way to spend a metered Bakong
+  token. `admin.billing.diagnostics` is auth'd and throttled 10/min.
+- **`khqr_fault` is the auto-open trigger**, flashed beside `error` only by the
+  gateway refusal paths — the billing page flashes `error` for ordinary
+  failures too, and a diagnostics dialog is the wrong answer to those.
+- **The last recorded refusal is shown beside the fresh run.** The gateway is
+  allowed to answer differently a minute later (and a healthy verdict is cached
+  for one), so an all-green report in front of someone staring at the failure is
+  worse than no report.
+- **Both checkout pages carry a "payment page didn't open?" button.** The
+  spinner cannot tell "not paid yet" from "khqr.cc showed you JSON and you came
+  back" — the row sits in `qr_generated` either way — so without it the
+  customer's only option is to watch it until the QR expires.
+- The webhook URL is reported as `info`, not a pass/fail: nothing here can read
+  back what is pasted into the khqr.cc profile, and a missing one is exactly the
+  case where the payment succeeds and the checkout page spins forever.
 
 `tests/Feature/Subscription/CheckoutPreflightTest.php` pins it.
 

@@ -11,6 +11,10 @@ use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
 beforeEach(function () {
+    // The array store lives for the whole process, so the verify cooldown and
+    // the daily call counter would otherwise carry over between tests here.
+    Cache::flush();
+
     config()->set('services.khqrpay.base_url', 'https://khqr.cc');
     config()->set('services.khqrpay.profile_id', 'profile123');
     config()->set('services.khqrpay.secret', 'test-secret');
@@ -336,4 +340,85 @@ it('still retries a failed connection, which costs the gateway nothing', functio
 
     expect($this->service->verify($row))->toBeFalse();
     expect($attempts)->toBe(2);
+});
+
+/**
+ * A successful verify logs nothing and only the provider knows the running
+ * total, so before this counter existed the only way to find out where a day's
+ * Bakong quota went was to read the code. The counter is what makes the spend a
+ * query instead of an audit — it has to survive the cooldown, count refusals,
+ * and split the two credential sets apart.
+ */
+it('counts every live Bakong request it spends, split by settlement target', function () {
+    $row = KhqrPayment::create([
+        'transaction_id' => 'SUB-COUNT-1',
+        'subscription_id' => null,
+        'amount' => 500,
+        'currency' => 'USD',
+        'status' => 'pending',
+        'settlement_target' => 'platform',
+        'channel' => 'api',
+        'provider_ref' => 'deadbeef',
+        'checkout_payload' => ['type' => 'subscription'],
+    ]);
+
+    Http::fake(fn () => Http::response(['responseCode' => 1, 'responseMessage' => 'not found'], 200));
+
+    expect(KhqrPaymentService::providerCallsOn())->toBe(0);
+
+    $this->service->verify($row);
+
+    expect(KhqrPaymentService::providerCallsOn())->toBe(1);
+    expect(KhqrPaymentService::providerCallsOn('platform'))->toBe(1);
+    // A landlord's token is metered separately from the platform's.
+    expect(KhqrPaymentService::providerCallsOn('merchant'))->toBe(0);
+});
+
+/**
+ * The cooldown is the thing standing between a 3-second poll and the daily
+ * quota, so the counter must measure calls that actually left the building —
+ * not verify() invocations. If these two ever diverge the number stops meaning
+ * anything.
+ */
+it('does not count a verify answered from the cooldown cache', function () {
+    $row = KhqrPayment::create([
+        'transaction_id' => 'SUB-COUNT-2',
+        'subscription_id' => null,
+        'amount' => 500,
+        'currency' => 'USD',
+        'status' => 'pending',
+        'settlement_target' => 'platform',
+        'channel' => 'api',
+        'provider_ref' => 'deadbeef',
+        'checkout_payload' => ['type' => 'subscription'],
+    ]);
+
+    Http::fake(fn () => Http::response(['responseCode' => 1, 'responseMessage' => 'not found'], 200));
+
+    $this->service->verify($row); // live call
+    $this->service->verify($row); // served from the cooldown window
+    $this->service->verify($row);
+
+    expect(KhqrPaymentService::providerCallsOn())->toBe(1);
+});
+
+/** A refused request still spent the quota, so it still counts. */
+it('counts a request the gateway refused', function () {
+    $row = KhqrPayment::create([
+        'transaction_id' => 'SUB-COUNT-3',
+        'subscription_id' => null,
+        'amount' => 500,
+        'currency' => 'USD',
+        'status' => 'pending',
+        'settlement_target' => 'platform',
+        'channel' => 'api',
+        'provider_ref' => 'deadbeef',
+        'checkout_payload' => ['type' => 'subscription'],
+    ]);
+
+    Http::fake(fn () => Http::response(['responseCode' => 1], 502));
+
+    $this->service->verify($row);
+
+    expect(KhqrPaymentService::providerCallsOn())->toBe(1);
 });

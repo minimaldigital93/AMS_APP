@@ -12,4 +12,10 @@ Artisan::command('inspire', function () {
 Schedule::command('subscriptions:expire')->dailyAt('00:10');
 
 // Safety net: finalize paid-but-unnotified KHQR rows, expire stale pending QRs.
-Schedule::command('khqr:reconcile')->everyFiveMinutes();
+// withoutOverlapping() because every open row in the run costs one live Bakong
+// request against a token metered per day: if the gateway is slow a run can
+// outlast its five-minute slot, and stacked runs would re-verify the same rows
+// concurrently, multiplying quota spend exactly when the gateway is least able
+// to answer. The lock is released after ten minutes so a killed run cannot
+// wedge the safety net shut.
+Schedule::command('khqr:reconcile')->everyFiveMinutes()->withoutOverlapping(10);
