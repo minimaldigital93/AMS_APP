@@ -51,6 +51,19 @@ use Illuminate\Support\Str;
 class KhqrPaymentService
 {
     /**
+     * verifyOutcome() results. PAID and UNPAID are answers from the gateway;
+     * REFUSED means there is no answer yet and nothing may be decided on it.
+     */
+    public const VERIFY_PAID = 'paid';
+
+    public const VERIFY_UNPAID = 'unpaid';
+
+    public const VERIFY_REFUSED = 'refused';
+
+    /** Set by pollAndAdvance(); read by the poll endpoints via lastPollRefused(). */
+    private bool $lastPollRefused = false;
+
+    /**
      * Create a pending KhqrPayment for a tenant RENT payment (Flow B) using the
      * landlord's own payment settings. Picks the best available channel:
      * api (dynamic QR) → manual (static image / generated Bakong QR / bank info).
@@ -362,7 +375,17 @@ class KhqrPaymentService
      * to an admin — never on the public signup page. The secret is never
      * included, only whether one is set.
      *
-     * @return array{healthy: bool, checks: array<int, array{key: string, label: string, state: string, detail: ?string}>, checked_at: string}
+     * Each check also carries what to DO about it:
+     *  - `remedy` — the fix for THIS failure in plain words. A refusal names one
+     *    of four different jobs (add a credential, wait out an allowance, re-copy
+     *    a secret, get a token activated at khqr.cc) and they are done in
+     *    different places by different people, so one generic paragraph under
+     *    the list left the reader to work out which one they were in.
+     *  - `copy`  — a value that has to leave this screen intact: the webhook URL
+     *    that must be pasted into the khqr.cc profile, and the support sentence
+     *    for a refusal only khqr.cc can clear.
+     *
+     * @return array{healthy: bool, checks: array<int, array{key: string, label: string, state: string, detail: ?string, remedy: ?string, copy: ?string}>, checked_at: string}
      */
     public function platformDiagnostics(): array
     {
@@ -373,6 +396,10 @@ class KhqrPaymentService
             'label' => __('messages.khqr_diag_webhook'),
             'state' => 'info',
             'detail' => route('khqr.callback'),
+            'remedy' => __('messages.khqr_fix_webhook'),
+            // Nothing here can read back what is actually in the khqr.cc
+            // profile, so the most this can do is hand over the exact string.
+            'copy' => route('khqr.callback'),
         ];
 
         if (config('services.khqrpay.demo')) {
@@ -383,6 +410,8 @@ class KhqrPaymentService
                     'label' => __('messages.khqr_diag_demo'),
                     'state' => 'warn',
                     'detail' => __('messages.khqr_diag_demo_detail'),
+                    'remedy' => __('messages.khqr_fix_demo'),
+                    'copy' => null,
                 ]],
                 'checked_at' => Carbon::now()->toIso8601String(),
             ];
@@ -403,7 +432,14 @@ class KhqrPaymentService
             'detail' => $missing === []
                 ? $creds->baseUrl.' · '.__('messages.khqrpay_profile_id').' '.$creds->profileId
                 : __('messages.khqr_diag_credentials_missing', ['fields' => implode(', ', $missing)]),
+            'remedy' => $missing === [] ? null : __('messages.khqr_fix_settings'),
+            'copy' => null,
         ];
+
+        // The allowance, before the probes rather than after: a spent token and
+        // an unconfigured one produce similar-looking refusals below, and this
+        // is the line that tells them apart without a second guess.
+        $checks[] = $this->usageCheck();
 
         if ($missing !== []) {
             $checks[] = $webhook;
@@ -427,6 +463,14 @@ class KhqrPaymentService
                     default => 'warn',
                 },
                 'detail' => $this->probeDetail($probe),
+                'remedy' => $this->probeRemedy($probe, $creds),
+                'copy' => $probe['outcome'] === 'fault' && $this->needsGatewayOperator($probe)
+                    ? __('messages.khqr_diag_support_line', [
+                        'profile' => $creds->profileId,
+                        'status' => $probe['status'] ?? '—',
+                        'message' => $probe['message'] ?: __('messages.khqr_diag_no_detail'),
+                    ])
+                    : null,
             ];
         }
 
@@ -437,6 +481,103 @@ class KhqrPaymentService
             'checks' => $checks,
             'checked_at' => Carbon::now()->toIso8601String(),
         ];
+    }
+
+    /**
+     * Today's spend against the ceiling, as a check of its own.
+     *
+     * Reported even when it is healthy, because it is the number that decides
+     * how to read everything below it: a gateway refusing because the day's
+     * allowance is gone and one refusing because it was never given a token
+     * look almost identical in the probe output, and the remedies are nothing
+     * alike — one resolves itself at midnight, the other never does.
+     *
+     * @return array{key: string, label: string, state: string, detail: string, remedy: ?string, copy: ?string}
+     */
+    private function usageCheck(): array
+    {
+        $budget = (int) config('services.khqrpay.daily_budget', 0);
+        $spent = self::providerCallsOn('platform');
+
+        if ($budget <= 0) {
+            return [
+                'key' => 'usage',
+                'label' => __('messages.khqr_diag_usage'),
+                'state' => 'warn',
+                'detail' => __('messages.khqr_diag_usage_unlimited', ['spent' => $spent]),
+                'remedy' => __('messages.khqr_fix_no_budget'),
+                'copy' => null,
+            ];
+        }
+
+        // 'fail' only when the ceiling is actually reached — this app has then
+        // stopped calling out, which IS the refusal the reader is looking at.
+        $state = match (true) {
+            $spent >= $budget => 'fail',
+            $spent >= (int) ceil($budget * 0.8) => 'warn',
+            default => 'ok',
+        };
+
+        return [
+            'key' => 'usage',
+            'label' => __('messages.khqr_diag_usage'),
+            'state' => $state,
+            'detail' => __('messages.khqr_diag_usage_detail', ['spent' => $spent, 'budget' => $budget]),
+            'remedy' => $state === 'ok' ? null : __('messages.khqr_fix_quota'),
+            'copy' => null,
+        ];
+    }
+
+    /**
+     * What to DO about this probe's answer.
+     *
+     * Four different jobs hide behind "the gateway refused", and they are done
+     * by different people in different places — so name the one that applies
+     * instead of listing all four and leaving the reader to guess.
+     */
+    private function probeRemedy(array $probe, KhqrCredentials $creds): ?string
+    {
+        if ($probe['outcome'] === 'ok') {
+            return null;
+        }
+
+        if ($probe['outcome'] === 'unknown') {
+            return __('messages.khqr_fix_inconclusive');
+        }
+
+        $message = (string) ($probe['message'] ?? '');
+        $status = $probe['status'] ?? null;
+
+        // The allowance is spent: nothing to fix, and it clears on its own.
+        if ($status === 429 || $this->isQuotaRefusal($message)) {
+            return __('messages.khqr_fix_quota');
+        }
+
+        // The secret does not match the profile — the one failure that IS
+        // fixable on our own settings page.
+        if (in_array($status, [401, 403], true) || str_contains(strtolower($message), 'hash')) {
+            return __('messages.khqr_fix_credentials');
+        }
+
+        return __('messages.khqr_fix_token', ['profile' => $creds->profileId]);
+    }
+
+    /**
+     * True when clearing this refusal needs someone at khqr.cc rather than
+     * anything on this side — which is when a verbatim sentence to send them is
+     * worth putting on a copy button.
+     */
+    private function needsGatewayOperator(array $probe): bool
+    {
+        $message = (string) ($probe['message'] ?? '');
+        $status = $probe['status'] ?? null;
+
+        if ($status === 429 || $this->isQuotaRefusal($message)) {
+            return false;
+        }
+
+        return ! in_array($status, [401, 403], true)
+            && ! str_contains(strtolower($message), 'hash');
     }
 
     /** One readable line about a probe's answer: HTTP status plus the gateway's own words. */
@@ -493,7 +634,10 @@ class KhqrPaymentService
         // with a 5xx (the 502 seen on this integration), and a wrong secret with
         // 401/403 ("Invalid Security Hash"). Those are exactly the states where
         // the hosted checkout renders a JSON body instead of a payment form.
-        if ($response->serverError() || in_array($response->status(), [401, 403], true)) {
+        // 429 joins 401/403/5xx as a positive showing that the handoff cannot
+        // work: the allowance is spent, so the hosted checkout will refuse the
+        // customer exactly as it refused us.
+        if ($response->serverError() || in_array($response->status(), [401, 403, 429], true)) {
             return $out('fault');
         }
 
@@ -505,7 +649,7 @@ class KhqrPaymentService
         // checkout on a perfectly healthy profile — the exact false alarm this
         // guard exists to avoid, and the reason it is written to fail open.
         if ($response->status() === 404) {
-            return $out($this->isConfigurationRefusal($message) ? 'fault' : 'ok');
+            return $out($this->isBlockingRefusal($message) ? 'fault' : 'ok');
         }
 
         if (! $response->successful()) {
@@ -514,7 +658,7 @@ class KhqrPaymentService
 
         $code = (int) ($response->json('responseCode') ?? 0);
 
-        return $out($code !== 0 && $this->isConfigurationRefusal($message) ? 'fault' : 'ok');
+        return $out($code !== 0 && $this->isBlockingRefusal($message) ? 'fault' : 'ok');
     }
 
     /**
@@ -568,7 +712,7 @@ class KhqrPaymentService
             'message' => $message ?: Str::limit(strip_tags($response->body()), 200),
         ];
 
-        if ($response->serverError() || in_array($response->status(), [401, 403], true)) {
+        if ($response->serverError() || in_array($response->status(), [401, 403, 429], true)) {
             return $out('fault');
         }
 
@@ -597,7 +741,50 @@ class KhqrPaymentService
      */
     private function isConfigurationRefusal(string $message): bool
     {
-        $needles = ['token', 'configur', 'unauthor', 'hash', 'profile', 'permission', 'disabled', 'suspend', 'credential'];
+        return $this->messageMentions($message, [
+            'token', 'configur', 'unauthor', 'hash', 'profile', 'permission', 'disabled', 'suspend', 'credential',
+        ]);
+    }
+
+    /**
+     * Does this refusal say the metered allowance is spent?
+     *
+     * A profile that is perfectly configured still cannot take money once the
+     * upstream Bakong token is over its daily request limit, and that refusal
+     * looks nothing like a credential problem — so isConfigurationRefusal()
+     * misses it and the preflight used to fail open and hand the customer to a
+     * JSON error page anyway.
+     *
+     * The needles are deliberately PHRASES, not the bare word "limit". The
+     * handoff probe asks for a 0.01 amount, and a gateway answering "amount
+     * below minimum limit" describes that probe's token amount, not the
+     * profile — matching it would block every checkout on a healthy account,
+     * which is exactly the false alarm this guard is written to avoid.
+     */
+    private function isQuotaRefusal(string $message): bool
+    {
+        return $this->messageMentions($message, [
+            'rate limit', 'ratelimit', 'daily limit', 'request limit', 'limit exceeded',
+            'exceeded limit', 'exceeds limit', 'out of limit', 'over limit', 'limit reached',
+            'quota', 'too many request', 'throttl',
+        ]);
+    }
+
+    /**
+     * Will this refusal still be true when the customer's browser arrives?
+     *
+     * Both a credential fault and a spent allowance answer yes, and both are
+     * grounds to keep the customer on our own page. A routine "transaction not
+     * found" answers no.
+     */
+    private function isBlockingRefusal(string $message): bool
+    {
+        return $this->isConfigurationRefusal($message) || $this->isQuotaRefusal($message);
+    }
+
+    /** Case-insensitive substring match of any needle in the gateway's message. */
+    private function messageMentions(string $message, array $needles): bool
+    {
         $haystack = strtolower($message);
 
         foreach ($needles as $needle) {
@@ -708,38 +895,94 @@ class KhqrPaymentService
      */
     public function verify(KhqrPayment $row): bool
     {
+        return $this->verifyOutcome($row) === self::VERIFY_PAID;
+    }
+
+    /**
+     * The same question as verify(), with the answer the boolean cannot carry:
+     * did the gateway actually ANSWER?
+     *
+     * verify() collapses everything that is not a confirmed payment into false,
+     * and every caller reads that false as "the payer has not paid". For a 200
+     * saying "transaction not found" that is correct. For a refusal — a spent
+     * Bakong allowance, a 5xx, a timeout — it is a guess, and it is the
+     * expensive kind: the money may well have landed, and a row expired on that
+     * guess is a payment written out of the books. Over-limit makes it the
+     * NORMAL answer rather than the rare one, which is how a quota problem
+     * turns into a money problem.
+     *
+     * So there are three outcomes, and only one of them is evidence:
+     *
+     *  - VERIFY_PAID     the gateway confirmed the money, amount and currency;
+     *  - VERIFY_UNPAID   the gateway answered, and the payment has not settled;
+     *  - VERIFY_REFUSED  no verdict — never settle, never expire, try again.
+     *
+     * Callers that only settle on success can keep using verify(); anything
+     * that would act on a NEGATIVE (expiring a row, giving up on it) must use
+     * this and treat a refusal as "ask again later".
+     */
+    public function verifyOutcome(KhqrPayment $row): string
+    {
         if ($row->isPaid()) {
-            return true;
+            return self::VERIFY_PAID;
         }
 
         // Terminal rows (failed/expired/cancelled/refunded/rejected) never settle.
         if (! $row->isOpen()) {
-            return false;
+            return self::VERIFY_UNPAID;
         }
 
         if ($row->channel === 'manual') {
-            return false;
+            return self::VERIFY_UNPAID;
         }
 
         // Demo mode: auto-confirm a few seconds after the QR is generated so the
         // full scan → waiting → paid → record flow can be demonstrated end-to-end.
         if (config('services.khqrpay.demo')) {
-            return $row->created_at !== null && $row->created_at->diffInSeconds(now()) >= 8;
+            return $row->created_at !== null && $row->created_at->diffInSeconds(now()) >= 8
+                ? self::VERIFY_PAID
+                : self::VERIFY_UNPAID;
         }
 
         // Cooldown: a public status poll fires every few seconds — never make a
         // live provider call more than once per verify_cooldown window. The last
-        // result is cached, so a confirmed payment is still seen promptly.
-        $cooldownKey = 'khqr:verify:'.$row->transaction_id;
+        // result is cached, so a confirmed payment is still seen promptly. A
+        // refusal is cached too: when the allowance is spent, every poll would
+        // otherwise spend another request discovering the same thing.
+        //
+        // Keyed apart from the old boolean cache ('khqr:verify:…') so a value
+        // written by the previous release is never read back as an outcome.
+        $cooldownKey = 'khqr:verify:outcome:'.$row->transaction_id;
         $cached = Cache::get($cooldownKey);
-        if ($cached !== null) {
-            return (bool) $cached;
+        if (is_string($cached)) {
+            return $cached;
         }
 
-        $result = $this->queryProviderPaid($row);
-        Cache::put($cooldownKey, $result, now()->addSeconds((int) config('services.khqrpay.verify_cooldown', 4)));
+        $outcome = $this->queryProviderOutcome($row);
+        Cache::put($cooldownKey, $outcome, now()->addSeconds((int) config('services.khqrpay.verify_cooldown', 4)));
 
-        return $result;
+        return $outcome;
+    }
+
+    /**
+     * Has this settlement target spent its allowance of live provider calls for
+     * the day?
+     *
+     * Counted per target, because platform rows spend the SaaS operator's
+     * Bakong token and merchant rows spend the individual landlord's — one
+     * landlord's busy collection day must not lock out everyone else.
+     *
+     * Cache-backed like the counter it reads, and fails OPEN on a cache error:
+     * a broken cache must not stop a real payment from being confirmed.
+     */
+    private function dailyBudgetExhausted(?string $target): bool
+    {
+        $budget = (int) config('services.khqrpay.daily_budget', 0);
+        if ($budget <= 0) {
+            return false;
+        }
+
+        return self::providerCallsOn($target ?? 'unknown') >= $budget;
     }
 
     /**
@@ -803,11 +1046,23 @@ class KhqrPaymentService
             : "khqr:calls:{$date}:{$target}";
     }
 
-    private function queryProviderPaid(KhqrPayment $row): bool
+    private function queryProviderOutcome(KhqrPayment $row): string
     {
         $creds = $this->credentialsFor($row);
         if ($creds === null) {
-            return false;
+            return self::VERIFY_REFUSED;
+        }
+
+        // Stop BEFORE the call, not after: a request refused for being over the
+        // limit is charged to the allowance exactly like one that answers, so an
+        // exhausted token spends the rest of the day discovering it is
+        // exhausted. Refusing locally keeps whatever is left for a payment that
+        // can still be confirmed, and reads as REFUSED — never as "unpaid" —
+        // so nothing is settled or expired while we are flying blind.
+        if ($this->dailyBudgetExhausted($row->settlement_target)) {
+            $this->logBudgetExhausted($row);
+
+            return self::VERIFY_REFUSED;
         }
 
         // KHQRPay "Check Transaction V2" endpoint (fast confirmation with Bakong
@@ -850,21 +1105,32 @@ class KhqrPaymentService
         } catch (\Throwable $e) {
             Log::warning('KHQRPay verify error', ['tran' => $row->transaction_id, 'msg' => $e->getMessage()]);
 
-            return false;
+            // A transport failure is not a statement about the payment.
+            return self::VERIFY_REFUSED;
         }
 
+        // Only a 2xx is the gateway answering the question. 429 (allowance
+        // spent), 401/403 (credentials) and 5xx (profile not provisioned — the
+        // 502 this integration returns) all describe OUR access, not the
+        // payer's money, and used to be indistinguishable from an honest
+        // "not paid yet".
         if (! $response->successful()) {
-            return false;
+            $this->logVerifyRefusal($row, $response->status(), (string) ($response->json('responseMessage') ?? ''));
+
+            return self::VERIFY_REFUSED;
         }
 
         $body = $response->json() ?? [];
 
-        // A non-zero responseCode (e.g. "transaction not found yet") means the
-        // payment has NOT settled — treat it as unpaid, never as confirmed.
+        // A non-zero responseCode is normally "transaction not found yet" — the
+        // honest pre-payment answer, and genuinely unpaid. A refusal that names
+        // a spent allowance or a credential problem is not: the gateway is
+        // declining to look, so it says nothing about the money.
         if (isset($body['responseCode']) && (int) $body['responseCode'] !== 0) {
-            $this->logVerifyRefusal($row, (int) $body['responseCode'], (string) ($body['responseMessage'] ?? ''));
+            $message = (string) ($body['responseMessage'] ?? '');
+            $this->logVerifyRefusal($row, (int) $body['responseCode'], $message);
 
-            return false;
+            return $this->isBlockingRefusal($message) ? self::VERIFY_REFUSED : self::VERIFY_UNPAID;
         }
 
         // The real paid/unpaid state lives inside the data envelope (same shape
@@ -888,10 +1154,38 @@ class KhqrPaymentService
         // currency, they must match the row this QR was minted for. A "paid" that
         // settled a different amount must never finalize a $500 subscription.
         if ($paid && ! $this->amountCurrencyMatches($row, $data)) {
-            return false;
+            return self::VERIFY_UNPAID;
         }
 
-        return $paid;
+        return $paid ? self::VERIFY_PAID : self::VERIFY_UNPAID;
+    }
+
+    /**
+     * Say once per target per day that the allowance ran out.
+     *
+     * Latched, because the poll would otherwise write a line every few seconds
+     * for the rest of the day — and this is the one message that has to be
+     * findable in the log, since from the outside a spent allowance looks
+     * exactly like a building full of tenants who have not paid.
+     */
+    private function logBudgetExhausted(KhqrPayment $row): void
+    {
+        $target = $row->settlement_target ?? 'unknown';
+        $latch = 'khqr:budget:logged:'.$target.':'.Carbon::now()->format('Y-m-d');
+
+        try {
+            if (! Cache::add($latch, true, now()->addDay())) {
+                return;
+            }
+        } catch (\Throwable $e) {
+            // Instrumentation only — never fail a verify over the cache.
+        }
+
+        Log::warning('KHQRPay daily request budget exhausted — not calling the gateway', [
+            'target' => $target,
+            'budget' => (int) config('services.khqrpay.daily_budget', 0),
+            'spent' => self::providerCallsOn($target),
+        ]);
     }
 
     /**
@@ -1060,12 +1354,26 @@ class KhqrPaymentService
     public function pollAndAdvance(KhqrPayment $row): KhqrPayment
     {
         $this->markWaiting($row);
+        $this->lastPollRefused = false;
 
         // Verify FIRST so a payment that lands right at the deadline still wins.
-        if (! $row->isPaid() && $this->verify($row)) {
+        $outcome = $row->isPaid() ? self::VERIFY_PAID : $this->verifyOutcome($row);
+
+        if ($outcome === self::VERIFY_PAID) {
             $this->finalize($row);
 
             return $row->refresh();
+        }
+
+        // A refusal is not a verdict, so it must not close the row. Expiring on
+        // it would end a QR the payer may already have paid, on the strength of
+        // a gateway that declined to answer — and once the row is terminal,
+        // verify() short-circuits and the safety net never looks again. Leave it
+        // open, tell the page the gateway is unwell, and ask again next tick.
+        if ($outcome === self::VERIFY_REFUSED) {
+            $this->lastPollRefused = true;
+
+            return $row;
         }
 
         if ($this->expireIfElapsed($row)) {
@@ -1073,6 +1381,21 @@ class KhqrPaymentService
         }
 
         return $row;
+    }
+
+    /**
+     * Did the last pollAndAdvance() fail to get a verdict out of the gateway?
+     *
+     * The three checkout pages already know how to say "we cannot reach the
+     * gateway" — they warn beside the spinner after two consecutive bad polls
+     * and keep polling, because the payment can still land. Until now only a
+     * thrown exception could set that off, so a gateway refusing every request
+     * looked identical to a payer who simply had not paid yet, and the customer
+     * watched a silent spinner until the QR died.
+     */
+    public function lastPollRefused(): bool
+    {
+        return $this->lastPollRefused;
     }
 
     /**

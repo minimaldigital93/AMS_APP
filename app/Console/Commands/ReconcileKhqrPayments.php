@@ -16,6 +16,12 @@ use Illuminate\Support\Facades\Log;
  *
  * Manual-channel rows are untouched — they wait for the landlord on the
  * pending-confirmations page. Scheduled every five minutes — routes/console.php.
+ *
+ * A row is only expired on a CONCLUSIVE unpaid. When the gateway gives no
+ * verdict (allowance spent, 5xx, timeout) the row is left open for the next
+ * run: expiry is terminal, and expiring a QR the payer may already have paid —
+ * on the word of a gateway that declined to answer — writes their money out of
+ * the books with no way back.
  */
 class ReconcileKhqrPayments extends Command
 {
@@ -28,17 +34,36 @@ class ReconcileKhqrPayments extends Command
         $expireAfter = (int) $this->option('expire-after');
         $finalized = 0;
         $expired = 0;
+        $refused = 0;
 
         KhqrPayment::whereIn('status', PaymentStatus::openValues())
             ->where('channel', 'api')
             ->where('created_at', '>', now()->subDay())
-            ->chunkById(100, function ($rows) use ($khqr, $expireAfter, &$finalized, &$expired) {
+            ->chunkById(100, function ($rows) use ($khqr, $expireAfter, &$finalized, &$expired, &$refused) {
                 foreach ($rows as $row) {
                     try {
-                        if ($khqr->verify($row)) {
+                        $outcome = $khqr->verifyOutcome($row);
+
+                        if ($outcome === KhqrPaymentService::VERIFY_PAID) {
                             $khqr->finalize($row);
                             $finalized++;
-                        } elseif ($this->isStale($row, $expireAfter)) {
+
+                            continue;
+                        }
+
+                        // No verdict — the allowance is spent, or the gateway is
+                        // refusing. This branch is the one that used to lose
+                        // money: a refusal read as "unpaid", and a stale row was
+                        // then expired on it. Expiry is terminal, so the next run
+                        // would never look at that QR again even after the
+                        // gateway recovered. Leave it open and try again.
+                        if ($outcome === KhqrPaymentService::VERIFY_REFUSED) {
+                            $refused++;
+
+                            continue;
+                        }
+
+                        if ($this->isStale($row, $expireAfter)) {
                             $row->transitionTo(PaymentStatus::Expired);
                             $row->save();
                             $expired++;
@@ -49,7 +74,11 @@ class ReconcileKhqrPayments extends Command
                 }
             });
 
-        $this->info("Finalized: {$finalized}, expired: {$expired}");
+        $this->info("Finalized: {$finalized}, expired: {$expired}, unverifiable: {$refused}");
+
+        if ($refused > 0) {
+            $this->warn("{$refused} row(s) left open — the gateway returned no verdict. Check `php artisan khqr:usage`.");
+        }
 
         return self::SUCCESS;
     }

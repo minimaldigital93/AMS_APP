@@ -90,12 +90,45 @@
                                 <div class="min-w-0 flex-1">
                                     <p class="text-sm font-medium text-slate-800" x-text="check.label"></p>
                                     <p class="mt-0.5 break-words font-mono text-xs leading-relaxed text-slate-500" x-text="check.detail"></p>
+
+                                    {{-- The fix for THIS check. Four different
+                                         refusals need four different jobs done,
+                                         in different places by different
+                                         people, so the remedy sits under the
+                                         failure it belongs to rather than in
+                                         one paragraph at the bottom covering
+                                         all of them. --}}
+                                    <template x-if="check.remedy">
+                                        <p class="mt-1.5 text-xs leading-relaxed"
+                                           :class="check.state === 'fail' ? 'text-red-700' : 'text-slate-600'"
+                                           x-text="check.remedy"></p>
+                                    </template>
+
+                                    {{-- Values that have to leave this screen
+                                         intact: the webhook URL to paste into
+                                         khqr.cc, and the sentence to send their
+                                         support. Retyping either by hand from a
+                                         modal is how they arrive wrong. --}}
+                                    <template x-if="check.copy">
+                                        <div class="mt-2">
+                                            <button type="button" x-on:click="copy(check)"
+                                                    class="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-2.5 py-1 text-xs font-medium text-slate-700 hover:bg-slate-50">
+                                                <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor">
+                                                    <path stroke-linecap="round" stroke-linejoin="round"
+                                                          d="M15.75 17.25v3.375c0 .621-.504 1.125-1.125 1.125h-9.75a1.125 1.125 0 01-1.125-1.125V7.875c0-.621.504-1.125 1.125-1.125H6.75a9.06 9.06 0 011.5.124m7.5 10.376h3.375c.621 0 1.125-.504 1.125-1.125V11.25c0-4.46-3.243-8.161-7.5-8.876a9.06 9.06 0 00-1.5-.124H9.375c-.621 0-1.125.504-1.125 1.125v3.5m7.5 10.375H9.375a1.125 1.125 0 01-1.125-1.125v-9.25m12 6.625v-1.875a3.375 3.375 0 00-3.375-3.375h-1.5a1.125 1.125 0 01-1.125-1.125v-1.5a3.375 3.375 0 00-3.375-3.375H9.75" />
+                                                </svg>
+                                                <span x-text="copiedKey === check.key
+                                                    ? @js(__('messages.khqr_diag_copied'))
+                                                    : @js(__('messages.khqr_diag_copy'))"></span>
+                                            </button>
+                                        </div>
+                                    </template>
                                 </div>
                             </li>
                         </template>
                     </ul>
 
-                    <p x-show="!loading && failed" x-cloak class="mt-4 text-sm leading-relaxed text-slate-600">
+                    <p x-show="!loading && failedWithoutRemedy" x-cloak class="mt-4 text-sm leading-relaxed text-slate-600">
                         {{ __('messages.khqr_diag_next_steps') }}
                     </p>
                 @else
@@ -155,7 +188,24 @@
                 if (endpoint && !this.ran) this.run();
             },
             close() { this.shown = false; },
+            copiedKey: null,
             get failed() { return this.checks.some(c => c.state === 'fail'); },
+            // The catch-all paragraph is a fallback, not a companion: showing it
+            // beside a remedy that already names the fix is how a reader ends up
+            // unsure which of the two applies to them.
+            get failedWithoutRemedy() { return this.checks.some(c => c.state === 'fail' && !c.remedy); },
+            async copy(check) {
+                try {
+                    await navigator.clipboard.writeText(check.copy);
+                    this.copiedKey = check.key;
+                    setTimeout(() => { if (this.copiedKey === check.key) this.copiedKey = null; }, 2000);
+                } catch (e) {
+                    // Clipboard access can be refused (insecure origin, denied
+                    // permission). The value is on screen either way — never
+                    // leave the button looking like it worked.
+                    window.prompt(@json(__('messages.khqr_diag_copy')), check.copy);
+                }
+            },
             async run() {
                 if (!endpoint) return;
                 this.ran = true;
@@ -173,6 +223,8 @@
                         state: 'fail',
                         label: @json(__('messages.khqr_diag_failed')),
                         detail: String(e),
+                        remedy: @json(__('messages.khqr_fix_inconclusive')),
+                        copy: null,
                     }];
                 } finally {
                     this.loading = false;

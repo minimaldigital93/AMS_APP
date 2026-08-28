@@ -66,6 +66,14 @@ return [
         // request against a THROWAWAY transaction id per checkout burst; turn it
         // off only if khqr.cc objects to the unused sessions it opens.
         'handoff_preflight' => (bool) env('KHQRPAY_HANDOFF_PREFLIGHT', true),
+        // Hard ceiling on LIVE provider calls per settlement target per calendar
+        // day. Bakong meters the upstream token daily and a refused request
+        // costs the same as a successful one, so once the allowance is gone the
+        // app spends the whole day making calls that can only fail — and has
+        // nothing left for the payment that actually matters. Past this number
+        // verify() stops calling out and answers "refused" (never "unpaid"), so
+        // no row is settled or expired on a guess. 0 disables the ceiling.
+        'daily_budget' => (int) env('KHQRPAY_DAILY_BUDGET', 0),
     ],
 
 ];

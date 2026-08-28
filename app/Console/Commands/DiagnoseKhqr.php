@@ -36,6 +36,23 @@ class DiagnoseKhqr extends Command
             if (filled($check['detail'])) {
                 $this->line('   <fg=gray>'.$check['detail'].'</>');
             }
+            // The fix for this specific check, in the same place the popup puts
+            // it — an SSH session and a support call must not end up reading
+            // different advice off the same report.
+            if (filled($check['remedy'] ?? null)) {
+                $this->line('   → '.$check['remedy']);
+            }
+            // The popup offers this on a copy button; here it just has to be
+            // selectable, so print it on its own line rather than wrapped in
+            // the report's punctuation. Skipped when it only repeats the detail
+            // (the webhook URL is both) — in a terminal the detail is already
+            // selectable, and printing the same string twice reads as two
+            // different values worth comparing.
+            if (filled($check['copy'] ?? null) && $check['copy'] !== ($check['detail'] ?? null)) {
+                $this->line('');
+                $this->line('   <fg=cyan>'.$check['copy'].'</>');
+            }
+            $this->line('');
         }
 
         // What the preflight recorded last time a customer was actually turned

@@ -168,6 +168,9 @@ class BillingController extends Controller
 
         try {
             $payment = $khqr->pollAndAdvance($payment);
+            // A refusal reaches the page as gateway_error too — see
+            // KhqrPaymentService::lastPollRefused().
+            $gatewayError = $khqr->lastPollRefused();
         } catch (\Throwable $e) {
             // Never let a gateway failure 500 the poll — the page swallows a
             // non-OK response and would spin forever. Say so instead.

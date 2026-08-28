@@ -358,8 +358,98 @@ stand).
 - The webhook URL is reported as `info`, not a pass/fail: nothing here can read
   back what is pasted into the khqr.cc profile, and a missing one is exactly the
   case where the payment succeeds and the checkout page spins forever.
+- **Every check carries its own `remedy`, and the generic paragraph is only a
+  fallback.** "The gateway refused" hides four different jobs — add a credential
+  (our settings page), wait out an allowance (nobody, it clears at midnight),
+  re-copy a secret (our settings page), get a token activated (khqr.cc, and only
+  khqr.cc) — done in different places by different people. `probeRemedy()` picks
+  the one that applies from the status and the gateway's words; a healthy check
+  gets none. Rendering the catch-all beside a specific remedy is what left the
+  reader unsure which applied, so the blade shows it only when a failing check
+  has no remedy of its own (`failedWithoutRemedy`).
+- **`copy` is for values that must leave the screen intact**: the webhook URL,
+  and — only when the refusal needs someone at khqr.cc (`needsGatewayOperator()`)
+  — a support sentence quoting their own words back with the profile id and the
+  fact that check-transaction answers fine. A quota or bad-secret refusal gets
+  no support sentence; there is nobody to send it to.
+- **The allowance is a check of its own** (`usageCheck()`), printed above the
+  probes: a spent token and an unconfigured one produce similar-looking
+  refusals, and only one of them resolves itself.
+- `khqr:diagnose` prints remedy and copy lines too — an SSH session and a
+  support call must not read different advice off the same report.
 
 `tests/Feature/Subscription/CheckoutPreflightTest.php` pins it.
+
+#### The Bakong token is metered per day, and a refusal costs the same as a sale
+
+Bakong rates the upstream OpenAPI token per calendar day (this account's
+allowance is ~100 requests). A request that is *refused* is charged exactly like
+one that answers, so an app that keeps polling a spent token spends the rest of
+the day discovering it is spent. Three guards bound it, and they are the only
+things that do — `env` defaults are in `config/services.php`:
+
+- **`KHQRPAY_DAILY_BUDGET`** — a hard ceiling on live calls **per settlement
+  target** per day (`dailyBudgetExhausted()`). Per-target because platform rows
+  spend the SaaS operator's token and merchant rows spend the individual
+  landlord's; a shared cap would let one busy landlord lock out everyone. Past
+  the ceiling the gateway is not called at all. **0 disables it** — that is the
+  backward-compatibility seam, and it is what an untouched deployment gets.
+- **`KHQRPAY_VERIFY_COOLDOWN`** — minimum seconds between live calls for the
+  same transaction. Every checkout poller *and* `khqr:reconcile` funnel through
+  `verify()`, so this is the single most effective throttle. It must stay **≥
+  the browser poll interval** (`POLL_MS`, 10s in all three checkout views) or it
+  absorbs nothing: at the 4s default every 10s poll was a live call.
+- **`KHQRPAY_QR_TTL`** — also caps how long one abandoned tab can poll, since a
+  row past `expires_at` is terminal and `verify()` short-circuits on it.
+
+`php artisan khqr:usage` reports spend against the budget. It counts
+`queryProviderOutcome()` only — **the two preflight probes are not counted**, so
+add 2 per checkout attempt when reconciling against the provider's dashboard.
+
+#### A refusal is not a verdict — `verifyOutcome()`, not `verify()`
+
+`verify()` returns bool, and every caller read its `false` as *"the payer has
+not paid"*. For a 200 saying "transaction not found" that is right. For a
+refusal — spent allowance, 429, 5xx, timeout — it is a guess, and it is the
+expensive kind: the money may already have landed, and a row expired on that
+guess is a payment written out of the books with no way back. Over-limit makes
+the refusal the *normal* answer rather than the rare one, which is how a quota
+problem becomes a money problem.
+
+`KhqrPaymentService::verifyOutcome()` has three results — `VERIFY_PAID`,
+`VERIFY_UNPAID`, `VERIFY_REFUSED`. **Only a 2xx from the gateway can say
+unpaid.** `verify()` stays as the thin bool wrapper so the `PaymentGateway`
+contract is unchanged; anything that acts on a **negative** — expiring a row,
+giving up on it — must use `verifyOutcome()` and treat a refusal as "ask again
+later":
+
+- `pollAndAdvance()` never expires on a refusal, and sets `lastPollRefused()`,
+  which all three poll endpoints return as `gateway_error` so the checkout page
+  warns beside the spinner instead of spinning in silence.
+- `ReconcileKhqrPayments` skips both finalize **and** expire on a refusal.
+  Expiry is terminal, so expiring here means the safety net never looks at that
+  QR again even after the gateway recovers.
+- The cooldown caches the **outcome string** under `khqr:verify:outcome:…`,
+  keyed apart from the old boolean `khqr:verify:…` so a value written by the
+  previous release is never read back as an outcome.
+
+#### The preflight has to know a spent allowance from a broken one
+
+`isConfigurationRefusal()` matches credential words (`token`, `profile`,
+`hash`, …); a rate-limited gateway says none of them, so the preflight returned
+`unknown`, **failed open**, and handed the customer to khqr.cc to read the same
+refusal as raw JSON — the exact scenario the preflight exists to prevent, for
+the one cause it could not name. `isQuotaRefusal()` covers it and
+`isBlockingRefusal()` is the union both probes now decide on; **429 joins
+401/403/5xx** as a positive fault in both probes.
+
+Its needles are deliberately **phrases** (`rate limit`, `daily limit`, `quota`,
+…), never the bare word `limit`: the handoff probe asks for a 0.01 amount, and a
+gateway answering *"amount below minimum limit"* is describing the probe, not
+the profile. Matching that would block checkout on a healthy account — the false
+alarm this guard is written to fail open on.
+
+`tests/Feature/RevenueExpense/KhqrQuotaGuardTest.php` pins all three.
 
 ### Signup takes over the row it matches — so only never-activated rows qualify
 

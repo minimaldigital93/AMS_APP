@@ -210,6 +210,10 @@ class SubscriptionController extends Controller
 
         try {
             $payment = $khqr->pollAndAdvance($payment);
+            // A gateway that refused to answer (allowance spent, 5xx, timeout)
+            // is the same news to the page as a thrown one: keep polling, but
+            // say so instead of spinning in silence.
+            $gatewayError = $khqr->lastPollRefused();
         } catch (\Throwable $e) {
             // A gateway/booking failure must not turn the poll into a 500 the
             // page silently swallows — the customer would watch the spinner

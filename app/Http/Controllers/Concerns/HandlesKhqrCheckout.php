@@ -139,6 +139,11 @@ trait HandlesKhqrCheckout
         return response()->json([
             'status' => $row->status,
             'paid' => $row->isPaid(),
+            // Reported for parity with the subscription poll endpoints: true
+            // means the gateway gave no verdict (the landlord's own Bakong
+            // allowance is spent, or khqr.cc is unwell), so the row is still
+            // open and unsettled rather than known-unpaid.
+            'gateway_error' => $khqr->lastPollRefused(),
             'expires_at' => $row->expires_at?->toIso8601String(),
         ]);
     }

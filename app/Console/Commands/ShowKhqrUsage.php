@@ -42,6 +42,25 @@ class ShowKhqrUsage extends Command
 
         $this->table(['Date', 'Total', 'Platform', 'Merchant'], $rows);
 
+        // The ceiling that actually stops the calls, printed beside the spend —
+        // the numbers above only mean something against it.
+        $budget = (int) config('services.khqrpay.daily_budget', 0);
+        $this->line('');
+        if ($budget > 0) {
+            $this->line("Daily budget per target: {$budget} live calls (KHQRPAY_DAILY_BUDGET).");
+            foreach (['platform', 'merchant'] as $target) {
+                $spent = KhqrPaymentService::providerCallsOn($target);
+                if ($spent >= $budget) {
+                    $this->warn("  {$target}: {$spent}/{$budget} — EXHAUSTED, the gateway is not being called.");
+                } else {
+                    $this->line("  {$target}: {$spent}/{$budget}");
+                }
+            }
+        } else {
+            $this->warn('No daily budget set (KHQRPAY_DAILY_BUDGET=0) — nothing stops this app from '
+                .'spending a metered token all day on requests that can only fail.');
+        }
+
         // Counters live in the cache, so they are as durable as the cache store
         // and no further back than their own TTL. Say so rather than let a run of
         // zeroes read as "nothing was spent".
