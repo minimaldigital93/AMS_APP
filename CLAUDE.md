@@ -322,6 +322,22 @@ QR, matching the missing-credentials guard — and flash its return value as
 - **A healthy verdict is only cached when both probes said so.** An `unknown`
   (timeout, blip) is let through but never silences the next check, or one
   timeout buys a broken gateway a free minute of handoffs.
+- **A refusal is cached too, for the same 60 seconds** (`faultVerdictKey()`,
+  added 2026-08). Only the healthy verdict used to be, on the reasoning that a
+  fault must re-probe so a fixed profile works immediately — but the profile
+  this app points at has been faulting since June, so in practice every visit to
+  the billing page bought the same discovery for two metered calls and the guard
+  outspent the payments it guards. The reasoning is preserved where it actually
+  matters: `platformDiagnostics()` never reads the cache and **clears both
+  verdicts** (`forgetCachedVerdicts()`), because that is the page an operator is
+  standing on while doing the fixing. Keep it distinct from `lastFaultKey()` —
+  that is the six-hour record of *what* refused, and it is only ever displayed;
+  this one suppresses calls.
+- **The probes are skipped entirely once `dailyBudgetExhausted()`.** They cost
+  what a verify costs, and a health check must never spend the reserve kept for
+  a payment. Checkout then **fails open** (an unrunnable check is not a fault);
+  diagnostics reports the two probes as skipped, since `usageCheck()` directly
+  above them has already stated the finding.
 - Checkout views read `$payment->subscription?->plan?->…`: a superadmin can
   delete a Plan mid-checkout, and a 500 there replaces "confirming your payment"
   with an error page mid-payment.
@@ -385,7 +401,7 @@ stand).
 Bakong rates the upstream OpenAPI token per calendar day (this account's
 allowance is ~100 requests). A request that is *refused* is charged exactly like
 one that answers, so an app that keeps polling a spent token spends the rest of
-the day discovering it is spent. Three guards bound it, and they are the only
+the day discovering it is spent. Five guards bound it, and they are the only
 things that do — `env` defaults are in `config/services.php`:
 
 - **`KHQRPAY_DAILY_BUDGET`** — a hard ceiling on live calls **per settlement
@@ -401,10 +417,33 @@ things that do — `env` defaults are in `config/services.php`:
   absorbs nothing: at the 4s default every 10s poll was a live call.
 - **`KHQRPAY_QR_TTL`** — also caps how long one abandoned tab can poll, since a
   row past `expires_at` is terminal and `verify()` short-circuits on it.
+- **`KHQRPAY_RECONCILE_GRACE`** — minutes past a QR's `expires_at` that
+  `khqr:reconcile` keeps re-verifying it. **This is the quota bound on the
+  safety net**, and until 2026-08 there was nothing playing that role: the run
+  swept every open API row created in the last *day*. With a 10-minute QR that
+  is 288 live calls per abandoned checkout, and because a profile with no Bakong
+  token refuses every one of them — and a refusal (correctly) never closes the
+  row — nothing took the row back out of scope. The allowance was gone by
+  ~02:30 with nobody having touched the app. See `reconcileWindow()`.
+- **`KHQRPAY_RECONCILE_ENABLED`** — master switch for that safety net, applied
+  as `->skip()` in `routes/console.php` rather than a commented-out schedule
+  line. Set it false while the khqr.cc profile has no usable Bakong token: the
+  net cannot confirm anything then, so every run is pure spend. **Turn it back
+  on once the token is active** or paid-but-unnotified rows stop being rescued.
 
 `php artisan khqr:usage` reports spend against the budget. It counts
-`queryProviderOutcome()` only — **the two preflight probes are not counted**, so
-add 2 per checkout attempt when reconciling against the provider's dashboard.
+`queryProviderOutcome()` **and both preflight probes** (since 2026-08 — they
+were uncounted, so the ceiling protecting the allowance could be sailed past by
+the probes meant to protect it, and the table under-reported every checkout
+attempt by two).
+
+`php artisan khqr:expire-abandoned` clears open rows the window has left behind,
+**without calling the gateway**. `khqr:reconcile` deliberately cannot do this —
+it only expires on a conclusive unpaid, and a permanently-refusing gateway never
+gives one, which is how two rows sat in `qr_generated` for seventy-three days.
+Closing them is a human judgement ("a QR from days ago will not be paid"), so it
+is an operator command with a confirmation, not automation. Safe to run when the
+allowance is already spent, which is when the backlog exists.
 
 #### A refusal is not a verdict — `verifyOutcome()`, not `verify()`
 
@@ -428,7 +467,10 @@ later":
   warns beside the spinner instead of spinning in silence.
 - `ReconcileKhqrPayments` skips both finalize **and** expire on a refusal.
   Expiry is terminal, so expiring here means the safety net never looks at that
-  QR again even after the gateway recovers.
+  QR again even after the gateway recovers. That is also why the run needs a
+  **window** (`reconcileWindow()`): "leave it open and ask again" has no exit
+  when the gateway never answers, so the bound has to come from how long the
+  asking lasts, not from the answer.
 - The cooldown caches the **outcome string** under `khqr:verify:outcome:…`,
   keyed apart from the old boolean `khqr:verify:…` so a value written by the
   previous release is never read back as an outcome.
@@ -449,7 +491,10 @@ gateway answering *"amount below minimum limit"* is describing the probe, not
 the profile. Matching that would block checkout on a healthy account — the false
 alarm this guard is written to fail open on.
 
-`tests/Feature/RevenueExpense/KhqrQuotaGuardTest.php` pins all three.
+`tests/Feature/RevenueExpense/KhqrQuotaGuardTest.php` pins all three (how a
+refusal is *read*); `tests/Feature/RevenueExpense/KhqrQuotaBoundTest.php` pins
+what *bounds* the spend — the reconcile window, the counted probes, the cached
+refusal and `khqr:expire-abandoned`.
 
 ### Signup takes over the row it matches — so only never-activated rows qualify
 

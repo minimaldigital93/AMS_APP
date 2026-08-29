@@ -11,7 +11,6 @@ use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 
-
 class PropertyController extends Controller
 {
     public function __construct(private SubscriptionService $subscriptions) {}

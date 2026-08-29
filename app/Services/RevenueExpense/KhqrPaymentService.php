@@ -280,18 +280,42 @@ class KhqrPaymentService
             return null;
         }
 
+        // A profile that refused a moment ago will almost certainly refuse the
+        // next click, and every click costs TWO metered calls. Only a HEALTHY
+        // verdict used to be cached, on the reasoning that a fault must re-probe
+        // so a fixed profile works immediately — but the profile this app is
+        // actually pointed at has been faulting since June, so in practice that
+        // meant every visit to the billing page bought the same discovery again
+        // and the preflight became a bigger drain than the payments it guards.
+        // Held for the same 60 seconds as the healthy verdict, so a profile
+        // fixed at khqr.cc still starts working almost at once — and the
+        // diagnostics popup clears it outright, because that is the page an
+        // operator is standing on while doing the fixing.
+        $cachedFault = Cache::get(self::faultVerdictKey($creds));
+        if (is_string($cachedFault)) {
+            return $cachedFault;
+        }
+
+        // Never spend the last of a metered allowance on a health check. The two
+        // probes are rated exactly like a verify, and a customer turned away by
+        // a preflight that could not run is turned away for no reason — so this
+        // fails OPEN, the same as every other unknown verdict here.
+        if ($this->dailyBudgetExhausted('platform')) {
+            return null;
+        }
+
         $profile = $this->probeCheckTransaction($creds);
         if ($profile['outcome'] === 'fault') {
             $this->rememberCheckoutFault($creds, $profile);
 
-            return __('messages.subscription_gateway_unavailable');
+            return $this->cacheFaultVerdict($creds, __('messages.subscription_gateway_unavailable'));
         }
 
         $handoff = $this->probeHandoff($creds);
         if ($handoff['outcome'] === 'fault') {
             $this->rememberCheckoutFault($creds, $handoff);
 
-            return __('messages.subscription_gateway_unavailable');
+            return $this->cacheFaultVerdict($creds, __('messages.subscription_gateway_unavailable'));
         }
 
         // Only cache "healthy" when BOTH probes actually said so — an unknown
@@ -311,8 +335,10 @@ class KhqrPaymentService
      * status code and the verbatim responseMessage, and by the time they open
      * the popup the probe may well answer differently (or be served from the
      * healthy cache). Logged too — this is the short-term copy the UI reads.
-     * Never cached under the healthy key: a fault must re-probe on the next
-     * click so a fixed profile works immediately.
+     * Never cached under the HEALTHY key. A fault does get its own short-lived
+     * verdict (cacheFaultVerdict) so a permanently-broken profile stops charging
+     * two metered probes to every visitor — but diagnostics clears that one, so
+     * a profile fixed at khqr.cc still proves itself on the next click.
      */
     private function rememberCheckoutFault(KhqrCredentials $creds, array $probe): void
     {
@@ -354,6 +380,46 @@ class KhqrPaymentService
         }
 
         return is_array($fault) ? $fault : null;
+    }
+
+    /**
+     * The short-lived "this profile just refused" verdict that spares the next
+     * caller two metered probes. Separate from lastFaultKey(): that one is the
+     * six-hour diagnostic record of WHAT refused and is only ever displayed;
+     * this one is a 60-second gate that actually suppresses calls.
+     */
+    private static function faultVerdictKey(KhqrCredentials $creds): string
+    {
+        return 'khqr:platform:fault-verdict:'.$creds->profileId;
+    }
+
+    /** Remember a refusal briefly, and hand the reason straight back to the caller. */
+    private function cacheFaultVerdict(KhqrCredentials $creds, string $reason): string
+    {
+        try {
+            Cache::put(self::faultVerdictKey($creds), $reason, now()->addSeconds(60));
+        } catch (\Throwable $e) {
+            // Instrumentation only — never fail a checkout guard over the cache.
+        }
+
+        return $reason;
+    }
+
+    /**
+     * Drop both cached verdicts so the very next checkout re-probes for real.
+     *
+     * Called when diagnostics has just run live probes: whoever is looking at
+     * that report is mid-fix, and making them wait out a cache to find out
+     * whether the fix took is the behaviour the fault cache must not introduce.
+     */
+    private function forgetCachedVerdicts(KhqrCredentials $creds): void
+    {
+        try {
+            Cache::forget(self::faultVerdictKey($creds));
+            Cache::forget('khqr:platform:reachable:'.$creds->profileId);
+        } catch (\Throwable $e) {
+            // Instrumentation only.
+        }
     }
 
     private static function lastFaultKey(KhqrCredentials $creds): string
@@ -446,6 +512,36 @@ class KhqrPaymentService
 
             return ['healthy' => false, 'checks' => $checks, 'checked_at' => Carbon::now()->toIso8601String()];
         }
+
+        // The probes are metered exactly like a verify, so a report cannot be
+        // worth two calls the app has already decided it cannot afford. The
+        // usage check directly above has said the ceiling is reached, and that
+        // IS the finding — running the probes anyway would spend the reserve on
+        // re-confirming it, in the one situation where the reserve matters most.
+        if ($this->dailyBudgetExhausted('platform')) {
+            foreach ([
+                ['profile', __('messages.khqr_diag_profile')],
+                ['handoff', __('messages.khqr_diag_handoff')],
+            ] as [$key, $label]) {
+                $checks[] = [
+                    'key' => $key,
+                    'label' => $label,
+                    'state' => 'warn',
+                    'detail' => __('messages.khqr_diag_probe_skipped'),
+                    'remedy' => __('messages.khqr_fix_quota'),
+                    'copy' => null,
+                ];
+            }
+
+            $checks[] = $webhook;
+
+            return ['healthy' => false, 'checks' => $checks, 'checked_at' => Carbon::now()->toIso8601String()];
+        }
+
+        // What follows is a live reading, so it supersedes both cached verdicts.
+        // Whoever is looking at this report is mid-fix, and the fault cache must
+        // never make them wait a minute to find out whether the fix took.
+        $this->forgetCachedVerdicts($creds);
 
         // 2 + 3. The two live probes, reported separately: answering a
         //        transaction query and being able to open a checkout are
@@ -607,6 +703,13 @@ class KhqrPaymentService
 
         $probe = 'PREFLIGHT-'.now()->format('YmdHis').'-'.random_int(100000, 999999);
 
+        // Bakong rates this exactly like a verify. It went uncounted until
+        // 2026-08, so `khqr:usage` under-reported every checkout attempt by two
+        // and the daily ceiling — the one thing that stops the app spending a
+        // dead allowance all day — could be sailed straight past by the probes
+        // meant to protect it.
+        $this->recordProviderCall('platform');
+
         try {
             $response = Http::asForm()->acceptJson()
                 ->connectTimeout(3)->timeout(6)
@@ -692,6 +795,10 @@ class KhqrPaymentService
         $params['hash'] = $this->sign($params, $creds->secret);
 
         $url = rtrim($creds->baseUrl, '/').'/api/payment/request/'.$creds->profileId;
+
+        // Counted for the same reason as probe 1 — and this is the expensive
+        // half: it opens a real (throwaway) checkout session at the gateway.
+        $this->recordProviderCall('platform');
 
         try {
             $response = Http::acceptJson()

@@ -18,4 +18,12 @@ Schedule::command('subscriptions:expire')->dailyAt('00:10');
 // concurrently, multiplying quota spend exactly when the gateway is least able
 // to answer. The lock is released after ten minutes so a killed run cannot
 // wedge the safety net shut.
-Schedule::command('khqr:reconcile')->everyFiveMinutes()->withoutOverlapping(10);
+// skip() rather than a commented-out line: when the khqr.cc profile has no
+// active Bakong token the net cannot confirm anything, so every run is quota
+// spent on a question the gateway will not answer — and a commented schedule is
+// how that gets left off permanently. KHQRPAY_RECONCILE_ENABLED=false is the
+// off switch; `php artisan schedule:list` still shows the entry.
+Schedule::command('khqr:reconcile')
+    ->everyFiveMinutes()
+    ->withoutOverlapping(10)
+    ->skip(fn () => ! config('services.khqrpay.reconcile_enabled'));

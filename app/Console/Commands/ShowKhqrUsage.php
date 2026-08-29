@@ -18,6 +18,12 @@ use Illuminate\Console\Command;
  * Counts live provider calls only: verifies served from the cooldown cache,
  * demo-mode confirmations and manual-channel rows never reach the gateway and
  * never appear here.
+ *
+ * The two checkout preflight probes ARE counted (since 2026-08). They were not
+ * until then, so this table under-reported every checkout attempt by two and
+ * the daily ceiling could be sailed past by the very probes meant to protect
+ * it. Old advice to "add 2 per checkout attempt" when reconciling against the
+ * provider's dashboard no longer applies.
  */
 class ShowKhqrUsage extends Command
 {

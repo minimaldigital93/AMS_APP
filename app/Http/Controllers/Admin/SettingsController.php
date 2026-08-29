@@ -10,7 +10,6 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\View\View;
 
-
 class SettingsController extends Controller
 {
     /**
@@ -181,7 +180,6 @@ class SettingsController extends Controller
         return redirect()->route('admin.settings.index')
             ->with('success', __('messages.settings_reset'));
     }
-
 
     protected function handleCompanyLogo(Request $request): void
     {

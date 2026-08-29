@@ -1233,6 +1233,7 @@ return [
     'khqr_diag_demo' => 'Demo mode is on',
     'khqr_diag_demo_detail' => 'Payments are simulated locally and the live gateway is never called.',
     'khqr_diag_no_detail' => 'No detail returned.',
+    'khqr_diag_probe_skipped' => 'Not checked — the daily request ceiling is already reached, and a health check costs the same as a payment.',
     'khqr_diag_failed' => 'The check itself could not run',
     'khqr_diag_guest_no_charge' => 'No payment was taken and no money left your account.',
     'khqr_diag_guest_retry' => 'This is usually temporary — please try again in a few minutes.',

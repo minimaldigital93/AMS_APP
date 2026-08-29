@@ -74,6 +74,27 @@ return [
         // verify() stops calling out and answers "refused" (never "unpaid"), so
         // no row is settled or expired on a guess. 0 disables the ceiling.
         'daily_budget' => (int) env('KHQRPAY_DAILY_BUDGET', 0),
+        // How long AFTER a QR has expired the khqr:reconcile safety net keeps
+        // asking the gateway about it.
+        //
+        // The net has to outlive the QR: a payment can land in the last seconds
+        // before expiry and its webhook can still fail, and then this is the
+        // only thing that will ever find it. But it only has to outlive it by a
+        // little. Until 2026-08 the net re-verified every open row for a FULL
+        // DAY (created_at > now()-24h) — with a 10-minute QR that is 288 live
+        // calls per abandoned checkout, against a token allowed ~100 a day,
+        // every one of them spent on a QR nobody can pay any more. A gateway
+        // that refuses (no Bakong token) can never close the row, so the loop
+        // had no exit. This window is what bounds the spend to the checkout
+        // attempts that actually happened.
+        'reconcile_grace' => (int) env('KHQRPAY_RECONCILE_GRACE', 60),
+        // Master switch for that safety net. When the profile has no usable
+        // Bakong token the net cannot confirm anything — every run is quota
+        // spent on a question the gateway will not answer — and there has to be
+        // a way to stop it that isn't editing the schedule and forgetting. Turn
+        // it back ON once the token is active, or paid-but-unnotified rows stop
+        // being rescued.
+        'reconcile_enabled' => (bool) env('KHQRPAY_RECONCILE_ENABLED', true),
     ],
 
 ];
