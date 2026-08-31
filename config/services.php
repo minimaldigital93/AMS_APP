@@ -54,10 +54,21 @@ return [
         // Max age (seconds) of a webhook's req_time before it's rejected as a replay.
         'webhook_tolerance' => (int) env('KHQRPAY_WEBHOOK_TOLERANCE', 600),
         // Min seconds between live verify() calls for the same transaction — caps
-        // how hard the public status poll can hammer the provider.
-        'verify_cooldown' => (int) env('KHQRPAY_VERIFY_COOLDOWN', 4),
+        // how hard the public status poll can hammer the provider. Must stay
+        // above the client poll interval (record_income.blade.php / subscribe
+        // checkout.blade.php both poll every 10s) or every poll still fires a
+        // live call regardless of this setting.
+        'verify_cooldown' => (int) env('KHQRPAY_VERIFY_COOLDOWN', 10),
         // Minutes a minted QR stays payable before it's considered expired.
         'qr_ttl' => (int) env('KHQRPAY_QR_TTL', 30),
+        // Minutes to stop making live verify() calls for ALL open transactions on
+        // a credential (profile) after that credential is rate-limited/quota-
+        // exceeded (HTTP 429) by the provider — one abandoned QR must not burn
+        // the whole day's quota for every other open checkout on the same token.
+        // Independent of daily_budget below: it reacts to a 429 the provider
+        // actually sent, so it still protects an account that hasn't set a
+        // budget ceiling at all.
+        'rate_limit_backoff' => (int) env('KHQRPAY_RATE_LIMIT_BACKOFF', 5),
         // Preflight the HOSTED-CHECKOUT endpoint (not just the read-only
         // check-transaction one) before handing a customer's browser to
         // khqr.cc. It is the only probe that catches a profile which can answer

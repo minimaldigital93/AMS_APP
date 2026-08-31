@@ -1158,6 +1158,7 @@ function billingManager() {
         khqrPaid: false,
         khqrError: '',
         khqrTimer: null,
+        khqrVisibilityBound: false,
         khqrChannel: 'api',
         khqrBank: {},
         khqrConfirmUrl: '',
@@ -1570,10 +1571,27 @@ function billingManager() {
             // token a live request. The webhook settles the payment; this poll
             // only moves the modal along, so it is paced for the quota.
             this.khqrTimer = setInterval(() => this.checkKhqr(), 10000);
+            if (!this.khqrVisibilityBound) {
+                this.khqrVisibilityBound = true;
+                document.addEventListener('visibilitychange', () => this.onKhqrVisibilityChange());
+            }
         },
 
         stopKhqrPoll() {
             if (this.khqrTimer) { clearInterval(this.khqrTimer); this.khqrTimer = null; }
+        },
+
+        // A QR left open in a backgrounded tab was polling the live provider
+        // every tick with nobody watching — enough to burn a whole day's API
+        // quota off one abandoned checkout. Pause while hidden, resume (with an
+        // immediate check) when the tab comes back.
+        onKhqrVisibilityChange() {
+            if (document.hidden) {
+                this.stopKhqrPoll();
+            } else if (this.khqrActive && !this.khqrPaid && !this.khqrExpired) {
+                this.checkKhqr();
+                this.khqrTimer = setInterval(() => this.checkKhqr(), 10000);
+            }
         },
 
         async checkKhqr() {

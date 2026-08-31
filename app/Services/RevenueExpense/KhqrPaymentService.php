@@ -1066,7 +1066,7 @@ class KhqrPaymentService
         }
 
         $outcome = $this->queryProviderOutcome($row);
-        Cache::put($cooldownKey, $outcome, now()->addSeconds((int) config('services.khqrpay.verify_cooldown', 4)));
+        Cache::put($cooldownKey, $outcome, now()->addSeconds((int) config('services.khqrpay.verify_cooldown', 10)));
 
         return $outcome;
     }
@@ -1093,10 +1093,43 @@ class KhqrPaymentService
     }
 
     /**
-     * Live provider call: ask KHQRPay whether the transaction has settled. Pinned
-     * to the row's own credentials, with the same amount/currency defence the
-     * webhook applies. Any error / non-success / mismatch reads as "unpaid".
+     * Has this credential (profile) been rate-limited by the provider recently?
+     *
+     * A 429 is metered independently of `daily_budget` — the operator may not
+     * have set a ceiling at all — and it means the SAME thing `daily_budget`
+     * guards against: the allowance for this profile is spent for now. Checked
+     * BEFORE the call for the same reason as the budget check: a request made
+     * anyway is charged to the allowance exactly like one that answers.
      */
+    private function rateLimited(?KhqrCredentials $creds): bool
+    {
+        if ($creds === null) {
+            return false;
+        }
+
+        return (bool) Cache::get('khqr:ratelimited:'.$creds->profileId);
+    }
+
+    /**
+     * A credential that was just rate-limited/quota-exceeded is backed off for
+     * ALL of its open transactions, not just this row — a single abandoned QR
+     * polling every few seconds was enough to exhaust a whole day's provider
+     * quota, which then made every other open checkout on the same token look
+     * "stuck" too.
+     */
+    private function backOffRateLimit(KhqrPayment $row, KhqrCredentials $creds): void
+    {
+        $minutes = (int) config('services.khqrpay.rate_limit_backoff', 5);
+
+        Log::warning('KHQRPay verify rate-limited (daily quota likely exhausted) — backing off this credential', [
+            'tran' => $row->transaction_id,
+            'profile' => $creds->profileId,
+            'backoff_minutes' => $minutes,
+        ]);
+
+        Cache::put('khqr:ratelimited:'.$creds->profileId, true, now()->addMinutes($minutes));
+    }
+
     /**
      * Bakong meters this app's token per calendar day, so the only number that
      * matters operationally is "how many live provider calls have we spent
@@ -1157,6 +1190,12 @@ class KhqrPaymentService
     {
         $creds = $this->credentialsFor($row);
         if ($creds === null) {
+            return self::VERIFY_REFUSED;
+        }
+
+        // Same "stop before spending the allowance" rule as the budget check
+        // below, for a 429 the provider already sent us.
+        if ($this->rateLimited($creds)) {
             return self::VERIFY_REFUSED;
         }
 
@@ -1222,6 +1261,10 @@ class KhqrPaymentService
         // payer's money, and used to be indistinguishable from an honest
         // "not paid yet".
         if (! $response->successful()) {
+            if ($response->status() === 429) {
+                $this->backOffRateLimit($row, $creds);
+            }
+
             $this->logVerifyRefusal($row, $response->status(), (string) ($response->json('responseMessage') ?? ''));
 
             return self::VERIFY_REFUSED;

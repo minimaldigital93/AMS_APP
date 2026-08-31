@@ -98,11 +98,24 @@
                     this.poll();
                     this.timer = setInterval(() => this.poll(), POLL_MS);
                     this.startCountdown();
+                    document.addEventListener('visibilitychange', () => this.onVisibilityChange());
                 },
                 stop() {
                     if (this.timer) clearInterval(this.timer);
                     this.timer = null;
                     this.stopCountdown();
+                },
+                // A checkout tab left open in the background was polling the live
+                // provider every tick with nobody watching — enough to burn a whole
+                // day's API quota off one abandoned session. Pause while hidden,
+                // resume (with an immediate check) when the tab comes back.
+                onVisibilityChange() {
+                    if (document.hidden) {
+                        if (this.timer) { clearInterval(this.timer); this.timer = null; }
+                    } else if (this.state === 'waiting' && !this.timer) {
+                        this.poll();
+                        this.timer = setInterval(() => this.poll(), POLL_MS);
+                    }
                 },
                 // Informational countdown only — the poll decides the final state
                 // once the server lazily expires the row.

@@ -114,6 +114,46 @@ it('reads a rate-limited verify as refused, never as unpaid', function () {
         ->toBe(KhqrPaymentService::VERIFY_REFUSED);
 });
 
+it('backs off every open transaction on a credential after one 429, even with no daily budget set', function () {
+    config()->set('services.khqrpay.rate_limit_backoff', 5);
+
+    Http::fake(['khqr.cc/*' => Http::response([
+        'responseCode' => 429, 'responseMessage' => 'Rate limit exceeded',
+    ], 429)]);
+
+    // First row actually calls the gateway and eats the 429.
+    expect($this->service->verifyOutcome(quotaRow('LIMIT-A')))
+        ->toBe(KhqrPaymentService::VERIFY_REFUSED);
+    Http::assertSentCount(1);
+
+    // A second, unrelated open row on the SAME credential must not spend
+    // another call discovering the same thing — it is refused locally.
+    expect($this->service->verifyOutcome(quotaRow('LIMIT-B')))
+        ->toBe(KhqrPaymentService::VERIFY_REFUSED);
+    Http::assertSentCount(1);
+});
+
+it('clears the 429 backoff once it expires, letting verify() reach the gateway again', function () {
+    config()->set('services.khqrpay.rate_limit_backoff', 5);
+
+    Http::fake(['khqr.cc/*' => Http::response([
+        'responseCode' => 429, 'responseMessage' => 'Rate limit exceeded',
+    ], 429)]);
+
+    $this->service->verifyOutcome(quotaRow('LIMIT-C'));
+    Http::assertSentCount(1);
+
+    // Still inside the backoff window — a second row spends no call.
+    $this->service->verifyOutcome(quotaRow('LIMIT-C2'));
+    Http::assertSentCount(1);
+
+    $this->travel(6)->minutes();
+
+    // Backoff has lapsed: the next row reaches the gateway again.
+    $this->service->verifyOutcome(quotaRow('LIMIT-D'));
+    Http::assertSentCount(2);
+});
+
 it('reads a quota-worded refusal on a 200 as refused', function () {
     Http::fake(['khqr.cc/*' => Http::response([
         'responseCode' => 7, 'responseMessage' => 'Daily limit reached for this token',
