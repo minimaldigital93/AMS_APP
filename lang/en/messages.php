@@ -1256,6 +1256,16 @@ return [
     'khqrpay_webhook_url' => 'Webhook / Callback URL',
     'khqrpay_webhook_url_hint' => 'Paste this into the "Global Webhook URL" field of your khqr.cc profile so paid rents are confirmed automatically.',
     'payment_settings_saved' => 'Payment settings saved.',
+
+    // Static scan-to-pay KHQR (Settings → Payment → printed on the bill)
+    'payment_qr_code' => 'Payment QR Code',
+    'payment_qr_account_name' => 'Account Name',
+    'payment_qr_account_name_placeholder' => 'Name on the bank account',
+    'payment_qr_code_hint' => 'Your bank\'s static KHQR. It is printed under every unpaid bill so tenants can scan and pay.',
+    'payment_qr_code_upload_hint' => 'PNG, JPG or WEBP, up to 2 MB. Crop to the QR itself for the sharpest print.',
+    'payment_qr_code_removed_on_save' => 'The QR code will be removed when you save.',
+    'upload_qr_image' => 'Upload QR',
+    'change_qr_image' => 'Change QR',
     'khqr_payment_settings_missing' => 'KHQR is not set up. Add your bank details or KHQR image in Settings → Payment Settings first.',
     // Checkout polling / fallback states
     'payment_confirming_title' => 'Confirming your payment',

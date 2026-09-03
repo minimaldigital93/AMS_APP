@@ -22,6 +22,7 @@ use App\Models\Attachment;
 use App\Models\BusinessExpense;
 use App\Models\ExpenseCategory;
 use App\Models\FiscalPeriods;
+use App\Models\MerchantPaymentSetting;
 use App\Models\Payments;
 use App\Models\Rentals;
 use App\Models\Tenants;
@@ -277,19 +278,22 @@ abstract class RevenueExpenseController extends Controller
         $periodMonths = $this->buildPeriodMonths($activePeriod);
 
         // When landing on the page without an explicit month filter (e.g. clicking
-        // "Revenue & Expense" in the sidebar), default the calendar to the current
-        // month — but only if it falls within the active period, so a closed/past
-        // period still opens on its whole range instead of clamping oddly.
+        // "Revenue & Expense" in the sidebar), open on the month the user is
+        // working in (working_month(), the month they last navigated to), then
+        // the current one — either only if it falls within the active period, so
+        // a closed/past period still opens on its whole range instead of
+        // clamping oddly.
         if (! $filterMonth && ! $filterYear) {
-            $nowMonth = now()->month;
-            $nowYear = now()->year;
-            $currentInPeriod = collect($periodMonths)->contains(
-                fn ($pm) => $pm['month'] === $nowMonth && $pm['year'] === $nowYear
-            );
+            foreach (array_filter([working_month(), now()]) as $candidate) {
+                $inPeriod = collect($periodMonths)->contains(
+                    fn ($pm) => $pm['month'] === $candidate->month && $pm['year'] === $candidate->year
+                );
 
-            if ($currentInPeriod) {
-                $filterMonth = $nowMonth;
-                $filterYear = $nowYear;
+                if ($inPeriod) {
+                    $filterMonth = $candidate->month;
+                    $filterYear = $candidate->year;
+                    break;
+                }
             }
         }
 
@@ -664,9 +668,13 @@ abstract class RevenueExpenseController extends Controller
         $periodStart = Carbon::parse($activePeriod->opening_date)->startOfMonth();
         $periodEnd = Carbon::parse($activePeriod->closing_date)->endOfMonth();
 
+        // No ?month= (arriving from the sidebar) → the month the user is working
+        // in, else the current one. The period bounds below still clamp it.
+        $default = working_month() ?: now();
+
         $requested = Carbon::create(
-            (int) $request->input('year', now()->year),
-            (int) $request->input('month', now()->month),
+            (int) $request->input('year', $default->year),
+            (int) $request->input('month', $default->month),
             1
         )->startOfMonth();
 
@@ -748,9 +756,11 @@ abstract class RevenueExpenseController extends Controller
             return $this->missingPeriodRedirect();
         }
 
-        // Accept month/year from query params, default to current
-        $currentMonth = (int) $request->input('month', now()->month);
-        $currentYear = (int) $request->input('year', now()->year);
+        // Accept month/year from query params; with none (the sidebar link) fall
+        // back to the month the user is working in, then the current one.
+        $default = working_month() ?: now();
+        $currentMonth = (int) $request->input('month', $default->month);
+        $currentYear = (int) $request->input('year', $default->year);
 
         // Build a Carbon date for the selected month
         $selectedDate = Carbon::create($currentYear, $currentMonth, 1);
@@ -1476,8 +1486,12 @@ abstract class RevenueExpenseController extends Controller
     public function printTenantBill($rentalId)
     {
         $activePeriod = $this->getActiveFiscalPeriod();
-        $currentMonth = now()->month;
-        $currentYear = now()->year;
+        // The bill covers the month the operator is looking at — the print
+        // button sits on the collection page's row and carries no month of its
+        // own, so it follows the working month (current month by default).
+        $billMonth = working_month() ?: now();
+        $currentMonth = $billMonth->month;
+        $currentYear = $billMonth->year;
 
         $rental = Rentals::with(['apartment.floor', 'apartment.activeFixedExpenses', 'tenant'])
             ->findOrFail($rentalId);
@@ -1612,7 +1626,35 @@ abstract class RevenueExpenseController extends Controller
             'currentPaymentId' => $payment?->id,
             'generatedBy' => auth()->user()?->name ?? '—',
             'generatedAt' => now(),
+            // The account's static KHQR, printed under a bill that still owes
+            // money so the tenant can scan and pay from the paper.
+            'payQrUrl' => $this->staticPayQrUrl(),
+            'payQrName' => $this->staticPayQrAccountName(),
         ]);
+    }
+
+    /**
+     * The uploaded scan-to-pay QR for this account (Settings → Payment), or
+     * null when none has been uploaded.
+     */
+    private function staticPayQrUrl(): ?string
+    {
+        $path = MerchantPaymentSetting::forAccount(current_account_id())?->khqr_image_path;
+
+        // asset() keeps the /ams_app sub-path prefix on the live server;
+        // Storage::url() would emit a bare /storage/... that 404s there.
+        return filled($path) ? asset('storage/'.$path) : null;
+    }
+
+    /**
+     * Whose account that QR pays into — printed under it so the tenant knows
+     * before they scan. Optional: a QR with no name still prints.
+     */
+    private function staticPayQrAccountName(): ?string
+    {
+        $name = MerchantPaymentSetting::forAccount(current_account_id())?->bank_account_name;
+
+        return filled($name) ? $name : null;
     }
 
     /**
@@ -1849,9 +1891,11 @@ abstract class RevenueExpenseController extends Controller
             return $this->missingPeriodRedirect();
         }
 
-        // Monthly filter (default to current month)
-        $filterMonth = request('month') ? (int) request('month') : now()->month;
-        $filterYear = request('year') ? (int) request('year') : now()->year;
+        // Monthly filter — the working month when the page was opened without one
+        // (the sidebar link), else the current month.
+        $default = working_month() ?: now();
+        $filterMonth = request('month') ? (int) request('month') : $default->month;
+        $filterYear = request('year') ? (int) request('year') : $default->year;
 
         // Date range clamped to fiscal period
         $dateRange = $this->getFilteredDateRange($activePeriod, $filterMonth, $filterYear);
@@ -2015,8 +2059,9 @@ abstract class RevenueExpenseController extends Controller
         // portion of business expenses not covered by tenant collections counts.
         $grandTotalExpenses = $totalOtherExpenses + max(0, -$expenseNet);
 
-        $currentMonth = now()->month;
-        $currentYear = now()->year;
+        // The month this page is about — the filter, not the server clock.
+        $currentMonth = $filterMonth;
+        $currentYear = $filterYear;
 
         return $this->panelView('record_expense', compact(
             'activePeriod', 'apartments', 'apartmentExpenses', 'apartmentExpensesAll', 'recentExpenses',
@@ -2421,9 +2466,10 @@ abstract class RevenueExpenseController extends Controller
             return $this->missingPeriodRedirect();
         }
 
-        // Determine month/year from query or default to current
-        $month = $request->get('month', now()->month);
-        $year = $request->get('year', now()->year);
+        // Determine month/year from query, else the working month, else current.
+        $default = working_month() ?: now();
+        $month = $request->get('month', $default->month);
+        $year = $request->get('year', $default->year);
         $startOfMonth = Carbon::create($year, $month, 1)->startOfMonth();
         $endOfMonth = $startOfMonth->copy()->endOfMonth();
 
@@ -2538,9 +2584,19 @@ abstract class RevenueExpenseController extends Controller
             return $this->missingPeriodRedirect();
         }
 
-        // Monthly filter
-        $filterMonth = $request->integer('month') ?: null;
-        $filterYear = $request->integer('year') ?: null;
+        // Monthly filter. With no ?month= the statement follows the month the
+        // user is working in, so it agrees with every other page; ?month=all is
+        // the explicit whole-period view behind the "View all" link. A bare
+        // no-month URL can no longer mean whole-period — it is also what every
+        // plain link into this page looks like.
+        if ($request->input('month') === 'all') {
+            $filterMonth = null;
+            $filterYear = null;
+        } else {
+            $workingMonth = working_month();
+            $filterMonth = $request->integer('month') ?: $workingMonth?->month;
+            $filterYear = $request->integer('year') ?: $workingMonth?->year;
+        }
 
         $dateRange = $this->getFilteredDateRange($activePeriod, $filterMonth, $filterYear);
         $startDate = $dateRange['start'];

@@ -529,6 +529,48 @@ A lapsed owner never needs to re-register: `ExpireSubscriptions` only flips
 
 ---
 
+## The month being worked in is remembered — `working_month()`
+
+Every business screen is month-navigated, but the month used to live only in
+the URL. Stepping back to July on the rent collection page and then following a
+sidebar link — which carries no `?month=` — dropped the user back on the current
+month, so a month's collection work had to be re-navigated page by page.
+
+`App\Services\Period\WorkingMonthContext` (session-backed, a request singleton
+like `PropertyContext`) holds the month the user last navigated to;
+`SetWorkingMonth` middleware records it from any `?month=&year=` on a **GET**,
+and `working_month()` reads it back as a Carbon (first of the month).
+
+- **It is only a DEFAULT, never an override.** An explicit `?month=` in the URL
+  always wins, and the fiscal period still clamps what may be shown — the
+  period checks in `HasDashboardMonthNavigation::resolveSelectedMonth()` and
+  `getFilteredDateRange()` are untouched.
+- **Nothing remembered returns `null`, not `now()`.** Each caller keeps its own
+  default (`working_month() ?: now()` for the month-defaulting pages; the whole
+  fiscal period for the income statement), so a session that has navigated
+  nowhere behaves exactly as it did before. That null is the
+  backward-compatibility seam.
+- **A "go to current month" link must state the month.** A bare route link now
+  inherits the working month, so those buttons pass `now()->month/year`
+  explicitly (`record_income`, `monthly_calendar` — the others already did), and
+  the income statement's whole-period view moved to the explicit `?month=all`,
+  which the middleware ignores rather than treating as a selection.
+- **GET only.** A POST carries `billing_month`/`billing_year` — the month a
+  payment settles, a different question (see "Both sides of a checkout settle
+  the *billed* month") — and must never move the user's view.
+- Call sites: `Shared\RevenueExpenseController` (`index`, `recordIncome`,
+  `recordExpense`, `breakEvenPoint`, `monthlyCalendar`, `incomeStatement`,
+  `printTenantBill`) and both dashboards via the trait. **`generateMonthlyBills`
+  deliberately stays on `now()`** — that page displays no month at all, so
+  billing a remembered month from it would be invisible.
+- Business-expense entry still defaults its date to **today**, not the viewed
+  month: `business_expenses.transaction_date` is a real-world fact, and a past
+  month may be closed (`NotInClosedMonth`).
+
+`tests/Feature/RevenueExpense/WorkingMonthNavigationTest.php` pins all of it.
+
+---
+
 ## Rent collection day
 
 An account can nominate one day of the month (`settings('billing_cycle_day')`,
@@ -975,6 +1017,15 @@ Don't grow a write path here.
   (`$donutColors`, arcs as `stroke-dasharray` on one `r=30` ring, total in the
   centre) — three fixed slices don't justify pulling Chart.js onto the page, and
   an inline ring prints with the rest of the card.
+
+- **A new page needs a nav entry in three places, not one.** Phones suppress the
+  hamburger (`$useBottomNav` in the admin/supervisor layouts) and replace the
+  sidebar with `layouts/bottom-nav` / `layouts/supervisor-bottom-nav`, so a page
+  missing from those sheets is unreachable on mobile however well it renders —
+  which is what happened to Vehicles until 2026-09. The supervisor Property tab
+  is a sheet for that reason; it was a direct link to Apartments with nowhere to
+  put a second entry. Add the route to the tab's `$isProperty`-style `routeIs`
+  list too, or the tab never lights up on the new page.
 
 `tests/Feature/Tenants/VehicleManagementTest.php` pins the page, both write
 verbs and the verification; `SharedPanelViewsTest` renders it as both roles.

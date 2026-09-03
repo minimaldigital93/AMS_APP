@@ -1,7 +1,7 @@
 {{-- Mobile bottom navigation (replaces the off-canvas sidebar on phones). --}}
 @php
     $isHome     = request()->routeIs('admin.dashboard');
-    $isProperty = request()->routeIs('admin.properties.*', 'admin.floors.*', 'admin.apartments.*');
+    $isProperty = request()->routeIs('admin.properties.*', 'admin.floors.*', 'admin.apartments.*', 'admin.vehicles.*');
     $isTenant   = request()->routeIs('admin.tenants.*');
     $isRevenue  = request()->routeIs('admin.revenue_expense.*', 'admin.fiscalperiod.*');
     $isMore     = request()->routeIs('admin.users.*', 'admin.billing.*', 'admin.settings.*');
@@ -107,6 +107,12 @@
                                 <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/></svg>
                             </span>
                             <span>{{ __('messages.floors_and_rooms') }}</span>
+                        </a>
+                        <a href="{{ route('admin.vehicles.index') }}" class="bn-sheet-link {{ request()->routeIs('admin.vehicles.*') ? 'active' : '' }}">
+                            <span class="bn-sheet-icon">
+                                <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 17h8m-9-4h10l-1.2-3.6A2 2 0 0014.9 8H9.1a2 2 0 00-1.9 1.4L6 13zm-1 0h12a1 1 0 011 1v3H5v-3a1 1 0 011-1z"/></svg>
+                            </span>
+                            <span>{{ __('messages.vehicles') }}</span>
                         </a>
                     </div>
                 </div>

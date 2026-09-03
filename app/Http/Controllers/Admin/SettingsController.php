@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\MerchantPaymentSetting;
 use App\Models\Settings;
 use App\Services\Billing\BillingCycleService;
 use Illuminate\Http\RedirectResponse;
@@ -85,7 +86,17 @@ class SettingsController extends Controller
             ],
         ];
 
-        return view('admin.settings.index', compact('settings', 'defaultSettings'));
+        // The scan-to-pay QR rides the column the manual KHQR checkout channel
+        // already reads (merchant_payment_settings.khqr_image_path) — there is
+        // one static QR per account, not one per page that shows it.
+        $merchant = MerchantPaymentSetting::forAccount(current_account_id());
+        $khqrImageUrl = filled($merchant?->khqr_image_path)
+            ? asset('storage/'.$merchant->khqr_image_path)
+            : null;
+        // Whose account the QR pays into — printed under it on the bill.
+        $khqrAccountName = $merchant?->bank_account_name;
+
+        return view('admin.settings.index', compact('settings', 'defaultSettings', 'khqrImageUrl', 'khqrAccountName'));
     }
 
     /**
@@ -124,6 +135,8 @@ class SettingsController extends Controller
             'settings.billing_cycle_day' => 'nullable|integer|min:1|max:'.BillingCycleService::MAX_COLLECTION_DAY,
             'settings.billing_overdue_days' => 'nullable|integer|min:0|max:31',
             'company_logo' => 'nullable|image|mimes:jpeg,jpg,png,webp|max:2048',
+            'khqr_image' => 'nullable|image|mimes:jpeg,jpg,png,webp|max:2048',
+            'khqr_account_name' => 'nullable|string|max:255',
         ], [
             'settings.khr_exchange_rate.numeric' => __('messages.exchange_rate_invalid'),
             'settings.khr_exchange_rate.min' => __('messages.exchange_rate_invalid'),
@@ -141,6 +154,7 @@ class SettingsController extends Controller
         }
 
         $this->handleCompanyLogo($request);
+        $this->handleScanToPayQr($request);
 
         return redirect()->route('admin.settings.index')
             ->with('success', __('messages.settings_updated'));
@@ -203,5 +217,51 @@ class SettingsController extends Controller
             $path = $request->file('company_logo')->store('company', 'public');
             Settings::set('company_logo', $path);
         }
+    }
+
+    /**
+     * The scan-to-pay QR — image plus the account name printed under it: the
+     * tenant has to see whose account they are paying into before they scan.
+     *
+     * Both live on the account's MerchantPaymentSetting row (the one place a
+     * static QR lives), not as Settings keys — the manual KHQR checkout channel
+     * and AccountPurgeService already read that column, and `bank_account_name`
+     * is the merchant name that channel signs its payload with. Same shape as
+     * the logo handler: a blank file input keeps the stored image, the checkbox
+     * clears it.
+     */
+    protected function handleScanToPayQr(Request $request): void
+    {
+        $removing = $request->boolean('remove_khqr_image');
+        $uploading = $request->hasFile('khqr_image') && $request->file('khqr_image')->isValid();
+        // Only a form that actually carries the field may clear the name — a
+        // caller that never showed it must not blank what someone else typed.
+        $naming = $request->has('khqr_account_name');
+
+        if (! $removing && ! $uploading && ! $naming) {
+            return;
+        }
+
+        $accountId = current_account_id();
+        $merchant = MerchantPaymentSetting::forAccount($accountId)
+            ?? new MerchantPaymentSetting(['account_id' => $accountId]);
+        $merchant->account_id = $accountId;
+
+        if ($naming) {
+            $merchant->bank_account_name = trim((string) $request->input('khqr_account_name')) ?: null;
+        }
+
+        if ($removing || $uploading) {
+            $current = $merchant->khqr_image_path;
+            if ($current && Storage::disk('public')->exists($current)) {
+                Storage::disk('public')->delete($current);
+            }
+
+            $merchant->khqr_image_path = $removing
+                ? null
+                : $request->file('khqr_image')->store('khqr', 'public');
+        }
+
+        $merchant->save();
     }
 }

@@ -365,3 +365,34 @@ it('keeps a vehicle in another account out of the list', function () {
         ->assertOk()
         ->assertDontSee('MINE-1');
 });
+
+// ---------------------------------------------------------------------------
+// Reaching the page on a phone
+// ---------------------------------------------------------------------------
+
+/**
+ * On phones both panels suppress the hamburger ($useBottomNav) and replace the
+ * sidebar with layouts/{,supervisor-}bottom-nav — so a page the bottom nav does
+ * not list is unreachable there, however well it renders. Vehicles was missing
+ * from both sheets. Any new Property Management page has to be added in three
+ * places, not one.
+ */
+it('links to vehicles from the mobile bottom nav in both panels', function () {
+    // The off-canvas sidebar is in the DOM on phones too (just unreachable), so
+    // the assertion has to name the bottom-nav entry — `bn-sheet-link` — and not
+    // merely the URL, or it passes with the bug in place.
+    $sheetLink = fn (string $html, string $url) => (bool) preg_match(
+        '/bn-sheet-link[^>]*"\s*>.*?'.preg_quote($url, '/').'|href="'.preg_quote($url, '/').'"[^>]*class="bn-sheet-link/s',
+        $html
+    );
+
+    $html = $this->actingAs($this->admin)->get(route('admin.dashboard'))->assertOk()->getContent();
+    expect($sheetLink($html, route('admin.vehicles.index')))->toBeTrue();
+
+    $property = Property::create(['name' => 'Sup Property']);
+    $sup = makeSupervisor(['account_id' => $this->admin->id]);
+    $property->update(['supervisor_id' => $sup->id]);
+
+    $html = $this->actingAs($sup)->get(route('supervisor.vehicles.index'))->assertOk()->getContent();
+    expect($sheetLink($html, route('supervisor.vehicles.index')))->toBeTrue();
+});

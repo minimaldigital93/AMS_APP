@@ -1251,6 +1251,16 @@ return [
     'khqrpay_webhook_url' => 'Webhook / Callback URL',
     'khqrpay_webhook_url_hint' => 'ចម្លងតំណនេះទៅដាក់ក្នុងប្រអប់ "Global Webhook URL" នៃ profile khqr.cc របស់អ្នក ដើម្បីឱ្យការបង់ប្រាក់ជួលត្រូវបញ្ជាក់ដោយស្វ័យប្រវត្តិ។',
     'payment_settings_saved' => 'ការកំណត់ការទូទាត់ត្រូវបានរក្សាទុក។',
+
+    // Static scan-to-pay KHQR (Settings → Payment → printed on the bill)
+    'payment_qr_code' => 'កូដ QR សម្រាប់ទូទាត់',
+    'payment_qr_account_name' => 'ឈ្មោះគណនី',
+    'payment_qr_account_name_placeholder' => 'ឈ្មោះនៅលើគណនីធនាគារ',
+    'payment_qr_code_hint' => 'រូបភាព KHQR ថេររបស់ធនាគារអ្នក។ វាត្រូវបានបោះពុម្ពនៅក្រោមវិក្កយបត្រដែលមិនទាន់បង់ ដើម្បីឱ្យអ្នកជួលស្កេនទូទាត់។',
+    'payment_qr_code_upload_hint' => 'PNG, JPG ឬ WEBP ទំហំមិនលើស ២ MB។ សូមកាត់យកតែផ្នែក QR ដើម្បីបោះពុម្ពឱ្យច្បាស់។',
+    'payment_qr_code_removed_on_save' => 'កូដ QR នឹងត្រូវលុបចេញនៅពេលអ្នករក្សាទុក។',
+    'upload_qr_image' => 'បញ្ចូល QR',
+    'change_qr_image' => 'ប្តូរ QR',
     'khqr_payment_settings_missing' => 'KHQR មិនទាន់បានកំណត់ទេ។ សូមបញ្ចូលព័ត៌មានធនាគារ ឬរូបភាព KHQR នៅ ការកំណត់ → ការកំណត់ការទូទាត់ ជាមុនសិន។',
     // Checkout polling / fallback states
     'payment_confirming_title' => 'កំពុងបញ្ជាក់ការទូទាត់របស់អ្នក',

@@ -5,6 +5,7 @@ namespace App\Providers;
 use App\Models\Subscription;
 use App\Services\NotificationService;
 use App\Services\Payment\PaymentManager;
+use App\Services\Period\WorkingMonthContext;
 use App\Services\Property\PropertyContext;
 use App\Services\Subscription\SubscriptionService;
 use Illuminate\Support\Facades\Auth;
@@ -24,6 +25,9 @@ class AppServiceProvider extends ServiceProvider
 
         // The active-property context is resolved at most once per request.
         $this->app->singleton(PropertyContext::class, fn () => new PropertyContext);
+
+        // Same for the working month (the month-navigated business screens).
+        $this->app->singleton(WorkingMonthContext::class, fn () => new WorkingMonthContext);
 
         // Singleton so its per-request activeSubscription memo actually holds:
         // the middleware gate, subscription-block composer and notification

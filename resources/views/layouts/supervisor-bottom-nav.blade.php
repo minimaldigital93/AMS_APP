@@ -1,7 +1,7 @@
 {{-- Mobile bottom navigation for the supervisor panel (replaces the off-canvas sidebar on phones). --}}
 @php
     $isHome     = request()->routeIs('supervisor.dashboard');
-    $isProperty = request()->routeIs('supervisor.apartments.*', 'supervisor.floors.*');
+    $isProperty = request()->routeIs('supervisor.apartments.*', 'supervisor.floors.*', 'supervisor.vehicles.*');
     $isTenant   = request()->routeIs('supervisor.tenants.*');
     $isRevenue  = request()->routeIs('supervisor.revenue_expense.*');
     $isMore     = request()->routeIs('supervisor.settings.*');
@@ -94,6 +94,25 @@
                     <span class="h-1.5 w-10 rounded-full bg-gray-300"></span>
                 </div>
 
+                {{-- Property Management --}}
+                <div x-show="sheet === 'property'" class="p-2">
+                    <h3 class="px-3 pt-1 pb-2 text-xs font-bold uppercase tracking-wide text-gray-400">{{ __('messages.property_management') }}</h3>
+                    <div class="space-y-1">
+                        <a href="{{ route('supervisor.apartments.index') }}" class="bn-sheet-link {{ request()->routeIs('supervisor.apartments.*', 'supervisor.floors.*') ? 'active' : '' }}">
+                            <span class="bn-sheet-icon">
+                                <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 6l3-3h12l3 3M3 6v12a3 3 0 003 3h12a3 3 0 003-3V6M9 9h6m-6 4h6"/></svg>
+                            </span>
+                            <span>{{ __('messages.apartments') }}</span>
+                        </a>
+                        <a href="{{ route('supervisor.vehicles.index') }}" class="bn-sheet-link {{ request()->routeIs('supervisor.vehicles.*') ? 'active' : '' }}">
+                            <span class="bn-sheet-icon">
+                                <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 17h8m-9-4h10l-1.2-3.6A2 2 0 0014.9 8H9.1a2 2 0 00-1.9 1.4L6 13zm-1 0h12a1 1 0 011 1v3H5v-3a1 1 0 011-1z"/></svg>
+                            </span>
+                            <span>{{ __('messages.vehicles') }}</span>
+                        </a>
+                    </div>
+                </div>
+
                 {{-- Tenant Management --}}
                 <div x-show="sheet === 'tenant'" class="p-2">
                     <h3 class="px-3 pt-1 pb-2 text-xs font-bold uppercase tracking-wide text-gray-400">{{ __('messages.tenant_management') }}</h3>
@@ -184,13 +203,13 @@
             <span class="bn-label">{{ __('messages.home') }}</span>
         </a>
 
-        {{-- Property / Apartments (direct link — supervisor only manages apartments) --}}
-        <a href="{{ route('supervisor.apartments.index') }}" class="bn-item {{ $isProperty ? 'active' : '' }}">
+        {{-- Property Management --}}
+        <button type="button" @click="toggle('property')" class="bn-item {{ $isProperty ? 'active' : '' }}" :class="sheet === 'property' ? 'active' : ''">
             <span class="bn-icon">
                 <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/></svg>
             </span>
             <span class="bn-label">{{ __('messages.nav_property') }}</span>
-        </a>
+        </button>
 
         {{-- Tenant Management --}}
         <button type="button" @click="toggle('tenant')" class="bn-item {{ $isTenant ? 'active' : '' }}" :class="sheet === 'tenant' ? 'active' : ''">

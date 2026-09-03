@@ -318,3 +318,15 @@ if (! function_exists('format_bytes')) {
         return number_format($value, $power === 0 ? 0 : $decimals).' '.$units[$power];
     }
 }
+
+if (! function_exists('working_month')) {
+    /**
+     * The month of business the user last navigated to (first day of it), or
+     * null when they haven't navigated anywhere this session — in which case
+     * each page keeps its own default. See WorkingMonthContext.
+     */
+    function working_month(): ?\Carbon\Carbon
+    {
+        return app(\App\Services\Period\WorkingMonthContext::class)->selected();
+    }
+}

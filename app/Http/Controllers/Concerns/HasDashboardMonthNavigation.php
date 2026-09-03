@@ -28,9 +28,20 @@ trait HasDashboardMonthNavigation
      *   3. First month of the period.
      *   4. Requested month/year (no period at all).
      *   5. Current month (no period and no request).
+     *
+     * A request with no month/year — the sidebar's plain "Dashboard" link —
+     * inherits the working month (the month the user last navigated to on any
+     * business screen), so the dashboard doesn't jump back to today after they
+     * stepped back to a past month elsewhere. It is only a default: the period
+     * checks below still decide whether that month is shown.
      */
     protected function resolveSelectedMonth(?FiscalPeriods $activePeriod, ?int $month, ?int $year): Carbon
     {
+        if (! $this->isValidMonth($month, $year) && ($working = working_month())) {
+            $month = $working->month;
+            $year = $working->year;
+        }
+
         if ($activePeriod) {
             $periodMonths = $this->buildPeriodMonths($activePeriod);
 

@@ -133,6 +133,20 @@
         .chip .chip-amt { font-weight: 700; }
         .chip .chip-when { font-size: 10.5px; opacity: .75; }
 
+        /* Scan-to-pay: the account's static KHQR, printed only on a document
+           that still owes money. */
+        .pay-qr-title {
+            font-size: 11px; font-weight: 700; text-transform: uppercase;
+            letter-spacing: .6px; color: #374151; margin-bottom: 6px;
+        }
+        .pay-qr-img {
+            width: 160px; height: 160px; object-fit: contain; display: block;
+            margin: 0 auto; border: 1px solid #e5e7eb; border-radius: 6px;
+            padding: 4px; background: #fff;
+        }
+        .pay-qr-name { margin-top: 6px; font-size: 12.5px; font-weight: 700; color: #111827; word-break: break-word; }
+        .pay-qr-amount { margin-top: 4px; font-size: 14px; font-weight: 800; }
+
         .notes { font-size: 12px; color: #4b5563; word-break: break-word; }
         .thank-you { font-weight: 700; letter-spacing: 1px; }
 
@@ -330,6 +344,20 @@
             <div>
                 <div class="muted" style="font-size:11.5px;text-transform:uppercase;letter-spacing:.3px;margin-bottom:3px;">{{ __('messages.notes') }}</div>
                 <div class="notes">{{ $note }}</div>
+            </div>
+        @endif
+
+        {{-- Scan-to-pay QR (Settings → Payment). Only on a document that still
+             owes money — a receipt is money already received. --}}
+        @if(!empty($payQrUrl) && $balance > 0)
+            <hr class="divider">
+            <div class="center">
+                <div class="pay-qr-title">{{ __('messages.scan_to_pay') }}</div>
+                <img class="pay-qr-img" src="{{ $payQrUrl }}" alt="{{ __('messages.scan_to_pay') }}">
+                @if(!empty($payQrName))
+                    <div class="pay-qr-name">{{ $payQrName }}</div>
+                @endif
+                <div class="pay-qr-amount">{{ money($balance) }}</div>
             </div>
         @endif
 

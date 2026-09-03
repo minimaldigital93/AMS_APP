@@ -80,7 +80,9 @@
 
             {{-- View All link --}}
             @if($filterMonth)
-            <a href="{{ route($panel.'.revenue_expense.income_statement', ['period' => $activePeriod->id]) }}"
+            {{-- month=all is the explicit whole-period view: with no month at
+                 all the statement follows the working month like every other page. --}}
+            <a href="{{ route($panel.'.revenue_expense.income_statement', ['period' => $activePeriod->id, 'month' => 'all']) }}"
                class="ml-1 sm:ml-2 shrink-0 whitespace-nowrap text-xs text-blue-600 hover:text-blue-800 font-medium">{{ __('messages.view_all') }}</a>
             @endif
         </div>

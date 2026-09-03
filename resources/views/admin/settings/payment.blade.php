@@ -72,6 +72,15 @@
             </div>
         </div>
 
+        {{-- The static scan-to-pay QR is uploaded on System Settings (one place
+             for every uploaded image); this page only says where it lives. --}}
+        <div class="rounded-lg border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-600">
+            {{ __('messages.payment_qr_code_hint') }}
+            <a href="{{ route('admin.settings.index') }}" class="font-medium text-indigo-600 hover:text-indigo-700">
+                {{ __('messages.system_settings') }} →
+            </a>
+        </div>
+
         <div class="flex justify-end">
             <button type="submit" class="rounded-lg bg-indigo-600 px-5 py-2.5 text-sm font-medium text-white hover:bg-indigo-700 transition">
                 {{ __('messages.save') }}

@@ -73,7 +73,9 @@
                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
             </a>
             @if(!$isCurrentMonth)
-            <a href="{{ route($panel.'.revenue_expense.record_income') }}"
+            {{-- Explicit month/year: a bare link now inherits the working month
+                 (the month last navigated to), so "today" has to say which one. --}}
+            <a href="{{ route($panel.'.revenue_expense.record_income', ['month' => now()->month, 'year' => now()->year]) }}"
                class="ml-0.5 sm:ml-1 shrink-0 inline-flex items-center px-2 sm:px-3 py-2 text-sm font-medium text-sky-600 bg-sky-50 rounded-lg hover:bg-sky-100 transition" title="{{ __('messages.go_to_current_month') }}">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg></a>
             @endif
