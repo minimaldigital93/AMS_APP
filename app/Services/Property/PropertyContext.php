@@ -218,9 +218,26 @@ class PropertyContext
         $this->showingAllCache = true;
     }
 
+    /** Whether the user's whole accessible set is a single property. */
     public function hasSingleProperty(): bool
     {
         return $this->accessibleProperties()->count() === 1;
+    }
+
+    /**
+     * Whether there is nothing to consolidate — fewer than two accessible
+     * properties, so the single view the user is on IS the account-wide view.
+     *
+     * Zero counts, not just one: an account with no Property rows still has
+     * books, and treating it as "not consolidated" hid every account-wide
+     * action (the month close among them) behind a view it could never reach.
+     * The rest of this class already draws the line at two — setAllProperties()
+     * no-ops below it and resolve() only honours the ALL sentinel above it — so
+     * this is that same rule, named.
+     */
+    public function hasNothingToConsolidate(): bool
+    {
+        return $this->accessibleProperties()->count() < 2;
     }
 
     /** Whether to render an interactive selector (more than one choice). */

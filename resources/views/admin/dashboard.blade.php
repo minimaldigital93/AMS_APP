@@ -5,6 +5,11 @@
 @section('content')
 <div class="max-w-6xl mx-auto space-y-8">
 
+    {{-- Un-closed month backlog: a reminder at one month, a stop at two --}}
+    @if(!empty($monthCloseAlert))
+        <x-month-close-alert :backlog="$monthCloseAlert" />
+    @endif
+
     {{-- Subscription renewal alert (due within 3 days) --}}
     @if(!empty($subscriptionAlert))
     <div x-data="{ show: true }" x-show="show"

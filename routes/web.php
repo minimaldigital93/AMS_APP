@@ -291,8 +291,9 @@ Route::middleware(['auth', 'role:admin|superadmin', 'subscription.active'])->gro
     Route::delete('/admin/settings/reset', [SettingsController::class, 'reset'])->name('admin.settings.reset');
     Route::delete('/admin/settings', [SettingsController::class, 'destroy'])->name('admin.settings.destroy');
 
-    // Revenue & Expense Management Routes (requires active fiscal period)
-    Route::middleware(['fiscal.period'])->group(function () {
+    // Revenue & Expense Management Routes (requires an active fiscal period, and
+    // no more than one finished month left un-closed — see MonthCloseBacklog)
+    Route::middleware(['fiscal.period', 'month.close'])->group(function () {
         Route::get('/admin/revenue-expense', [RevenueExpenseController::class, 'index'])->name('admin.revenue_expense.index');
         Route::get('/admin/revenue-expense/break-even', [RevenueExpenseController::class, 'breakEvenPoint'])->name('admin.revenue_expense.break_even');
         Route::get('/admin/revenue-expense/record-income', [RevenueExpenseController::class, 'recordIncome'])->name('admin.revenue_expense.record_income');
@@ -380,8 +381,9 @@ Route::middleware(['auth', 'role:supervisor|admin|superadmin', 'subscription.act
     // supervisor's assigned properties.
     Route::get('/vehicles', [\App\Http\Controllers\Supervisor\VehicleController::class, 'index'])->name('supervisor.vehicles.index');
 
-    // Revenue & Expense (requires an admin to have an open fiscal period)
-    Route::middleware(['fiscal.period'])->group(function () {
+    // Revenue & Expense (requires an admin to have an open fiscal period, and
+    // no more than one finished month left un-closed — see MonthCloseBacklog)
+    Route::middleware(['fiscal.period', 'month.close'])->group(function () {
         Route::get('/revenue-expense', [SupervisorRevenueExpenseController::class, 'index'])->name('supervisor.revenue_expense.index');
         Route::get('/revenue-expense/record-income', [SupervisorRevenueExpenseController::class, 'recordIncome'])->name('supervisor.revenue_expense.record_income');
         Route::post('/revenue-expense/record-income', [SupervisorRevenueExpenseController::class, 'storeIncome'])->name('supervisor.revenue_expense.store_income');

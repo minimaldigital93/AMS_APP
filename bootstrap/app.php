@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Middleware\EnsureFiscalPeriodExists;
+use App\Http\Middleware\EnsureMonthCloseBacklogClear;
 use App\Http\Middleware\EnsureSubscriptionActive;
 use App\Http\Middleware\RoleMiddleware;
 use App\Http\Middleware\SetLocale;
@@ -40,6 +41,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->alias([
             'role' => RoleMiddleware::class,
             'fiscal.period' => EnsureFiscalPeriodExists::class,
+            'month.close' => EnsureMonthCloseBacklogClear::class,
             'subscription.active' => EnsureSubscriptionActive::class,
         ]);
 

@@ -7,6 +7,7 @@ use App\Models\MonthlyPeriod;
 use App\Models\Payments;
 use App\Models\Utilities;
 use App\Services\Audit\AuditLogger;
+use Carbon\CarbonInterface;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
@@ -21,17 +22,24 @@ use Illuminate\Support\Facades\DB;
  * own — a full "Paid" row falls to "Rent Paid" when the charges payment goes,
  * and to "Pending"/"Overdue" when the rent payment goes.
  *
- * Only the CURRENT month can be undone. A reversal deletes ledger rows, so
- * reversing a payment booked in an earlier month would silently restate a month
- * whose revenue has already been read, reported and acted on. The mistake this
- * feature exists for is a fresh one — money recorded on the wrong tenant or the
- * wrong line today. Anything older is corrected as an adjustment in the open
- * month, not by editing history.
+ * CLOSING THE MONTH IS THE DEADLINE — nothing else is.
  *
- * Money that has been closed off is never restated either: a payment whose
- * ledger rows sit in a closed fiscal period, or in a closed monthly period,
- * cannot be reversed — the same rule LeaseSyncService follows for the deposit
- * row. Fix those by reopening the month first.
+ * A reversal deletes ledger rows, so the only thing it must never do is restate
+ * money that has been read, reported and carried forward. That is precisely
+ * what closing a month (or a fiscal period) means here: `closeMonth()` freezes
+ * the month's totals and forwards its closing balance to the next month, so
+ * from that moment the live `Accounts` rows are no longer free to move. While
+ * the month is still open nothing has been frozen, so a mistake found three
+ * weeks later is corrected the same way one found the same afternoon is.
+ *
+ * This used to also refuse anything outside the current calendar month, on the
+ * reasoning that an older month's revenue had already been acted on. But the
+ * app already has a first-class answer to "has this month been acted on?" — the
+ * monthly period's status — and the calendar rule contradicted it: an account
+ * that had not closed July yet still could not fix July's mis-keyed rent on
+ * Aug 1, and was told to book an adjustment against a month it had every right
+ * to correct. The rule is now the close, and only the close. Reopen the month
+ * (`MonthlyPeriodManager::reopenMonth()`) to reach anything past it.
  *
  * The Payments row is SOFT-deleted (it stays in the table as history); the
  * Accounts rows are removed outright, the way every other ledger-undo path
@@ -42,8 +50,6 @@ class PaymentReversalService
 {
     /** Reason codes returned by blockReason(). */
     public const REASON_NOT_PAID = 'not_paid';
-
-    public const REASON_PAST_MONTH = 'past_month';
 
     public const REASON_CLOSED_PERIOD = 'closed_period';
 
@@ -64,18 +70,16 @@ class PaymentReversalService
 
         $rows = $this->ledgerRows($payment);
 
-        // Broadest rule first: an older month is out of reach whatever its
-        // period status, so "reopen the month" would be the wrong advice.
-        if (! $this->bookedThisMonth($payment, $rows)) {
-            return self::REASON_PAST_MONTH;
-        }
-
+        // Broadest rule first: a closed fiscal period takes its months with it,
+        // so "reopen the month" would be the wrong advice.
         foreach ($rows as $row) {
             if ($row->fiscalPeriod && $row->fiscalPeriod->status !== 'open') {
                 return self::REASON_CLOSED_PERIOD;
             }
+        }
 
-            if ($this->monthIsClosed($row)) {
+        foreach ($this->bookedMonths($payment, $rows) as $booked) {
+            if ($this->monthIsClosed($booked['date'], $booked['fiscal_period_id'])) {
                 return self::REASON_CLOSED_MONTH;
             }
         }
@@ -154,46 +158,61 @@ class PaymentReversalService
     }
 
     /**
-     * Whether this payment's money still sits in the month we are in now.
+     * Every month this payment's money sits in — the months a reversal would
+     * restate, each with the fiscal period that booked it.
      *
-     * The ledger row's transaction_date is the authority — income is recognised
-     * when it is received, so that date is the month a reversal would restate.
-     * (It is not always the billed month: July's rent collected on Aug 3 is
-     * anchored to July on the Payments row but booked as August income, and
-     * undoing that mistake in August is exactly the case this feature is for.)
-     * A payment carrying no ledger rows falls back to its own paid_at; one with
-     * neither cannot be placed in time at all, so it is left alone.
+     * The ledger row's transaction_date is the authority: income is recognised
+     * when it is received, so that date is the month whose totals a reversal
+     * moves. (It is not always the billed month: July's rent collected on Aug 3
+     * is anchored to July on the Payments row but booked as August income, and
+     * it is August's close that must let go of it.) A payment carrying no
+     * ledger rows has nothing in the books to restate, but it still flips a
+     * bill's status, so it is placed by its own paid_at rather than waved
+     * through. One that can be placed nowhere at all is left alone.
      *
      * @param  \Illuminate\Support\Collection<int, Accounts>  $rows
+     * @return \Illuminate\Support\Collection<int, array{date: CarbonInterface, fiscal_period_id: ?int}>
      */
-    private function bookedThisMonth(Payments $payment, Collection $rows): bool
+    private function bookedMonths(Payments $payment, Collection $rows): Collection
     {
-        $dates = $rows->pluck('transaction_date')->filter();
+        $booked = $rows
+            ->filter(fn (Accounts $row) => $row->transaction_date !== null)
+            ->map(fn (Accounts $row) => [
+                'date' => $row->transaction_date,
+                'fiscal_period_id' => $row->fiscal_period_id,
+            ])
+            ->values();
 
-        if ($dates->isEmpty()) {
-            $dates = collect([$payment->paid_at])->filter();
+        if ($booked->isNotEmpty() || ! $payment->paid_at) {
+            return $booked;
         }
 
-        return $dates->isNotEmpty()
-            && $dates->every(fn ($date) => $date->isSameMonth(now()));
+        return collect([['date' => $payment->paid_at, 'fiscal_period_id' => null]]);
     }
 
     /**
-     * Whether the monthly period holding a ledger row has been closed. A month
-     * with no MonthlyPeriod row at all counts as open — not every account
-     * generates them.
+     * Whether the monthly period covering a booked date has been closed (or
+     * locked). A month with no MonthlyPeriod row at all counts as open — not
+     * every account generates them, and an account that never closes a month
+     * never loses the ability to correct one.
+     *
+     * The fiscal period narrows the lookup when the ledger row names one; a row
+     * without one still gets checked against the account's own months, since
+     * this is the only guard left standing between a reversal and frozen money.
      */
-    private function monthIsClosed(Accounts $row): bool
+    private function monthIsClosed(?CarbonInterface $date, ?int $fiscalPeriodId): bool
     {
-        if (! $row->transaction_date || ! $row->fiscal_period_id) {
+        if (! $date) {
             return false;
         }
 
-        $month = MonthlyPeriod::where('fiscal_period_id', $row->fiscal_period_id)
-            ->forMonth($row->transaction_date->month, $row->transaction_date->year)
-            ->first();
+        $query = MonthlyPeriod::forMonth($date->month, $date->year);
 
-        return $month !== null && ! $month->isOpen();
+        if ($fiscalPeriodId) {
+            $query->where('fiscal_period_id', $fiscalPeriodId);
+        }
+
+        return $query->get()->contains(fn (MonthlyPeriod $month) => ! $month->isOpen());
     }
 
     /**

@@ -5,6 +5,10 @@
 @section('content')
 <div class="max-w-6xl mx-auto space-y-8">
 
+    {{-- Un-closed month backlog: a reminder at one month, a stop at two --}}
+    @if(!empty($monthCloseAlert))
+        <x-month-close-alert :backlog="$monthCloseAlert" />
+    @endif
 
     {{-- Header --}}
     <div class="flex flex-row items-center justify-between gap-3">

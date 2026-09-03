@@ -132,6 +132,9 @@
             @endif
         </div>
         @if($monthlyPeriods->count())
+            @if(! $consolidated && $monthlyPeriods->contains(fn ($m) => $m->canClose()))
+                <div class="px-4 pb-4"><x-month-close-scope-notice /></div>
+            @endif
             {{-- Mobile: compact card per month with close + view-detail actions --}}
             <div class="md:hidden divide-y">
                 @foreach($monthlyPeriods as $month)
@@ -158,8 +161,9 @@
                                 {{-- Close Month (opens withdrawal modal) --}}
                                 <button type="button"
                                         @click="closeModal = { open: true, action: '{{ route('admin.fiscalperiod.monthly-period.close', [$fiscalperiod->id, $month->id]) }}', name: @js($month->name), net: {{ $month->live_net }}, available: {{ $month->opening_balance + $month->live_net }}, amount: '' }"
-                                        class="p-2 rounded-lg text-amber-600 bg-amber-50 active:bg-amber-100" title="{{ __('messages.close_month') }}">
-                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
+                                        class="inline-flex items-center gap-1.5 px-2.5 py-2 rounded-lg text-xs font-semibold text-amber-700 bg-amber-50 active:bg-amber-100" title="{{ __('messages.close_month') }}">
+                                    <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
+                                    <span>{{ __('messages.close') }}</span>
                                 </button>
                             @endif
                             {{-- View detail --}}
@@ -226,8 +230,9 @@
                                             {{-- Close Month (opens withdrawal modal) --}}
                                             <button type="button"
                                                     @click="closeModal = { open: true, action: '{{ route('admin.fiscalperiod.monthly-period.close', [$fiscalperiod->id, $month->id]) }}', name: @js($month->name), net: {{ $month->live_net }}, available: {{ $month->opening_balance + $month->live_net }}, amount: '' }"
-                                                    class="p-1.5 rounded text-amber-600 hover:bg-amber-50 transition" title="{{ __('messages.close_month') }}">
-                                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
+                                                    class="inline-flex items-center gap-1.5 px-2 py-1.5 rounded text-xs font-semibold text-amber-700 hover:bg-amber-50 transition" title="{{ __('messages.close_month') }}">
+                                                <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
+                                                <span>{{ __('messages.close') }}</span>
                                             </button>
                                         @endif
 

@@ -146,6 +146,7 @@ Supervisors are further scoped to **properties assigned to them** (`properties.s
 | `role:X` | `RoleMiddleware` | Aborts 401 if not authenticated; 403 if user lacks the pipe-delimited role(s). |
 | `subscription.active` | `EnsureSubscriptionActive` | Superadmin is exempt. Admin with no active subscription → `admin.billing.index`. Supervisor with no active subscription → `supervisor.dashboard` with a warning (they can't renew). |
 | `fiscal.period` | `EnsureFiscalPeriodExists` | Admin: requires an open `FiscalPeriods` row on their **account** (`current_account_id()`, so co-admins share the owner's); else → `admin.fiscalperiod.create`. Supervisor: requires any admin's open period; else → `supervisor.dashboard` with a warning. |
+| `month.close` | `EnsureMonthCloseBacklogClear` | Refuses **write** requests while 2+ finished months sit un-closed (`MonthCloseBacklog`). Superadmin and the payment-reversal route are exempt; admin → the month's close page, supervisor → `back()` with "ask the owner". |
 | `SetLocale` | `SetLocale` | Runs on every web request. Priority: `session('locale')` → DB `Settings.app_locale` → `config('app.locale')`. Supported: `en`, `km`. |
 
 ---
@@ -631,6 +632,74 @@ owed stays derived from the calendar, as it always has been here.
 
 ---
 
+## A month that has ended must be closed — one is a nudge, two is a stop
+
+Closing a month is what turns its figures into books: `MonthlyPeriodManager::closeMonth()`
+freezes the totals and carries the closing balance into the next month. Until
+that happens the month's net income is a live sum every later entry keeps
+moving, nothing is carried forward, and the guard rails that key off a closed
+month (`NotInClosedMonth`, `PaymentReversalService`) have nothing to bite on. So
+the app asks for the close, and past one month of backlog it insists.
+
+`App\Services\FiscalPeriod\MonthCloseBacklog` is the single answer to "how far
+behind is this account?", read by both the banner and the gate so they can never
+disagree.
+
+- **A month is due to close once it has ended** — `end_date` before today, still
+  `open`, inside a still-open fiscal period. **The month in progress is never
+  due**: there is nothing to freeze yet. That is what paces the whole feature —
+  exactly one month becomes due on the 1st, so the account has a full month to
+  clear it before a second joins it.
+- **`ALLOWED_OPEN_MONTHS = 1`.** One due month → an amber, dismissible dashboard
+  banner. Two or more → a red, **non-dismissible** banner and
+  `EnsureMonthCloseBacklogClear` (alias `month.close`, beside `fiscal.period` on
+  both panels' revenue-expense groups) refuses new money. Adjacency is **not**
+  required — closing out of order is allowed, so the condition is "two months
+  are unclosed", not "two consecutive months".
+- **The gate is narrower than `fiscal.period` in three deliberate ways**, and
+  each one is load-bearing:
+  - **Writes only** — a safe request passes. Reading the books is how the
+    operator works out what the month owes before closing it, and the banner has
+    already said why. Blocking the reports punishes the wrong half of the
+    workflow.
+  - **`*.revenue_expense.reverse_payment` is exempt.** Undoing a mistake is how a
+    month gets *ready* to close, and a reversal is only reachable while its month
+    is open. Without the exemption the rule deadlocks itself: fix July before it
+    closes, but no writes until July closes.
+  - **Superadmin is exempt**, as everywhere else.
+- **Only an admin can close a month**, so `close_url` is null for a supervisor
+  and their banner says "ask the owner" instead of offering a button that would
+  403 — the same split `EnsureFiscalPeriodExists` and `EnsureSubscriptionActive`
+  already make. It reads the **user's role, not the panel**, so an admin
+  previewing the supervisor dashboard still gets the link. A supervisor's writes
+  land in these books too, so they are blocked as well, bounced `back()` rather
+  than to a page they cannot use.
+- **An account with no `MonthlyPeriod` rows has no backlog and sees nothing.**
+  The rows are minted when a fiscal period is opened, so that null is the
+  backward-compatibility seam for books that predate them — the same shape as
+  the rent-collection day's null.
+- `<x-month-close-alert>` renders both states from one component on both
+  dashboards; the red one drops the dismiss button on purpose, since the banner
+  is the only place that explains why the next save fails.
+- **The banner links to a page that must actually offer the close**, and twice
+  it did not. The close control was **icon-only** everywhere (a padlock with a
+  `title`, beside the print/back/eye glyphs, and no tooltip at all on a phone) —
+  it is labelled now on the month page (`close_month_now`, the page's primary
+  action) and on both the card and table rows of the period page. And
+  `resolveScope()` read "consolidated" as `showingAll || hasSingleProperty()`,
+  so an account with **zero** Property rows fell through to false and never saw
+  the button at all; the line is `hasNothingToConsolidate()` (**fewer than
+  two**) now, matching where the rest of `PropertyContext` already draws it.
+- **One property of several selected still hides the close, on purpose** — the
+  close freezes account-wide totals while that view shows a per-property running
+  total (`monthBalances`). `<x-month-close-scope-notice>` says so and posts
+  `property.switch` (which redirects back), instead of leaving a page that the
+  banner sent the user to with nothing on it.
+
+`tests/Feature/FiscalPeriod/MonthCloseBacklogTest.php` pins all of it.
+
+---
+
 ## `rentals` is the system of record for money — edits must reach it
 
 Nothing about rent is stored as an invoice. Every money figure is **derived from
@@ -804,18 +873,29 @@ pending bucket); reversing the rent payment takes it to **pending/overdue**.
 DELETE) is its one caller, driven by the undo button on each recorded payment in
 the **payment-history modal** of the tenant detail page (`<x-reverse-payment>`).
 
-- **Only the current month can be undone.** The window is the ledger row's
-  `transaction_date` — when the money was *booked*, not the month it billed —
-  so July's rent collected on Aug 3 is reversible through August (that late
-  collection is the everyday mistake) while July's own collection is not. A
-  reversal deletes ledger rows; an earlier month's revenue has already been
-  read and reported, and is corrected by an adjustment in the open month
-  instead. Checked before the closed-period/month reasons so the flash doesn't
-  advise reopening a month that reopening wouldn't help.
+- **Closing the month is the deadline, and nothing else is.** A payment stays
+  reversible for as long as the month it was booked in is open — the calendar
+  rolling over changes nothing. Closing a month is what freezes it
+  (`closeMonth()` writes the totals and forwards the closing balance), so that
+  is the point past which a reversal would restate reported money. The window
+  is the ledger row's `transaction_date` — when the money was *booked*, not the
+  month it billed — so July's rent collected on Aug 3 is governed by **August's**
+  close. Until 2026-09 there was also a hard current-calendar-month rule on top,
+  which contradicted the month status it sat beside: an account that had not
+  closed July yet still could not fix July's mis-keyed rent on Aug 1, and was
+  told to book an adjustment against a month it had every right to correct.
+  Don't reintroduce it — `MonthlyPeriod`, not `now()`, is the authority for
+  whether a month has been acted on.
 - **Closed money is never restated.** A payment whose ledger rows sit in a
-  closed fiscal period or a closed `MonthlyPeriod` is refused — reopen the month
-  first. Same rule as `LeaseSyncService`'s deposit row. (The route also sits
-  behind `fiscal.period`, so the closed-*period* case is a service-level guard.)
+  closed (or locked) fiscal period or `MonthlyPeriod` is refused — reopen the
+  month first (`MonthlyPeriodManager::reopenMonth()`). Same rule as
+  `LeaseSyncService`'s deposit row, and the same definition `NotInClosedMonth`
+  enforces on entry. The closed-*period* reason is checked first so the flash
+  doesn't advise reopening a month that reopening wouldn't help. A month with no
+  `MonthlyPeriod` row counts as open, and a payment that booked no ledger rows
+  at all is placed by its own `paid_at` rather than waved through. (The route
+  also sits behind `fiscal.period`, so the closed-*period* case is a
+  service-level guard.)
 - **The Payments row is soft-deleted, the Accounts rows are deleted outright** —
   income never received must not sit in the books, which is how every other
   ledger-undo path here behaves. `AuditLogger` records `payment.reversed`.

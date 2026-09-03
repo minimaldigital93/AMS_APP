@@ -12,6 +12,7 @@ use App\Services\Dashboard\ApartmentRevenueComparisonService;
 use App\Services\Dashboard\DashboardCalendarService;
 use App\Services\Dashboard\DashboardStatsService;
 use App\Services\Dashboard\FiscalPeriodSummaryService;
+use App\Services\FiscalPeriod\MonthCloseBacklog;
 use App\Services\NotificationService;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
@@ -71,6 +72,10 @@ class DashboardController extends Controller
         // Renewal banner when this admin's subscription is due within 3 days.
         $subscriptionAlert = app(NotificationService::class)->subscriptionDueAlert(Auth::user());
 
+        // "Close last month" reminder — and, past one month of backlog, the
+        // notice explaining why recording income and expenses has stopped.
+        $monthCloseAlert = app(MonthCloseBacklog::class)->build();
+
         // Compact floor/room occupancy for the dashboard quick-view popup.
         $floorPlan = $this->buildFloorPlan(Floors::forActiveProperty());
 
@@ -78,7 +83,7 @@ class DashboardController extends Controller
             'stats', 'fiscalData', 'calendarData',
             'activePeriod', 'recentTransactions', 'apartmentRevenues',
             'selectedMonth', 'periodMonths', 'monthNavigation', 'isFullPeriod', 'displayMonth',
-            'subscriptionAlert', 'floorPlan'
+            'subscriptionAlert', 'monthCloseAlert', 'floorPlan'
         ));
     }
 

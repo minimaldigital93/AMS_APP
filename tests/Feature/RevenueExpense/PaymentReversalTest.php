@@ -14,8 +14,10 @@ use Carbon\Carbon;
  *
  *   Paid  --(reverse the charges payment)-->  Rent Paid  --(reverse the rent)-->  Pending
  *
- * Money that has been closed off is never restated: a payment booked in a
- * closed fiscal period or a closed month is refused.
+ * Closing the month is the deadline and nothing else is: a payment stays
+ * reversible for as long as the month it was booked in is open — including
+ * after the calendar has rolled on — and is refused once that month, or its
+ * fiscal period, has been closed.
  */
 beforeEach(function () {
     Carbon::setTestNow('2026-07-25');
@@ -64,6 +66,23 @@ function payJulyBill(float $charge = 40.0): void
             'billing_year' => 2026,
         ]);
     auth()->logout();
+}
+
+/** Close July's monthly period — the deadline a reversal has to beat. */
+function closeJuly(): void
+{
+    MonthlyPeriod::create([
+        'fiscal_period_id' => test()->period->id,
+        'user_id' => test()->admin->id,
+        'name' => 'July 2026',
+        'month_number' => 7,
+        'year' => 2026,
+        'start_date' => '2026-07-01',
+        'end_date' => '2026-07-31',
+        'opening_balance' => 0,
+        'closing_balance' => 0,
+        'status' => 'closed',
+    ]);
 }
 
 function julyRow(): array
@@ -142,11 +161,37 @@ it('removes the late fee ledger row with the rent payment that carried it', func
     expect(Accounts::count())->toBe(0);
 });
 
-it('refuses to reverse a payment booked in an earlier month, and stops offering it', function () {
+it('still reverses an earlier month\'s payment while that month is open', function () {
     payJulyBill();
 
-    // Same books, next month: July's revenue has been read and reported by now.
+    // The calendar has rolled on, but nobody has closed July: its totals are
+    // still live, so a mistake found now is corrected the same way one found
+    // in July would have been.
     Carbon::setTestNow('2026-08-05');
+
+    $rent = Payments::where('rental_id', $this->rental->id)->where('payment_type', 'rent')->firstOrFail();
+    $charges = Payments::where('rental_id', $this->rental->id)->where('payment_type', 'utilities')->firstOrFail();
+
+    // The payment history keeps offering the undo control for both sides.
+    $this->actingAs($this->admin)
+        ->get(route('admin.tenants.show', $this->tenant))
+        ->assertOk()
+        ->assertSee(route('admin.revenue_expense.reverse_payment', $rent), false)
+        ->assertSee(route('admin.revenue_expense.reverse_payment', $charges), false);
+
+    $this->actingAs($this->admin)
+        ->delete(route('admin.revenue_expense.reverse_payment', $rent))
+        ->assertSessionHas('success');
+
+    expect(Payments::find($rent->id))->toBeNull()
+        ->and(julyRow()['rent_status'])->toBe('overdue');
+});
+
+it('stops offering the undo once the booked month is closed', function () {
+    payJulyBill();
+    Carbon::setTestNow('2026-08-05');
+
+    closeJuly();
 
     $rent = Payments::where('rental_id', $this->rental->id)->where('payment_type', 'rent')->firstOrFail();
     $charges = Payments::where('rental_id', $this->rental->id)->where('payment_type', 'utilities')->firstOrFail();
@@ -158,7 +203,6 @@ it('refuses to reverse a payment booked in an earlier month, and stops offering 
     expect(Payments::find($rent->id))->not->toBeNull()
         ->and(julyRow()['status'])->toBe('paid');
 
-    // The payment history stops offering the undo control for both sides.
     $this->actingAs($this->admin)
         ->get(route('admin.tenants.show', $this->tenant))
         ->assertOk()
@@ -199,18 +243,7 @@ it('reverses this month\'s collection of an earlier month\'s bill', function () 
 it('refuses to reverse a payment booked in a closed month', function () {
     payJulyBill();
 
-    MonthlyPeriod::create([
-        'fiscal_period_id' => $this->period->id,
-        'user_id' => $this->admin->id,
-        'name' => 'July 2026',
-        'month_number' => 7,
-        'year' => 2026,
-        'start_date' => '2026-07-01',
-        'end_date' => '2026-07-31',
-        'opening_balance' => 0,
-        'closing_balance' => 0,
-        'status' => 'closed',
-    ]);
+    closeJuly();
 
     $rent = Payments::where('rental_id', $this->rental->id)->where('payment_type', 'rent')->firstOrFail();
     $this->actingAs($this->admin)

@@ -18,18 +18,23 @@
         </div>
         <div class="flex flex-wrap gap-2 justify-end">
             @if($consolidated && $monthlyPeriod->canClose())
-                {{-- Close Month (opens withdrawal modal) --}}
+                {{-- Close Month (opens withdrawal modal). Labelled, not icon-only:
+                     this is the page's primary action and the dashboard banner
+                     sends people here asking for it by name — a bare padlock
+                     among the other icons was not findable. --}}
                 <button type="button" @click="closeOpen = true; withdrawal = ''; ack = false"
-                        class="text-sm bg-amber-600 text-white px-3 py-2 rounded-lg hover:bg-amber-700 flex items-center" title="{{ __('messages.close_month') }}">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
+                        class="text-sm font-medium bg-amber-600 text-white px-3 py-2 rounded-lg hover:bg-amber-700 inline-flex items-center gap-2" title="{{ __('messages.close_month') }}">
+                    <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
+                    <span>{{ __('messages.close_month_now', ['month' => $monthlyPeriod->name]) }}</span>
                 </button>
             @endif
             @if($consolidated && $monthlyPeriod->canReopen())
                 {{-- Reopen Month --}}
                 <form method="POST" action="{{ route('admin.fiscalperiod.monthly-period.reopen', [$fiscalperiod->id, $monthlyPeriod->id]) }}" data-confirm="Reopen {{ $monthlyPeriod->name }}?">
                     @csrf
-                    <button class="text-sm bg-green-600 text-white px-3 py-2 rounded-lg hover:bg-green-700 flex items-center" title="{{ __('messages.reopen_month') }}">
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 11V7a4 4 0 118 0m-4 8v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2z"/></svg>
+                    <button class="text-sm font-medium bg-green-600 text-white px-3 py-2 rounded-lg hover:bg-green-700 inline-flex items-center gap-2" title="{{ __('messages.reopen_month') }}">
+                        <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 11V7a4 4 0 118 0m-4 8v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2z"/></svg>
+                        <span>{{ __('messages.reopen_month') }}</span>
                     </button>
                 </form>
             @endif
@@ -44,6 +49,10 @@
         </div>
     </div>
 
+
+    @if(! $consolidated && $monthlyPeriod->canClose())
+        <div class="mb-6"><x-month-close-scope-notice /></div>
+    @endif
 
     {{-- Month navigator --}}
     <div class="flex items-center justify-center mb-6">

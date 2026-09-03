@@ -568,7 +568,7 @@ class FiscalPeriodController extends Controller
     private function resolveScope(PropertyContext $propertyContext): array
     {
         $showingAll = $propertyContext->showingAllProperties();
-        $consolidated = $showingAll || $propertyContext->hasSingleProperty();
+        $consolidated = $showingAll || $propertyContext->hasNothingToConsolidate();
         $selectedProperty = $consolidated ? null : $propertyContext->activeProperty();
 
         return [$consolidated, $showingAll, $selectedProperty, $selectedProperty?->id];

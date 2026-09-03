@@ -13,6 +13,7 @@ use App\Services\Dashboard\ApartmentRevenueComparisonService;
 use App\Services\Dashboard\DashboardCalendarService;
 use App\Services\Dashboard\DashboardStatsService;
 use App\Services\Dashboard\FiscalPeriodSummaryService;
+use App\Services\FiscalPeriod\MonthCloseBacklog;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -81,11 +82,17 @@ class DashboardController extends Controller
         // limited to the supervisor's assigned properties and active property.
         $floorPlan = $this->buildFloorPlan($this->supervisorVisibleFloors()->forActiveProperty());
 
+        // Same backlog banner as the admin dashboard — the supervisor records
+        // into these books, so a stalled close stops their entries too. They
+        // get no close button (only an admin has one), so it tells them to ask
+        // the owner instead.
+        $monthCloseAlert = app(MonthCloseBacklog::class)->build();
+
         return view('supervisor.dashboard', compact(
             'stats', 'fiscalData', 'calendarData',
             'activePeriod', 'recentTransactions', 'apartmentRevenues',
             'selectedMonth', 'periodMonths', 'monthNavigation', 'isFullPeriod', 'displayMonth',
-            'floorPlan'
+            'monthCloseAlert', 'floorPlan'
         ));
     }
 
