@@ -785,33 +785,37 @@
                         <div class="w-9 h-9 bg-emerald-50 rounded-lg flex items-center justify-center">
                             <svg class="w-5 h-5 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
                         </div>
-                        <div>
-                            <p class="font-semibold text-slate-800"><span x-text="checkoutApt"></span> — <span x-text="checkoutTenant"></span></p>
-                            <p class="text-xs text-slate-400">{{ __('messages.monthly_payment') }}</p>
+                        {{-- Period and due date live in the header subtitle now.
+                             They are context, not a section: as their own band
+                             under the header they took a fifth of the modal to
+                             say two short facts. --}}
+                        <div class="min-w-0">
+                            <p class="font-semibold text-slate-800 truncate"><span x-text="checkoutApt"></span> — <span x-text="checkoutTenant"></span></p>
+                            <p class="text-xs text-slate-400 truncate">
+                                <span x-text="checkoutPeriod"></span>
+                                <span x-show="checkoutDue" x-cloak> · {{ __('messages.due_date') }} <span x-text="checkoutDue"></span></span>
+                            </p>
+                            <div class="flex flex-wrap gap-1 mt-1">
+                                <span x-show="checkoutProrated > 0" x-cloak
+                                    class="inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-semibold bg-indigo-50 text-indigo-700"
+                                    x-text="'{{ __('messages.prorated_days') }}'.replace(':days', checkoutProrated)"></span>
+                                <span x-show="checkoutOverdueDays > 0" x-cloak
+                                    class="inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-semibold bg-red-50 text-red-700"
+                                    x-text="'{{ __('messages.overdue_by_days') }}'.replace(':days', checkoutOverdueDays)"></span>
+                            </div>
                         </div>
                     </div>
                     <button @click="closeCheckout()" class="text-slate-400 hover:text-slate-600 p-1 rounded-lg hover:bg-slate-100 transition text-lg leading-none">&times;</button>
                 </div>
-                {{-- What this payment covers and when it was owed. The period is
-                     the span the rent buys on a fixed collection day, otherwise
-                     just the month; the due date is the collection day, or the
-                     tenant's own move-in day when no collection day is set. --}}
-                <div x-show="!khqrActive" class="px-5 py-3 bg-slate-50/70 border-b border-slate-100 flex items-start justify-between gap-4">
-                    <div class="min-w-0">
-                        <p class="text-[10px] uppercase tracking-wider text-slate-400">{{ __('messages.billing_period') }}</p>
-                        <p class="text-sm font-medium text-slate-700 truncate" x-text="checkoutPeriod"></p>
-                        <span x-show="checkoutProrated > 0" x-cloak
-                            class="inline-flex items-center px-1.5 py-0.5 mt-1 rounded-full text-[10px] font-semibold bg-indigo-50 text-indigo-700"
-                            x-text="'{{ __('messages.prorated_days') }}'.replace(':days', checkoutProrated)"></span>
-                    </div>
-                    <div class="text-right flex-shrink-0">
-                        <p class="text-[10px] uppercase tracking-wider text-slate-400">{{ __('messages.due_date') }}</p>
-                        <p class="text-sm font-semibold" :class="checkoutOverdueDays > 0 ? 'text-red-600' : 'text-slate-700'" x-text="checkoutDue"></p>
-                        <span x-show="checkoutOverdueDays > 0" x-cloak
-                            class="inline-flex items-center px-1.5 py-0.5 mt-1 rounded-full text-[10px] font-semibold bg-red-50 text-red-700"
-                            x-text="'{{ __('messages.overdue_by_days') }}'.replace(':days', checkoutOverdueDays)"></span>
-                    </div>
-                </div>
+                {{-- The payment form is deliberately SHORT: one card per side of
+                     the bill, and only the side this visit can actually collect
+                     is a card at all. Rent is taken mid-month and the charges at
+                     the turn of it, so the settled side collapses to a one-line
+                     receipt ("Rent already collected") instead of a locked
+                     checkbox row competing for attention with the live one.
+                     Every itemisation lives behind a Details disclosure — the
+                     collector needs the figure, not the breakdown, to take the
+                     money. --}}
                 <form action="{{ route($panel.'.revenue_expense.checkout') }}" method="POST" class="p-5 space-y-4 overflow-y-auto flex-1" x-show="!khqrActive" @submit="onCheckoutSubmit($event)">
                     @csrf
                     <input type="hidden" name="rental_id" x-model="checkoutRentalId">
@@ -819,103 +823,156 @@
                     {{-- The month this bill page is showing — checkout settles THIS month's charges --}}
                     <input type="hidden" name="billing_month" value="{{ $currentMonth }}">
                     <input type="hidden" name="billing_year" value="{{ $currentYear }}">
-                    <!-- Bill lines -->
-                    <div class="space-y-1.5">
-                        {{-- Rent already collected on an earlier visit: shown for
-                             context, locked so this visit can't bill it twice. --}}
-                        <div class="flex items-center justify-between py-2 px-3 rounded-lg bg-slate-50" :class="rentAlreadyPaid ? 'opacity-60' : ''">
-                            <label class="flex items-center gap-2 text-sm text-slate-600 select-none" :class="rentAlreadyPaid ? 'cursor-not-allowed' : 'cursor-pointer'">
-                                <input type="checkbox" name="pay_rent" value="1" x-model="payRent" :disabled="rentAlreadyPaid"
-                                    class="rounded border-slate-300 text-emerald-600 focus:ring-emerald-500 disabled:opacity-50">
-                                {{ __('messages.rent') }}
-                                <span x-show="rentAlreadyPaid" x-cloak class="text-[10px] font-medium text-emerald-600 bg-emerald-50 px-1 py-0.5 rounded">{{ __('messages.paid_lower') }}</span>
-                            </label>
-                            <span class="text-sm font-semibold text-slate-800" x-text="'$' + parseFloat(checkoutRent).toFixed(2)"></span>
-                        </div>
-                        <div x-show="checkoutUtilities > 0 || checkoutOtherCharges > 0"
-                             class="flex items-center justify-between py-2 px-3 rounded-lg bg-slate-50">
-                            <label class="flex items-center gap-2 text-sm text-slate-600 cursor-pointer select-none">
-                                <input type="checkbox" name="pay_utilities" value="1" x-model="payUtilities" class="rounded border-slate-300 text-emerald-600 focus:ring-emerald-500">
-                                {{ __('messages.charges') }}
-                            </label>
-                            <span class="text-sm font-semibold text-slate-800" x-text="'$' + (parseFloat(checkoutUtilities) + parseFloat(checkoutOtherCharges)).toFixed(2)"></span>
-                        </div>
-                        {{-- Each charge by name, so the "Charges" total is never
-                             a number the collector has to go look up. Dimmed,
-                             not hidden, when the charges line is unticked. --}}
-                        <template x-for="(c, i) in checkoutItems" :key="'c' + i">
-                            <div class="flex items-center justify-between py-1 px-3 pl-10 transition" :class="payUtilities ? '' : 'opacity-50'">
-                                <span class="flex items-center gap-1.5 min-w-0">
-                                    <span class="w-1.5 h-1.5 rounded-full flex-shrink-0"
-                                        :class="{
-                                            'bg-yellow-400': c.type === 'electricity',
-                                            'bg-blue-400': c.type === 'water',
-                                            'bg-purple-400': c.type === 'internet',
-                                            'bg-orange-400': c.type === 'parking',
-                                            'bg-teal-400': c.type === 'trash',
-                                            'bg-slate-400': c.type === 'other'
-                                        }"></span>
-                                    <span class="text-xs text-slate-400 truncate" x-text="typeLabels[c.type] || c.type"></span>
-                                    <span x-show="c.paid" class="text-[10px] font-medium text-emerald-600 bg-emerald-50 px-1 py-0.5 rounded flex-shrink-0">{{ __('messages.paid_lower') }}</span>
-                                </span>
-                                <span class="text-xs text-slate-500 flex-shrink-0" x-text="'$' + parseFloat(c.amount).toFixed(2)"></span>
+
+                    <p class="text-[10px] uppercase tracking-wider text-slate-400">{{ __('messages.what_to_collect') }}</p>
+
+                    <div class="space-y-2">
+                        {{-- ── RENT (+ the room's own recurring costs, which have no
+                             settlement row of their own and so ride with it) ── --}}
+                        <template x-if="!rentAlreadyPaid">
+                            <div class="rounded-xl border transition" :class="payRent ? 'border-emerald-300 bg-emerald-50/40' : 'border-slate-200 bg-white'">
+                                <label class="flex items-center gap-3 px-3 py-2.5 cursor-pointer select-none">
+                                    <input type="checkbox" name="pay_rent" value="1" x-model="payRent"
+                                        class="rounded border-slate-300 text-emerald-600 focus:ring-emerald-500">
+                                    <span class="flex-1 min-w-0 text-sm font-semibold text-slate-800"
+                                        x-text="checkoutFixed > 0 ? '{{ __('messages.rent_plus_room_costs') }}' : '{{ __('messages.rent') }}'"></span>
+                                    <span class="text-base font-bold text-slate-800"
+                                        x-text="'$' + (parseFloat(checkoutRent) + parseFloat(checkoutFixed)).toFixed(2)"></span>
+                                </label>
+                                <div x-show="checkoutFixed > 0" class="px-3 pb-2 -mt-1">
+                                    <button type="button" @click="showRentDetail = !showRentDetail"
+                                        class="text-[11px] text-slate-400 hover:text-slate-600 pl-7"
+                                        x-text="(showRentDetail ? '− ' : '+ ') + '{{ __('messages.details_lower') }}'"></button>
+                                    <div x-show="showRentDetail" x-cloak class="mt-1 pl-7 space-y-0.5">
+                                        <div class="flex items-center justify-between">
+                                            <span class="text-xs text-slate-400">{{ __('messages.rent') }}</span>
+                                            <span class="text-xs text-slate-500" x-text="'$' + parseFloat(checkoutRent).toFixed(2)"></span>
+                                        </div>
+                                        <template x-for="(f, i) in checkoutFixedItems" :key="'f' + i">
+                                            <div class="flex items-center justify-between">
+                                                <span class="text-xs text-slate-400 truncate" x-text="f.name"></span>
+                                                <span class="text-xs text-slate-500 flex-shrink-0" x-text="'$' + parseFloat(f.amount).toFixed(2)"></span>
+                                            </div>
+                                        </template>
+                                    </div>
+                                </div>
                             </div>
                         </template>
-                        <div x-show="checkoutFixed > 0" class="flex items-center justify-between py-2 px-3 rounded-lg bg-slate-50 transition" :class="payRent ? '' : 'opacity-50'">
-                            <span class="text-sm text-slate-500 pl-6">{{ __('messages.apartment_costs') }}</span>
-                            <span class="text-sm font-medium text-slate-700" x-text="'$' + parseFloat(checkoutFixed).toFixed(2)"></span>
-                        </div>
-                        {{-- …and the same for the room's own recurring costs. They
-                             ride with the rent line, so they dim with it. --}}
-                        <template x-for="(f, i) in checkoutFixedItems" :key="'f' + i">
-                            <div class="flex items-center justify-between py-1 px-3 pl-10 transition" :class="payRent ? '' : 'opacity-50'">
-                                <span class="text-xs text-slate-400 truncate" x-text="f.name"></span>
-                                <span class="text-xs text-slate-500 flex-shrink-0" x-text="'$' + parseFloat(f.amount).toFixed(2)"></span>
+                        {{-- Rent collected on an earlier visit: a receipt line, not
+                             a disabled control. A disabled checkbox posts nothing
+                             anyway, so nothing is lost by dropping it. --}}
+                        <template x-if="rentAlreadyPaid">
+                            <div class="flex items-center gap-2 rounded-xl border border-emerald-100 bg-emerald-50/60 px-3 py-2">
+                                <svg class="w-4 h-4 text-emerald-600 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/></svg>
+                                <span class="flex-1 text-sm text-emerald-800">{{ __('messages.rent_paid_already') }}</span>
+                                <span class="text-sm font-medium text-emerald-700"
+                                    x-text="'$' + (parseFloat(checkoutRent) + parseFloat(checkoutFixed)).toFixed(2)"></span>
                             </div>
                         </template>
-                        <div class="flex items-center justify-between py-2 px-3 rounded-lg bg-slate-50">
+
+                        {{-- ── CHARGES: utilities + the other billed lines ── --}}
+                        <template x-if="chargesStatus === 'pending'">
+                            <div class="rounded-xl border transition" :class="payUtilities ? 'border-emerald-300 bg-emerald-50/40' : 'border-slate-200 bg-white'">
+                                <label class="flex items-center gap-3 px-3 py-2.5 cursor-pointer select-none">
+                                    <input type="checkbox" name="pay_utilities" value="1" x-model="payUtilities"
+                                        class="rounded border-slate-300 text-emerald-600 focus:ring-emerald-500">
+                                    <span class="flex-1 min-w-0 text-sm font-semibold text-slate-800">{{ __('messages.charges') }}</span>
+                                    <span class="text-base font-bold text-slate-800"
+                                        x-text="'$' + (parseFloat(checkoutUtilities) + parseFloat(checkoutOtherCharges)).toFixed(2)"></span>
+                                </label>
+                                <div class="px-3 pb-2 -mt-1">
+                                    <button type="button" @click="showChargeDetail = !showChargeDetail"
+                                        class="text-[11px] text-slate-400 hover:text-slate-600 pl-7"
+                                        x-text="(showChargeDetail ? '− ' : '+ ') + '{{ __('messages.details_lower') }}'"></button>
+                                    <div x-show="showChargeDetail" x-cloak class="mt-1 pl-7 space-y-0.5">
+                                        <template x-for="(c, i) in checkoutItems" :key="'c' + i">
+                                            <div class="flex items-center justify-between" :class="c.paid ? 'opacity-50' : ''">
+                                                <span class="flex items-center gap-1.5 min-w-0">
+                                                    <span class="w-1.5 h-1.5 rounded-full flex-shrink-0"
+                                                        :class="{
+                                                            'bg-yellow-400': c.type === 'electricity',
+                                                            'bg-blue-400': c.type === 'water',
+                                                            'bg-purple-400': c.type === 'internet',
+                                                            'bg-orange-400': c.type === 'parking',
+                                                            'bg-teal-400': c.type === 'trash',
+                                                            'bg-slate-400': c.type === 'other'
+                                                        }"></span>
+                                                    <span class="text-xs text-slate-400 truncate" x-text="typeLabels[c.type] || c.type"></span>
+                                                    <span x-show="c.paid" class="text-[10px] font-medium text-emerald-600 bg-emerald-50 px-1 rounded flex-shrink-0">{{ __('messages.paid_lower') }}</span>
+                                                </span>
+                                                <span class="text-xs text-slate-500 flex-shrink-0" x-text="'$' + parseFloat(c.amount).toFixed(2)"></span>
+                                            </div>
+                                        </template>
+                                    </div>
+                                </div>
+                            </div>
+                        </template>
+                        <template x-if="chargesStatus === 'paid'">
+                            <div class="flex items-center gap-2 rounded-xl border border-emerald-100 bg-emerald-50/60 px-3 py-2">
+                                <svg class="w-4 h-4 text-emerald-600 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/></svg>
+                                <span class="flex-1 text-sm text-emerald-800">{{ __('messages.charges_paid_already') }}</span>
+                            </div>
+                        </template>
+                        {{-- No charge rows at all: the meters haven't been read, so
+                             this visit is the rent visit. Saying so is what makes
+                             the second visit expected instead of a surprise. --}}
+                        <template x-if="chargesStatus === 'none'">
+                            <div class="rounded-xl border border-dashed border-slate-200 px-3 py-2 text-xs text-slate-400">
+                                {{ __('messages.no_charges_yet') }}
+                            </div>
+                        </template>
+
+                        {{-- Late fee: an input only when there is one to charge,
+                             otherwise a link. It was a permanent row that read as
+                             a required field on every on-time payment. --}}
+                        <div x-show="checkoutOverdueDays > 0 || showLateFee" x-cloak
+                            class="flex items-center justify-between px-3 py-2 rounded-xl border border-slate-200">
                             <span class="text-sm text-slate-500">{{ __('messages.late_fee') }}</span>
-                            <input type="number" name="late_fee" x-model="checkoutLateFee" step="0.01" min="0" value="0"
-                                class="w-20 text-right text-sm border border-slate-200 rounded-lg px-2 py-1 focus:ring-1 focus:ring-emerald-500 focus:border-emerald-500">
+                            <input type="number" name="late_fee" x-model="checkoutLateFee" step="0.01" min="0"
+                                class="w-24 text-right text-sm border border-slate-200 rounded-lg px-2 py-1 focus:ring-1 focus:ring-emerald-500 focus:border-emerald-500">
                         </div>
-                        <p x-show="lateFeePercent > 0 && checkoutOverdueDays > 0" x-cloak class="text-[11px] text-slate-400 -mt-1 px-3"
+                        <p x-show="lateFeePercent > 0 && checkoutOverdueDays > 0" x-cloak class="text-[11px] text-slate-400 px-3"
                             x-text="'{{ __('messages.late_fee_auto_hint') }}'.replace(':percent', lateFeePercent).replace(':days', checkoutOverdueDays)"></p>
-                        <div class="flex items-center justify-between pt-2 px-1 border-t border-slate-200">
-                            <span class="font-bold text-slate-700">{{ __('messages.total') }}</span>
-                            <span class="text-xl font-bold text-emerald-600" x-text="'$' + calculateCheckoutTotal()"></span>
-                        </div>
+                        <button type="button" x-show="checkoutOverdueDays <= 0 && !showLateFee" @click="showLateFee = true"
+                            class="text-[11px] text-slate-400 hover:text-slate-600 px-3">+ {{ __('messages.add_late_fee') }}</button>
                     </div>
-                    <!-- Payment method chips -->
-                    <div>
-                        <p class="text-xs text-slate-400 mb-1.5">{{ __('messages.payment_method') }} <span class="text-red-400">*</span></p>
-                        <div class="grid grid-cols-2 gap-2">
-                            <label class="flex items-center justify-center gap-2 py-2.5 border rounded-xl cursor-pointer text-sm transition select-none"
-                                :class="checkoutMethod === 'cash' ? 'bg-emerald-50 border-emerald-300 text-emerald-700 font-medium' : 'border-slate-200 text-slate-500 hover:border-slate-300'">
-                                <input type="radio" name="payment_method" value="cash" x-model="checkoutMethod" class="sr-only" required>
-                                💵 {{ __('messages.cash') }}
-                            </label>
-                            <label class="flex items-center justify-center gap-2 py-2.5 border rounded-xl cursor-pointer text-sm transition select-none"
-                                :class="checkoutMethod === 'khqr' ? 'bg-rose-50 border-rose-300 text-rose-700 font-medium' : 'border-slate-200 text-slate-500 hover:border-slate-300'">
-                                <input type="radio" name="payment_method" value="khqr" x-model="checkoutMethod" class="sr-only">
-                                📱 KHQR
-                            </label>
-                        </div>
+
+                    <!-- Total -->
+                    <div class="flex items-baseline justify-between pt-3 border-t border-slate-200">
+                        <span class="text-sm font-semibold text-slate-600">{{ __('messages.total_to_collect') }}</span>
+                        <span class="text-2xl font-bold text-emerald-600" x-text="'$' + calculateCheckoutTotal()"></span>
                     </div>
-                    <!-- Date -->
+
+                    <!-- How and when -->
+                    <div class="grid grid-cols-2 gap-2">
+                        <label class="flex items-center justify-center gap-2 py-2.5 border rounded-xl cursor-pointer text-sm transition select-none"
+                            :class="checkoutMethod === 'cash' ? 'bg-emerald-50 border-emerald-300 text-emerald-700 font-medium' : 'border-slate-200 text-slate-500 hover:border-slate-300'">
+                            <input type="radio" name="payment_method" value="cash" x-model="checkoutMethod" class="sr-only" required>
+                            💵 {{ __('messages.cash') }}
+                        </label>
+                        <label class="flex items-center justify-center gap-2 py-2.5 border rounded-xl cursor-pointer text-sm transition select-none"
+                            :class="checkoutMethod === 'khqr' ? 'bg-rose-50 border-rose-300 text-rose-700 font-medium' : 'border-slate-200 text-slate-500 hover:border-slate-300'">
+                            <input type="radio" name="payment_method" value="khqr" x-model="checkoutMethod" class="sr-only">
+                            📱 KHQR
+                        </label>
+                    </div>
                     <div class="min-w-0">
                         <label class="block text-xs text-slate-400 mb-1">{{ __('messages.date') }} <span class="text-red-400">*</span></label>
                         <input type="date" name="payment_date" required value="{{ date('Y-m-d') }}"
                             style="max-width:100%;box-sizing:border-box;"
                             class="w-full min-w-0 px-3 py-2 text-sm border border-slate-200 rounded-lg focus:ring-1 focus:ring-emerald-500 focus:border-emerald-500 bg-white">
                     </div>
+
                     <!-- Buttons -->
                     <div class="flex gap-2 pt-1">
                         <button type="button" @click="closeCheckout()"
                             class="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-600 text-sm font-medium rounded-lg transition">{{ __('messages.cancel') }}</button>
-                        <button type="submit"
-                            class="flex-1 py-2.5 text-white text-sm font-semibold rounded-lg transition"
+                        <button type="submit" :disabled="!payRent && !payUtilities"
+                            class="flex-1 py-2.5 text-white text-sm font-semibold rounded-lg transition disabled:opacity-40 disabled:cursor-not-allowed"
                             :class="checkoutMethod === 'khqr' ? 'bg-rose-600 hover:bg-rose-700' : 'bg-emerald-600 hover:bg-emerald-700'"
-                            x-text="checkoutMethod === 'khqr' ? '{{ __('messages.generate_khqr') }}' : '{{ __('messages.confirm_payment') }}'"></button>
+                            x-text="(!payRent && !payUtilities)
+                                ? '{{ __('messages.select_something_to_collect') }}'
+                                : (checkoutMethod === 'khqr' ? '{{ __('messages.generate_khqr') }}' : '{{ __('messages.confirm_payment') }}')"></button>
                     </div>
                 </form>
 
@@ -1149,6 +1206,13 @@ function billingManager() {
         payRent: true,
         payUtilities: true,
         rentAlreadyPaid: false,
+        // Itemisation is behind a disclosure — the collector needs the figure to
+        // take the money, not the breakdown. Both reset closed on every open.
+        showRentDetail: false,
+        showChargeDetail: false,
+        // The late-fee input only exists when there is a late fee to charge; on
+        // an on-time payment it is a link, not a field left blank on every row.
+        showLateFee: false,
         chargesStatus: 'none',
 
         // KHQR (KHQRPay) flow
@@ -1464,6 +1528,9 @@ function billingManager() {
             this.chargesStatus = chargesStatus;
             this.payRent = ! this.rentAlreadyPaid;
             this.payUtilities = chargesStatus === 'pending';
+            this.showRentDetail = false;
+            this.showChargeDetail = false;
+            this.showLateFee = parseFloat(lateFee) > 0;
             this.resetKhqr();
             this.showCheckout = true;
         },

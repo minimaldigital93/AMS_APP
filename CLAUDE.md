@@ -849,8 +849,23 @@ Three rules this depends on:
 - **Quote checkout the unpaid totals** (`unpaid_utility_only`,
   `unpaid_other_charges`), never the gross ones. `settleUtilitiesForMonth()`
   only settles unpaid rows, so a second visit shown gross figures re-quotes
-  money the first visit already took. The modal locks the rent line via
-  `rent_status` for the same reason.
+  money the first visit already took. The modal drops the rent line entirely
+  once `rent_status = paid`, for the same reason.
+- **The modal shows one card per side, and only the collectable side is a
+  card.** `openCheckout()` pre-ticks the outstanding side from
+  `rent_status`/`charges_status`, so the mid-month visit offers rent alone and
+  the end-of-month visit offers charges alone — the collector never unticks a
+  line. A **settled** side collapses to a one-line receipt
+  (`rent_paid_already` / `charges_paid_already`), not a disabled checkbox: a
+  disabled checkbox posts nothing anyway, so it was only competing for
+  attention with the live line. `charges_status = none` prints
+  `no_charges_yet`, which is what makes the second visit expected rather than a
+  surprise. Itemisation (rent + room costs, each charge by name) is behind a
+  Details disclosure, the period/due pair lives in the header subtitle, and the
+  late-fee **input only exists when there is a late fee** — otherwise it is an
+  "+ Add late fee" link. Submit is disabled while neither side is ticked. None
+  of this changes what is posted: `pay_rent`, `pay_utilities`, `late_fee`,
+  `payment_method`, `payment_date`, `billing_month`/`billing_year`.
 - **Pending is tracked per side** (`totalPendingRent` + `totalPendingCharges`).
   One all-or-nothing test — the old behaviour — dropped a rent-paid tenant's
   unpaid charges out of the tile entirely, which under this workflow is every

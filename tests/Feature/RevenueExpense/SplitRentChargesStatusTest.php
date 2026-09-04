@@ -269,3 +269,31 @@ it('hands the checkout modal only the charges that are still unpaid', function (
         ->and($bill['unpaid_utility_only'])->toBe(35.0)
         ->and($bill['unpaid_charge_total'])->toBe(35.0);
 });
+
+/**
+ * The payment modal was redesigned around this two-visit workflow: one card per
+ * side of the bill, the settled side collapsed to a one-line receipt, and every
+ * itemisation behind a Details disclosure. The posted field names are unchanged
+ * — the server contract (`pay_rent` / `pay_utilities`, the billed month, the
+ * rent-idempotency guard) is what the rest of this file pins.
+ */
+it('keeps the checkout form posting the same fields after the redesign', function () {
+    addJulyCharge();
+
+    $html = julyBills()->getContent();
+
+    // Both sides are still independently postable…
+    expect($html)->toContain('name="pay_rent"')
+        ->toContain('name="pay_utilities"')
+        ->toContain('name="billing_month"')
+        ->toContain('name="billing_year"')
+        // …the settled side renders as a receipt line, not a disabled checkbox…
+        ->toContain(__('messages.rent_paid_already'))
+        ->toContain(__('messages.charges_paid_already'))
+        // …and an empty selection can't be submitted.
+        ->toContain(__('messages.select_something_to_collect'));
+
+    // The period/due band was folded into the header subtitle; nothing may post
+    // a second rent line from a hidden control.
+    expect(substr_count($html, 'name="pay_rent"'))->toBe(1);
+});
