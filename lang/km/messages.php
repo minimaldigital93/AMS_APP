@@ -963,6 +963,9 @@ return [
     // Reversing a payment recorded by mistake (tenant payment history)
     'reverse_payment' => 'ដកការទូទាត់វិញ',
     'reverse_payment_ok' => 'ដកវិញ',
+    'reverse_payment_locked' => 'មិនអាចដកវិញបានទេ',
+    'reverse_payment_reopen_month' => 'បើក :month ឡើងវិញ',
+    'reverse_payment_ask_owner' => 'មានតែម្ចាស់គណនីទេដែលអាចបើកខែឡើងវិញបាន — សូមស្នើឱ្យគាត់បើក :month ឡើងវិញ។',
     'reverse_rent_confirm' => 'ដកការទូទាត់ថ្លៃឈ្នួលខែ :month ចំនួន :amount វិញមែនទេ? ខែនោះនឹងត្រឡប់ទៅជាមិនទាន់បង់ ហើយចំណូលនឹងត្រូវលុបចេញពីបញ្ជី។',
     'reverse_charges_confirm' => 'ដកការទូទាត់ការគិតប្រាក់ចំនួន :amount ដែលបានទទួលនៅ :date វិញមែនទេ? រាល់ការគិតប្រាក់ដែលវាបានទូទាត់នឹងត្រឡប់ទៅជាមិនទាន់បង់ ហើយចំណូលនឹងត្រូវលុបចេញពីបញ្ជី។',
     'income' => 'ចំណូល',

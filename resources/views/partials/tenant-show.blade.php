@@ -51,26 +51,51 @@
     // utilities payment stamped with the same paid_at (the join
     // PaymentReversalService and printReceipt() both use) — undoing it puts
     // every charge in that batch back to unpaid.
+    //
+    // A refusal is shown, never hidden. Every reason PaymentReversalService
+    // gives used to remove the button, so the operator saw a row they could
+    // undo beside one they could not with nothing to tell them apart — the
+    // everyday case being a month closed after its rent was collected but
+    // before its charges were, which blocks the rent and leaves the charges
+    // undoable. $reversalBlock holds the reason (null = reversible) and
+    // $reversalReopen the month page an admin has to visit to lift it.
     $reversalService = app(\App\Services\RevenueExpense\PaymentReversalService::class);
     $canReversePayments = in_array($role, ['admin', 'supervisor'], true);
     $histPayments = $canReversePayments && $contractRental
         ? $contractRental->payments()->where('payment_status', 'paid')->get()
         : collect();
-    $reversible = [];
+    $reversalBlock = [];
+    $reversalMonth = [];
+    $reversalReopen = [];
+    // Only an admin can reopen a month — a supervisor records into the owner's
+    // books but has no month page of their own. Reads the user's role, not the
+    // panel, so an admin previewing the supervisor panel still gets the link
+    // (the same split MonthCloseBacklog::closeUrlFor() makes).
+    $canReopenMonths = auth()->user()?->hasRole('admin') ?? false;
     foreach ($histPayments as $p) {
-        $reversible[$p->id] = $reversalService->canReverse($p);
+        $reason = $reversalService->blockReason($p);
+        $reversalBlock[$p->id] = $reason;
+
+        if ($reason !== \App\Services\RevenueExpense\PaymentReversalService::REASON_CLOSED_MONTH) {
+            continue;
+        }
+
+        $month = $reversalService->blockingMonth($p);
+        $reversalMonth[$p->id] = $month?->name;
+        $reversalReopen[$p->id] = $canReopenMonths && $month?->fiscal_period_id
+            ? route('admin.fiscalperiod.monthly-period.show', [$month->fiscal_period_id, $month->id])
+            : null;
     }
-    // The utilities payment that settled a given charge row, when it can be
-    // reversed on its own.
-    $chargePayment = function ($utility) use ($histPayments, $reversible) {
+    // The utilities payment that settled a given charge row. Returned whether
+    // or not it can be reversed — a blocked one still has a reason to show.
+    $chargePayment = function ($utility) use ($histPayments) {
         if (! $utility->paid_status || ! $utility->paid_at) {
             return null;
         }
-        $payment = $histPayments->first(fn ($p) => $p->payment_type === 'utilities'
+
+        return $histPayments->first(fn ($p) => $p->payment_type === 'utilities'
             && $p->paid_at
             && $p->paid_at->eq($utility->paid_at));
-
-        return $payment && ($reversible[$payment->id] ?? false) ? $payment : null;
     };
     $histChargesPaidTotal = (float) $histUtilities->where('paid_status', true)->sum('charge_amount');
     $histChargesUnpaidTotal = (float) $histUtilities->where('paid_status', false)->sum('charge_amount');
@@ -699,9 +724,15 @@
                                         <span class="text-sm font-medium text-slate-700 w-20 shrink-0">{{ $row['label'] }}</span>
                                         <span class="text-sm font-semibold {{ $row['paid'] ? 'text-emerald-700' : 'text-slate-400' }} flex-1 text-right">{{ money($row['amount_paid'] ?? $row['rent_amount']) }}</span>
                                         <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium w-16 justify-center shrink-0 {{ $row['paid'] ? 'bg-emerald-50 text-emerald-600' : 'bg-red-50 text-red-600' }}">{{ $row['paid'] ? __('messages.paid') : __('messages.unpaid') }}</span>
-                                        @if($row['payment_id'] && ($reversible[$row['payment_id']] ?? false))
-                                            <x-reverse-payment :payment-id="$row['payment_id']" :role="$role"
-                                                :confirm="__('messages.reverse_rent_confirm', ['month' => $row['label'], 'amount' => money($row['rent_amount'])])" />
+                                        @if($row['payment_id'] && array_key_exists($row['payment_id'], $reversalBlock))
+                                            @if($reversalBlock[$row['payment_id']] === null)
+                                                <x-reverse-payment :payment-id="$row['payment_id']" :role="$role"
+                                                    :confirm="__('messages.reverse_rent_confirm', ['month' => $row['label'], 'amount' => money($row['rent_amount'])])" />
+                                            @else
+                                                <x-reverse-payment-locked :reason="$reversalBlock[$row['payment_id']]"
+                                                    :reopen-url="$reversalReopen[$row['payment_id']] ?? null"
+                                                    :month-name="$reversalMonth[$row['payment_id']] ?? null" />
+                                            @endif
                                         @else
                                             <span class="w-7 shrink-0"></span>
                                         @endif
@@ -748,9 +779,13 @@
                                                 </td>
                                                 <td class="px-1 py-2">
                                                     @php($chargePmt = $chargePayment($row))
-                                                    @if($chargePmt)
+                                                    @if($chargePmt && $reversalBlock[$chargePmt->id] === null)
                                                         <x-reverse-payment :payment-id="$chargePmt->id" :role="$role"
                                                             :confirm="__('messages.reverse_charges_confirm', ['amount' => money($chargePmt->amount), 'date' => $chargePmt->paid_at?->format('M d, Y')])" />
+                                                    @elseif($chargePmt)
+                                                        <x-reverse-payment-locked :reason="$reversalBlock[$chargePmt->id]"
+                                                            :reopen-url="$reversalReopen[$chargePmt->id] ?? null"
+                                                            :month-name="$reversalMonth[$chargePmt->id] ?? null" />
                                                     @endif
                                                 </td>
                                             </tr>
@@ -778,9 +813,13 @@
                                         <span class="text-sm font-semibold text-slate-800 tabular-nums">{{ money($row->charge_amount) }}</span>
                                         <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium w-16 justify-center shrink-0 {{ $row->paid_status ? 'bg-emerald-50 text-emerald-600' : 'bg-red-50 text-red-600' }}">{{ $row->paid_status ? __('messages.paid') : __('messages.unpaid') }}</span>
                                         @php($chargePmt = $chargePayment($row))
-                                        @if($chargePmt)
+                                        @if($chargePmt && $reversalBlock[$chargePmt->id] === null)
                                             <x-reverse-payment :payment-id="$chargePmt->id" :role="$role"
                                                 :confirm="__('messages.reverse_charges_confirm', ['amount' => money($chargePmt->amount), 'date' => $chargePmt->paid_at?->format('M d, Y')])" />
+                                        @elseif($chargePmt)
+                                            <x-reverse-payment-locked :reason="$reversalBlock[$chargePmt->id]"
+                                                :reopen-url="$reversalReopen[$chargePmt->id] ?? null"
+                                                :month-name="$reversalMonth[$chargePmt->id] ?? null" />
                                         @else
                                             <span class="w-7 shrink-0"></span>
                                         @endif

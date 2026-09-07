@@ -968,6 +968,9 @@ return [
     // Reversing a payment recorded by mistake (tenant payment history)
     'reverse_payment' => 'Reverse payment',
     'reverse_payment_ok' => 'Reverse',
+    'reverse_payment_locked' => 'Cannot be reversed',
+    'reverse_payment_reopen_month' => 'Reopen :month',
+    'reverse_payment_ask_owner' => 'Only the account owner can reopen a month — ask them to reopen :month.',
     'reverse_rent_confirm' => 'Reverse the :month rent payment of :amount? The month goes back to unpaid and the income is removed from the books.',
     'reverse_charges_confirm' => 'Reverse the charges payment of :amount taken on :date? Every charge it settled goes back to unpaid and the income is removed from the books.',
     'income' => 'Income',

@@ -963,6 +963,21 @@ the **payment-history modal** of the tenant detail page (`<x-reverse-payment>`).
   legitimate (a hand-recorded utilities payment settled no rows); a non-empty
   set whose total doesn't reconcile means two batches share the timestamp, and
   the reversal is **refused rather than guessed**.
+- **A refusal is shown, never hidden** — `<x-reverse-payment-locked>`. Every
+  `blockReason()` used to simply remove the undo button, and the two halves of
+  one bill settle in *different* months: rent before the month ends, charges
+  once the meters are read at the turn of the next one. So closing that month
+  blocks the rent (booked inside it) and leaves the charges (booked in the
+  still-open month) undoable — the money rule working exactly as written, but
+  read at the row it looked like the app disagreeing with itself, with nothing
+  naming the reopen that lifts it. The lock states the reason in the same
+  `flash_payment_reverse_blocked_*` words the POST would have flashed, and for
+  a **closed month** its OK goes to that month's page, where Reopen lives.
+  `blockingMonth()` is what lets the UI name the month; only an **admin** gets
+  the link (read off the user's role, not the panel — the split
+  `MonthCloseBacklog::closeUrlFor()` already makes), and a supervisor is told to
+  ask the owner. Don't answer this by loosening the rule: the reopen → reverse →
+  re-close path is the sanctioned one, and it was only ever undiscoverable.
 - Reversal does **not** refund a KHQR transaction — it corrects the books only.
 
 `tests/Feature/RevenueExpense/PaymentReversalTest.php` pins all of it.

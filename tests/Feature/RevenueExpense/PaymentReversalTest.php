@@ -3,6 +3,7 @@
 use App\Models\Accounts;
 use App\Models\MonthlyPeriod;
 use App\Models\Payments;
+use App\Models\Property;
 use App\Models\Utilities;
 use App\Services\RevenueExpense\IncomeRecordingService;
 use Carbon\Carbon;
@@ -299,4 +300,132 @@ it('offers the undo control on the tenant detail page in both panels', function 
         ->get(route('supervisor.tenants.show', $this->tenant))
         ->assertOk()
         ->assertSee(route('supervisor.revenue_expense.reverse_payment', $rent), false);
+});
+
+/**
+ * A bill is collected across two visits — the rent before the month ends, the
+ * charges once the meters are read at the turn of the next one. So closing that
+ * month blocks its rent (booked inside it) while its charges (booked in the
+ * still-open month) stay reversible. That asymmetry is the money rule working:
+ * closed money is never restated. What was wrong is that it was never SAID —
+ * the undo button simply vanished, so the two rows of one bill looked
+ * arbitrarily different and nothing pointed at the reopen that lifts it.
+ */
+function payJulyAcrossTwoVisits(float $charge = 40.0): void
+{
+    Utilities::create([
+        'tenant_id' => test()->tenant->id,
+        'rental_id' => test()->rental->id,
+        'utility_type' => 'electricity',
+        'meter_reading_in' => 0,
+        'meter_reading_out' => 40,
+        'charge_amount' => $charge,
+        'billing_month' => 7,
+        'billing_year' => 2026,
+        'paid_status' => false,
+        'paid_at' => null,
+    ]);
+
+    auth()->login(test()->admin);
+    $service = new IncomeRecordingService(userId: test()->admin->id, period: test()->period);
+    // Rent visit, inside July.
+    $service->checkout(test()->rental, [
+        'payment_date' => '2026-07-20',
+        'payment_method' => 'cash',
+        'rent_amount' => 500,
+        'pay_rent' => true,
+        'billing_month' => 7,
+        'billing_year' => 2026,
+    ]);
+    // Charges visit, once the meters are read — August money for July's bill.
+    $service->checkout(test()->rental, [
+        'payment_date' => '2026-08-02',
+        'payment_method' => 'cash',
+        'rent_amount' => 500,
+        'pay_utilities' => true,
+        'billing_month' => 7,
+        'billing_year' => 2026,
+    ]);
+    auth()->logout();
+
+    Carbon::setTestNow('2026-08-05');
+}
+
+it('says why the rent cannot be reversed once July is closed, and names the reopen', function () {
+    payJulyAcrossTwoVisits();
+    closeJuly();
+
+    $july = MonthlyPeriod::where('month_number', 7)->where('year', 2026)->firstOrFail();
+    $rent = Payments::where('payment_type', 'rent')->firstOrFail();
+    $charges = Payments::where('payment_type', 'utilities')->firstOrFail();
+
+    $this->actingAs($this->admin)
+        ->get(route('admin.tenants.show', $this->tenant))
+        ->assertOk()
+        // The rent loses its undo — and gains the reason and the way through.
+        ->assertDontSee(route('admin.revenue_expense.reverse_payment', $rent), false)
+        ->assertSee('data-reversal-locked', false)
+        ->assertSee(__('messages.flash_payment_reverse_blocked_closed_month'), false)
+        ->assertSee(route('admin.fiscalperiod.monthly-period.show', [$this->period->id, $july->id]), false)
+        ->assertSee(__('messages.reverse_payment_reopen_month', ['month' => $july->name]), false)
+        // The charges payment is August money, so it is still undoable.
+        ->assertSee(route('admin.revenue_expense.reverse_payment', $charges), false);
+});
+
+it('offers both undos while July is still open', function () {
+    payJulyAcrossTwoVisits();
+
+    $rent = Payments::where('payment_type', 'rent')->firstOrFail();
+    $charges = Payments::where('payment_type', 'utilities')->firstOrFail();
+
+    $this->actingAs($this->admin)
+        ->get(route('admin.tenants.show', $this->tenant))
+        ->assertOk()
+        ->assertSee(route('admin.revenue_expense.reverse_payment', $rent), false)
+        ->assertSee(route('admin.revenue_expense.reverse_payment', $charges), false)
+        ->assertDontSee('data-reversal-locked', false);
+});
+
+it('reopening the month puts the rent reversal back', function () {
+    payJulyAcrossTwoVisits();
+    closeJuly();
+
+    $july = MonthlyPeriod::where('month_number', 7)->where('year', 2026)->firstOrFail();
+    $rent = Payments::where('payment_type', 'rent')->firstOrFail();
+
+    $this->actingAs($this->admin)
+        ->delete(route('admin.revenue_expense.reverse_payment', $rent))
+        ->assertSessionHas('error');
+
+    $this->actingAs($this->admin)
+        ->post(route('admin.fiscalperiod.monthly-period.reopen', [$this->period->id, $july->id]));
+
+    expect($july->fresh()->status)->toBe('open');
+
+    $this->actingAs($this->admin)
+        ->delete(route('admin.revenue_expense.reverse_payment', $rent))
+        ->assertSessionHas('success');
+
+    expect(Payments::find($rent->id))->toBeNull();
+});
+
+it('tells a supervisor to ask the owner instead of linking the month page', function () {
+    payJulyAcrossTwoVisits();
+    closeJuly();
+
+    $july = MonthlyPeriod::where('month_number', 7)->where('year', 2026)->firstOrFail();
+
+    // The supervisor only reaches the tenant through an assigned property.
+    $property = Property::create(['name' => 'Main']);
+    $this->apartment->floor->update(['property_id' => $property->id]);
+    $supervisor = makeSupervisor(['account_id' => $this->admin->id]);
+    $property->update(['supervisor_id' => $supervisor->id]);
+
+    $this->actingAs($supervisor)
+        ->get(route('supervisor.tenants.show', $this->tenant))
+        ->assertOk()
+        ->assertSee('data-reversal-locked', false)
+        ->assertSee(__('messages.reverse_payment_ask_owner', ['month' => $july->name]), false)
+        // Only an admin owns the reopen, so no month page is offered.
+        ->assertDontSee('fiscalperiod', false);
 });

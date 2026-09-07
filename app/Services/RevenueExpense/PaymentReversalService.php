@@ -79,7 +79,7 @@ class PaymentReversalService
         }
 
         foreach ($this->bookedMonths($payment, $rows) as $booked) {
-            if ($this->monthIsClosed($booked['date'], $booked['fiscal_period_id'])) {
+            if ($this->closedMonthFor($booked['date'], $booked['fiscal_period_id'])) {
                 return self::REASON_CLOSED_MONTH;
             }
         }
@@ -94,6 +94,33 @@ class PaymentReversalService
     public function canReverse(Payments $payment): bool
     {
         return $this->blockReason($payment) === null;
+    }
+
+    /**
+     * The closed month standing between this payment and its reversal, or null
+     * when no month is in the way.
+     *
+     * The undo button used to simply vanish whenever a reversal was refused,
+     * and on a bill collected across two visits that reads as the app
+     * disagreeing with itself: August's rent is handed over in August and its
+     * charges at the turn of September, so closing August blocks the rent while
+     * the charges — booked in September — stay undoable. The rule is right,
+     * closed money is never restated; what was missing is that it has to be
+     * SAID, and that the way through is to reopen the month it names.
+     */
+    public function blockingMonth(Payments $payment): ?MonthlyPeriod
+    {
+        $rows = $this->ledgerRows($payment);
+
+        foreach ($this->bookedMonths($payment, $rows) as $booked) {
+            $month = $this->closedMonthFor($booked['date'], $booked['fiscal_period_id']);
+
+            if ($month) {
+                return $month;
+            }
+        }
+
+        return null;
     }
 
     /**
@@ -191,7 +218,7 @@ class PaymentReversalService
     }
 
     /**
-     * Whether the monthly period covering a booked date has been closed (or
+     * The monthly period covering a booked date, when it has been closed (or
      * locked). A month with no MonthlyPeriod row at all counts as open — not
      * every account generates them, and an account that never closes a month
      * never loses the ability to correct one.
@@ -199,11 +226,14 @@ class PaymentReversalService
      * The fiscal period narrows the lookup when the ledger row names one; a row
      * without one still gets checked against the account's own months, since
      * this is the only guard left standing between a reversal and frozen money.
+     *
+     * It returns the row rather than a bool because the caller has to be able
+     * to NAME the month — see blockingMonth().
      */
-    private function monthIsClosed(?CarbonInterface $date, ?int $fiscalPeriodId): bool
+    private function closedMonthFor(?CarbonInterface $date, ?int $fiscalPeriodId): ?MonthlyPeriod
     {
         if (! $date) {
-            return false;
+            return null;
         }
 
         $query = MonthlyPeriod::forMonth($date->month, $date->year);
@@ -212,7 +242,7 @@ class PaymentReversalService
             $query->where('fiscal_period_id', $fiscalPeriodId);
         }
 
-        return $query->get()->contains(fn (MonthlyPeriod $month) => ! $month->isOpen());
+        return $query->get()->first(fn (MonthlyPeriod $month) => ! $month->isOpen());
     }
 
     /**
