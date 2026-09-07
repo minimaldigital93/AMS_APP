@@ -2,6 +2,7 @@
 
 namespace App\Http\Middleware;
 
+use App\Http\Middleware\Concerns\RefusesJsonWrites;
 use App\Models\FiscalPeriods;
 use Closure;
 use Illuminate\Http\Request;
@@ -10,6 +11,8 @@ use Symfony\Component\HttpFoundation\Response;
 
 class EnsureFiscalPeriodExists
 {
+    use RefusesJsonWrites;
+
     /**
      * Gate routes that record financial transactions on the presence of an
      * open fiscal period.
@@ -37,8 +40,9 @@ class EnsureFiscalPeriodExists
                 ->exists();
 
             if (! $hasPeriod) {
-                return redirect()->route('admin.fiscalperiod.create')
-                    ->with('warning', 'Create a fiscal period first.');
+                return $this->jsonRefusal($request, __('messages.flash_fp_required'))
+                    ?? redirect()->route('admin.fiscalperiod.create')
+                        ->with('warning', 'Create a fiscal period first.');
             }
 
             return $next($request);
@@ -50,8 +54,9 @@ class EnsureFiscalPeriodExists
                 ->exists();
 
             if (! $hasAdminPeriod) {
-                return redirect()->route('supervisor.dashboard')
-                    ->with('warning', 'No active fiscal period. Ask an admin to open one.');
+                return $this->jsonRefusal($request, 'No active fiscal period. Ask an admin to open one.')
+                    ?? redirect()->route('supervisor.dashboard')
+                        ->with('warning', 'No active fiscal period. Ask an admin to open one.');
             }
 
             return $next($request);

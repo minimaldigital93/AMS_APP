@@ -604,6 +604,7 @@ return [
     'charge_receipt' => 'Charge Receipt',
     'remove_charge' => 'Remove charge',
     'apartment_costs' => 'Room Costs',
+    'room_costs_not_billed' => 'Room costs — not billed yet',
     'no_charges_yet' => 'No charges added yet',
     'total_bill' => 'Total Bill',
     'delete_all_unpaid' => 'Delete All Unpaid Charges',

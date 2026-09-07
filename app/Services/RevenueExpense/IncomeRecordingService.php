@@ -302,23 +302,32 @@ class IncomeRecordingService
 
     /**
      * The charge for a metered row:
-     *  - opening reading only (no meter_out) → 0 (no charge yet);
      *  - auto-calc on + both readings → usage × unit price (client amount ignored);
-     *  - otherwise → the operator-typed amount.
+     *  - otherwise → the operator-typed amount, whether or not a meter was read;
+     *  - nothing typed and no closing reading → 0 (an opening reading owes nothing yet).
+     *
+     * A typed amount is honoured even with NO readings at all. Electricity and
+     * water are the only types the modal treats as metered, but plenty of
+     * accounts bill them flat — off the utility's own invoice, or a fixed share
+     * per room — and there is no meter to derive the figure from. Returning 0
+     * for every row without a closing reading (the behaviour until 2026-09)
+     * threw that amount away: the modal totalled it, the flash said "updated to
+     * $15.00", and the bill carried $0.00. Only the ordering matters here — the
+     * opening-reading case is what is left once a typed amount has been ruled
+     * out, not a test that runs before it.
      */
     private function resolveMeteredCharge(string $type, ?float $in, ?float $out, array $data): float
     {
-        if ($out === null) {
-            return 0.0;
-        }
+        $typed = $data['charge_amount'] ?? null;
+        $typed = ($typed === null || $typed === '') ? null : (float) $typed;
 
-        if ($this->meterAutoCalcEnabled() && $in !== null) {
+        if ($out !== null && $this->meterAutoCalcEnabled() && $in !== null) {
             $usage = max($out - $in, 0.0);
 
             return round($usage * $this->meterUnitRate($type), 2);
         }
 
-        return (float) ($data['charge_amount'] ?? 0);
+        return $typed ?? 0.0;
     }
 
     /** Is metered auto-calculation switched on for this account? */
@@ -376,12 +385,19 @@ class IncomeRecordingService
     }
 
     /**
-     * Drop every unpaid charge on a rental. Returns the count removed.
+     * Drop every unpaid charge raised on a rental for ONE billing month.
+     * Returns the count removed.
+     *
+     * The month is required. Charges carry forward — an unpaid row from three
+     * months ago is still debt the tenant owes (Tenants::outstandingCharges()
+     * collects exactly these rows) — while the modal this is called from shows,
+     * and its button speaks for, a single month.
      */
-    public function clearTenantCharges(Rentals $rental): int
+    public function clearTenantCharges(Rentals $rental, int $billingMonth, int $billingYear): int
     {
-        return DB::transaction(function () use ($rental) {
+        return DB::transaction(function () use ($rental, $billingMonth, $billingYear) {
             $charges = Utilities::where('rental_id', $rental->id)
+                ->forMonth($billingMonth, $billingYear)
                 ->where('paid_status', false)
                 ->get();
 

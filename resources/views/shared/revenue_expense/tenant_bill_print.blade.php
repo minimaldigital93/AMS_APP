@@ -360,7 +360,9 @@
                 <tbody>
                     <!-- Rent -->
                     <tr>
-                        <td><strong>Monthly Rent — {{ $monthYear }}</strong></td>
+                        {{-- The span the rent buys, when a collection day is set:
+                             a prorated move-in month is not "Monthly Rent". --}}
+                        <td><strong>Monthly Rent — {{ $periodLabel ?? $monthYear }}</strong></td>
                         <td><span class="category-label">{{ __('messages.rent') }}</span></td>
                         <td>{{ money($rent_amount) }}</td>
                     </tr>
@@ -379,14 +381,12 @@
                     </tr>
                     @endforeach
 
-                    <!-- Apartment Costs -->
-                    @foreach($fixedExpenses as $expense)
-                    <tr>
-                        <td>{{ $expense->expense_name }}</td>
-                        <td><span class="category-label">{{ __('messages.apartment_cost') }}</span></td>
-                        <td>{{ money($expense->amount) }}</td>
-                    </tr>
-                    @endforeach
+                    {{-- No apartment-cost lines: a room's fixed cost is the
+                         template that RAISES a charge, and once it has, the
+                         charge is one of the utility rows above. A template the
+                         month has not raised is not on this bill — nothing can
+                         collect it until the bill run (or the Add-Charge modal)
+                         turns it into a real charge row. --}}
                 </tbody>
             </table>
 
@@ -400,12 +400,6 @@
                 <div class="total-row">
                     <span>{{ __('messages.subtotal_utilities') }}</span>
                     <span>{{ money($totalUtilities) }}</span>
-                </div>
-                @endif
-                @if($totalFixed > 0)
-                <div class="total-row">
-                    <span>{{ __('messages.subtotal_apt_costs') }}</span>
-                    <span>{{ money($totalFixed) }}</span>
                 </div>
                 @endif
 

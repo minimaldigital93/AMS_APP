@@ -2,6 +2,7 @@
 
 namespace App\Http\Middleware;
 
+use App\Http\Middleware\Concerns\RefusesJsonWrites;
 use App\Services\FiscalPeriod\MonthCloseBacklog;
 use Closure;
 use Illuminate\Http\Request;
@@ -34,6 +35,8 @@ use Symfony\Component\HttpFoundation\Response;
  */
 class EnsureMonthCloseBacklogClear
 {
+    use RefusesJsonWrites;
+
     public function __construct(private MonthCloseBacklog $backlog) {}
 
     public function handle(Request $request, Closure $next): Response
@@ -57,15 +60,21 @@ class EnsureMonthCloseBacklogClear
         $oldest = $backlog['oldest'];
 
         if ($backlog['close_url']) {
-            return redirect($backlog['close_url'])->with('error', __('messages.flash_month_close_required', [
+            $message = __('messages.flash_month_close_required', [
                 'month' => $oldest->name,
                 'count' => $backlog['count'],
-            ]));
+            ]);
+
+            return $this->jsonRefusal($request, $message)
+                ?? redirect($backlog['close_url'])->with('error', $message);
         }
 
-        return back()->with('error', __('messages.flash_month_close_required_supervisor', [
+        $message = __('messages.flash_month_close_required_supervisor', [
             'month' => $oldest->name,
             'count' => $backlog['count'],
-        ]));
+        ]);
+
+        return $this->jsonRefusal($request, $message)
+            ?? back()->with('error', $message);
     }
 }

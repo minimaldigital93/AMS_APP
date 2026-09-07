@@ -240,8 +240,8 @@ abstract class RevenueExpenseController extends Controller
     }
 
     /**
-     * A room's fixed costs as they apply to THIS rental: the `parking` template
-     * drops out when the tenant keeps priced vehicles.
+     * A room's fixed costs as they still apply to THIS rental in THIS month —
+     * the templates, minus the two things that already speak for them.
      *
      * A room's parking is one charge however many vehicles it covers, and when
      * the tenant has priced vehicles those are the authority — the bill run
@@ -250,16 +250,37 @@ abstract class RevenueExpenseController extends Controller
      * quotes a parking charge that will never be billed, on top of the one that
      * will.
      *
+     * The same is true of a template the month has ALREADY billed. A fixed
+     * expense is not a charge — it is the instruction that raises one, and the
+     * bill run turns it into a Utilities row whose type is unique for the
+     * (rental, month) pair. Once that row exists the charges side of the bill
+     * owns the money, and printing the template beside it charged the tenant
+     * twice for the same trash collection: a $500 room with a $25 template read
+     * $550 on a $525 bill, on the row total, in the checkout modal and on the
+     * printed bill. Which of the two raised the row does not matter — the
+     * modal's hand-entered charge is one per month for the same reason
+     * (IncomeRecordingService::SINGLE_PER_MONTH_TYPES), and MonthlyBillingService
+     * would skip the template anyway.
+     *
      * @param  \Illuminate\Support\Collection<int, \App\Models\ApartmentFixedExpense>  $fixedExpenses
+     * @param  \Illuminate\Support\Collection<int, Utilities>|null  $billedCharges  the month's charge rows
      * @return \Illuminate\Support\Collection<int, \App\Models\ApartmentFixedExpense>
      */
-    private function fixedExpensesFor(Rentals $rental, $fixedExpenses)
+    private function fixedExpensesFor(Rentals $rental, $fixedExpenses, $billedCharges = null)
     {
-        if ($this->billingService()->vehicleParkingFee($rental) <= 0) {
+        $billedTypes = $billedCharges ? $billedCharges->pluck('utility_type')->unique()->all() : [];
+
+        if ($this->billingService()->vehicleParkingFee($rental) > 0) {
+            $billedTypes[] = 'parking';
+        }
+
+        if (empty($billedTypes)) {
             return $fixedExpenses;
         }
 
-        return $fixedExpenses->reject(fn ($fe) => $fe->expense_type === 'parking')->values();
+        return $fixedExpenses
+            ->reject(fn ($fe) => in_array($fe->expense_type, $billedTypes, true))
+            ->values();
     }
 
     public function index()
@@ -874,8 +895,24 @@ abstract class RevenueExpenseController extends Controller
             $billableRentals = $currentOccupant ? [$currentOccupant] : [];
 
             foreach ($billableRentals as $rental) {
-                $collected = $rental->payments->sum('amount');
-                $lateFees = $rental->payments->sum('late_fee');
+                // The eager load deliberately reaches wider than this month —
+                // it takes the whole fiscal period as a fallback, so a stale or
+                // short closing_date can never hide the month's own payments.
+                // Every FIGURE below is about the month on screen, though, so it
+                // has to be narrowed back down again, exactly as $paidThisMonth
+                // and the row's receipt link already do. Summing the eager set
+                // raw made "Collected" the period-to-date total sitting beside a
+                // month-scoped "Pending": a $500 room three months into the year
+                // read $1,500 collected against $500 expected, and grew by a
+                // month's rent every month.
+                $monthPayments = $rental->payments->filter(
+                    fn ($p) => $p->paid_at
+                        && $p->paid_at->month === $currentMonth
+                        && $p->paid_at->year === $currentYear
+                );
+
+                $collected = $monthPayments->sum('amount');
+                $lateFees = $monthPayments->sum('late_fee');
                 $totalRentCollected += $collected + $lateFees;
 
                 // A tenancy that only begins in a later month isn't billable in
@@ -895,12 +932,7 @@ abstract class RevenueExpenseController extends Controller
                 }
 
                 // Check if rent already paid this month
-                $paidThisMonth = $rental->payments
-                    ->filter(function ($p) use ($currentMonth, $currentYear) {
-                        return $p->payment_type === 'rent'
-                            && Carbon::parse($p->paid_at)->month === $currentMonth
-                            && Carbon::parse($p->paid_at)->year === $currentYear;
-                    })->isNotEmpty();
+                $paidThisMonth = $monthPayments->where('payment_type', 'rent')->isNotEmpty();
 
                 // Determine if this is the tenant's first month in the selected period
                 $isFirstMonth = $rental->start_date
@@ -979,14 +1011,23 @@ abstract class RevenueExpenseController extends Controller
                     ? 'none'
                     : ($unpaidCharges->isEmpty() ? 'paid' : 'pending');
 
-                // Fixed expenses for the apartment — minus a `parking` template
-                // the tenant's priced vehicles supersede, which the bill run
-                // will never raise for this rental.
-                $fixedExpenses = $this->fixedExpensesFor($rental, $apartment->activeFixedExpenses ?? collect());
+                // The room's fixed costs that this month has NOT raised as a
+                // charge yet — minus a `parking` template the tenant's priced
+                // vehicles supersede. These are a PREVIEW of what the next bill
+                // run will charge, not money owed: a template is the instruction
+                // that raises a charge, and until it has (MonthlyBillingService,
+                // or the Add-Charge modal by hand) there is no row to settle, no
+                // paid state and nothing for a receipt to itemise. Every other
+                // place that says what a tenant owes already reads it that way —
+                // Tenants::outstandingCharges(), paymentHistory() and the
+                // move-out settlement all count utilities rows and ignore
+                // templates. This page counted them as owed and was the only one
+                // that did, so it quoted a total checkout could not collect.
+                $fixedExpenses = $this->fixedExpensesFor($rental, $apartment->activeFixedExpenses ?? collect(), $utilityCharges);
                 $totalFixed = $fixedExpenses->sum('amount');
 
-                // Total bill = rent + utilities + fixed expenses.
-                $totalBill = $rentDue + $totalUtilities + $totalFixed;
+                // Total bill = rent + the charges actually raised for the month.
+                $totalBill = $rentDue + $totalUtilities;
 
                 // Row status folds both sides into ONE of three buckets —
                 // paid / pending / overdue — because that is the whole
@@ -1023,15 +1064,15 @@ abstract class RevenueExpenseController extends Controller
                 // one all-or-nothing test (the old behaviour) dropped a
                 // rent-paid tenant's unpaid charges out of the tile entirely —
                 // which is every tenant, every month, once rent is collected
-                // before the meters are read. Fixed apartment costs ride with
-                // rent: they have no settlement row of their own and checkout
-                // bills them alongside it.
+                // before the meters are read. An un-raised fixed room cost is
+                // NOT collectable and stays out of both figures — see the note
+                // on $fixedExpenses above.
                 //
                 // Upcoming (not-yet-started) rent isn't part of this month's
                 // collectable expectation.
                 if (! $notStartedYet) {
                     if (! $paidThisMonth) {
-                        $totalPendingRent += $rentDue + $totalFixed;
+                        $totalPendingRent += $rentDue;
                     }
                     $totalPendingCharges += $unpaidChargeTotal;
                 }
@@ -1071,6 +1112,8 @@ abstract class RevenueExpenseController extends Controller
                     'unpaid_utility_only' => $unpaidUtilityOnly,
                     'unpaid_other_charges' => $unpaidOtherCharges,
                     'unpaid_charge_total' => $unpaidChargeTotal,
+                    // Not part of any total above — what the room bills that
+                    // this month has yet to raise. See the note at the top.
                     'fixed_expenses' => $fixedExpenses,
                     'total_fixed' => $totalFixed,
                     'total_bill' => $totalBill,
@@ -1079,7 +1122,7 @@ abstract class RevenueExpenseController extends Controller
                     'late_fee_suggested' => $suggestedLateFee,
                     'overdue_days' => $overdueDays,
                     'total_collected' => $collected + $lateFees,
-                    'payment_count' => $rental->payments->count(),
+                    'payment_count' => $monthPayments->count(),
                     // Everything the payment form spells out: the span the rent
                     // buys, the day it falls due, and every fee by name. Built
                     // here rather than in the view because both the desktop and
@@ -1291,9 +1334,19 @@ abstract class RevenueExpenseController extends Controller
             ? $this->incomeService($period)->addTenantCharge($rental, $validated)
             : null;
 
+        // Nothing written is not a success. Behind `fiscal.period` this is
+        // unreachable, but the modal reloads the page on any 2xx — so a silent
+        // no-op here would read to the operator exactly like a saved charge
+        // that then isn't on the bill.
+        if (! $charge) {
+            return $request->expectsJson()
+                ? response()->json(['message' => __('messages.flash_fp_required')], 422)
+                : $this->missingPeriodRedirect();
+        }
+
         // Recurring types are one row per month, so a repeat save corrects the
         // open charge rather than stacking a second one — say which happened.
-        $wasCorrected = $charge && ! $charge->wasRecentlyCreated;
+        $wasCorrected = ! $charge->wasRecentlyCreated;
 
         // An opening reading (metered type, meter-in only, no closing reading and
         // no amount) gets a dedicated message — "$0.00 added" would read wrongly.
@@ -1301,11 +1354,15 @@ abstract class RevenueExpenseController extends Controller
             && empty($validated['meter_reading_out'])
             && empty($validated['charge_amount']);
 
+        // Quote the figure that was STORED, never the one that was posted. The
+        // service is the authority on what a metered row is worth (auto-calc
+        // overrides the typed amount), so reading the request back is how the
+        // flash came to say "updated to $15.00" over a row holding $0.00.
         $successMsg = $isOpeningReading
             ? __('messages.flash_opening_reading_saved')
             : __($wasCorrected ? 'messages.flash_charge_updated' : 'messages.flash_charge_added', [
                 'type' => ucfirst($validated['charge_type']),
-                'amount' => number_format((float) ($validated['charge_amount'] ?? 0), 2),
+                'amount' => number_format((float) $charge->charge_amount, 2),
                 'name' => $rental->tenant->name ?? __('messages.tenant'),
             ]);
 
@@ -1343,14 +1400,26 @@ abstract class RevenueExpenseController extends Controller
         return redirect()->back()->with('success', __('messages.flash_charge_removed'));
     }
 
-    public function clearTenantCharges($rentalId)
+    /**
+     * "Delete all unpaid" from the charges modal — for the ONE month that modal
+     * is showing. The modal lists a single month's charges and is opened from a
+     * single month's row, so a request without a month is the caller's bug, not
+     * a licence to clear the tenancy: it used to drop every unpaid charge the
+     * rental had ever carried, so clearing a mistake in September silently wiped
+     * the August arrears that Tenants::outstandingCharges() was still owed.
+     */
+    public function clearTenantCharges(Request $request, $rentalId)
     {
         $rental = Rentals::findOrFail($rentalId);
         $this->authorizeRentalAccess($rental);
         $period = $this->getActiveFiscalPeriod();
 
+        $default = working_month() ?: now();
+        $month = (int) $request->input('month', $default->month);
+        $year = (int) $request->input('year', $default->year);
+
         if ($period) {
-            $this->incomeService($period)->clearTenantCharges($rental);
+            $this->incomeService($period)->clearTenantCharges($rental, $month, $year);
         }
 
         if (request()->expectsJson()) {
@@ -1512,18 +1581,33 @@ abstract class RevenueExpenseController extends Controller
 
         $paidThisMonth = $payments->where('payment_type', 'rent')->isNotEmpty();
 
-        // Due date
-        $dueDay = $rental->start_date ? $rental->start_date->day : 1;
-        $dueDay = min($dueDay, Carbon::create($currentYear, $currentMonth)->daysInMonth);
-        $dueDate = Carbon::create($currentYear, $currentMonth, $dueDay);
+        // What this month actually bills, and when it falls due. On an account
+        // with a collection day both come from BillingCycleService — the same
+        // source the collection page, the receipt and the arrears already use —
+        // so a prorated move-in month prints what was charged instead of a full
+        // month's rent the tenant was never asked for. Null period = no
+        // collection day set, and the lease keeps its own move-in day as before.
+        $period = app(BillingCycleService::class)->periodFor($rental, $currentMonth, $currentYear);
+        $rentDue = $period ? $period->amount : (float) $rental->rent_amount;
 
-        // Fixed expenses (priced vehicles supersede the room's parking template)
-        $fixedExpenses = $this->fixedExpensesFor($rental, $rental->apartment->activeFixedExpenses ?? collect());
+        if ($period) {
+            $dueDate = $period->dueDate->copy();
+        } else {
+            $dueDay = $rental->start_date ? $rental->start_date->day : 1;
+            $dueDay = min($dueDay, Carbon::create($currentYear, $currentMonth)->daysInMonth);
+            $dueDate = Carbon::create($currentYear, $currentMonth, $dueDay);
+        }
 
-        // Calculate totals
+        // Fixed expenses (priced vehicles supersede the room's parking template,
+        // and a template the month has already billed is on the charge lines).
+        $fixedExpenses = $this->fixedExpensesFor($rental, $rental->apartment->activeFixedExpenses ?? collect(), $utilities);
+
+        // Calculate totals. The room's un-raised fixed costs are a preview of
+        // the next bill run, not lines on this bill — see the note on
+        // $fixedExpenses in recordIncome().
         $totalUtilities = $utilities->sum('charge_amount');
         $totalFixed = $fixedExpenses->sum('amount');
-        $totalBill = $rental->rent_amount + $totalUtilities + $totalFixed;
+        $totalBill = $rentDue + $totalUtilities;
         $totalPaid = $payments->sum('amount') + $payments->sum('late_fee');
         $balance = $totalBill - $totalPaid;
 
@@ -1534,8 +1618,11 @@ abstract class RevenueExpenseController extends Controller
             'tenant' => $rental->tenant,
             'floor' => $rental->apartment?->floor,
             'dueDate' => $dueDate,
-            'monthYear' => now()->format('F Y'),
-            'rent_amount' => $rental->rent_amount,
+            // The month the bill covers — printing now() put August's name on a
+            // July bill the moment the operator stepped the page back a month.
+            'monthYear' => $billMonth->copy()->startOfMonth()->format('F Y'),
+            'periodLabel' => $period?->label(),
+            'rent_amount' => $rentDue,
             'utilities' => $utilities,
             'totalUtilities' => $totalUtilities,
             'fixedExpenses' => $fixedExpenses,
@@ -1574,7 +1661,7 @@ abstract class RevenueExpenseController extends Controller
         $month = (int) $request->input('month', now()->month);
         $year = (int) $request->input('year', now()->year);
 
-        $rental = Rentals::with(['apartment.floor.property', 'apartment.activeFixedExpenses', 'tenant'])
+        $rental = Rentals::with(['apartment.floor.property', 'tenant'])
             ->findOrFail($rentalId);
         $this->authorizeRentalAccess($rental);
 
@@ -1604,13 +1691,14 @@ abstract class RevenueExpenseController extends Controller
             ->orderBy('utility_type')
             ->get();
 
-        // The parking charge row already prints the vehicle total; the room's
-        // superseded template must not print a second parking line beside it.
-        $fixedExpenses = $this->fixedExpensesFor($rental, $rental->apartment?->activeFixedExpenses ?? collect());
-
+        // No fixed-expense lines here: a room's fixed cost is a template that
+        // raises a charge, and by the time it is on a bill it IS one of the
+        // $charges rows above. Printing the template too billed the tenant
+        // twice for it; printing an un-raised one billed them for something
+        // nothing can collect.
         $body = $payment
             ? $this->receiptForPayment($payment, $period, $month, $year)
-            : $this->billSummaryFor($monthPayments, $period, $rentDue, $charges, $fixedExpenses);
+            : $this->billSummaryFor($monthPayments, $period, $rentDue, $charges);
 
         return $this->panelView('payment_receipt', $body + [
             'rental' => $rental,
@@ -1723,10 +1811,9 @@ abstract class RevenueExpenseController extends Controller
      *
      * @param  \Illuminate\Support\Collection<int, Payments>  $monthPayments
      * @param  \Illuminate\Support\Collection<int, Utilities>  $charges
-     * @param  \Illuminate\Support\Collection<int, \App\Models\ApartmentFixedExpense>  $fixedExpenses
      * @return array<string, mixed>
      */
-    private function billSummaryFor($monthPayments, ?BillingPeriod $period, float $rentDue, $charges, $fixedExpenses): array
+    private function billSummaryFor($monthPayments, ?BillingPeriod $period, float $rentDue, $charges): array
     {
         $rentPaid = $monthPayments->where('payment_type', 'rent')->isNotEmpty();
 
@@ -1743,16 +1830,6 @@ abstract class RevenueExpenseController extends Controller
                 'amount' => (float) $utility->charge_amount,
                 'utility' => $utility,
                 'settled' => (bool) $utility->paid_status,
-            ];
-        }
-
-        // Fixed room costs have no settlement row of their own — checkout bills
-        // them alongside rent, so that is what marks them settled.
-        foreach ($fixedExpenses as $expense) {
-            $lines[] = [
-                'label' => $expense->expense_name,
-                'amount' => (float) $expense->amount,
-                'settled' => $rentPaid,
             ];
         }
 

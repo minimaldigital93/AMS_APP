@@ -474,11 +474,13 @@
                         </div>
                     </template>
 
-                    <!-- Apartment costs -->
+                    {{-- Room costs the month has not raised as a charge yet —
+                         outside the total below, because there is no charge row
+                         to collect or settle until the bill run raises one. --}}
                     <template x-if="viewFixed > 0">
-                        <div class="flex items-center justify-between py-1.5 px-3 rounded-lg bg-purple-50/60">
-                            <span class="text-sm text-slate-600">{{ __('messages.apartment_costs') }}</span>
-                            <span class="text-sm font-semibold text-slate-700" x-text="'$' + parseFloat(viewFixed).toFixed(2)"></span>
+                        <div class="flex items-center justify-between py-1.5 px-3 rounded-lg border border-dashed border-amber-200 bg-amber-50/40">
+                            <span class="text-xs text-amber-800">{{ __('messages.room_costs_not_billed') }}</span>
+                            <span class="text-xs font-semibold text-amber-800" x-text="'$' + parseFloat(viewFixed).toFixed(2)"></span>
                         </div>
                     </template>
 
@@ -827,35 +829,16 @@
                     <p class="text-[10px] uppercase tracking-wider text-slate-400">{{ __('messages.what_to_collect') }}</p>
 
                     <div class="space-y-2">
-                        {{-- ── RENT (+ the room's own recurring costs, which have no
-                             settlement row of their own and so ride with it) ── --}}
+                        {{-- ── RENT ── --}}
                         <template x-if="!rentAlreadyPaid">
                             <div class="rounded-xl border transition" :class="payRent ? 'border-emerald-300 bg-emerald-50/40' : 'border-slate-200 bg-white'">
                                 <label class="flex items-center gap-3 px-3 py-2.5 cursor-pointer select-none">
                                     <input type="checkbox" name="pay_rent" value="1" x-model="payRent"
                                         class="rounded border-slate-300 text-emerald-600 focus:ring-emerald-500">
-                                    <span class="flex-1 min-w-0 text-sm font-semibold text-slate-800"
-                                        x-text="checkoutFixed > 0 ? '{{ __('messages.rent_plus_room_costs') }}' : '{{ __('messages.rent') }}'"></span>
+                                    <span class="flex-1 min-w-0 text-sm font-semibold text-slate-800">{{ __('messages.rent') }}</span>
                                     <span class="text-base font-bold text-slate-800"
-                                        x-text="'$' + (parseFloat(checkoutRent) + parseFloat(checkoutFixed)).toFixed(2)"></span>
+                                        x-text="'$' + parseFloat(checkoutRent).toFixed(2)"></span>
                                 </label>
-                                <div x-show="checkoutFixed > 0" class="px-3 pb-2 -mt-1">
-                                    <button type="button" @click="showRentDetail = !showRentDetail"
-                                        class="text-[11px] text-slate-400 hover:text-slate-600 pl-7"
-                                        x-text="(showRentDetail ? '− ' : '+ ') + '{{ __('messages.details_lower') }}'"></button>
-                                    <div x-show="showRentDetail" x-cloak class="mt-1 pl-7 space-y-0.5">
-                                        <div class="flex items-center justify-between">
-                                            <span class="text-xs text-slate-400">{{ __('messages.rent') }}</span>
-                                            <span class="text-xs text-slate-500" x-text="'$' + parseFloat(checkoutRent).toFixed(2)"></span>
-                                        </div>
-                                        <template x-for="(f, i) in checkoutFixedItems" :key="'f' + i">
-                                            <div class="flex items-center justify-between">
-                                                <span class="text-xs text-slate-400 truncate" x-text="f.name"></span>
-                                                <span class="text-xs text-slate-500 flex-shrink-0" x-text="'$' + parseFloat(f.amount).toFixed(2)"></span>
-                                            </div>
-                                        </template>
-                                    </div>
-                                </div>
                             </div>
                         </template>
                         {{-- Rent collected on an earlier visit: a receipt line, not
@@ -866,7 +849,7 @@
                                 <svg class="w-4 h-4 text-emerald-600 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/></svg>
                                 <span class="flex-1 text-sm text-emerald-800">{{ __('messages.rent_paid_already') }}</span>
                                 <span class="text-sm font-medium text-emerald-700"
-                                    x-text="'$' + (parseFloat(checkoutRent) + parseFloat(checkoutFixed)).toFixed(2)"></span>
+                                    x-text="'$' + parseFloat(checkoutRent).toFixed(2)"></span>
                             </div>
                         </template>
 
@@ -919,6 +902,30 @@
                         <template x-if="chargesStatus === 'none'">
                             <div class="rounded-xl border border-dashed border-slate-200 px-3 py-2 text-xs text-slate-400">
                                 {{ __('messages.no_charges_yet') }}
+                            </div>
+                        </template>
+
+                        {{-- The room's own recurring costs that this month has
+                             not raised as a charge yet. A reminder, never a
+                             line: a fixed expense is the template that raises a
+                             charge, and until the bill run (or Add charge) has,
+                             there is no row for checkout to settle. Quoting it
+                             in the total is what made the modal ask for $525 and
+                             book $500. --}}
+                        <template x-if="checkoutFixed > 0">
+                            <div class="rounded-xl border border-dashed border-amber-200 bg-amber-50/40 px-3 py-2">
+                                <div class="flex items-center justify-between gap-2">
+                                    <span class="text-xs font-medium text-amber-800">{{ __('messages.room_costs_not_billed') }}</span>
+                                    <span class="text-xs font-semibold text-amber-800 flex-shrink-0" x-text="'$' + parseFloat(checkoutFixed).toFixed(2)"></span>
+                                </div>
+                                <div class="mt-1 space-y-0.5">
+                                    <template x-for="(f, i) in checkoutFixedItems" :key="'f' + i">
+                                        <div class="flex items-center justify-between gap-2">
+                                            <span class="text-[11px] text-amber-700/70 truncate" x-text="f.name"></span>
+                                            <span class="text-[11px] text-amber-700/70 flex-shrink-0" x-text="'$' + parseFloat(f.amount).toFixed(2)"></span>
+                                        </div>
+                                    </template>
+                                </div>
                             </div>
                         </template>
 
@@ -1208,7 +1215,6 @@ function billingManager() {
         rentAlreadyPaid: false,
         // Itemisation is behind a disclosure — the collector needs the figure to
         // take the money, not the breakdown. Both reset closed on every open.
-        showRentDetail: false,
         showChargeDetail: false,
         // The late-fee input only exists when there is a late fee to charge; on
         // an on-time payment it is a link, not a field left blank on every row.
@@ -1273,9 +1279,11 @@ function billingManager() {
             this.viewFixed = fixed;
             this.showChargesReceipt = true;
         },
+        // Rent + the charges actually raised. viewFixed is shown above as a
+        // reminder and stays out of this, the same as everywhere else.
         viewBillTotal() {
             const chargesSum = this.viewCharges.reduce((s, c) => s + (parseFloat(c.amount) || 0), 0);
-            return (parseFloat(this.viewRent) + parseFloat(this.viewFixed) + chargesSum).toFixed(2);
+            return (parseFloat(this.viewRent) + chargesSum).toFixed(2);
         },
         async removeViewCharge(chargeId, index) {
             if (!(await window.confirmAction({ message: '{{ __('messages.remove_charge_confirm') }}' }))) return;
@@ -1292,11 +1300,15 @@ function billingManager() {
                 }
             } catch(e) { window.location.reload(); }
         },
+        // Scoped to the month this modal is showing — the charge list above is
+        // one month's, so the button must not reach into the tenant's other
+        // months and delete arrears nobody was looking at.
         async clearAllCharges() {
             if (!(await window.confirmAction({ message: '{{ __('messages.delete_all_confirm') }}' }))) return;
             const csrf = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+            const qs = '?month={{ $currentMonth }}&year={{ $currentYear }}';
             try {
-                await fetch('{{ url('/'.$panel.'/revenue-expense/clear-charges') }}/' + this.viewRentalId, {
+                await fetch('{{ url('/'.$panel.'/revenue-expense/clear-charges') }}/' + this.viewRentalId + qs, {
                     method: 'DELETE',
                     headers: { 'X-CSRF-TOKEN': csrf, 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' }
                 });
@@ -1528,7 +1540,6 @@ function billingManager() {
             this.chargesStatus = chargesStatus;
             this.payRent = ! this.rentAlreadyPaid;
             this.payUtilities = chargesStatus === 'pending';
-            this.showRentDetail = false;
             this.showChargeDetail = false;
             this.showLateFee = parseFloat(lateFee) > 0;
             this.resetKhqr();
@@ -1784,10 +1795,9 @@ function billingManager() {
                 total += parseFloat(this.checkoutUtilities) || 0;
                 total += parseFloat(this.checkoutOtherCharges) || 0;
             }
-            // The room's own recurring costs have no settlement row of their own,
-            // so they ride with the rent visit — and must not be re-quoted on a
-            // charges-only visit after the rent is already in.
-            if (this.payRent) total += parseFloat(this.checkoutFixed) || 0;
+            // checkoutFixed is deliberately absent: the room's un-raised fixed
+            // costs are a preview of the next bill run, not something this form
+            // can collect (see the note beside the card above).
             total += parseFloat(this.checkoutLateFee) || 0;
             return total.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
         }

@@ -602,8 +602,14 @@ owed stays derived from the calendar, as it always has been here.
   due date, late fee), `Tenants::paymentHistory()` (arrears),
   `MonthClosePreflight` (the pre-close shortfall), `TenantRentProgressCalculator`
   (the tenant-index badge, both panels), `ContractGenerator` (ប្រការ៤ due day,
-  ប្រការ៥ grace). The last two read `rentals.rent_amount` raw until 2026-08 and
-  reported a phantom shortfall on every fully-paid prorated move-in month.
+  ប្រការ៥ grace), `printReceipt()` (the rent line) and `printTenantBill()` (the
+  rent line and the due date). Three of them read `rentals.rent_amount` raw:
+  the tenant badge and the contract until 2026-08, which reported a phantom
+  shortfall on every fully-paid prorated move-in month, and the **printable
+  bill** until 2026-09 — the one document that gets handed to the tenant, which
+  asked a prorated move-in month for a full month's rent, dated it from the
+  move-in day rather than the collection day, and headed it `now()` so stepping
+  the page back a month printed July's bill under August's name.
 - **Which month it is is the same question**, so `Rentals::stayProgress()`
   derives its cycle from `periodFor()` too. It is the **one** implementation of
   the rental-month cycle, feeding the floor-plan gauge (`x-stay-gauge`), the
@@ -777,6 +783,23 @@ invoice table.
   month and not in a running one. `paidCount` means *fully settled* — the "N
   tenants paid" line under the Collected tile excludes a rent-paid tenant whose
   meters are still unread.
+- **Every figure on the page is about the month on screen — narrow the eager
+  set before summing it.** `recordIncome()` loads a rental's payments across the
+  whole fiscal period *or* the selected month on purpose: the period arm is the
+  fallback that guarantees the month's own payments load even under a stale or
+  short `closing_date`. That makes the loaded set wider than the page, so
+  `collected` / `late_fees` / `payment_count` and the **Collected** tile all
+  filter it back to `paid_at` in the viewed month, exactly as `paid_this_month`
+  and the row's receipt link already did. Summing it raw (until 2026-09) put the
+  period-to-date total beside a month-scoped Pending: a $500 room three months
+  in read $1,500 collected against $500 expected, growing by a month's rent
+  every month.
+- **"Delete all unpaid" clears one month.** The charges modal lists a single
+  month's rows and is opened from a single month's row, so
+  `clearTenantCharges()` takes the month and `forMonth()`s the query. It dropped
+  every unpaid charge the rental had ever carried until 2026-09, so tidying a
+  mistake in September silently wiped the August arrears
+  `Tenants::outstandingCharges()` was still owed.
 
 ### Three buckets, everywhere — paid / pending / overdue
 
@@ -869,12 +892,33 @@ Three rules this depends on:
 - **Pending is tracked per side** (`totalPendingRent` + `totalPendingCharges`).
   One all-or-nothing test — the old behaviour — dropped a rent-paid tenant's
   unpaid charges out of the tile entirely, which under this workflow is every
-  tenant every month. Fixed apartment costs ride with rent; they have no
-  settlement row of their own.
+  tenant every month. An `ApartmentFixedExpense` is **not** part of either
+  figure — see the rule below.
+- **A fixed room cost is a template, not a charge.** `apartment_fixed_expenses`
+  rows are the instruction that raises a charge; `MonthlyBillingService` (or the
+  Add-Charge modal by hand) turns one into a `Utilities` row, and only that row
+  can be quoted, settled, receipted or reversed. Every other place that says
+  what a tenant owes already reads it this way — `Tenants::outstandingCharges()`,
+  `paymentHistory()` and the move-out settlement count utilities rows and ignore
+  templates. The rent collection page was the one screen that didn't, and it was
+  wrong in both directions: an **un-raised** template went into `total_bill`, the
+  Pending tile and the checkout modal's "Total to collect", while `checkout()`
+  posts `rent_amount` alone — so the modal asked a $500 room with a $25 template
+  for $525 and booked $500, every month, uncollected. And once the bill run
+  **had** raised it, the template printed *beside* the charge row it created:
+  $550 quoted on a $525 bill, on the row total, in the modal and on the printed
+  bill. So: `fixedExpensesFor()` drops any template whose type the month has
+  already billed (the same shape as the vehicle-parking supersession it already
+  did), and what survives is a **preview** — shown as "Room costs — not billed
+  yet" on the collection page and in the charges modal, and absent from
+  `total_bill`, both Pending figures, the checkout total, the bill summary and
+  the printable bill. Raising the charge is what puts it on the bill.
 
 `checkout()`'s `pay_rent` / `pay_utilities` flags were always independent — it
 was the status and totals layer that assumed one payment.
-`tests/Feature/RevenueExpense/SplitRentChargesStatusTest.php` pins all of it.
+`tests/Feature/RevenueExpense/SplitRentChargesStatusTest.php` pins the two sides;
+`tests/Feature/RevenueExpense/RecordIncomeFiguresTest.php` pins the money the
+page states against the money checkout books.
 
 ### A mistaken payment is reversed, not corrected in place
 
@@ -973,8 +1017,10 @@ Rules behind it:
   never print a total that differs from the money received.
 - **The late fee is its own line.** It used to count toward "amount paid" while
   the total ignored it, so every late receipt printed short.
-- Fixed room costs settle with rent (they have no settlement row), which is what
-  marks them paid on the summary.
+- **No fixed-expense lines on either document.** A room's fixed cost is the
+  template that raises a charge; by the time it is on a bill it *is* one of the
+  `Utilities` rows, and printing the template too billed the tenant twice for
+  it. See "A fixed room cost is a template, not a charge".
 - The row's receipt button opens the single payment directly when the month has
   one, else the summary — whose picker strip (`.no-print`) links the rest.
 
