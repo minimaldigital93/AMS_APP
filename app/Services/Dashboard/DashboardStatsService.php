@@ -10,6 +10,8 @@ use App\Models\Rentals;
 use App\Models\TenantLeave;
 use App\Models\Tenants;
 use App\Models\Utilities;
+use App\Services\Billing\BillingCycleService;
+use App\Services\Billing\BillingPeriod;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
 
@@ -48,7 +50,7 @@ class DashboardStatsService
         $referenceDate = $this->resolveReferenceDate($referenceMonth, $endDate);
 
         [$paidCount, $pendingCount, $overdueCount, $totalPendingAmount] =
-            $this->countRentPaymentStatus($startDate, $endDate, $referenceMonth, $referenceDate);
+            $this->countRentPaymentStatus($startDate, $referenceMonth, $referenceDate);
 
         $monthlyRevenueAccounts = $this->scopedIncomeAccountsInRange($startDate, $endDate)->get();
         $monthlyExpenseAccounts = $this->scopedExpenseAccountsInRange($startDate, $endDate)->get();
@@ -174,9 +176,19 @@ class DashboardStatsService
      * read yet in a month still running — is pending, not paid. Counting rent
      * alone made the tile disagree with the page it opens.
      *
+     * Which is also why the due date and the rent owed come from
+     * BillingCycleService and settings('billing_overdue_days') rather than
+     * being re-derived here. This counted rent as due on each tenant's own
+     * move-in day with no grace at all until 2026-09, so on an account with a
+     * collection day set the tile and the page it opens disagreed in both
+     * directions — a tenant inside the grace period read Overdue on the
+     * dashboard and Pending on the page, and one past a collection day earlier
+     * than their move-in day read Pending on the dashboard while the page
+     * (correctly) called them overdue.
+     *
      * @return array{0:int,1:int,2:int,3:float} [paid, pending, overdue, totalPending]
      */
-    private function countRentPaymentStatus(Carbon $startDate, Carbon $endDate, Carbon $referenceMonth, Carbon $referenceDate): array
+    private function countRentPaymentStatus(Carbon $startDate, Carbon $referenceMonth, Carbon $referenceDate): array
     {
         $currentMonth = $referenceMonth->month;
         $currentYear = $referenceMonth->year;
@@ -191,10 +203,15 @@ class DashboardStatsService
         $paidCount = $pendingCount = $overdueCount = 0;
         $totalPendingAmount = 0.0;
 
-        // A tenancy that only begins after the reference month isn't billable
-        // yet — it must never read as overdue/pending. The monthly view already
-        // excludes it via the window below, but the full-period window reaches
-        // the period close, so guard on the reference month explicitly.
+        // Rent collection day and its grace, read exactly once. A null period
+        // means the account has no collection day set, so the lease keeps
+        // billing on its own move-in day as it always has.
+        $cycles = app(BillingCycleService::class);
+        $graceDays = $cycles->overdueDays();
+
+        // A tenancy that only begins after the reference month has nothing
+        // owed yet — it is the page's "upcoming" row, which lands in the
+        // pending bucket for filtering but contributes no money to it.
         $referenceMonthEnd = $referenceMonth->copy()->endOfMonth();
 
         $activeRentals = $this->scopedRentalQuery()
@@ -205,7 +222,10 @@ class DashboardStatsService
                     ->where('billing_year', $currentYear),
                 'apartment',
             ])
-            ->where('start_date', '<=', $endDate)
+            // No upper bound on start_date, deliberately: an empty room whose
+            // next tenancy begins later still gets a row on the collection page
+            // these tiles link to, so it has to be represented here too or the
+            // Pending chip lists a bill the Pending tile never counted.
             ->where(function ($q) use ($startDate) {
                 $q->whereNull('end_date')->orWhere('end_date', '>=', $startDate);
             })
@@ -228,9 +248,12 @@ class DashboardStatsService
             ->values();
 
         foreach ($activeRentals as $rental) {
-            if ($rental->start_date && Carbon::parse($rental->start_date)->gt($referenceMonthEnd)) {
-                continue;
-            }
+            $start = $rental->start_date ? Carbon::parse($rental->start_date) : null;
+
+            // Not begun by month end: the page's "upcoming" row. Pending for
+            // counting (it is a bill row on the page's Pending chip), but no
+            // rent and no charge is owed for a month the tenancy never touched.
+            $notStartedYet = $start && $start->gt($referenceMonthEnd);
 
             $paidThisMonth = $rental->payments
                 ->filter(fn ($p) => $p->payment_type === 'rent'
@@ -238,10 +261,16 @@ class DashboardStatsService
                     && Carbon::parse($p->paid_at)->year === $currentYear)
                 ->isNotEmpty();
 
-            $start = $rental->start_date ? Carbon::parse($rental->start_date) : null;
-            $dueDay = $start ? $start->day : 1;
-            $dueDay = min($dueDay, Carbon::create($currentYear, $currentMonth)->daysInMonth);
-            $dueDate = Carbon::create($currentYear, $currentMonth, $dueDay)->endOfDay();
+            // What the month actually owes: prorated to the collection day in
+            // a move-in month, the full rent thereafter, and the raw rent when
+            // the account has nominated no collection day.
+            $period = $cycles->periodFor($rental, $currentMonth, $currentYear);
+            $rentDue = $period ? $period->amount : (float) $rental->rent_amount;
+            $dueDate = $this->rentDueDate($period, $start, $currentMonth, $currentYear);
+
+            // Rent isn't late until the grace period has run out — the same
+            // grace the printed contract promises (ប្រការ៥).
+            $overdueAfter = $dueDate->copy()->addDays($graceDays);
 
             // The charges side. No rows is not the same as settled while the
             // month is still running — it means the meters haven't been read.
@@ -250,13 +279,10 @@ class DashboardStatsService
                 ? ! $isRunningMonth
                 : $unpaidCharges <= 0;
 
-            // If the rental started in the reference month and hasn't paid yet,
-            // treat the first part-month as pending (do not mark overdue).
-            if ($start && $start->month === $currentMonth && $start->year === $currentYear && ! $paidThisMonth) {
-                $pendingCount++;
-                $totalPendingAmount += $rental->rent_amount + $unpaidCharges;
-
-                continue;
+            // Nothing is collectable on a tenancy that has not begun.
+            if ($notStartedYet) {
+                $unpaidCharges = 0.0;
+                $rentDue = 0.0;
             }
 
             if ($paidThisMonth && $chargesSettled) {
@@ -265,16 +291,45 @@ class DashboardStatsService
                 // Rent in, charges still open — not settled, so not paid.
                 $pendingCount++;
                 $totalPendingAmount += $unpaidCharges;
-            } elseif ($referenceDate->gt($dueDate)) {
+            } elseif (! $notStartedYet && $referenceDate->gt($overdueAfter)) {
                 $overdueCount++;
-                $totalPendingAmount += $rental->rent_amount + $unpaidCharges;
+                $totalPendingAmount += $rentDue + $unpaidCharges;
             } else {
                 $pendingCount++;
-                $totalPendingAmount += $rental->rent_amount + $unpaidCharges;
+                $totalPendingAmount += $rentDue + $unpaidCharges;
             }
         }
 
         return [$paidCount, $pendingCount, $overdueCount, $totalPendingAmount];
+    }
+
+    /**
+     * The day the reference month's rent falls due, derived exactly as the rent
+     * collection page derives it:
+     *   - a collection day is set  → the period's own due date (the collection
+     *     day, or for a move-in month the day the prorated period runs up to);
+     *   - none set, move-in month  → one month after moving in;
+     *   - none set, later month    → the move-in day-of-month, clamped to the
+     *     month's length;
+     *   - no move-in date at all   → the end of the month.
+     */
+    private function rentDueDate(?BillingPeriod $period, ?Carbon $start, int $month, int $year): Carbon
+    {
+        if ($period) {
+            return $period->dueDate->copy()->endOfDay();
+        }
+
+        if (! $start) {
+            return Carbon::create($year, $month, 1)->endOfMonth()->endOfDay();
+        }
+
+        if ($start->month === $month && $start->year === $year) {
+            return $start->copy()->addMonth()->endOfDay();
+        }
+
+        $dueDay = min($start->day, Carbon::create($year, $month, 1)->daysInMonth);
+
+        return Carbon::create($year, $month, $dueDay)->endOfDay();
     }
 
     /**

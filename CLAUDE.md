@@ -601,15 +601,19 @@ owed stays derived from the calendar, as it always has been here.
   with each other: `Shared\RevenueExpenseController::recordIncome()` (rent due,
   due date, late fee), `Tenants::paymentHistory()` (arrears),
   `MonthClosePreflight` (the pre-close shortfall), `TenantRentProgressCalculator`
-  (the tenant-index badge, both panels), `ContractGenerator` (ប្រការ៤ due day,
+  (the tenant-index badge, both panels),
+  `DashboardStatsService::countRentPaymentStatus()` (the dashboard's
+  paid/pending/overdue tiles), `ContractGenerator` (ប្រការ៤ due day,
   ប្រការ៥ grace), `printReceipt()` (the rent line) and `printTenantBill()` (the
-  rent line and the due date). Three of them read `rentals.rent_amount` raw:
+  rent line and the due date). Four of them read `rentals.rent_amount` raw:
   the tenant badge and the contract until 2026-08, which reported a phantom
-  shortfall on every fully-paid prorated move-in month, and the **printable
+  shortfall on every fully-paid prorated move-in month, the **printable
   bill** until 2026-09 — the one document that gets handed to the tenant, which
   asked a prorated move-in month for a full month's rent, dated it from the
   move-in day rather than the collection day, and headed it `now()` so stepping
-  the page back a month printed July's bill under August's name.
+  the page back a month printed July's bill under August's name — and the
+  **dashboard tiles** until 2026-09, which also ignored the grace period (see
+  the bucket rules below).
 - **Which month it is is the same question**, so `Rentals::stayProgress()`
   derives its cycle from `periodFor()` too. It is the **one** implementation of
   the rental-month cycle, feeding the floor-plan gauge (`x-stay-gauge`), the
@@ -821,7 +825,23 @@ agreeing:
 - `DashboardStatsService::countRentPaymentStatus()` — the admin/supervisor
   dashboard's Paid/Pending/Overdue tiles. Each tile **links to the matching
   filter chip on the collection page**, so it is charges-aware too: counting
-  rent alone made the tile disagree with the page it opens.
+  rent alone made the tile disagree with the page it opens. Which is also why
+  the due date and the rent owed come from `BillingCycleService` and
+  `settings('billing_overdue_days')` and not from a second derivation here. It
+  re-derived both until 2026-09 — rent due on each tenant's own move-in day,
+  with no grace at all — so an account with a collection day set had a tile and
+  a chip that disagreed in **both** directions: a tenant inside the grace
+  period read Overdue on the dashboard and Pending on the page, and one past a
+  collection day earlier than their move-in day read Pending on the dashboard
+  while the page called them overdue. A prorated move-in month also went into
+  `total_pending` at the full month's rent.
+  **`bills_total` is the page's row count**, so an "upcoming" row counts too:
+  an empty room whose next tenancy begins later gets a pending row on the page,
+  and the tile counts it while adding nothing to `total_pending` — nothing is
+  owed for a month the tenancy never touched.
+  `tests/Feature/Dashboard/DashboardTileParityTest.php` pins the tiles against
+  the page they open, scenario by scenario, rather than against hard-coded
+  numbers.
 - `TenantRentProgressCalculator` — the tenant-index badge in both panels, and
   the `?rent_status=paid|pending|overdue` filter in both TenantControllers.
   Its `status` is **rent-only by design** (the badge sits beside a rent progress

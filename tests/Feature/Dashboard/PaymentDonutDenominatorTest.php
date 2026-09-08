@@ -119,12 +119,21 @@ it('still bills a room whose next tenancy has not begun yet', function () {
     expect(julyStats($this->admin->id, $this->period->id)['payments']['bills_total'])->toBe(1);
 });
 
-it('reports a zero denominator when no tenancy is billable in the month', function () {
+it('keeps an empty room awaiting its next tenant in the denominator, owing nothing', function () {
     $apartment = makeApartment(null, ['monthly_rent' => 500, 'status' => 'available']);
     makeRental(makeTenant($apartment), $apartment, [
         'start_date' => '2026-09-01', // moves in later
         'rent_amount' => 500,
     ]);
 
-    expect(julyStats($this->admin->id, $this->period->id)['payments']['bills_total'])->toBe(0);
+    // The rent collection page gives this room an "Upcoming" row in the pending
+    // bucket, and the tiles link to that page's chips — so the tile has to count
+    // the same row or the Pending chip lists a bill the Pending tile denied.
+    // Nothing is owed for a month the tenancy never touched, so it adds no money.
+    $payments = julyStats($this->admin->id, $this->period->id)['payments'];
+
+    expect($payments['bills_total'])->toBe(1)
+        ->and($payments['pending'])->toBe(1)
+        ->and($payments['overdue'])->toBe(0)
+        ->and($payments['total_pending'])->toBe(0.0);
 });
