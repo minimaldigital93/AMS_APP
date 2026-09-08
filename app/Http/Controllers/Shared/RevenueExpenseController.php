@@ -1104,6 +1104,18 @@ abstract class RevenueExpenseController extends Controller
                     'charges_settled' => $chargesSettled,
                     'has_outstanding' => ! $notStartedYet && (! $paidThisMonth || $unpaidChargeTotal > 0),
                     'is_upcoming' => $isUpcoming,
+                    // Whether anything can be BILLED against this row yet. The
+                    // badge and the affordance have to agree: a row reading
+                    // "Upcoming" has nothing to charge, so it offers no
+                    // Add-charge button. Two ways a row gets that badge and
+                    // both belong here (<x-bill-status> folds the same pair) —
+                    // the tenancy has not begun by month end ($isUpcoming), or
+                    // the whole month is still ahead ($isFutureMonth), where no
+                    // meter has been read and no charge has been incurred.
+                    // Gating on $isUpcoming alone would leave every row of a
+                    // future month labelled Upcoming with a live + button.
+                    // addTenantCharge() enforces the same rule server-side.
+                    'billable' => ! $isUpcoming && ! $isFutureMonth,
                     'paid_this_month' => $paidThisMonth,
                     'utilities' => $utilityCharges,
                     'total_utilities' => $totalUtilities,
@@ -1329,6 +1341,18 @@ abstract class RevenueExpenseController extends Controller
         $validated = $request->validated();
         $rental = Rentals::with('tenant')->findOrFail($validated['rental_id']);
         $this->authorizeRentalAccess($rental);
+
+        // An "Upcoming" bill has nothing to charge, and the collection page
+        // offers no Add-charge button on one ($bill['billable']). Enforce the
+        // same rule here: the modal posts the month it was opened on, so a
+        // stale tab is the only way in, and a charge raised against a month
+        // nobody has lived yet is money invented out of the calendar.
+        if ($fault = $this->upcomingChargeFault($rental, $validated)) {
+            return $request->expectsJson()
+                ? response()->json(['message' => $fault], 422)
+                : redirect()->back()->with('error', $fault);
+        }
+
         $period = $this->getActiveFiscalPeriod();
         $charge = $period
             ? $this->incomeService($period)->addTenantCharge($rental, $validated)
@@ -1371,6 +1395,33 @@ abstract class RevenueExpenseController extends Controller
         }
 
         return redirect()->back()->with('success', $successMsg);
+    }
+
+    /**
+     * Why this charge can't be raised yet, or null when it can. Mirrors the two
+     * cases the rent collection page badges as "Upcoming": the month itself has
+     * not arrived (no meter read, nothing incurred), or the tenancy does not
+     * begin until after the billed month ends.
+     */
+    private function upcomingChargeFault(Rentals $rental, array $validated): ?string
+    {
+        $billedStart = Carbon::create(
+            (int) ($validated['billing_year'] ?? now()->year),
+            (int) ($validated['billing_month'] ?? now()->month),
+            1
+        )->startOfMonth();
+
+        if ($billedStart->gt(now()->startOfMonth())) {
+            return __('messages.flash_charge_month_upcoming');
+        }
+
+        if ($rental->start_date && $rental->start_date->gt($billedStart->copy()->endOfMonth())) {
+            return __('messages.flash_charge_tenancy_upcoming', [
+                'name' => $rental->tenant->name ?? __('messages.tenant'),
+            ]);
+        }
+
+        return null;
     }
 
     public function removeTenantCharge($chargeId)

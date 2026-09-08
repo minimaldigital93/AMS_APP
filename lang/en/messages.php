@@ -1186,6 +1186,8 @@ return [
     'flash_no_new_expenses' => 'No new expenses generated.',
     'flash_charge_added' => ':type charge of $:amount added for :name.',
     'flash_charge_updated' => ":name's :type charge for this month updated to $:amount.",
+    'flash_charge_month_upcoming' => 'That month has not started yet — charges can only be added once the month is under way.',
+    'flash_charge_tenancy_upcoming' => ":name's tenancy has not started yet, so nothing can be charged for that month.",
     'flash_checkout_payment' => 'Payment of $:amount recorded for :name (Apt :apt).',
     'flash_income_recorded' => ':type income of $:amount recorded for room :apt.',
     'flash_bulk_rent' => 'Monthly rent recorded for :count room(s). Total: $:total',

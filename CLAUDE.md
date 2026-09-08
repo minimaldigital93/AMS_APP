@@ -869,6 +869,18 @@ Three rules this depends on:
   hidden only when **both** sides are settled (`rent_status = paid` **and**
   `charges_status = paid`) — that month is finished, so there is nothing left to
   bill on it.
+- **…and an `Upcoming` row offers it at all.** `billable`
+  (`! is_upcoming && ! isFutureMonth`) is the second gate, and it is the pair
+  `<x-bill-status>` already folds into that badge: the tenancy has not begun by
+  month end, or the whole month is still ahead. Either way no meter has been
+  read and nothing has been incurred, so the badge and the affordance have to
+  agree — gating on `is_upcoming` alone leaves every row of a future month
+  labelled Upcoming with a live **+** button.
+  `addTenantCharge()` refuses the same two cases server-side
+  (`upcomingChargeFault()`), since the modal posts the month it was opened on
+  and a stale tab is the way in. Checkout was already gated —
+  `has_outstanding` is false for a not-yet-started tenancy.
+  `tests/Feature/RevenueExpense/UpcomingBillNotChargeableTest.php` pins it.
 - **Quote checkout the unpaid totals** (`unpaid_utility_only`,
   `unpaid_other_charges`), never the gross ones. `settleUtilitiesForMonth()`
   only settles unpaid rows, so a second visit shown gross figures re-quotes

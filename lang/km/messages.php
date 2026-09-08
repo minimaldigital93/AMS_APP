@@ -1180,6 +1180,8 @@ return [
     'flash_no_new_expenses' => 'មិនមានចំណាយថ្មីត្រូវបានបង្កើតទេ។',
     'flash_charge_added' => 'ការគិតប្រាក់ :type ចំនួន $:amount ត្រូវបានបន្ថែមសម្រាប់ :name។',
     'flash_charge_updated' => 'ការគិតប្រាក់ :type របស់ :name សម្រាប់ខែនេះ ត្រូវបានកែតម្រូវទៅ $:amount។',
+    'flash_charge_month_upcoming' => 'ខែនោះមិនទាន់ចាប់ផ្តើមនៅឡើយទេ — អាចបន្ថែមការគិតប្រាក់បានលុះត្រាតែខែនោះបានចាប់ផ្តើម។',
+    'flash_charge_tenancy_upcoming' => 'កិច្ចសន្យាជួលរបស់ :name មិនទាន់ចាប់ផ្តើមនៅឡើយទេ ដូច្នេះមិនអាចគិតប្រាក់សម្រាប់ខែនោះបានទេ។',
     'flash_checkout_payment' => 'ការទូទាត់ $:amount ត្រូវបានកត់ត្រាសម្រាប់ :name (បន្ទប់ :apt)។',
     'flash_income_recorded' => 'ចំណូល :type ចំនួន $:amount ត្រូវបានកត់ត្រាសម្រាប់បន្ទប់ :apt។',
     'flash_bulk_rent' => 'ថ្លៃជួលប្រចាំខែត្រូវបានកត់ត្រាសម្រាប់ :count បន្ទប់។ សរុប៖ $:total',

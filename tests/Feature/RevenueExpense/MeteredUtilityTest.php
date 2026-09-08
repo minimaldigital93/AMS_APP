@@ -2,16 +2,26 @@
 
 use App\Models\Utilities;
 use App\Services\RevenueExpense\IncomeRecordingService;
+use Carbon\Carbon;
 
 beforeEach(function () {
+    // Every case here bills May 2026, so the clock is pinned inside it and the
+    // tenancy starts before it: a charge raised against a month the tenancy has
+    // not reached is refused as "Upcoming" (UpcomingBillNotChargeableTest).
+    Carbon::setTestNow('2026-05-20');
     $this->admin = makeAdmin();
     $this->actingAs($this->admin); // so settings() resolve for this account
     $this->period = makeFiscalPeriod($this->admin);
     $this->apartment = makeApartment(null, ['apartment_number' => 'A-101', 'monthly_rent' => 500]);
-    $this->tenant = makeTenant($this->apartment);
-    $this->rental = makeRental($this->tenant, $this->apartment, ['rent_amount' => 500]);
+    $this->tenant = makeTenant($this->apartment, ['move_in_date' => '2026-03-01']);
+    $this->rental = makeRental($this->tenant, $this->apartment, [
+        'rent_amount' => 500,
+        'start_date' => '2026-03-01',
+    ]);
     $this->service = new IncomeRecordingService(userId: $this->admin->id, period: $this->period);
 });
+
+afterEach(fn () => Carbon::setTestNow());
 
 it('records an opening reading with meter-in only and no charge', function () {
     $this->service->addTenantCharge($this->rental, [

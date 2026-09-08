@@ -261,6 +261,11 @@
                         // Rent in, charges still open — the badge says "Rent Paid" and the
                         // row is tinted to match. Still the pending bucket for the filter.
                         $rentPaidOnly = $bill['rent_status'] === 'paid' && ! ($bill['charges_settled'] ?? false);
+                        // Nothing to bill on a row the badge reads "Upcoming" (tenancy not
+                        // begun, or the whole month still ahead), and nothing left to bill
+                        // once both sides are settled. See $bill['billable'].
+                        $canAddCharge = ($bill['billable'] ?? true)
+                            && ! ($bill['rent_status'] === 'paid' && ($bill['charges_status'] ?? 'none') === 'paid');
                     @endphp
                     <tr x-show="isFloorOpen('{{ $floorId }}') && matchesFilter('{{ $bill['status'] }}', '{{ strtolower($bill['tenant']->name ?? '') }}', '{{ strtolower($bill['apartment']->apartment_number ?? '') }}')"
                         class="hover:bg-gray-50 transition {{ $bill['status'] === 'overdue' ? 'bg-red-50/40' : ($bill['status'] === 'paid' ? 'bg-emerald-50/40' : ($rentPaidOnly ? 'bg-teal-50/40' : (($isFutureMonth || ($bill['is_upcoming'] ?? false)) ? 'bg-sky-50/30' : ''))) }}">
@@ -309,14 +314,15 @@
                                 {{-- Stays available while either side is still open: the
                                      meters are read after the rent visit, so a rent-paid
                                      row with no charges yet ('none') is exactly the row
-                                     that still needs them entered. Only a fully settled
-                                     month — rent paid *and* charges paid — hides it. --}}
-                                @unless($bill['rent_status'] === 'paid' && ($bill['charges_status'] ?? 'none') === 'paid')
+                                     that still needs them entered. Hidden by a fully
+                                     settled month — rent paid *and* charges paid — and by
+                                     an Upcoming row, which has nothing to bill at all. --}}
+                                @if($canAddCharge)
                                 <button @click="openAddCharge({{ $bill['rental']->id }}, '{{ addslashes($bill['tenant']->name ?? __('messages.tenant')) }}', '{{ $bill['apartment']->apartment_number }}')"
                                     class="inline-flex items-center justify-center h-7 w-7 rounded-md text-orange-600 bg-orange-50 hover:bg-orange-100 transition" title="{{ __('messages.add_charge') }}">
                                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/></svg>
                                 </button>
-                                @endunless
+                                @endif
                                 <button @click="openChargesReceipt({{ $bill['rental']->id }}, '{{ addslashes($bill['tenant']->name ?? __('messages.tenant')) }}', '{{ $bill['apartment']->apartment_number }}', {{ $chargesJson->toJson() }}, {{ $bill['monthly_rent'] }}, {{ $bill['total_fixed'] }})"
                                     class="inline-flex items-center justify-center h-7 w-7 rounded-md text-sky-600 bg-sky-50 hover:bg-sky-100 transition" title="{{ __('messages.view_charges') }}">
                                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
@@ -355,6 +361,10 @@
                 ])->values();
                 // Rent in, charges still open — see the desktop row.
                 $rentPaidOnly = $bill['rent_status'] === 'paid' && ! ($bill['charges_settled'] ?? false);
+                // Nothing to bill on an Upcoming row, nothing left to bill once both
+                // sides are settled — see the desktop row.
+                $canAddCharge = ($bill['billable'] ?? true)
+                    && ! ($bill['rent_status'] === 'paid' && ($bill['charges_status'] ?? 'none') === 'paid');
             @endphp
             <div x-show="isFloorOpen('{{ $floorId }}') && matchesFilter('{{ $bill['status'] }}', '{{ strtolower($bill['tenant']->name ?? '') }}', '{{ strtolower($bill['apartment']->apartment_number ?? '') }}')"
                  class="flex items-center gap-3 px-4 py-3 active:bg-slate-50 transition {{ $bill['status'] === 'overdue' ? 'bg-red-50/40' : ($bill['status'] === 'paid' ? 'bg-emerald-50/40' : ($rentPaidOnly ? 'bg-teal-50/40' : (($isFutureMonth || ($bill['is_upcoming'] ?? false)) ? 'bg-sky-50/30' : ''))) }}">
@@ -373,15 +383,16 @@
                     <x-bill-status :bill="$bill" :future="$isFutureMonth" compact />
                 </div>
                 <div class="flex items-center gap-1 flex-shrink-0">
-                    {{-- Hidden only when both sides are settled — see the desktop row. --}}
-                    @unless($bill['rent_status'] === 'paid' && ($bill['charges_status'] ?? 'none') === 'paid')
+                    {{-- Hidden when both sides are settled, and on an Upcoming row —
+                         see the desktop row. --}}
+                    @if($canAddCharge)
                     <button @click="openAddCharge({{ $bill['rental']->id }}, '{{ addslashes($bill['tenant']->name ?? __('messages.tenant')) }}', '{{ $bill['apartment']->apartment_number }}')"
                         class="inline-flex items-center justify-center h-8 w-8 rounded-lg text-orange-600 bg-orange-50 active:bg-orange-100 transition" title="{{ __('messages.add_charge') }}">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/></svg>
                     </button>
                     @else
                     <span class="h-8 w-8 flex-shrink-0" aria-hidden="true"></span>
-                    @endunless
+                    @endif
                     <button @click="openChargesReceipt({{ $bill['rental']->id }}, '{{ addslashes($bill['tenant']->name ?? __('messages.tenant')) }}', '{{ $bill['apartment']->apartment_number }}', {{ $chargesJson->toJson() }}, {{ $bill['monthly_rent'] }}, {{ $bill['total_fixed'] }})"
                         class="inline-flex items-center justify-center h-8 w-8 rounded-lg text-sky-700 bg-sky-50 active:bg-sky-100 transition" title="{{ __('messages.view_charges') }}">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
