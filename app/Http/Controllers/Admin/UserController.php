@@ -326,8 +326,14 @@ class UserController extends Controller
             ? $user->tenants->whereIn('status', ['active', 'pending'])->first()?->apartment
             : null;
 
+        // The account owner's row is pinned to the top of the roster. It is the
+        // locked row (_row/_card's $rowLocked, authorizeTeamMember()'s 403) and
+        // the one every other row's account_id points at, so it heads the list
+        // whatever the owner happens to be called — sorting it by name alongside
+        // the co-admins buried it under any team member earlier in the alphabet.
         return sprintf(
-            '%d|%020d|%s|%s',
+            '%d|%d|%020d|%s|%s',
+            $this->isAccountOwner($user) ? 0 : 1,
             $rank,
             $apartment?->floor?->id ?? PHP_INT_MAX,
             $apartment?->apartment_number ?? '~',

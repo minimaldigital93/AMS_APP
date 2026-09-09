@@ -537,7 +537,15 @@ class IncomeRecordingService
     {
         return DB::transaction(function () use ($rental, $data) {
             $paymentDate = $data['payment_date'];
+            // One method per VISIT, not per bill: the rent is handed over
+            // mid-month and the charges at the turn of the next one, so each
+            // call writes its own Payments row and the tenant may well pay the
+            // two sides differently. Nothing here reads the other visit's row.
             $paymentMethod = $data['payment_method'];
+            // Rent-side only, on purpose — it is percent-of-rent per day past
+            // the grace period, and it is booked below on the rent Payments row.
+            // A charges-only visit takes none of it (the modal stopped offering
+            // the field there once it was quoting money this never collected).
             $lateFee = $data['late_fee'] ?? 0;
             $reference = $data['transaction_reference'] ?? null;
             $note = $data['note'] ?? null;

@@ -618,6 +618,7 @@ return [
     'rent_plus_room_costs' => 'ថ្លៃជួល + ថ្លៃបន្ទប់',
     'rent_paid_already' => 'បានប្រមូលថ្លៃជួលរួចហើយ',
     'charges_paid_already' => 'បានប្រមូលការគិតថ្លៃរួចហើយ',
+    'charges_after_rent' => 'ការគិតថ្លៃ — ប្រមូលនៅពេលមកលើកក្រោយ',
     'details_lower' => 'ព័ត៌មានលម្អិត',
     'add_late_fee' => 'បន្ថែមថ្លៃពិន័យយឺត',
     'total_to_collect' => 'សរុបត្រូវប្រមូល',

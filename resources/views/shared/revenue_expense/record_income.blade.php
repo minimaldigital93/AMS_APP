@@ -624,7 +624,13 @@
             ],
         ];
     @endphp
-    <div x-show="showAddCharge" x-cloak x-ref="addChargeModal" class="fixed inset-0 z-[70] overflow-y-auto" aria-modal="true">
+    {{-- Amounts and meter readings are TYPED, not stepped: `ams-plain-numbers`
+         (foot of this file) drops the native spin buttons, which sat on top of
+         the right-aligned figure — clicking where the number ends to put the
+         caret there stepped the value instead. The wheel guard blurs the field
+         before the browser can step it while the sheet is being scrolled. --}}
+    <div x-show="showAddCharge" x-cloak x-ref="addChargeModal" class="fixed inset-0 z-[70] overflow-y-auto ams-plain-numbers" aria-modal="true"
+        @wheel="$event.target.matches('input[type=number]') && $event.target.blur()">
         <div x-ref="addChargeWrap" class="flex items-center justify-center min-h-screen px-4 py-4 sm:py-10" style="min-height:100dvh;">
             <div class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm" @click="showAddCharge = false"></div>
             <div x-ref="addChargeCard" class="bg-white rounded-2xl shadow-2xl w-full max-w-md relative z-10 flex flex-col" style="max-height:80vh;max-height:80dvh;">
@@ -805,7 +811,9 @@
     <!-- ============================================ -->
     <!-- CHECKOUT / PAY MODAL                         -->
     <!-- ============================================ -->
-    <div x-show="showCheckout" x-cloak class="fixed inset-0 z-[70] overflow-y-auto" aria-modal="true">
+    {{-- Same for the late-fee field: typed, never stepped. --}}
+    <div x-show="showCheckout" x-cloak class="fixed inset-0 z-[70] overflow-y-auto ams-plain-numbers" aria-modal="true"
+        @wheel="$event.target.matches('input[type=number]') && $event.target.blur()">
         <div class="flex items-center justify-center min-h-screen px-4 py-6">
             <div class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm" @click="closeCheckout()"></div>
             <div class="bg-white rounded-2xl shadow-xl w-full max-w-md relative z-10 flex flex-col" style="max-height:90vh;max-height:90dvh;">
@@ -881,8 +889,18 @@
                             </div>
                         </template>
 
-                        {{-- ── CHARGES: utilities + the other billed lines ── --}}
-                        <template x-if="chargesStatus === 'pending'">
+                        {{-- ── CHARGES: utilities + the other billed lines ──
+
+                             Collectable only once the rent is in. The two sides
+                             are settled on two visits — rent mid-month, charges
+                             after the meters are read — so the rent visit takes
+                             the rent and nothing else, even when the bill run
+                             has already raised this month's charges. Offering
+                             them together turned the first visit into "rent +
+                             charges" and left the second one with nothing to
+                             collect, which is not the round the collector
+                             walks. --}}
+                        <template x-if="chargesStatus === 'pending' && rentAlreadyPaid">
                             <div class="rounded-xl border transition" :class="payUtilities ? 'border-emerald-300 bg-emerald-50/40' : 'border-slate-200 bg-white'">
                                 <label class="flex items-center gap-3 px-3 py-2.5 cursor-pointer select-none">
                                     <input type="checkbox" name="pay_utilities" value="1" x-model="payUtilities"
@@ -916,6 +934,17 @@
                                         </template>
                                     </div>
                                 </div>
+                            </div>
+                        </template>
+                        {{-- Charges raised but the rent is still outstanding:
+                             stated, never charged. The collector can see what
+                             the next visit will ask for without this one
+                             quoting it. --}}
+                        <template x-if="chargesStatus === 'pending' && !rentAlreadyPaid">
+                            <div class="flex items-center gap-2 rounded-xl border border-dashed border-slate-200 px-3 py-2">
+                                <span class="flex-1 text-xs text-slate-400">{{ __('messages.charges_after_rent') }}</span>
+                                <span class="text-xs font-medium text-slate-400 flex-shrink-0"
+                                    x-text="'$' + (parseFloat(checkoutUtilities) + parseFloat(checkoutOtherCharges)).toFixed(2)"></span>
                             </div>
                         </template>
                         <template x-if="chargesStatus === 'paid'">
@@ -959,16 +988,27 @@
 
                         {{-- Late fee: an input only when there is one to charge,
                              otherwise a link. It was a permanent row that read as
-                             a required field on every on-time payment. --}}
-                        <div x-show="checkoutOverdueDays > 0 || showLateFee" x-cloak
+                             a required field on every on-time payment.
+
+                             It is a RENT-side line and only exists while this
+                             visit is collecting the rent. checkout() books it on
+                             the rent Payments row and khqrGenerate() only adds it
+                             to the QR when pay_rent is set, so on the charges
+                             visit — rent already in, meters just read — a fee
+                             typed here was quoted in "Total to collect" and then
+                             never taken: $42.50 collected against $52.50 on
+                             screen. The fee is percent-of-rent per day overdue
+                             (late_fee_suggested), which is the same reason it
+                             has no meaning on a charges-only visit. --}}
+                        <div x-show="payRent && (checkoutOverdueDays > 0 || showLateFee)" x-cloak
                             class="flex items-center justify-between px-3 py-2 rounded-xl border border-slate-200">
                             <span class="text-sm text-slate-500">{{ __('messages.late_fee') }}</span>
                             <input type="number" name="late_fee" x-model="checkoutLateFee" step="0.01" min="0"
                                 class="w-24 text-right text-sm border border-slate-200 rounded-lg px-2 py-1 focus:ring-1 focus:ring-emerald-500 focus:border-emerald-500">
                         </div>
-                        <p x-show="lateFeePercent > 0 && checkoutOverdueDays > 0" x-cloak class="text-[11px] text-slate-400 px-3"
+                        <p x-show="payRent && lateFeePercent > 0 && checkoutOverdueDays > 0" x-cloak class="text-[11px] text-slate-400 px-3"
                             x-text="'{{ __('messages.late_fee_auto_hint') }}'.replace(':percent', lateFeePercent).replace(':days', checkoutOverdueDays)"></p>
-                        <button type="button" x-show="checkoutOverdueDays <= 0 && !showLateFee" @click="showLateFee = true"
+                        <button type="button" x-show="payRent && checkoutOverdueDays <= 0 && !showLateFee" @click="showLateFee = true"
                             class="text-[11px] text-slate-400 hover:text-slate-600 px-3">+ {{ __('messages.add_late_fee') }}</button>
                     </div>
 
@@ -1632,7 +1672,10 @@ function billingManager() {
             this.rentAlreadyPaid = rentStatus === 'paid';
             this.chargesStatus = chargesStatus;
             this.payRent = ! this.rentAlreadyPaid;
-            this.payUtilities = chargesStatus === 'pending';
+            // Charges wait for the rent. While it is outstanding this visit is
+            // the rent visit, so the charges side is neither ticked nor shown
+            // as a line — it comes back as its own payment next time.
+            this.payUtilities = chargesStatus === 'pending' && this.rentAlreadyPaid;
             this.showChargeDetail = false;
             this.showLateFee = parseFloat(lateFee) > 0;
             this.resetKhqr();
@@ -1883,7 +1926,14 @@ function billingManager() {
 
         calculateCheckoutTotal() {
             let total = 0;
-            if (this.payRent) total += parseFloat(this.checkoutRent) || 0;
+            // The late fee rides with the rent, never on its own: checkout()
+            // stamps it on the rent Payments row and khqrGenerate() only adds it
+            // to the QR when pay_rent is set. Adding it unconditionally quoted a
+            // charges-only visit money the app then didn't book.
+            if (this.payRent) {
+                total += parseFloat(this.checkoutRent) || 0;
+                total += parseFloat(this.checkoutLateFee) || 0;
+            }
             if (this.payUtilities) {
                 total += parseFloat(this.checkoutUtilities) || 0;
                 total += parseFloat(this.checkoutOtherCharges) || 0;
@@ -1891,7 +1941,6 @@ function billingManager() {
             // checkoutFixed is deliberately absent: the room's un-raised fixed
             // costs are a preview of the next bill run, not something this form
             // can collect (see the note beside the card above).
-            total += parseFloat(this.checkoutLateFee) || 0;
             return total.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
         }
     };
@@ -1900,5 +1949,21 @@ function billingManager() {
 
 <style>
     [x-cloak] { display: none !important; }
+
+    /* A money field is typed. Chrome/Safari paint the spin buttons over the
+       right edge of the box — which on these right-aligned amount and meter
+       inputs is exactly where the value ends and where the operator clicks to
+       place the caret, so a click meant to edit the figure stepped it by 0.01
+       instead. Removing them leaves the keyboard as the only way in (arrow
+       keys still step a focused field, as they do in any number input). */
+    .ams-plain-numbers input[type="number"]::-webkit-outer-spin-button,
+    .ams-plain-numbers input[type="number"]::-webkit-inner-spin-button {
+        -webkit-appearance: none;
+        margin: 0;
+    }
+    .ams-plain-numbers input[type="number"] {
+        -moz-appearance: textfield;
+        appearance: textfield;
+    }
 </style>
 @endsection

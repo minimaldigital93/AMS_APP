@@ -621,6 +621,7 @@ return [
     'rent_plus_room_costs' => 'Rent + room costs',
     'rent_paid_already' => 'Rent already collected',
     'charges_paid_already' => 'Charges already collected',
+    'charges_after_rent' => 'Charges — collected on the next visit',
     'details_lower' => 'Details',
     'add_late_fee' => 'Add late fee',
     'total_to_collect' => 'Total to collect',

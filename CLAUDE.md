@@ -915,12 +915,36 @@ Three rules this depends on:
   disabled checkbox posts nothing anyway, so it was only competing for
   attention with the live line. `charges_status = none` prints
   `no_charges_yet`, which is what makes the second visit expected rather than a
-  surprise. Itemisation (rent + room costs, each charge by name) is behind a
+  surprise. **The charges side is only a card once the rent is in**
+  (`chargesStatus === 'pending' && rentAlreadyPaid`, and `payUtilities` is
+  pre-ticked on the same condition): the bill run raises a month's charges
+  before anyone comes to collect, so with an unpaid rent both sides were live
+  on the first visit — the collector took rent + charges in one go and the
+  charges visit the workflow is built around had nothing left to settle.
+  Charges raised while the rent is outstanding print as a dashed, read-only
+  line (`charges_after_rent`) so the next visit's figure is visible without
+  this visit quoting it. Itemisation (rent + room costs, each charge by name) is behind a
   Details disclosure, the period/due pair lives in the header subtitle, and the
   late-fee **input only exists when there is a late fee** — otherwise it is an
   "+ Add late fee" link. Submit is disabled while neither side is ticked. None
   of this changes what is posted: `pay_rent`, `pay_utilities`, `late_fee`,
   `payment_method`, `payment_date`, `billing_month`/`billing_year`.
+- **Each visit is its own payment, method included.** One `checkout()` call
+  writes one `Payments` row per side it settles, and nothing reads the other
+  visit's row — so the rent can come in cash on the 25th and the charges by bank
+  or KHQR on the 2nd, and the two rows keep their own method, type, anchor date
+  and ledger rows. The `payment_method` radio is per submission, not per bill;
+  the bill summary prints `paymentMethod = null` for exactly this reason (a
+  month has as many methods as it had visits), and the row's receipt button
+  opens the summary rather than a receipt once the month holds more than one.
+- **The late fee is a rent-side line, so it only exists on the rent visit.**
+  `checkout()` books it on the rent `Payments` row and `khqrGenerate()` only
+  adds it to the QR when `pay_rent` is set — it is percent-of-rent per day past
+  the grace period (`late_fee_suggested`), which is why it has no meaning once
+  the rent is already in. The input, its hint, the "+ Add late fee" link and
+  `calculateCheckoutTotal()` are all gated on `payRent`; until 2026-09 the total
+  added it unconditionally, so a charges-only visit quoted $52.50 on screen and
+  booked $42.50 — money read out to the tenant that the app never collected.
 - **Pending is tracked per side** (`totalPendingRent` + `totalPendingCharges`).
   One all-or-nothing test — the old behaviour — dropped a rent-paid tenant's
   unpaid charges out of the tile entirely, which under this workflow is every
@@ -950,7 +974,9 @@ Three rules this depends on:
 was the status and totals layer that assumed one payment.
 `tests/Feature/RevenueExpense/SplitRentChargesStatusTest.php` pins the two sides;
 `tests/Feature/RevenueExpense/RecordIncomeFiguresTest.php` pins the money the
-page states against the money checkout books.
+page states against the money checkout books;
+`tests/Feature/RevenueExpense/SequentialCheckoutTest.php` pins the two visits end
+to end — a cash rent visit then a bank/KHQR charges visit, each its own payment.
 
 ### A mistaken payment is reversed, not corrected in place
 
