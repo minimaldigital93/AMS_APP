@@ -1011,8 +1011,34 @@ the **payment-history modal** of the tenant detail page (`<x-reverse-payment>`).
   ask the owner. Don't answer this by loosening the rule: the reopen → reverse →
   re-close path is the sanctioned one, and it was only ever undiscoverable.
 - Reversal does **not** refund a KHQR transaction — it corrects the books only.
+- **Removing a PAID charge is this same operation, reached from the other end.**
+  The charges modal on the rent collection page (the eye icon) offers its remove
+  button on paid lines too, and `IncomeRecordingService::removeTenantCharge()`
+  answers it by reversing the payment that settled the charge and *then*
+  dropping the row — never by deleting the row with the guard taken off, which
+  would leave the `Payments` row and its `Accounts` income standing with nothing
+  behind them. Consequences to keep in mind before touching it:
+  - **The reversal takes the whole payment**, so every other charge in that
+    batch goes back to unpaid and must be collected again. Reducing the payment
+    to the remaining charges instead was rejected: it restates an amount a
+    printed receipt already quotes, and receipts here reprint byte-identical
+    forever. The confirm dialog and the success message both say so — the
+    operator clicked one line and cannot see the rest of the batch.
+  - **The charge finds its payment by `paid_at`**, the same join `printReceipt()`
+    and `PaymentReversalService::settledCharges()` use, read backwards
+    (`settlingPayment()`). A paid charge with **no** matching payment — the shape
+    a move-out settlement leaves, booking income with no `Payments` row — is
+    **refused**, not deleted: there is nothing to reverse and no reliable way to
+    find its ledger rows, so removing it would strand the income.
+  - Every other refusal is `PaymentReversalService`'s verbatim, closed month and
+    closed period included. The same refusal must not read differently depending
+    on whether it was hit from the tenant page's undo button or from this modal.
+  - The route sits behind `fiscal.period` + `month.close` like the rest of the
+    group; it is **not** exempt the way `reverse_payment` is.
 
-`tests/Feature/RevenueExpense/PaymentReversalTest.php` pins all of it.
+`tests/Feature/RevenueExpense/PaymentReversalTest.php` pins all of it;
+`tests/Feature/RevenueExpense/RemoveTenantChargeTest.php` pins the charge-side
+entry point.
 
 ### Both sides of a checkout settle the *billed* month
 

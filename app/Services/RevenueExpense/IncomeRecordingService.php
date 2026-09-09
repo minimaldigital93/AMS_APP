@@ -42,11 +42,21 @@ class IncomeRecordingService
      */
     public const SINGLE_PER_MONTH_TYPES = ['parking', 'internet', 'trash'];
 
+    /**
+     * Refusal reasons from removeTenantCharge(). The rest of the vocabulary is
+     * PaymentReversalService's — a paid charge is removed by reversing the
+     * payment that settled it, so its refusals are this method's refusals.
+     */
+    public const REMOVE_PAYMENT_UNMATCHED = 'payment_unmatched';
+
     public function __construct(
         private int $userId,
         private FiscalPeriods $period,
         private ?int $propertyId = null,
-    ) {}
+        private ?PaymentReversalService $reversals = null,
+    ) {
+        $this->reversals ??= app(PaymentReversalService::class);
+    }
 
     /**
      * The property a ledger row belongs to: derived from the rental's room
@@ -355,18 +365,104 @@ class IncomeRecordingService
     }
 
     /**
-     * Remove an unpaid tenant charge plus any orphan Accounts entry tied to it.
-     * Returns false if the charge has already been paid.
+     * Remove a tenant charge, unbooking whatever money it is carrying.
+     *
+     * An UNPAID charge is just a line on a derived bill — dropping the row (and
+     * any legacy accrual entry tied to it) is the whole operation.
+     *
+     * A PAID one is collected money, and the app has exactly one sanctioned way
+     * to undo that: PaymentReversalService. So removing a paid charge is the
+     * composite — reverse the payment that settled it, then drop the row — and
+     * not a delete with the guard taken off. Deleting the row alone would leave
+     * the Payments row and its Accounts income standing with nothing behind
+     * them, which is income the books can no longer explain and the receipt
+     * already handed to the tenant no longer reconciles to.
+     *
+     * Two consequences the caller has to be able to state, because the operator
+     * cannot see them from the charge line they clicked:
+     *
+     * - The reversal takes the WHOLE payment, so every other charge in that
+     *   batch goes back to unpaid and has to be collected again. Reducing the
+     *   payment instead would restate an amount a printed receipt already
+     *   quotes, and receipts here reprint byte-identical forever.
+     * - Closed money is never restated. The reversal's own closed-period and
+     *   closed-month refusals are returned verbatim, so the answer is "reopen
+     *   the month", never a silent no-op.
+     *
+     * @return array{removed: bool, reason: ?string, reversed: float, unsettled: int}
      */
-    public function removeTenantCharge(Utilities $charge): bool
+    public function removeTenantCharge(Utilities $charge): array
     {
-        if ($charge->paid_status) {
-            return false;
+        if (! $charge->paid_status) {
+            $this->deleteChargeRow($charge);
+
+            return ['removed' => true, 'reason' => null, 'reversed' => 0.0, 'unsettled' => 0];
         }
 
-        // Best-effort: drop any Accounts row that referenced this charge before
-        // payment (older code path). Failure is non-fatal but must leave a
-        // trace — this is ledger data.
+        $payment = $this->settlingPayment($charge);
+
+        // Not every paid charge was settled through checkout — a move-out
+        // settlement books its income with no Payments row of its own. There is
+        // nothing to reverse there and no reliable way to find the ledger rows,
+        // so refuse rather than delete the charge and orphan the income.
+        if (! $payment) {
+            return ['removed' => false, 'reason' => self::REMOVE_PAYMENT_UNMATCHED, 'reversed' => 0.0, 'unsettled' => 0];
+        }
+
+        return DB::transaction(function () use ($charge, $payment) {
+            $result = $this->reversals->reverse($payment);
+
+            if (! $result['reversed']) {
+                return ['removed' => false, 'reason' => $result['reason'], 'reversed' => 0.0, 'unsettled' => 0];
+            }
+
+            // The reversal has just put this row back to unpaid; re-read it so
+            // the delete works off the row as it now stands.
+            $this->deleteChargeRow($charge->refresh());
+
+            return [
+                'removed' => true,
+                'reason' => null,
+                'reversed' => $result['amount'],
+                // This charge was one of the rows the reversal un-settled. What
+                // is left is what the operator now has to collect again.
+                'unsettled' => max($result['charges'] - 1, 0),
+            ];
+        });
+    }
+
+    /**
+     * The payment that settled a paid charge, or null when none can be told.
+     *
+     * Utilities carry no payment_id — settleUtilityRows() stamps their paid_at
+     * from the same clock as the Payments row, so that timestamp is the join.
+     * It is the same one printReceipt() and PaymentReversalService use, read in
+     * the other direction. A second batch sharing the timestamp is not resolved
+     * here: the reversal's own reconciliation refuses it (charges_unmatched)
+     * rather than guessing which payment covered this row.
+     */
+    private function settlingPayment(Utilities $charge): ?Payments
+    {
+        if (! $charge->rental_id || ! $charge->paid_at) {
+            return null;
+        }
+
+        return Payments::where('rental_id', $charge->rental_id)
+            ->where('payment_type', 'utilities')
+            ->where('payment_status', 'paid')
+            ->where('paid_at', $charge->paid_at)
+            ->first();
+    }
+
+    /**
+     * Drop a charge row plus any orphan Accounts entry tied to it.
+     *
+     * The Accounts sweep is for the older code path that booked income at
+     * charge time (reference_number 'tenant_charge:{id}', no payment_id).
+     * Failure is non-fatal but must leave a trace — this is ledger data.
+     */
+    private function deleteChargeRow(Utilities $charge): void
+    {
         try {
             Accounts::where('reference_number', 'tenant_charge:'.$charge->id)
                 ->whereNull('payment_id')
@@ -380,8 +476,6 @@ class IncomeRecordingService
         }
 
         $charge->delete();
-
-        return true;
     }
 
     /**

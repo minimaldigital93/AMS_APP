@@ -434,7 +434,7 @@
     <!-- ============================================ -->
     <div x-show="showChargesReceipt" x-cloak class="fixed inset-0 z-[70] overflow-y-auto" aria-modal="true">
         <div class="flex items-center justify-center min-h-screen px-4">
-            <div class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm" @click="showChargesReceipt = false"></div>
+            <div class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm" @click="closeChargesReceipt()"></div>
             <div class="bg-white rounded-2xl shadow-xl w-full max-w-sm relative z-10">
                 <!-- Header -->
                 <div class="px-5 py-4 flex items-center justify-between border-b border-slate-100">
@@ -447,7 +447,7 @@
                             <p class="text-xs text-slate-400">{{ __('messages.charge_receipt') }}</p>
                         </div>
                     </div>
-                    <button @click="showChargesReceipt = false" class="text-slate-400 hover:text-slate-600 w-7 h-7 flex items-center justify-center rounded-lg hover:bg-slate-100 transition text-lg">&times;</button>
+                    <button @click="closeChargesReceipt()" class="text-slate-400 hover:text-slate-600 w-7 h-7 flex items-center justify-center rounded-lg hover:bg-slate-100 transition text-lg">&times;</button>
                 </div>
 
                 <!-- Charge list -->
@@ -459,7 +459,10 @@
                     </div>
 
                     <!-- Dynamic charges -->
-                    <template x-for="(c, i) in viewCharges" :key="i">
+                    {{-- Keyed by the charge id, not the loop index: after a splice
+                         the indices shift under Alpine and the removed line can be
+                         left on screen wearing the next charge's data. --}}
+                    <template x-for="(c, i) in viewCharges" :key="c.id">
                         <div class="flex items-center justify-between py-1.5 px-3 rounded-lg bg-slate-50 group">
                             <div class="flex items-center gap-2">
                                 <span class="w-2 h-2 rounded-full flex-shrink-0"
@@ -476,9 +479,23 @@
                             </div>
                             <div class="flex items-center gap-2">
                                 <span class="text-sm font-semibold" :class="c.paid ? 'text-emerald-600' : 'text-amber-700'" x-text="'$' + parseFloat(c.amount).toFixed(2)"></span>
-                                <button x-show="!c.paid" @click="removeViewCharge(c.id, i)"
-                                    class="opacity-0 group-hover:opacity-100 w-5 h-5 flex items-center justify-center text-red-400 hover:text-red-600 rounded transition"
-                                    title="{{ __('messages.remove_charge') }}">
+                                {{-- Always visible, never hover-revealed: this modal is
+                                     opened from the mobile card list too, where there is
+                                     no hover, so an opacity-0 button was a control the
+                                     phone could never show.
+
+                                     A PAID line offers it too, and it is deliberately a
+                                     different colour and a different word: that removal
+                                     is collected money coming back out, so it reverses
+                                     the payment that settled the charge rather than just
+                                     dropping the row. removeViewCharge() confirms it in
+                                     those terms before anything moves. --}}
+                                <button @click="removeViewCharge(c.id, i, c.paid)"
+                                    class="w-6 h-6 flex items-center justify-center rounded-md transition"
+                                    :class="c.paid
+                                        ? 'text-amber-600 bg-amber-50 hover:bg-amber-100 hover:text-amber-700'
+                                        : 'text-red-500 bg-red-50 hover:bg-red-100 hover:text-red-600'"
+                                    :title="c.paid ? @js(__('messages.remove_paid_charge')) : @js(__('messages.remove_charge'))">
                                     <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
                                 </button>
                             </div>
@@ -512,7 +529,7 @@
                         class="w-full flex items-center justify-center gap-2 py-2 text-sm font-medium text-red-600 bg-red-50 hover:bg-red-100 rounded-lg transition" title="{{ __('messages.delete_all_unpaid') }}">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg></button>
 
-                    <button @click="showChargesReceipt = false"
+                    <button @click="closeChargesReceipt()"
                         class="w-full py-2 text-sm font-medium text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-lg transition">{{ __('messages.close') }}</button>
                 </div>
             </div>
@@ -1122,6 +1139,9 @@ function billingManager() {
         // Charges Receipt Modal
         showChargesReceipt: false,
         viewRentalId: null,
+        // Set by a successful removal — close then reloads so the row's derived
+        // figures catch up. See closeChargesReceipt().
+        viewChargesDirty: false,
         viewTenant: '',
         viewApt: '',
         viewCharges: [],
@@ -1285,10 +1305,27 @@ function billingManager() {
             this.viewRentalId = rentalId;
             this.viewTenant = tenant;
             this.viewApt = apt;
-            this.viewCharges = charges;
+            // Copied, not aliased: the row's array is the page's own data and
+            // must not be mutated by a removal the page has yet to reflect.
+            this.viewCharges = charges.map(c => ({ ...c }));
             this.viewRent = rent;
             this.viewFixed = fixed;
+            this.viewChargesDirty = false;
             this.showChargesReceipt = true;
+        },
+        // Every figure on the row behind this modal is DERIVED from the charge
+        // rows — the Charges column, the Total, the status badge, the floor dot
+        // and the tiles above. So a removal is not finished when the line
+        // disappears from the list: close reloads the page and lets the server
+        // restate all of them, exactly as "Delete all unpaid" already did.
+        // Reloading per removal instead would shut the modal on someone
+        // clearing two charges in a row.
+        closeChargesReceipt() {
+            this.showChargesReceipt = false;
+            if (this.viewChargesDirty) {
+                this.viewChargesDirty = false;
+                window.location.reload();
+            }
         },
         // Rent + the charges actually raised. viewFixed is shown above as a
         // reminder and stays out of this, the same as everywhere else.
@@ -1296,19 +1333,54 @@ function billingManager() {
             const chargesSum = this.viewCharges.reduce((s, c) => s + (parseFloat(c.amount) || 0), 0);
             return (parseFloat(this.viewRent) + chargesSum).toFixed(2);
         },
-        async removeViewCharge(chargeId, index) {
-            if (!(await window.confirmAction({ message: '{{ __('messages.remove_charge_confirm') }}' }))) return;
+        // `paid` decides which of two operations this is. An unpaid charge is a
+        // line on a derived bill and removing it changes nothing but this row.
+        // A paid one is money already taken: the server reverses the payment
+        // that settled it, which also un-settles every OTHER charge that
+        // payment covered — rows this modal is not even showing. So it asks
+        // first, in those words, and reloads on the answer instead of splicing.
+        async removeViewCharge(chargeId, index, paid) {
+            const confirmed = await window.confirmAction(paid
+                ? { message: @js(__('messages.remove_paid_charge_confirm')), okLabel: @js(__('messages.remove_paid_charge_ok')) }
+                : { message: @js(__('messages.remove_charge_confirm')) });
+            if (! confirmed) return;
             const csrf = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
             try {
                 const res = await fetch('{{ url('/'.$panel.'/revenue-expense/remove-charge') }}/' + chargeId, {
                     method: 'DELETE',
                     headers: { 'X-CSRF-TOKEN': csrf, 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' }
                 });
-                if (res.ok) {
+                // A write gate (fiscal.period, month.close) refuses an XHR with
+                // a JSON 422 — but its browser answer is a REDIRECT, which
+                // fetch follows to a 200 HTML page. So `res.ok` alone is not
+                // proof the charge is gone; the JSON body is.
+                const isJson = (res.headers.get('content-type') || '').includes('json');
+                if (res.ok && isJson) {
+                    let body = {};
+                    try { body = await res.json(); } catch (e) {}
+                    // A reversal moved money and changed sibling charges. State
+                    // what came out of the books — the operator asked to remove
+                    // one line, not to un-collect a payment — and reload, since
+                    // waiting for close would leave those siblings showing paid.
+                    if (body.reversed) {
+                        await window.amsAlert(body.message || '');
+                        window.location.reload();
+                        return;
+                    }
                     this.viewCharges.splice(index, 1);
-                } else {
-                    window.location.reload();
+                    this.viewChargesDirty = true;
+                    return;
                 }
+                // A refusal has a reason and the operator needs it — the month
+                // the money sits in has been closed, the payment behind a paid
+                // charge cannot be identified, or a write gate is holding
+                // writes. Reloading in silence read as "the button does nothing".
+                let reason = '';
+                if (isJson) {
+                    try { const j = await res.json(); reason = j.error || j.message || ''; } catch (e) {}
+                }
+                await window.amsAlert(reason || '{{ __('messages.failed_to_save') }}');
+                window.location.reload();
             } catch(e) { window.location.reload(); }
         },
         // Scoped to the month this modal is showing — the charge list above is
@@ -1319,10 +1391,20 @@ function billingManager() {
             const csrf = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
             const qs = '?month={{ $currentMonth }}&year={{ $currentYear }}';
             try {
-                await fetch('{{ url('/'.$panel.'/revenue-expense/clear-charges') }}/' + this.viewRentalId + qs, {
+                const res = await fetch('{{ url('/'.$panel.'/revenue-expense/clear-charges') }}/' + this.viewRentalId + qs, {
                     method: 'DELETE',
                     headers: { 'X-CSRF-TOKEN': csrf, 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' }
                 });
+                // Same reasoning as removeViewCharge(): a followed redirect is a
+                // 200 that cleared nothing, and the reload hid it.
+                const isJson = (res.headers.get('content-type') || '').includes('json');
+                if (! (res.ok && isJson)) {
+                    let reason = '';
+                    if (isJson) {
+                        try { const j = await res.json(); reason = j.error || j.message || ''; } catch (e) {}
+                    }
+                    await window.amsAlert(reason || '{{ __('messages.failed_to_save') }}');
+                }
                 window.location.reload();
             } catch(e) { window.location.reload(); }
         },

@@ -1424,6 +1424,17 @@ abstract class RevenueExpenseController extends Controller
         return null;
     }
 
+    /**
+     * Remove one charge from the charges modal on the rent collection page.
+     *
+     * A PAID charge is removable too, and that is not the same operation: it is
+     * collected money, so the service reverses the payment that settled it
+     * before dropping the row (see IncomeRecordingService::removeTenantCharge).
+     * That reversal takes the whole payment with it, so the answer has to say
+     * what happened — how much came out of the books, and how many other
+     * charges on that payment are unpaid again — or the operator learns it from
+     * the row turning amber.
+     */
     public function removeTenantCharge($chargeId)
     {
         $charge = Utilities::with('rental.apartment.floor')->findOrFail($chargeId);
@@ -1432,23 +1443,85 @@ abstract class RevenueExpenseController extends Controller
         }
         $period = $this->getActiveFiscalPeriod();
 
-        $removed = $period
-            ? $this->incomeService($period)->removeTenantCharge($charge)
-            : false;
-
-        if (! $removed) {
+        // Two different refusals, and the charges modal now SHOWS whichever it
+        // gets — so they must not both read "already paid". A missing period is
+        // the fiscal-period gate's answer, not a fact about this charge.
+        if (! $period) {
             if (request()->expectsJson()) {
-                return response()->json(['error' => 'Cannot remove a paid charge.'], 422);
+                return response()->json(['message' => __('messages.flash_fp_required')], 422);
             }
 
-            return redirect()->back()->with('error', __('messages.flash_charge_already_paid'));
+            return $this->missingPeriodRedirect();
         }
+
+        $result = $this->incomeService($period)->removeTenantCharge($charge);
+
+        if (! $result['removed']) {
+            $error = $this->chargeRemovalRefusal($result['reason']);
+
+            if (request()->expectsJson()) {
+                return response()->json(['message' => $error], 422);
+            }
+
+            return redirect()->back()->with('error', $error);
+        }
+
+        $success = $this->chargeRemovedMessage($result);
 
         if (request()->expectsJson()) {
-            return response()->json(['success' => true]);
+            // `reversed` is what tells the modal this removal moved money: it
+            // reloads on the spot rather than waiting for close, since the
+            // other charges on that payment have just changed state too.
+            return response()->json([
+                'success' => true,
+                'message' => $success,
+                'reversed' => $result['reversed'] > 0,
+            ]);
         }
 
-        return redirect()->back()->with('success', __('messages.flash_charge_removed'));
+        return redirect()->back()->with('success', $success);
+    }
+
+    /**
+     * Why a charge could not be removed, in the operator's words.
+     *
+     * Every reason but one is PaymentReversalService's, and they already have
+     * flash strings written for the undo button on the tenant page — the same
+     * refusal must not read differently depending on which screen it was hit
+     * from, and "reopen the month" is the way through in both.
+     */
+    private function chargeRemovalRefusal(?string $reason): string
+    {
+        if ($reason === IncomeRecordingService::REMOVE_PAYMENT_UNMATCHED) {
+            return __('messages.flash_charge_payment_unmatched');
+        }
+
+        return $reason
+            ? __('messages.flash_payment_reverse_blocked_'.$reason)
+            : __('messages.flash_charge_already_paid');
+    }
+
+    /**
+     * What was actually done. An unpaid charge is a line disappearing; a paid
+     * one is a payment coming out of the books, and the count of charges left
+     * unpaid behind it is work the operator now has to redo.
+     *
+     * @param  array{removed: bool, reason: ?string, reversed: float, unsettled: int}  $result
+     */
+    private function chargeRemovedMessage(array $result): string
+    {
+        if ($result['reversed'] <= 0) {
+            return __('messages.flash_charge_removed');
+        }
+
+        $amount = number_format($result['reversed'], 2);
+
+        return $result['unsettled'] > 0
+            ? __('messages.flash_charge_removed_reversed_others', [
+                'amount' => $amount,
+                'count' => $result['unsettled'],
+            ])
+            : __('messages.flash_charge_removed_reversed', ['amount' => $amount]);
     }
 
     /**
@@ -1465,13 +1538,21 @@ abstract class RevenueExpenseController extends Controller
         $this->authorizeRentalAccess($rental);
         $period = $this->getActiveFiscalPeriod();
 
+        // Nothing was cleared without a period, so don't report success — the
+        // modal reloads on that answer and the charges would still be there.
+        if (! $period) {
+            if (request()->expectsJson()) {
+                return response()->json(['message' => __('messages.flash_fp_required')], 422);
+            }
+
+            return $this->missingPeriodRedirect();
+        }
+
         $default = working_month() ?: now();
         $month = (int) $request->input('month', $default->month);
         $year = (int) $request->input('year', $default->year);
 
-        if ($period) {
-            $this->incomeService($period)->clearTenantCharges($rental, $month, $year);
-        }
+        $this->incomeService($period)->clearTenantCharges($rental, $month, $year);
 
         if (request()->expectsJson()) {
             return response()->json(['success' => true]);
