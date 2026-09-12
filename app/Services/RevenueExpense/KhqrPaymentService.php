@@ -1317,18 +1317,10 @@ class KhqrPaymentService
         // KHQRPay expects sha1(profile_key . transaction_id)
         $params['hash'] = sha1($creds->secret.$row->transaction_id);
 
-        // Retry ONLY a failed connection, never an HTTP error response. Laravel's
-        // retry() treats any non-2xx as retryable by default (PendingRequest
-        // rethrows the response when no `when` callback is given), and `throw:
-        // false` suppresses the final exception WITHOUT suppressing that retry —
-        // so a gateway answering 502 (the unprovisioned-profile signature here)
-        // silently cost two Bakong requests per verify instead of one. This poll
-        // runs every few seconds for a QR's whole lifetime against a token with a
-        // hard daily request quota, so doubling it is the difference between a
-        // working checkout and a quota that is empty by mid-morning. A refusal is
-        // already read as "unpaid" below; only a connection blip is worth a second
-        // attempt.
-        // Through the one gated client, which counts the call BEFORE making it
+        // One provider HTTP attempt per quota reservation. The daily budget counts upstream requests,
+        // so automatic retries here could spend multiple provider requests while consuming only
+        // one budget slot. Connection failures are handled as a failed verification and can be
+        // retried later by the normal polling flow.
         // (a request that times out still spent the quota), applies the feature
         // gate, the ACTIVE-SESSION rule, the rate-limit backoff, the daily
         // ceiling and the per-session attempt cap, and logs the reason.
@@ -1342,7 +1334,7 @@ class KhqrPaymentService
             row: $row,
             perform: fn () => Http::asForm()->acceptJson()
                 ->connectTimeout(3)->timeout(8)
-                ->retry(2, 200, when: fn ($e) => $e instanceof ConnectionException, throw: false)
+                ->retry(0)
                 ->post($endpoint, $params),
             creds: $creds,
             sessionGrace: $sessionGrace,

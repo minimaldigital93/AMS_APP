@@ -333,8 +333,13 @@ it('spends exactly one Bakong request on a gateway error response, never retryin
     expect($attempts)->toBe(1);
 });
 
-/** A connection blip is the one case still worth a second attempt. */
-it('still retries a failed connection, which costs the gateway nothing', function () {
+/**
+ * One upstream attempt per reserved budget slot. A timeout reaches us as a
+ * ConnectionException but may already have been charged by Bakong, so retrying
+ * it here spends a second request against a single reservation. The next poll
+ * is what retries a genuine blip.
+ */
+it('makes exactly one provider attempt, leaving a connection failure to the next poll', function () {
     $row = KhqrPayment::create([
         'transaction_id' => 'SUB-RETRY-2',
         'subscription_id' => null,
@@ -359,7 +364,7 @@ it('still retries a failed connection, which costs the gateway nothing', functio
     });
 
     expect($this->service->verify($row))->toBeFalse();
-    expect($attempts)->toBe(2);
+    expect($attempts)->toBe(1);
 });
 
 /**

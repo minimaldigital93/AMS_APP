@@ -154,8 +154,10 @@ class KhqrProviderClient
             return $this->refuse(self::BLOCK_RATE_LIMITED, $reason, $target, $row);
         }
 
-        // ---- Gate 4: the day's ceiling for this settlement target. ----
-        if ($this->budgetExhausted($target)) {
+        // ---- Gate 4: atomically reserve one call from the day's ceiling. ----
+        // The budget check and reservation happen under one lock so concurrent
+        // requests cannot both see the same remaining allowance.
+        if (! $this->reserveBudgetCall($target)) {
             return $this->refuse(self::BLOCK_BUDGET, $reason, $target, $row);
         }
 
@@ -164,10 +166,8 @@ class KhqrProviderClient
             return $this->refuse(self::BLOCK_ATTEMPTS, $reason, $target, $row);
         }
 
-        // Counted BEFORE the call, never after: a request that times out has
-        // still been charged to the allowance, and counting on the way back
-        // under-reports exactly the failures that cost the most.
-        $this->recordCall($target);
+        // The budget reservation above already counted this call BEFORE the
+        // network request, so timeouts are still charged to the allowance.
         if ($row !== null) {
             $this->recordAttempt($row);
         }
@@ -308,6 +308,53 @@ class KhqrProviderClient
             } catch (\Throwable $e) {
                 // Deliberately swallowed — see the docblock.
             }
+        }
+    }
+
+    /**
+     * Atomically reserve one live provider call from the target's daily budget.
+     *
+     * The lock only covers the counter reservation, never the provider request.
+     * A cache failure remains fail-open to preserve the existing payment behavior.
+     */
+    private function reserveBudgetCall(string $target): bool
+    {
+        $budget = (int) config('services.khqrpay.daily_budget', 0);
+
+        if ($budget <= 0) {
+            $this->recordCall($target);
+            return true;
+        }
+
+        $target = $target !== '' ? $target : 'unknown';
+        $lockKey = 'khqr:budget-lock:' . Carbon::now()->format('Y-m-d') . ':' . $target;
+
+        try {
+            return Cache::lock($lockKey, 5)->block(2, function () use ($target, $budget): bool {
+                $targetKey = self::usageKey($target);
+
+                Cache::add($targetKey, 0, now()->addDays(3));
+
+                $spent = (int) Cache::get($targetKey, 0);
+
+                if ($spent >= $budget) {
+                    return false;
+                }
+
+                Cache::increment($targetKey);
+
+                $globalKey = self::usageKey();
+
+                Cache::add($globalKey, 0, now()->addDays(3));
+                Cache::increment($globalKey);
+
+                return true;
+            });
+        } catch (\Throwable $e) {
+            // Preserve the existing fail-open payment behavior if cache/lock
+            // infrastructure is temporarily unavailable.
+            $this->recordCall($target);
+            return true;
         }
     }
 
