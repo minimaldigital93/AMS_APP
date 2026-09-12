@@ -83,7 +83,13 @@
                 const tick = () => {
                     const secs = Math.max(0, Math.round((deadline - Date.now()) / 1000));
                     this.countdown = Math.floor(secs / 60) + ':' + String(secs % 60).padStart(2, '0');
-                    if (secs <= 0) this.stopCountdown();
+                    // Also the stop signal — the server deliberately leaves an
+                    // elapsed QR open now so a late webhook can still finalize
+                    // it, so the page cannot wait to be told it expired.
+                    if (secs <= 0) {
+                        this.stopCountdown();
+                        if (this.state === 'waiting') { this.state = 'failed'; this.stop(); }
+                    }
                 };
                 tick();
                 this.countdownTimer = setInterval(tick, 1000);

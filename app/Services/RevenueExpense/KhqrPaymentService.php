@@ -11,6 +11,8 @@ use App\Models\Plan;
 use App\Models\Rentals;
 use App\Models\Subscription;
 use App\Models\User;
+use App\Services\Payment\KhqrProviderClient;
+use App\Services\Payment\KhqrProviderResult;
 use Carbon\Carbon;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Support\Facades\Cache;
@@ -64,6 +66,28 @@ class KhqrPaymentService
     private bool $lastPollRefused = false;
 
     /**
+     * The ONE gateway to khqr.cc. Every Http:: call in this class goes through
+     * it, so the feature gate, the active-session rule, the rate-limit backoff,
+     * the daily ceiling and the per-session attempt cap are applied in one place
+     * instead of being remembered at five call sites.
+     *
+     * Defaulted rather than injected so `new KhqrPaymentService` keeps working
+     * (the commands and tests construct it directly).
+     */
+    private KhqrProviderClient $provider;
+
+    public function __construct(?KhqrProviderClient $provider = null)
+    {
+        $this->provider = $provider ?? new KhqrProviderClient;
+    }
+
+    /** Is the KHQR feature switched on at all? (Demo mode counts — it never calls out.) */
+    public static function featureEnabled(): bool
+    {
+        return KhqrProviderClient::featureEnabled();
+    }
+
+    /**
      * Create a pending KhqrPayment for a tenant RENT payment (Flow B) using the
      * landlord's own payment settings. Picks the best available channel:
      * api (dynamic QR) → manual (static image / generated Bakong QR / bank info).
@@ -73,6 +97,15 @@ class KhqrPaymentService
      */
     public function createQr(Rentals $rental, FiscalPeriods $period, int $userId, float $amount, array $payload): KhqrPayment
     {
+        // Refuse before any row exists. A KHQR session that can never be
+        // confirmed is worse than no session: it would sit open, show the tenant
+        // a QR nobody is watching, and be swept by every safety net that looks
+        // for open rows. Manual/bank collection is unaffected — it does not come
+        // through here.
+        if (! KhqrProviderClient::featureEnabled()) {
+            throw new \RuntimeException(__('messages.khqr_payment_disabled'));
+        }
+
         $settings = MerchantPaymentSetting::forAccount($rental->account_id);
         $demo = (bool) config('services.khqrpay.demo');
 
@@ -133,6 +166,16 @@ class KhqrPaymentService
      */
     public function createSubscriptionQr(Subscription $subscription, float $amount, ?Plan $plan = null, ?string $cycle = null): KhqrPayment
     {
+        // Same rule as createQr(): no session is minted while KHQR is switched
+        // off. Both entry points (signup, renew) already refuse earlier via
+        // platformCheckoutFault(); this is the guard that holds for any caller
+        // that does not (khqr:test-qr, a future one).
+        if (! KhqrProviderClient::featureEnabled()) {
+            throw new \App\Exceptions\KhqrPlatformCredentialsMissingException(
+                __('messages.khqr_payment_disabled')
+            );
+        }
+
         // Fallback guard: with no platform KHQRPay credentials configured (the
         // cleared / unconfigured state), don't call the gateway with empty creds
         // — fail fast with a clear message the entry points already catch, so the
@@ -268,6 +311,15 @@ class KhqrPaymentService
     {
         if (config('services.khqrpay.demo')) {
             return null;
+        }
+
+        // KHQR switched off is a FAULT, not a pass: this method's answer decides
+        // whether the browser is handed to khqr.cc, and sending a customer to a
+        // gateway this installation has disabled is the same dead end as sending
+        // them to one that cannot transact. Decided locally — no probe runs, so
+        // the disabled state costs nothing to discover.
+        if (! KhqrProviderClient::featureEnabled()) {
+            return __('messages.khqr_payment_disabled');
         }
 
         $creds = KhqrCredentials::platform();
@@ -451,12 +503,27 @@ class KhqrPaymentService
      *    that must be pasted into the khqr.cc profile, and the support sentence
      *    for a refusal only khqr.cc can clear.
      *
-     * @return array{healthy: bool, checks: array<int, array{key: string, label: string, state: string, detail: ?string, remedy: ?string, copy: ?string}>, checked_at: string}
+     * IT IS OFFLINE BY DEFAULT. Every live run costs two metered Bakong requests
+     * — the handoff probe opens a throwaway checkout session at khqr.cc — and a
+     * report is the last thing that should be spending the allowance kept for a
+     * payment. So the config half (credentials, allowance, webhook URL) always
+     * answers for free, and the two probes only run when the caller explicitly
+     * asks for $live: `khqr:diagnose --live`, or the popup's own fetch. Most of
+     * what goes wrong here is visible in the offline half anyway.
+     *
+     * @return array{healthy: bool, live: bool, checks: array<int, array{key: string, label: string, state: string, detail: ?string, remedy: ?string, copy: ?string}>, checked_at: string}
      */
-    public function platformDiagnostics(): array
+    public function platformDiagnostics(bool $live = false): array
     {
         $creds = KhqrCredentials::platform();
         $checks = [];
+
+        // A live run is impossible while the feature is off, and must not be
+        // faked: the probes would be blocked by KhqrProviderClient anyway, and
+        // reporting them as warnings would read as a gateway problem rather than
+        // as the configuration this installation actually chose.
+        $enabled = KhqrProviderClient::featureEnabled();
+        $live = $live && $enabled;
         $webhook = [
             'key' => 'webhook',
             'label' => __('messages.khqr_diag_webhook'),
@@ -471,6 +538,7 @@ class KhqrPaymentService
         if (config('services.khqrpay.demo')) {
             return [
                 'healthy' => true,
+                'live' => false,
                 'checks' => [[
                     'key' => 'demo',
                     'label' => __('messages.khqr_diag_demo'),
@@ -482,6 +550,20 @@ class KhqrPaymentService
                 'checked_at' => Carbon::now()->toIso8601String(),
             ];
         }
+
+        // 0. The master switch, first: with KHQR off, nothing below it can take a
+        //    payment however well it is configured, and no request was made to
+        //    find that out.
+        $checks[] = [
+            'key' => 'feature',
+            'label' => __('messages.khqr_diag_feature'),
+            'state' => $enabled ? 'ok' : 'warn',
+            'detail' => $enabled
+                ? __('messages.khqr_diag_feature_on')
+                : __('messages.khqr_diag_feature_off'),
+            'remedy' => $enabled ? null : __('messages.khqr_fix_feature'),
+            'copy' => null,
+        ];
 
         // 1. Credentials. Name the blank field — "not configured" alone has sent
         //    people looking in .env, where these have not lived since the
@@ -510,7 +592,39 @@ class KhqrPaymentService
         if ($missing !== []) {
             $checks[] = $webhook;
 
-            return ['healthy' => false, 'checks' => $checks, 'checked_at' => Carbon::now()->toIso8601String()];
+            return ['healthy' => false, 'live' => $live, 'checks' => $checks, 'checked_at' => Carbon::now()->toIso8601String()];
+        }
+
+        // Offline report (the default): say what the two probes WOULD ask rather
+        // than asking it. Nothing leaves this server.
+        if (! $live) {
+            foreach ([
+                ['profile', __('messages.khqr_diag_profile')],
+                ['handoff', __('messages.khqr_diag_handoff')],
+            ] as [$key, $label]) {
+                $checks[] = [
+                    'key' => $key,
+                    'label' => $label,
+                    'state' => 'info',
+                    'detail' => $enabled
+                        ? __('messages.khqr_diag_probe_offline')
+                        : __('messages.khqr_diag_probe_disabled'),
+                    'remedy' => $enabled ? __('messages.khqr_fix_run_live') : null,
+                    'copy' => null,
+                ];
+            }
+
+            $checks[] = $webhook;
+
+            return [
+                // An offline report cannot certify the gateway, only the setup it
+                // can read. Saying "healthy" off a config check is how someone
+                // concludes the gateway works when nothing asked it.
+                'healthy' => $enabled && ! collect($checks)->contains(fn (array $c) => $c['state'] === 'fail'),
+                'live' => false,
+                'checks' => $checks,
+                'checked_at' => Carbon::now()->toIso8601String(),
+            ];
         }
 
         // The probes are metered exactly like a verify, so a report cannot be
@@ -535,7 +649,7 @@ class KhqrPaymentService
 
             $checks[] = $webhook;
 
-            return ['healthy' => false, 'checks' => $checks, 'checked_at' => Carbon::now()->toIso8601String()];
+            return ['healthy' => false, 'live' => $live, 'checks' => $checks, 'checked_at' => Carbon::now()->toIso8601String()];
         }
 
         // What follows is a live reading, so it supersedes both cached verdicts.
@@ -547,8 +661,8 @@ class KhqrPaymentService
         //        transaction query and being able to open a checkout are
         //        different permissions at the gateway.
         foreach ([
-            ['profile', __('messages.khqr_diag_profile'), $this->probeCheckTransaction($creds)],
-            ['handoff', __('messages.khqr_diag_handoff'), $this->probeHandoff($creds)],
+            ['profile', __('messages.khqr_diag_profile'), $this->probeCheckTransaction($creds, KhqrProviderClient::REASON_MANUAL_DIAGNOSTIC)],
+            ['handoff', __('messages.khqr_diag_handoff'), $this->probeHandoff($creds, KhqrProviderClient::REASON_MANUAL_DIAGNOSTIC)],
         ] as [$key, $label, $probe]) {
             $checks[] = [
                 'key' => $key,
@@ -574,6 +688,7 @@ class KhqrPaymentService
 
         return [
             'healthy' => ! collect($checks)->contains(fn (array $c) => $c['state'] === 'fail'),
+            'live' => true,
             'checks' => $checks,
             'checked_at' => Carbon::now()->toIso8601String(),
         ];
@@ -695,7 +810,7 @@ class KhqrPaymentService
      *
      * @return array{outcome: string, probe: string, status: ?int, message: string}
      */
-    private function probeCheckTransaction(KhqrCredentials $creds): array
+    private function probeCheckTransaction(KhqrCredentials $creds, string $reason = KhqrProviderClient::REASON_CHECKOUT_PREFLIGHT): array
     {
         $endpoint = rtrim($creds->baseUrl, '/')
             .'/api/'.$creds->profileId
@@ -703,27 +818,36 @@ class KhqrPaymentService
 
         $probe = 'PREFLIGHT-'.now()->format('YmdHis').'-'.random_int(100000, 999999);
 
-        // Bakong rates this exactly like a verify. It went uncounted until
-        // 2026-08, so `khqr:usage` under-reported every checkout attempt by two
-        // and the daily ceiling — the one thing that stops the app spending a
-        // dead allowance all day — could be sailed straight past by the probes
-        // meant to protect it.
-        $this->recordProviderCall('platform');
-
-        try {
-            $response = Http::asForm()->acceptJson()
+        // Bakong rates this exactly like a verify, so it goes through the one
+        // gated client like every other call — which is also what counts it
+        // against the daily ceiling. It went uncounted until 2026-08, so
+        // `khqr:usage` under-reported every checkout attempt by two and the
+        // ceiling could be sailed straight past by the probes meant to protect
+        // it. No row is passed: a preflight asks about the PROFILE, not a
+        // payment, so the active-session gate does not apply to it (the feature
+        // gate and the budget still do).
+        $result = $this->provider->call(
+            reason: $reason,
+            target: 'platform',
+            row: null,
+            perform: fn () => Http::asForm()->acceptJson()
                 ->connectTimeout(3)->timeout(6)
                 ->post($endpoint, [
                     'transaction_id' => $probe,
                     'hash' => sha1($creds->secret.$probe),
-                ]);
-        } catch (\Throwable $e) {
-            // Unreachable ≠ misconfigured. Let the customer through; the hosted
-            // page may well load for them even if our server-side call blipped.
-            Log::warning('KHQRPay preflight unreachable', ['msg' => $e->getMessage()]);
+                ]),
+            creds: $creds,
+        );
 
-            return ['outcome' => 'unknown', 'probe' => 'profile', 'status' => null, 'message' => $e->getMessage()];
+        if (! $result->hasResponse()) {
+            // Unreachable, or refused locally by a guard. Either way this is not
+            // a finding about the profile: let the customer through (the hosted
+            // page may well load for them even if our server-side call blipped),
+            // and never cache it as a verdict.
+            return $this->inconclusiveProbe('profile', $result);
         }
+
+        $response = $result->response;
 
         $message = (string) ($response->json('responseMessage') ?? '');
         $out = fn (string $outcome) => [
@@ -779,7 +903,7 @@ class KhqrPaymentService
      *
      * @return array{outcome: string, probe: string, status: ?int, message: string}
      */
-    private function probeHandoff(KhqrCredentials $creds): array
+    private function probeHandoff(KhqrCredentials $creds, string $reason = KhqrProviderClient::REASON_CHECKOUT_PREFLIGHT): array
     {
         if (! config('services.khqrpay.handoff_preflight')) {
             return ['outcome' => 'unknown', 'probe' => 'handoff', 'status' => null, 'message' => __('messages.khqr_diag_handoff_disabled')];
@@ -796,19 +920,23 @@ class KhqrPaymentService
 
         $url = rtrim($creds->baseUrl, '/').'/api/payment/request/'.$creds->profileId;
 
-        // Counted for the same reason as probe 1 — and this is the expensive
+        // Through the same gated client as probe 1 — and this is the expensive
         // half: it opens a real (throwaway) checkout session at the gateway.
-        $this->recordProviderCall('platform');
-
-        try {
-            $response = Http::acceptJson()
+        $result = $this->provider->call(
+            reason: $reason,
+            target: 'platform',
+            row: null,
+            perform: fn () => Http::acceptJson()
                 ->connectTimeout(3)->timeout(6)
-                ->get($url, $params);
-        } catch (\Throwable $e) {
-            Log::warning('KHQRPay handoff preflight unreachable', ['msg' => $e->getMessage()]);
+                ->get($url, $params),
+            creds: $creds,
+        );
 
-            return ['outcome' => 'unknown', 'probe' => 'handoff', 'status' => null, 'message' => $e->getMessage()];
+        if (! $result->hasResponse()) {
+            return $this->inconclusiveProbe('handoff', $result);
         }
+
+        $response = $result->response;
 
         $body = $response->json();
         $message = is_array($body) ? (string) ($body['responseMessage'] ?? '') : '';
@@ -835,6 +963,30 @@ class KhqrPaymentService
         }
 
         return $out('ok');
+    }
+
+    /**
+     * A probe that produced no answer — blocked by a guard, or the transport
+     * died. Never a fault.
+     *
+     * The preflight fails open on purpose (see platformCheckoutFault), and a
+     * request that was never made is the strongest possible case for that: it
+     * says nothing whatever about the profile. Naming the block in the message
+     * keeps the diagnostics report honest about why a check is empty — "KHQR is
+     * disabled" is a far more useful line than a blank warn row.
+     */
+    private function inconclusiveProbe(string $probe, KhqrProviderResult $result): array
+    {
+        $message = match (true) {
+            $result->wasBlocked() => 'not attempted ('.$result->blockedReason.')',
+            default => (string) $result->error?->getMessage(),
+        };
+
+        if (! $result->wasBlocked()) {
+            Log::warning('KHQRPay preflight unreachable', ['probe' => $probe, 'msg' => $message]);
+        }
+
+        return ['outcome' => 'unknown', 'probe' => $probe, 'status' => null, 'message' => $message];
     }
 
     /**
@@ -929,9 +1081,36 @@ class KhqrPaymentService
             'amount' => $row->amount,
         ]);
 
-        $response = Http::asForm()->acceptJson()
-            ->connectTimeout(3)->timeout(10)
-            ->post($endpoint, $params);
+        // Through the one gated client. No row is passed for the active-session
+        // check: this request is what CREATES the session, so the row is still
+        // `pending` and by definition not active yet. The feature gate, the
+        // rate-limit backoff and the daily ceiling all still apply, and the
+        // caller has already refused when KHQR is switched off (createQr).
+        $result = $this->provider->call(
+            reason: KhqrProviderClient::REASON_PAYMENT_CREATION,
+            target: $row->settlement_target,
+            row: null,
+            perform: fn () => Http::asForm()->acceptJson()
+                ->connectTimeout(3)->timeout(10)
+                ->post($endpoint, $params),
+            creds: $creds,
+        );
+
+        if ($result->wasBlocked()) {
+            // Nothing was minted and nothing was spent. Leave the row FAILED so
+            // it is never picked up as an open session, and say why.
+            $row->transitionTo(PaymentStatus::Failed);
+            $row->save();
+            throw new \RuntimeException('KHQR payment is not available right now ('.$result->blockedReason.').');
+        }
+
+        if (! $result->hasResponse()) {
+            $row->transitionTo(PaymentStatus::Failed);
+            $row->save();
+            throw new \RuntimeException('KHQRPay could not be reached: '.$result->error?->getMessage());
+        }
+
+        $response = $result->response;
 
         // Capture response body for diagnosis (safe to log; no secret in response)
         $responseBody = $response->body();
@@ -1028,7 +1207,7 @@ class KhqrPaymentService
      * that would act on a NEGATIVE (expiring a row, giving up on it) must use
      * this and treat a refusal as "ask again later".
      */
-    public function verifyOutcome(KhqrPayment $row): string
+    public function verifyOutcome(KhqrPayment $row, int $sessionGrace = 0): string
     {
         if ($row->isPaid()) {
             return self::VERIFY_PAID;
@@ -1041,6 +1220,18 @@ class KhqrPaymentService
 
         if ($row->channel === 'manual') {
             return self::VERIFY_UNPAID;
+        }
+
+        // KHQR switched off: no request, and REFUSED rather than UNPAID. A
+        // feature flag is not evidence about a payer's money — answering
+        // "unpaid" here would let the reconcile net expire open rows the moment
+        // KHQR was turned off, writing any payment that did land out of the
+        // books. The client would refuse the call anyway; this returns the
+        // honest answer without even building the request. Checked after the
+        // cheap local verdicts above so a row that is already paid still reads
+        // as paid with the feature off.
+        if (! KhqrProviderClient::featureEnabled()) {
+            return self::VERIFY_REFUSED;
         }
 
         // Demo mode: auto-confirm a few seconds after the QR is generated so the
@@ -1065,150 +1256,51 @@ class KhqrPaymentService
             return $cached;
         }
 
-        $outcome = $this->queryProviderOutcome($row);
+        $outcome = $this->queryProviderOutcome($row, $sessionGrace);
         Cache::put($cooldownKey, $outcome, now()->addSeconds((int) config('services.khqrpay.verify_cooldown', 10)));
 
         return $outcome;
     }
 
     /**
-     * Has this settlement target spent its allowance of live provider calls for
-     * the day?
+     * Has this settlement target spent its allowance of live calls for the day?
      *
-     * Counted per target, because platform rows spend the SaaS operator's
-     * Bakong token and merchant rows spend the individual landlord's — one
-     * landlord's busy collection day must not lock out everyone else.
-     *
-     * Cache-backed like the counter it reads, and fails OPEN on a cache error:
-     * a broken cache must not stop a real payment from being confirmed.
+     * The ceiling itself is enforced inside KhqrProviderClient, which is what
+     * makes it unforgettable; this reads the same answer for the two callers that
+     * must decide NOT TO ASK in the first place — the checkout preflight and the
+     * diagnostics report, both of which would otherwise spend the reserve kept
+     * for a real payment on a health check.
      */
     private function dailyBudgetExhausted(?string $target): bool
     {
-        $budget = (int) config('services.khqrpay.daily_budget', 0);
-        if ($budget <= 0) {
-            return false;
-        }
-
-        return self::providerCallsOn($target ?? 'unknown') >= $budget;
-    }
-
-    /**
-     * Has this credential (profile) been rate-limited by the provider recently?
-     *
-     * A 429 is metered independently of `daily_budget` — the operator may not
-     * have set a ceiling at all — and it means the SAME thing `daily_budget`
-     * guards against: the allowance for this profile is spent for now. Checked
-     * BEFORE the call for the same reason as the budget check: a request made
-     * anyway is charged to the allowance exactly like one that answers.
-     */
-    private function rateLimited(?KhqrCredentials $creds): bool
-    {
-        if ($creds === null) {
-            return false;
-        }
-
-        return (bool) Cache::get('khqr:ratelimited:'.$creds->profileId);
-    }
-
-    /**
-     * A credential that was just rate-limited/quota-exceeded is backed off for
-     * ALL of its open transactions, not just this row — a single abandoned QR
-     * polling every few seconds was enough to exhaust a whole day's provider
-     * quota, which then made every other open checkout on the same token look
-     * "stuck" too.
-     */
-    private function backOffRateLimit(KhqrPayment $row, KhqrCredentials $creds): void
-    {
-        $minutes = (int) config('services.khqrpay.rate_limit_backoff', 5);
-
-        Log::warning('KHQRPay verify rate-limited (daily quota likely exhausted) — backing off this credential', [
-            'tran' => $row->transaction_id,
-            'profile' => $creds->profileId,
-            'backoff_minutes' => $minutes,
-        ]);
-
-        Cache::put('khqr:ratelimited:'.$creds->profileId, true, now()->addMinutes($minutes));
-    }
-
-    /**
-     * Bakong meters this app's token per calendar day, so the only number that
-     * matters operationally is "how many live provider calls have we spent
-     * today". Nothing else records it: a successful verify writes no log line,
-     * and only refusals are logged (latched to one line per transaction), so a
-     * busy day can leave no trace at all in laravel.log.
-     *
-     * Counted per settlement target as well as in total, because the two draw on
-     * different credentials — platform rows spend the SaaS operator's token,
-     * merchant rows spend the individual landlord's — and a shared total cannot
-     * say which one is running out.
-     *
-     * Best-effort by design: this is instrumentation wrapped around a payment
-     * check, and a cache hiccup must never turn a working verify into a failed
-     * one. Same rule AuditLogger follows.
-     */
-    private function recordProviderCall(?string $target = null): void
-    {
-        $target ??= 'unknown';
-
-        foreach ([self::usageKey(), self::usageKey($target)] as $key) {
-            try {
-                // add() only writes when the key is absent, so it seeds the
-                // counter without clobbering a concurrent increment. The database
-                // cache store's increment() is a no-op on a missing key, which is
-                // why seeding cannot be skipped.
-                Cache::add($key, 0, now()->addDays(3));
-                Cache::increment($key);
-            } catch (\Throwable $e) {
-                // Deliberately swallowed — see the docblock.
-            }
-        }
+        return $this->provider->budgetExhausted($target);
     }
 
     /**
      * Live provider calls spent on the given day (default today), optionally for
      * one settlement target. Surfaced by `php artisan khqr:usage`.
+     *
+     * Kept here as the published reading of the counter (the command and the
+     * diagnostics usage check both call it); the counting itself lives in
+     * KhqrProviderClient, beside the gate that decides whether a call happens at
+     * all — so nothing can spend the allowance without also recording it.
      */
     public static function providerCallsOn(?string $target = null, ?Carbon $day = null): int
     {
-        try {
-            return (int) Cache::get(self::usageKey($target, $day), 0);
-        } catch (\Throwable $e) {
-            return 0;
-        }
+        return KhqrProviderClient::callsOn($target, $day);
     }
 
-    private static function usageKey(?string $target = null, ?Carbon $day = null): string
-    {
-        $date = ($day ?? Carbon::now())->format('Y-m-d');
-
-        return $target === null
-            ? "khqr:calls:{$date}"
-            : "khqr:calls:{$date}:{$target}";
-    }
-
-    private function queryProviderOutcome(KhqrPayment $row): string
+    private function queryProviderOutcome(KhqrPayment $row, int $sessionGrace = 0): string
     {
         $creds = $this->credentialsFor($row);
         if ($creds === null) {
             return self::VERIFY_REFUSED;
         }
 
-        // Same "stop before spending the allowance" rule as the budget check
-        // below, for a 429 the provider already sent us.
-        if ($this->rateLimited($creds)) {
-            return self::VERIFY_REFUSED;
-        }
-
-        // Stop BEFORE the call, not after: a request refused for being over the
-        // limit is charged to the allowance exactly like one that answers, so an
-        // exhausted token spends the rest of the day discovering it is
-        // exhausted. Refusing locally keeps whatever is left for a payment that
-        // can still be confirmed, and reads as REFUSED — never as "unpaid" —
-        // so nothing is settled or expired while we are flying blind.
-        if ($this->dailyBudgetExhausted($row->settlement_target)) {
+        if ($this->provider->budgetExhausted($row->settlement_target)) {
+            // Logged here rather than in the client because only this caller
+            // knows the finding matters to a payment rather than to a probe.
             $this->logBudgetExhausted($row);
-
-            return self::VERIFY_REFUSED;
         }
 
         // KHQRPay "Check Transaction V2" endpoint (fast confirmation with Bakong
@@ -1236,24 +1328,37 @@ class KhqrPaymentService
         // working checkout and a quota that is empty by mid-morning. A refusal is
         // already read as "unpaid" below; only a connection blip is worth a second
         // attempt.
-        // Count it BEFORE the call, not after: a request that times out or is
-        // refused still spent the quota. The Bakong token is metered per day and
-        // a successful verify logs nothing, so without this the only record that
-        // a request happened is on the provider's side — which is why working out
-        // where a day's quota went once took a code audit instead of a query.
-        $this->recordProviderCall($row->settlement_target);
-
-        try {
-            $response = Http::asForm()->acceptJson()
+        // Through the one gated client, which counts the call BEFORE making it
+        // (a request that times out still spent the quota), applies the feature
+        // gate, the ACTIVE-SESSION rule, the rate-limit backoff, the daily
+        // ceiling and the per-session attempt cap, and logs the reason.
+        //
+        // Every refusal it can return is VERIFY_REFUSED, never VERIFY_UNPAID:
+        // a request that was not made is not evidence the payer has not paid,
+        // and reading it as such is what expires a QR somebody already paid.
+        $result = $this->provider->call(
+            reason: KhqrProviderClient::REASON_PAYMENT_VERIFICATION,
+            target: $row->settlement_target,
+            row: $row,
+            perform: fn () => Http::asForm()->acceptJson()
                 ->connectTimeout(3)->timeout(8)
                 ->retry(2, 200, when: fn ($e) => $e instanceof ConnectionException, throw: false)
-                ->post($endpoint, $params);
-        } catch (\Throwable $e) {
-            Log::warning('KHQRPay verify error', ['tran' => $row->transaction_id, 'msg' => $e->getMessage()]);
+                ->post($endpoint, $params),
+            creds: $creds,
+            sessionGrace: $sessionGrace,
+        );
 
-            // A transport failure is not a statement about the payment.
+        if (! $result->hasResponse()) {
+            if ($result->error !== null) {
+                Log::warning('KHQRPay verify error', ['tran' => $row->transaction_id, 'msg' => $result->error->getMessage()]);
+            }
+
+            // Neither a block nor a transport failure is a statement about the
+            // payment.
             return self::VERIFY_REFUSED;
         }
+
+        $response = $result->response;
 
         // Only a 2xx is the gateway answering the question. 429 (allowance
         // spent), 401/403 (credentials) and 5xx (profile not provisioned — the
@@ -1262,7 +1367,7 @@ class KhqrPaymentService
         // "not paid yet".
         if (! $response->successful()) {
             if ($response->status() === 429) {
-                $this->backOffRateLimit($row, $creds);
+                $this->provider->backOffRateLimit($creds, $row);
             }
 
             $this->logVerifyRefusal($row, $response->status(), (string) ($response->json('responseMessage') ?? ''));
@@ -1506,8 +1611,28 @@ class KhqrPaymentService
         $this->markWaiting($row);
         $this->lastPollRefused = false;
 
-        // Verify FIRST so a payment that lands right at the deadline still wins.
-        $outcome = $row->isPaid() ? self::VERIFY_PAID : $this->verifyOutcome($row);
+        // A stale or bookmarked checkout tab used to spend a metered Bakong
+        // request on EVERY poll, for as long as it stayed open, asking about a QR
+        // nobody could pay any more: the browser-side twin of the reconcile leak,
+        // and the same shape — a record existed, so the app called out. At a
+        // 10-second poll and a 60-second cooldown that is one live request a
+        // minute, indefinitely, for a dead QR.
+        //
+        // But a payment CAN land in the last seconds before expiry, and expiring
+        // the row is what shuts the door on it: finalize() refuses a row that is
+        // not open, so an expiry here would also stop the webhook and
+        // khqr:reconcile from ever rescuing it. So the deadline rescue is kept
+        // and merely made finite — ONE post-expiry verify per session
+        // (claimPostExpiryVerify), not one per poll. After that the session is no
+        // longer live, the provider client refuses the call, and the row is left
+        // OPEN for the webhook, the reconcile net and — past the grace —
+        // `khqr:expire-abandoned`. The checkout page stops on its own countdown
+        // rather than waiting to be told the row is expired.
+        $grace = ($row->isPaid() || $row->isActiveKhqrSession())
+            ? 0
+            : $this->claimPostExpiryVerify($row);
+
+        $outcome = $row->isPaid() ? self::VERIFY_PAID : $this->verifyOutcome($row, $grace);
 
         if ($outcome === self::VERIFY_PAID) {
             $this->finalize($row);
@@ -1546,6 +1671,38 @@ class KhqrPaymentService
     public function lastPollRefused(): bool
     {
         return $this->lastPollRefused;
+    }
+
+    /**
+     * Claim the ONE post-expiry verify a payment session is allowed from the
+     * browser poll, and report it as a session grace (0 = no call).
+     *
+     * This is the "the money landed at the deadline" rescue, kept but bounded.
+     * It used to be implicit and unlimited: pollAndAdvance verified before it
+     * expired, so an abandoned tab re-asked about a dead QR once a cooldown
+     * forever. Latching it to once per transaction keeps the rescue — the case it
+     * exists for happens within seconds of expiry, not hours — while costing a
+     * fixed one request instead of an open-ended stream.
+     *
+     * The grace is the reconcile window, so a QR already past even that is not
+     * worth a call (the provider client refuses it), and a cache failure yields
+     * 0: no rescue is worse than a leak that cannot be bounded, and the webhook
+     * is unaffected either way.
+     */
+    private function claimPostExpiryVerify(KhqrPayment $row): int
+    {
+        $grace = (int) config('services.khqrpay.reconcile_grace', 60);
+        if ($grace <= 0) {
+            return 0;
+        }
+
+        try {
+            return Cache::add('khqr:verify:final:'.$row->transaction_id, true, now()->addDay())
+                ? $grace
+                : 0;
+        } catch (\Throwable $e) {
+            return 0;
+        }
     }
 
     /**

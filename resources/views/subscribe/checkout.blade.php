@@ -117,15 +117,24 @@
                         this.timer = setInterval(() => this.poll(), POLL_MS);
                     }
                 },
-                // Informational countdown only — the poll decides the final state
-                // once the server lazily expires the row.
+                // The countdown is also what STOPS the polling. It used to be
+                // informational, leaving the server to expire the row so the
+                // poll could report it — but expiring a row is what shuts the
+                // webhook out of a payment that landed at the deadline, so the
+                // server now leaves a dead QR open and the page has to know on
+                // its own that the window closed. Nothing is lost: a payment
+                // that arrives later is still booked by the webhook, and the
+                // retry button mints a fresh QR.
                 startCountdown() {
                     const deadline = expiresAt ? Date.parse(expiresAt) : NaN;
                     if (isNaN(deadline)) return;
                     const tick = () => {
                         const secs = Math.max(0, Math.round((deadline - Date.now()) / 1000));
                         this.countdown = Math.floor(secs / 60) + ':' + String(secs % 60).padStart(2, '0');
-                        if (secs <= 0) this.stopCountdown();
+                        if (secs <= 0) {
+                            this.stopCountdown();
+                            if (this.state === 'waiting') { this.state = 'failed'; this.stop(); }
+                        }
                     };
                     tick();
                     this.countdownTimer = setInterval(tick, 1000);

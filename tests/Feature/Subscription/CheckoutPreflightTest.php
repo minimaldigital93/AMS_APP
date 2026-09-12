@@ -319,7 +319,7 @@ it('reports which check failed, in the gateway\'s own words', function () {
     );
     $this->actingAs(makeAdmin());
 
-    $report = $this->getJson(route('admin.billing.diagnostics'))->assertOk()->json();
+    $report = $this->getJson(route('admin.billing.diagnostics', ['live' => 1]))->assertOk()->json();
 
     expect($report['healthy'])->toBeFalse();
 
@@ -336,7 +336,7 @@ it('names the missing credential instead of probing with blank ones', function (
     fakeGateway(Http::response(['responseCode' => 1, 'responseMessage' => 'Transaction Not Found'], 404));
     $this->actingAs(makeAdmin());
 
-    $report = $this->getJson(route('admin.billing.diagnostics'))->assertOk()->json();
+    $report = $this->getJson(route('admin.billing.diagnostics', ['live' => 1]))->assertOk()->json();
 
     expect($report['healthy'])->toBeFalse();
     expect(collect($report['checks'])->firstWhere('key', 'credentials')['state'])->toBe('fail');
@@ -358,7 +358,7 @@ it('shows the last refusal beside a report that has since gone green', function 
     // …and now it behaves.
     fakeGateway(Http::response(['responseCode' => 1, 'responseMessage' => 'Transaction Not Found'], 404));
 
-    $report = $this->getJson(route('admin.billing.diagnostics'))->assertOk()->json();
+    $report = $this->getJson(route('admin.billing.diagnostics', ['live' => 1]))->assertOk()->json();
 
     expect($report['healthy'])->toBeTrue();
     expect($report['last_fault']['probe'])->toBe('handoff');
@@ -377,5 +377,5 @@ it('keeps the gateway internals off the public signup form', function () {
     $page->assertDontSee('billing/diagnostics');
     $page->assertSee(__('messages.khqr_diag_guest_no_charge'));
 
-    $this->get(route('admin.billing.diagnostics'))->assertRedirect(route('login'));
+    $this->get(route('admin.billing.diagnostics', ['live' => 1]))->assertRedirect(route('login'));
 });

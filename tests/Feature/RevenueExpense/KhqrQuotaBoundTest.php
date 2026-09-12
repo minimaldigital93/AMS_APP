@@ -211,7 +211,7 @@ it('skips the live probes in diagnostics once the allowance is spent', function 
     $this->service->verifyOutcome(boundRow('SPEND-2')); // spends the allowance
     Http::assertSentCount(1);
 
-    $report = $this->service->platformDiagnostics();
+    $report = $this->service->platformDiagnostics(live: true);
 
     // The usage line above them has already stated the finding; re-confirming it
     // with two more metered calls spends the reserve exactly when it matters.
@@ -232,7 +232,7 @@ it('lets a fresh diagnostics run clear the cached refusal so the next click re-p
 
     // Whoever is reading the report is mid-fix. Making them wait out a cache to
     // learn whether the fix took is precisely what the fault cache must not do.
-    $this->service->platformDiagnostics();
+    $this->service->platformDiagnostics(live: true);
     $sentAfterReport = 2; // profile probe faulted, handoff probe still reported
 
     $this->service->platformCheckoutFault();

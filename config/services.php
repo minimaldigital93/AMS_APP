@@ -40,6 +40,22 @@ return [
     | profile_id, secret, and bakong_id come from the merchant dashboard.
     */
     'khqrpay' => [
+        // MASTER FEATURE GATE. The single answer to "does this installation use
+        // KHQR at all?", and the one thing KhqrProviderClient refuses on before
+        // any other consideration — scheduler, command, poll, preflight and QR
+        // mint alike. Nothing in this app may contact khqr.cc or Bakong while it
+        // is false.
+        //
+        // The default is OFF, deliberately and asymmetrically: the cost of
+        // shipping it off on an install that wants KHQR is a customer told
+        // "payment unavailable" until one line is added to .env; the cost of
+        // shipping it on is a metered Bakong token quietly drained by a
+        // scheduler nobody remembered was running. An absent variable must
+        // therefore mean disabled. Set KHQR_PAY_ENABLED=true to take payments.
+        //
+        // Demo mode counts as enabled below because it is a purely local
+        // simulation that cannot reach a provider (see 'demo').
+        'enabled' => (bool) env('KHQR_PAY_ENABLED', false),
         'base_url' => env('KHQRPAY_BASE_URL', 'https://khqr.cc'),
         'profile_id' => env('KHQRPAY_PROFILE_ID'),
         'secret' => env('KHQRPAY_SECRET'),
@@ -105,7 +121,21 @@ return [
         // a way to stop it that isn't editing the schedule and forgetting. Turn
         // it back ON once the token is active, or paid-but-unnotified rows stop
         // being rescued.
-        'reconcile_enabled' => (bool) env('KHQRPAY_RECONCILE_ENABLED', true),
+        // Default OFF for the same reason as 'enabled' above: this is the one
+        // piece of KHQR machinery that runs with nobody at the keyboard, so an
+        // untouched deployment must not be spending a metered token on a
+        // schedule. It is gated by 'enabled' as well — both have to be true.
+        'reconcile_enabled' => (bool) env('KHQRPAY_RECONCILE_ENABLED', false),
+        // Hard cap on live verify calls one payment session may ever cost,
+        // across every caller (browser poll + reconcile share the count).
+        //
+        // The cooldown limits the RATE and qr_ttl limits the WINDOW, but with a
+        // long TTL and several pollers the product of the two is still an
+        // unbounded-feeling number, and a session that has been asked about
+        // twenty times has already told us everything it is going to. Counted
+        // per transaction_id in the cache, like every other quota guard here; 0
+        // disables the cap.
+        'max_verify_attempts' => (int) env('KHQRPAY_MAX_VERIFY_ATTEMPTS', 20),
     ],
 
 ];

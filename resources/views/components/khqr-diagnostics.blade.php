@@ -211,7 +211,12 @@
                 this.ran = true;
                 this.loading = true;
                 try {
-                    const res = await fetch(endpoint, { headers: { 'Accept': 'application/json' } });
+                    // live=1 is what authorises the two metered gateway probes.
+                    // Without it the endpoint answers from configuration alone,
+                    // so nothing but a human opening this dialog can spend a
+                    // Bakong request on a health check.
+                    const url = endpoint + (endpoint.includes('?') ? '&' : '?') + 'live=1';
+                    const res = await fetch(url, { headers: { 'Accept': 'application/json' } });
                     const data = await res.json();
                     this.checks = data.checks || [];
                     this.lastFault = data.last_fault || null;

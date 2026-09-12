@@ -397,6 +397,78 @@ stand).
 
 `tests/Feature/Subscription/CheckoutPreflightTest.php` pins it.
 
+#### NO KHQR = NO BAKONG REQUESTS — `KHQR_PAY_ENABLED` and the one client
+
+`App\Services\Payment\KhqrProviderClient` is the **only** place in this app that
+may talk to khqr.cc. All four outbound requests — both preflight probes, the QR
+mint, the verify — are closures handed to `call()`, so a request cannot leave the
+process unless that method lets it. **Never add an `Http::` call to a KHQR
+endpoint anywhere else**; the whole point is that the next person cannot forget
+the guards, because the guards are not at the call site.
+
+The leak this replaced was never one bug. It was a scheduler, three browser
+pollers, two preflight probes and a diagnostics page, each individually
+reasonable, all reasoning from the same wrong premise: **that a KHQR row in the
+database is a payment worth asking about.** A record is not a payment.
+
+- **`services.khqrpay.enabled` (`KHQR_PAY_ENABLED`) defaults to FALSE.** An
+  absent variable means disabled, deliberately and asymmetrically: shipping it
+  off on an install that wants KHQR costs one line of `.env`; shipping it on
+  costs a metered token drained by a scheduler nobody remembered. With it false
+  **nothing** contacts the gateway — not a page load, the scheduler, a command, a
+  poll, the diagnostics popup or `khqr:diagnose`. Cash, bank transfer and the
+  landlord's **manual** static-KHQR channel are untouched (manual never reaches
+  the gateway at all).
+- **`featureEnabled()` and `providerCallsPermitted()` are different questions.**
+  The first ("may KHQR flows run?") counts **demo** mode as on — demo is a local
+  simulation that cannot transmit. The second ("may a request leave?") excludes
+  it. Gate 1 of `call()` uses the narrow one.
+- **Six gates, all refusals BEFORE the request**, because a refused Bakong
+  request is charged exactly like a paid one: `khqr_disabled`, `demo_mode`,
+  `no_active_payment`, `rate_limited`, `daily_budget_exhausted`,
+  `max_attempts_reached`. Every allowed call logs its `reason`
+  (`payment_creation` / `payment_verification` / `checkout_preflight` /
+  `manual_diagnostic`); every block logs why. That log is how the next accidental
+  call gets found — which is why `reason` is a required parameter.
+- **`KhqrPayment::isActiveKhqrSession(int $grace = 0)` is the active-session
+  rule**, and no migration was needed for it: `channel = 'api'`, status open,
+  status **past `pending`** (a pending row's QR was never minted, so no session
+  exists at the gateway), and the QR still live within `$grace`. `$grace` is
+  `khqr:reconcile`'s rescue window and nothing else.
+- **Defence in depth, four layers**: scheduler `->skip()` → command early return
+  → `verifyOutcome()` returning `VERIFY_REFUSED` → `KhqrProviderClient`. A
+  scheduled command never gates only itself.
+- **Disabled answers `VERIFY_REFUSED`, never `VERIFY_UNPAID`.** A feature flag is
+  not evidence about a payer's money; "unpaid" would let the net expire every
+  open row the moment KHQR was switched off, writing any landed payment out of
+  the books. Same rule as a 429 or a 5xx.
+- **The inbound webhook keeps working with the feature off.** It costs no quota
+  and money that already landed must still reach the books;
+  `isValidCallbackFor()` is local hash arithmetic.
+- **`khqr:diagnose` and the diagnostics endpoint are OFFLINE by default.** A
+  report must not spend the allowance it is reporting on: the config half
+  (feature switch, credentials, today's spend, webhook URL) is free, and the two
+  probes need `--live` / `?live=1` (what the popup's own fetch sends). A bare GET
+  of `admin.billing.diagnostics` costs nothing.
+- **`khqr:reconcile` verifies only `qr_generated`/`waiting_payment`**
+  (`VERIFIABLE_STATUSES`) inside the window, and hands its grace to
+  `verifyOutcome($row, $grace)` so the client's session gate allows the rescue.
+- **The deadline rescue survives, bounded to one call per session.**
+  `pollAndAdvance()` still verifies an *just*-elapsed QR once
+  (`claimPostExpiryVerify()`, a cache latch) — a payment can land in the last
+  seconds — but not once per poll forever, which is what an abandoned tab used to
+  cost. It deliberately does **not** expire the row on that refusal: `finalize()`
+  refuses a closed row, so expiring here would shut the webhook *and* the
+  reconcile net out of a payment that did land. **The three checkout views
+  therefore stop polling on their own countdown** rather than waiting to be told
+  the row is `expired` — don't revert that, or an elapsed QR spins forever.
+- **`KHQRPAY_MAX_VERIFY_ATTEMPTS` (20) caps one session's total cost** across the
+  poller and the net together. The cooldown caps the rate, `qr_ttl` caps the
+  window; this caps the product. 0 disables it.
+- `tests/Feature/RevenueExpense/KhqrZeroRequestTest.php` pins the guarantee with
+  `Http::assertNothingSent()` — asserted against the HTTP layer, not against a
+  flag someone remembered to check.
+
 #### The Bakong token is metered per day, and a refusal costs the same as a sale
 
 Bakong rates the upstream OpenAPI token per calendar day (this account's
@@ -426,9 +498,11 @@ things that do — `env` defaults are in `config/services.php`:
   token refuses every one of them — and a refusal (correctly) never closes the
   row — nothing took the row back out of scope. The allowance was gone by
   ~02:30 with nobody having touched the app. See `reconcileWindow()`.
-- **`KHQRPAY_RECONCILE_ENABLED`** — master switch for that safety net, applied
-  as `->skip()` in `routes/console.php` rather than a commented-out schedule
-  line. Set it false while the khqr.cc profile has no usable Bakong token: the
+- **`KHQRPAY_RECONCILE_ENABLED`** (now also defaulting to **false**) — switch for
+  that safety net, applied as `->skip()` in `routes/console.php` rather than a
+  commented-out schedule line, **beside a second `->skip()` on
+  `KHQR_PAY_ENABLED`**: the master switch says whether KHQR is used at all, this
+  one whether the net specifically is wanted while it is. Set it false while the khqr.cc profile has no usable Bakong token: the
   net cannot confirm anything then, so every run is pure spend. **Turn it back
   on once the token is active** or paid-but-unnotified rows stop being rescued.
 

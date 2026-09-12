@@ -168,11 +168,15 @@ it('verify does NOT confirm an api payment that has not actually settled', funct
         'subscription_id' => null,
         'amount' => 500,
         'currency' => 'USD',
-        'status' => 'pending',
+        'status' => 'qr_generated',
         'settlement_target' => 'platform',
         'channel' => 'api',
         'provider_ref' => 'deadbeef',
         'checkout_payload' => ['type' => 'subscription'],
+        // A live session, not merely an open row: KhqrPayment::isActiveKhqrSession()
+        // is what entitles a row to a provider call, and a QR that was never
+        // minted (status 'pending') or has elapsed is deliberately not one.
+        'expires_at' => now()->addMinutes(10),
     ]);
 
     // The status query succeeded (responseCode 0) but the money has NOT arrived.
@@ -194,11 +198,15 @@ it('verify confirms an api payment only once the status reads PAID', function ()
         'subscription_id' => null,
         'amount' => 500,
         'currency' => 'USD',
-        'status' => 'pending',
+        'status' => 'qr_generated',
         'settlement_target' => 'platform',
         'channel' => 'api',
         'provider_ref' => 'deadbeef',
         'checkout_payload' => ['type' => 'subscription'],
+        // A live session, not merely an open row: KhqrPayment::isActiveKhqrSession()
+        // is what entitles a row to a provider call, and a QR that was never
+        // minted (status 'pending') or has elapsed is deliberately not one.
+        'expires_at' => now()->addMinutes(10),
     ]);
 
     Http::fake([
@@ -218,11 +226,15 @@ it('logs a provider refusal once per transaction instead of silently reading unp
         'subscription_id' => null,
         'amount' => 500,
         'currency' => 'USD',
-        'status' => 'pending',
+        'status' => 'qr_generated',
         'settlement_target' => 'platform',
         'channel' => 'api',
         'provider_ref' => 'deadbeef',
         'checkout_payload' => ['type' => 'subscription'],
+        // A live session, not merely an open row: KhqrPayment::isActiveKhqrSession()
+        // is what entitles a row to a provider call, and a QR that was never
+        // minted (status 'pending') or has elapsed is deliberately not one.
+        'expires_at' => now()->addMinutes(10),
     ]);
 
     // The refusal a lapsed Bakong OpenAPI token gives on EVERY poll: without a
@@ -299,11 +311,15 @@ it('spends exactly one Bakong request on a gateway error response, never retryin
         'subscription_id' => null,
         'amount' => 500,
         'currency' => 'USD',
-        'status' => 'pending',
+        'status' => 'qr_generated',
         'settlement_target' => 'platform',
         'channel' => 'api',
         'provider_ref' => 'deadbeef',
         'checkout_payload' => ['type' => 'subscription'],
+        // A live session, not merely an open row: KhqrPayment::isActiveKhqrSession()
+        // is what entitles a row to a provider call, and a QR that was never
+        // minted (status 'pending') or has elapsed is deliberately not one.
+        'expires_at' => now()->addMinutes(10),
     ]);
 
     $attempts = 0;
@@ -324,11 +340,15 @@ it('still retries a failed connection, which costs the gateway nothing', functio
         'subscription_id' => null,
         'amount' => 500,
         'currency' => 'USD',
-        'status' => 'pending',
+        'status' => 'qr_generated',
         'settlement_target' => 'platform',
         'channel' => 'api',
         'provider_ref' => 'deadbeef',
         'checkout_payload' => ['type' => 'subscription'],
+        // A live session, not merely an open row: KhqrPayment::isActiveKhqrSession()
+        // is what entitles a row to a provider call, and a QR that was never
+        // minted (status 'pending') or has elapsed is deliberately not one.
+        'expires_at' => now()->addMinutes(10),
     ]);
 
     $attempts = 0;
@@ -355,11 +375,15 @@ it('counts every live Bakong request it spends, split by settlement target', fun
         'subscription_id' => null,
         'amount' => 500,
         'currency' => 'USD',
-        'status' => 'pending',
+        'status' => 'qr_generated',
         'settlement_target' => 'platform',
         'channel' => 'api',
         'provider_ref' => 'deadbeef',
         'checkout_payload' => ['type' => 'subscription'],
+        // A live session, not merely an open row: KhqrPayment::isActiveKhqrSession()
+        // is what entitles a row to a provider call, and a QR that was never
+        // minted (status 'pending') or has elapsed is deliberately not one.
+        'expires_at' => now()->addMinutes(10),
     ]);
 
     Http::fake(fn () => Http::response(['responseCode' => 1, 'responseMessage' => 'not found'], 200));
@@ -386,11 +410,15 @@ it('does not count a verify answered from the cooldown cache', function () {
         'subscription_id' => null,
         'amount' => 500,
         'currency' => 'USD',
-        'status' => 'pending',
+        'status' => 'qr_generated',
         'settlement_target' => 'platform',
         'channel' => 'api',
         'provider_ref' => 'deadbeef',
         'checkout_payload' => ['type' => 'subscription'],
+        // A live session, not merely an open row: KhqrPayment::isActiveKhqrSession()
+        // is what entitles a row to a provider call, and a QR that was never
+        // minted (status 'pending') or has elapsed is deliberately not one.
+        'expires_at' => now()->addMinutes(10),
     ]);
 
     Http::fake(fn () => Http::response(['responseCode' => 1, 'responseMessage' => 'not found'], 200));
@@ -409,11 +437,15 @@ it('counts a request the gateway refused', function () {
         'subscription_id' => null,
         'amount' => 500,
         'currency' => 'USD',
-        'status' => 'pending',
+        'status' => 'qr_generated',
         'settlement_target' => 'platform',
         'channel' => 'api',
         'provider_ref' => 'deadbeef',
         'checkout_payload' => ['type' => 'subscription'],
+        // A live session, not merely an open row: KhqrPayment::isActiveKhqrSession()
+        // is what entitles a row to a provider call, and a QR that was never
+        // minted (status 'pending') or has elapsed is deliberately not one.
+        'expires_at' => now()->addMinutes(10),
     ]);
 
     Http::fake(fn () => Http::response(['responseCode' => 1], 502));

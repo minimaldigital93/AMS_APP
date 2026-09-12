@@ -14,19 +14,33 @@ use Illuminate\Console\Command;
  * the very page the popup lives on: no active subscription and a gateway that
  * won't take payment leaves nowhere in the UI to stand.
  *
- * Every run costs live requests against a metered Bakong token — one probe per
- * check, and the handoff probe opens a throwaway checkout session at khqr.cc.
- * Don't loop it.
+ * OFFLINE BY DEFAULT since the KHQR zero-request audit. A live run costs two
+ * requests against a metered Bakong token — the handoff probe opens a throwaway
+ * checkout session at khqr.cc — so "is the token there?" must never be answered
+ * by spending one of its requests. The config half of the report (feature
+ * switch, credentials, today's spend, webhook URL) is free and is where most
+ * failures are already visible; --live adds the two probes and is the only way
+ * to make this command contact anyone.
  */
 class DiagnoseKhqr extends Command
 {
-    protected $signature = 'khqr:diagnose';
+    protected $signature = 'khqr:diagnose
+        {--live : Also run the two live gateway probes. Costs 2 requests against the daily Bakong allowance.}';
 
-    protected $description = 'Check whether the platform KHQR profile can actually take a subscription payment';
+    protected $description = 'Check whether the platform KHQR profile can take a subscription payment (offline unless --live)';
 
     public function handle(KhqrPaymentService $khqr): int
     {
-        $report = $khqr->platformDiagnostics();
+        $live = (bool) $this->option('live');
+
+        if ($live && ! KhqrPaymentService::featureEnabled()) {
+            // Say it before the report rather than leaving the reader to spot
+            // two 'info' rows: they asked for a live run and are not getting one.
+            $this->warn('KHQR is disabled (KHQR_PAY_ENABLED) — --live was ignored and no provider requests were made.');
+            $live = false;
+        }
+
+        $report = $khqr->platformDiagnostics($live);
 
         $icons = ['ok' => '<info>✔</info>', 'fail' => '<fg=red>✘</>', 'warn' => '<comment>!</comment>', 'info' => 'ⓘ'];
 
@@ -71,8 +85,18 @@ class DiagnoseKhqr extends Command
 
         $this->line('');
 
+        if (! ($report['live'] ?? false)) {
+            $this->comment('Offline report — no request was sent to khqr.cc or Bakong.');
+        }
+
         if ($report['healthy']) {
-            $this->info('Platform KHQR looks able to take payments.');
+            $this->info(match (true) {
+                // In demo mode --live is also a no-op, so offering it would send
+                // the reader looking for an answer this command cannot give.
+                (bool) config('services.khqrpay.demo') => 'Demo mode — the gateway is never contacted. Set KHQRPAY_DEMO=false to check the real profile.',
+                (bool) ($report['live'] ?? false) => 'Platform KHQR looks able to take payments.',
+                default => 'Platform KHQR configuration looks complete. Add --live to ask the gateway whether it will actually transact.',
+            });
 
             return self::SUCCESS;
         }

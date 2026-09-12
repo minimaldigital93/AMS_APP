@@ -48,6 +48,16 @@ class ShowKhqrUsage extends Command
 
         $this->table(['Date', 'Total', 'Platform', 'Merchant'], $rows);
 
+        // The number that decides whether any of the above can grow. With the
+        // feature off, every counter here is frozen by construction — say so
+        // rather than let a row of zeroes read as "a quiet day".
+        $this->line('');
+        if (\App\Services\Payment\KhqrProviderClient::featureEnabled()) {
+            $this->line('KHQR feature: <info>ENABLED</info> (KHQR_PAY_ENABLED) — provider requests are possible.');
+        } else {
+            $this->line('KHQR feature: <comment>DISABLED</comment> (KHQR_PAY_ENABLED) — no provider request can be made at all.');
+        }
+
         // The ceiling that actually stops the calls, printed beside the spend —
         // the numbers above only mean something against it.
         $budget = (int) config('services.khqrpay.daily_budget', 0);

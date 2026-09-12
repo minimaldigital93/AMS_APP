@@ -1019,17 +1019,26 @@
                     </div>
 
                     <!-- How and when -->
-                    <div class="grid grid-cols-2 gap-2">
+                    {{-- KHQR is only offered when the installation actually has it
+                         switched on. Without this the collector picks KHQR, waits
+                         for a QR, and gets a 502 explaining the feature is off —
+                         with cash sitting right beside it the whole time. The
+                         server refuses it regardless (createQr), so this is the
+                         affordance agreeing with the rule rather than the rule. --}}
+                    @php $khqrOffered = \App\Services\Payment\KhqrProviderClient::featureEnabled(); @endphp
+                    <div class="grid {{ $khqrOffered ? 'grid-cols-2' : 'grid-cols-1' }} gap-2">
                         <label class="flex items-center justify-center gap-2 py-2.5 border rounded-xl cursor-pointer text-sm transition select-none"
                             :class="checkoutMethod === 'cash' ? 'bg-emerald-50 border-emerald-300 text-emerald-700 font-medium' : 'border-slate-200 text-slate-500 hover:border-slate-300'">
                             <input type="radio" name="payment_method" value="cash" x-model="checkoutMethod" class="sr-only" required>
                             💵 {{ __('messages.cash') }}
                         </label>
-                        <label class="flex items-center justify-center gap-2 py-2.5 border rounded-xl cursor-pointer text-sm transition select-none"
-                            :class="checkoutMethod === 'khqr' ? 'bg-rose-50 border-rose-300 text-rose-700 font-medium' : 'border-slate-200 text-slate-500 hover:border-slate-300'">
-                            <input type="radio" name="payment_method" value="khqr" x-model="checkoutMethod" class="sr-only">
-                            📱 KHQR
-                        </label>
+                        @if ($khqrOffered)
+                            <label class="flex items-center justify-center gap-2 py-2.5 border rounded-xl cursor-pointer text-sm transition select-none"
+                                :class="checkoutMethod === 'khqr' ? 'bg-rose-50 border-rose-300 text-rose-700 font-medium' : 'border-slate-200 text-slate-500 hover:border-slate-300'">
+                                <input type="radio" name="payment_method" value="khqr" x-model="checkoutMethod" class="sr-only">
+                                📱 KHQR
+                            </label>
+                        @endif
                     </div>
                     <div class="min-w-0">
                         <label class="block text-xs text-slate-400 mb-1">{{ __('messages.date') }} <span class="text-red-400">*</span></label>
@@ -1850,7 +1859,14 @@ function billingManager() {
                 const m = Math.floor(secs / 60);
                 const s = secs % 60;
                 this.khqrCountdown = m + ':' + String(s).padStart(2, '0');
-                if (secs <= 0) this.stopKhqrCountdown(); // poll flips to expired
+                // Also the stop signal. The server deliberately leaves an
+                // elapsed QR OPEN now — expiring it would shut the webhook out
+                // of a payment that landed at the deadline — so the modal can no
+                // longer wait for the poll to report 'expired'.
+                if (secs <= 0) {
+                    this.stopKhqrCountdown();
+                    if (!this.khqrPaid) { this.stopKhqrPoll(); this.khqrExpired = true; this.khqrCountdown = ''; }
+                }
             };
             tick();
             this.khqrCountdownTimer = setInterval(tick, 1000);

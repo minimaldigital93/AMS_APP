@@ -281,7 +281,7 @@ it('routes a missing-token refusal to the khqr.cc dashboard, naming the profile'
         'khqr.cc/*' => Http::response(['responseCode' => 1, 'responseMessage' => 'Transaction Not Found'], 404),
     ]);
 
-    $handoff = diagCheck($this->service->platformDiagnostics(), 'handoff');
+    $handoff = diagCheck($this->service->platformDiagnostics(live: true), 'handoff');
 
     expect($handoff['state'])->toBe('fail')
         // Nothing on our side can clear this one, so the remedy must not send
@@ -298,7 +298,7 @@ it('routes a spent allowance to waiting, not to a settings change', function () 
         'responseCode' => 429, 'responseMessage' => 'Rate limit exceeded',
     ], 429)]);
 
-    $profile = diagCheck($this->service->platformDiagnostics(), 'profile');
+    $profile = diagCheck($this->service->platformDiagnostics(live: true), 'profile');
 
     // An allowance clears itself at midnight; there is nothing to fix and no
     // one to email, so it must not offer a support sentence.
@@ -312,7 +312,7 @@ it('routes a bad secret to our own payment settings page', function () {
         'responseCode' => 1, 'responseMessage' => 'Invalid Security Hash',
     ], 401)]);
 
-    $profile = diagCheck($this->service->platformDiagnostics(), 'profile');
+    $profile = diagCheck($this->service->platformDiagnostics(live: true), 'profile');
 
     expect($profile['state'])->toBe('fail')
         ->and($profile['remedy'])->toContain('Payment Settings')
@@ -325,7 +325,7 @@ it('gives a healthy check no remedy and no support sentence', function () {
         'khqr.cc/*' => Http::response(['responseCode' => 1, 'responseMessage' => 'Transaction Not Found'], 404),
     ]);
 
-    $profile = diagCheck($this->service->platformDiagnostics(), 'profile');
+    $profile = diagCheck($this->service->platformDiagnostics(live: true), 'profile');
 
     expect($profile['state'])->toBe('ok')
         ->and($profile['remedy'])->toBeNull()
@@ -344,7 +344,7 @@ it('reports the day\'s spend against the budget, and fails the check once it is 
 
     // The probes below spend nothing extra against the counter — only
     // queryProviderOutcome() is metered — so the ceiling is exactly reached.
-    $usage = diagCheck($this->service->platformDiagnostics(), 'usage');
+    $usage = diagCheck($this->service->platformDiagnostics(live: true), 'usage');
 
     expect($usage['state'])->toBe('fail')
         ->and($usage['detail'])->toContain('2')
@@ -354,7 +354,7 @@ it('reports the day\'s spend against the budget, and fails the check once it is 
 it('warns when no daily ceiling is set at all', function () {
     Http::fake(['khqr.cc/*' => Http::response(['responseCode' => 1, 'responseMessage' => 'Transaction Not Found'], 404)]);
 
-    $usage = diagCheck($this->service->platformDiagnostics(), 'usage');
+    $usage = diagCheck($this->service->platformDiagnostics(live: true), 'usage');
 
     expect($usage['state'])->toBe('warn')
         ->and($usage['remedy'])->toContain('KHQRPAY_DAILY_BUDGET');
@@ -363,7 +363,7 @@ it('warns when no daily ceiling is set at all', function () {
 it('offers the webhook URL as a copyable value, since nothing can read it back', function () {
     Http::fake(['khqr.cc/*' => Http::response(['responseCode' => 1, 'responseMessage' => 'Transaction Not Found'], 404)]);
 
-    $webhook = diagCheck($this->service->platformDiagnostics(), 'webhook');
+    $webhook = diagCheck($this->service->platformDiagnostics(live: true), 'webhook');
 
     expect($webhook['state'])->toBe('info')
         ->and($webhook['copy'])->toBe(route('khqr.callback'));

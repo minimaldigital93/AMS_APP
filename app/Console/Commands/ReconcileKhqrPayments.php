@@ -4,6 +4,7 @@ namespace App\Console\Commands;
 
 use App\Enums\PaymentStatus;
 use App\Models\KhqrPayment;
+use App\Services\Payment\KhqrProviderClient;
 use App\Services\RevenueExpense\KhqrPaymentService;
 use Illuminate\Console\Command;
 use Illuminate\Database\Eloquent\Builder;
@@ -28,6 +29,21 @@ use Illuminate\Support\Facades\Log;
  */
 class ReconcileKhqrPayments extends Command
 {
+    /**
+     * The only statuses that can represent a payment session the gateway has
+     * ever heard of.
+     *
+     * `pending` is open but deliberately absent: it means the QR mint never
+     * completed, so no session was opened at khqr.cc and there is nothing there
+     * to ask about. Verifying those was asking Bakong about rows that only ever
+     * existed in this database — the clearest case of the rule this command now
+     * follows, that a record is not a payment.
+     */
+    private const VERIFIABLE_STATUSES = [
+        'qr_generated',
+        'waiting_payment',
+    ];
+
     protected $signature = 'khqr:reconcile
         {--expire-after=30 : Minutes before an unverifiable pending QR with no expires_at is marked expired}
         {--grace= : Minutes past a QR\'s expiry to keep re-verifying it (default: services.khqrpay.reconcile_grace)}';
@@ -36,6 +52,22 @@ class ReconcileKhqrPayments extends Command
 
     public function handle(KhqrPaymentService $khqr): int
     {
+        // Gate one of four (scheduler → command → service → provider client).
+        // The scheduler already skips this entry, but a command must never rely
+        // on its caller: this is also what `php artisan khqr:reconcile` typed by
+        // hand, a deploy script, or a cron line someone added directly runs into.
+        if (! KhqrProviderClient::featureEnabled()) {
+            $this->info('KHQR is disabled (KHQR_PAY_ENABLED). No provider requests were made.');
+
+            return self::SUCCESS;
+        }
+
+        if (! config('services.khqrpay.reconcile_enabled')) {
+            $this->info('khqr:reconcile is switched off (KHQRPAY_RECONCILE_ENABLED). No provider requests were made.');
+
+            return self::SUCCESS;
+        }
+
         $expireAfter = (int) $this->option('expire-after');
         $grace = $this->option('grace') !== null
             ? (int) $this->option('grace')
@@ -46,10 +78,17 @@ class ReconcileKhqrPayments extends Command
         $refused = 0;
 
         $this->reconcileWindow($expireAfter, $grace)
-            ->chunkById(100, function ($rows) use ($khqr, $expireAfter, &$finalized, &$expired, &$refused) {
+            ->chunkById(100, function ($rows) use ($khqr, $expireAfter, $grace, &$finalized, &$expired, &$refused) {
                 foreach ($rows as $row) {
                     try {
-                        $outcome = $khqr->verifyOutcome($row);
+                        // The grace is handed to the service, not just used to
+                        // pick rows: KhqrProviderClient refuses a request about
+                        // any row that is not a live session, and the whole
+                        // point of this net is to ask about QRs that have just
+                        // expired. Passing it here is what distinguishes "a
+                        // payment may still have landed on this one" from "a
+                        // record exists, so call Bakong".
+                        $outcome = $khqr->verifyOutcome($row, $grace);
 
                         if ($outcome === KhqrPaymentService::VERIFY_PAID) {
                             $khqr->finalize($row);
@@ -125,7 +164,7 @@ class ReconcileKhqrPayments extends Command
     private function reconcileWindow(int $expireAfter, int $grace): Builder
     {
         return KhqrPayment::query()
-            ->whereIn('status', PaymentStatus::openValues())
+            ->whereIn('status', self::VERIFIABLE_STATUSES)
             ->where('channel', 'api')
             // Hard ceiling, kept from the original query: whatever `grace` is
             // set to, never re-verify a row for more than a day.
@@ -150,6 +189,9 @@ class ReconcileKhqrPayments extends Command
      */
     private function reportAbandoned(int $expireAfter, int $grace): void
     {
+        // Deliberately every OPEN status, not just the verifiable ones: a row
+        // stuck in `pending` is also an open row nobody is watching, and this
+        // only counts — it never calls the gateway.
         $abandoned = KhqrPayment::query()
             ->whereIn('status', PaymentStatus::openValues())
             ->where('channel', 'api')

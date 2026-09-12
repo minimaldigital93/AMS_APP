@@ -26,6 +26,11 @@
         <env name="BCRYPT_ROUNDS" value="4"/>
         <env name="BROADCAST_CONNECTION" value="null"/>
         <env name="CACHE_STORE" value="array"/>
+        <!-- The suite exercises the KHQR feature, so the master gate is ON here.
+             Its production default is OFF (config/services.php) — the zero-request
+             guarantee is tested by flipping it back off per-test, in
+             tests/Feature/RevenueExpense/KhqrZeroRequestTest.php. -->
+        <env name="KHQR_PAY_ENABLED" value="true"/>
         <env name="DB_CONNECTION" value="sqlite"/>
         <env name="DB_DATABASE" value=":memory:"/>
         <env name="MAIL_MAILER" value="array"/>

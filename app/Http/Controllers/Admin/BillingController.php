@@ -105,10 +105,15 @@ class BillingController extends Controller
      * already broken, so a failure here has to report itself rather than
      * replace the popup with an error.
      */
-    public function diagnostics(KhqrPaymentService $khqr): JsonResponse
+    public function diagnostics(Request $request, KhqrPaymentService $khqr): JsonResponse
     {
         try {
-            $report = $khqr->platformDiagnostics();
+            // Offline unless the caller explicitly asks to probe. The popup's
+            // own fetch sends ?live=1, so a human opening the dialog still gets
+            // the real gateway answer — but the bare URL (a bookmark, a crawler,
+            // an uptime check, a second tab) costs nothing. Two metered Bakong
+            // requests must never be spendable by merely loading a route.
+            $report = $khqr->platformDiagnostics(live: $request->boolean('live'));
             $report['last_fault'] = $khqr->lastPlatformCheckoutFault();
 
             return response()->json($report);
@@ -123,6 +128,7 @@ class BillingController extends Controller
                     'state' => 'fail',
                     'detail' => $e->getMessage(),
                 ]],
+                'live' => false,
                 'checked_at' => now()->toIso8601String(),
                 'last_fault' => null,
             ]);
