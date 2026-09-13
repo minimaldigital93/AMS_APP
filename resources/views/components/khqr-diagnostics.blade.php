@@ -7,8 +7,9 @@
      that handoff — this popup is what says WHY, on our own page.
 
      Two audiences, one component:
-       - $endpoint set (admin) → runs the live gateway checks and quotes the
-         gateway verbatim. That is the fix-it view.
+       - $endpoint set (admin) → shows the free offline report on opening, and
+         runs the live gateway checks (quoting the gateway verbatim) only when
+         the "run live check" button is pressed. That is the fix-it view.
        - $endpoint null (public signup) → plain language, no probe. The detail
          names the profile id and the gateway's internals; a visitor must never
          see it, and an unauthenticated probe endpoint would be a free way to
@@ -148,7 +149,9 @@
                     {{ __('messages.close') }}
                 </button>
                 @if ($endpoint)
-                    <button type="button" x-on:click="run()" x-bind:disabled="loading"
+                    {{-- The only thing on this page that spends the Bakong
+                         allowance, so its label says so. --}}
+                    <button type="button" x-on:click="run(true)" x-bind:disabled="loading"
                             class="inline-flex justify-center rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50">
                         {{ __('messages.khqr_diag_recheck') }}
                     </button>
@@ -182,10 +185,13 @@
             init() { if (autoOpen) this.open(); },
             open() {
                 this.shown = true;
-                // Probe once per opening, not on page load: each run costs live
-                // requests against a metered Bakong token, so it is paid for by
-                // someone actually asking what went wrong.
-                if (endpoint && !this.ran) this.run();
+                // Opening reads the FREE offline report: configuration, today's
+                // spend, any backoff in force and the last refusal the preflight
+                // recorded in the gateway's own words. It used to probe live on
+                // every opening — and this popup opens BY ITSELF after every
+                // refused renew, so each refusal cost two more metered requests
+                // nobody had asked for. Live probing is the labelled button.
+                if (endpoint && !this.ran) this.run(false);
             },
             close() { this.shown = false; },
             copiedKey: null,
@@ -206,16 +212,18 @@
                     window.prompt(@json(__('messages.khqr_diag_copy')), check.copy);
                 }
             },
-            async run() {
+            async run(live) {
                 if (!endpoint) return;
                 this.ran = true;
                 this.loading = true;
                 try {
                     // live=1 is what authorises the two metered gateway probes.
                     // Without it the endpoint answers from configuration alone,
-                    // so nothing but a human opening this dialog can spend a
-                    // Bakong request on a health check.
-                    const url = endpoint + (endpoint.includes('?') ? '&' : '?') + 'live=1';
+                    // so nothing but a human pressing the live-check button can
+                    // spend a Bakong request on a health check.
+                    const url = live
+                        ? endpoint + (endpoint.includes('?') ? '&' : '?') + 'live=1'
+                        : endpoint;
                     const res = await fetch(url, { headers: { 'Accept': 'application/json' } });
                     const data = await res.json();
                     this.checks = data.checks || [];

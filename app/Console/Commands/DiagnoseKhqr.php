@@ -25,7 +25,7 @@ use Illuminate\Console\Command;
 class DiagnoseKhqr extends Command
 {
     protected $signature = 'khqr:diagnose
-        {--live : Also run the two live gateway probes. Costs 2 requests against the daily Bakong allowance.}';
+        {--live : QUOTA-CONSUMING. Also run the two live gateway probes — costs up to 2 requests against the daily Bakong allowance.}';
 
     protected $description = 'Check whether the platform KHQR profile can take a subscription payment (offline unless --live)';
 
@@ -38,6 +38,17 @@ class DiagnoseKhqr extends Command
             // two 'info' rows: they asked for a live run and are not getting one.
             $this->warn('KHQR is disabled (KHQR_PAY_ENABLED) — --live was ignored and no provider requests were made.');
             $live = false;
+        }
+
+        if ($live) {
+            // Said BEFORE anything is sent: this is the one mode of this command
+            // that spends the allowance it reports on.
+            $budget = (int) config('services.khqrpay.daily_budget', 0);
+            $this->warn(sprintf(
+                'LIVE DIAGNOSTICS — consumes quota: up to 2 requests to khqr.cc against the daily Bakong allowance (platform spent today: %d%s).',
+                KhqrPaymentService::providerCallsOn('platform'),
+                $budget > 0 ? '/'.$budget : ', no ceiling set',
+            ));
         }
 
         $report = $khqr->platformDiagnostics($live);

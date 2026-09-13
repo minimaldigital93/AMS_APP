@@ -69,12 +69,13 @@ return [
         'demo' => (bool) env('KHQRPAY_DEMO', false) && env('APP_ENV') !== 'production',
         // Max age (seconds) of a webhook's req_time before it's rejected as a replay.
         'webhook_tolerance' => (int) env('KHQRPAY_WEBHOOK_TOLERANCE', 600),
-        // Min seconds between live verify() calls for the same transaction — caps
-        // how hard the public status poll can hammer the provider. Must stay
-        // above the client poll interval (record_income.blade.php / subscribe
-        // checkout.blade.php both poll every 10s) or every poll still fires a
-        // live call regardless of this setting.
-        'verify_cooldown' => (int) env('KHQRPAY_VERIFY_COOLDOWN', 10),
+        // Min seconds between live verify calls for the same transaction, claimed
+        // ATOMICALLY in KhqrProviderClient before the request — so it holds
+        // across tabs, users, PHP-FPM workers and the reconcile run alike. Must
+        // stay well above the client poll interval (all three checkout views
+        // poll every 10s): the default used to BE 10s, which let every poll
+        // through. 0 leaves only the in-flight guard (one request at a time).
+        'verify_cooldown' => (int) env('KHQRPAY_VERIFY_COOLDOWN', 60),
         // Minutes a minted QR stays payable before it's considered expired.
         'qr_ttl' => (int) env('KHQRPAY_QR_TTL', 30),
         // Minutes to stop making live verify() calls for ALL open transactions on
@@ -85,6 +86,16 @@ return [
         // actually sent, so it still protects an account that hasn't set a
         // budget ceiling at all.
         'rate_limit_backoff' => (int) env('KHQRPAY_RATE_LIMIT_BACKOFF', 5),
+        // Minutes to stop calling a credential after it refuses in a way that
+        // will be just as true on the next request: 401/403 (bad signature), 422
+        // and "Bakong Token Required" (no usable upstream token), a quota-worded
+        // refusal, 5xx. Without it every open checkout on a broken token
+        // re-discovered the refusal once per cooldown, each one a metered call.
+        // Checkout is refused locally while it lasts; the webhook is unaffected;
+        // an explicit live diagnostic (`khqr:diagnose --live`, or the admin
+        // popup's "run live check" button) may still probe, and clears it when
+        // the profile answers healthy.
+        'failure_backoff' => (int) env('KHQRPAY_FAILURE_BACKOFF', 15),
         // Preflight the HOSTED-CHECKOUT endpoint (not just the read-only
         // check-transaction one) before handing a customer's browser to
         // khqr.cc. It is the only probe that catches a profile which can answer

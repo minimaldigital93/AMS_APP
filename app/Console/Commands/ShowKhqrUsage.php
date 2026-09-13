@@ -48,12 +48,27 @@ class ShowKhqrUsage extends Command
 
         $this->table(['Date', 'Total', 'Platform', 'Merchant'], $rows);
 
+        // WHAT spent today's allowance — the first question of any quota
+        // investigation, answered without reading the log. Counted per reason
+        // by KhqrProviderClient at the moment a request is let through.
+        $platform = \App\Services\Payment\KhqrProviderClient::callsByReasonOn('platform');
+        $merchant = \App\Services\Payment\KhqrProviderClient::callsByReasonOn('merchant');
+        $this->line('');
+        $this->line('Today by reason:');
+        $this->table(
+            ['Reason', 'Platform', 'Merchant'],
+            array_map(fn (string $reason) => [$reason, $platform[$reason], $merchant[$reason]], array_keys($platform)),
+        );
+
         // The number that decides whether any of the above can grow. With the
         // feature off, every counter here is frozen by construction — say so
         // rather than let a row of zeroes read as "a quiet day".
         $this->line('');
-        if (\App\Services\Payment\KhqrProviderClient::featureEnabled()) {
+        if (\App\Services\Payment\KhqrProviderClient::providerCallsPermitted()) {
             $this->line('KHQR feature: <info>ENABLED</info> (KHQR_PAY_ENABLED) — provider requests are possible.');
+        } elseif (\App\Services\Payment\KhqrProviderClient::featureEnabled()) {
+            // Demo runs the flows but can never transmit — "possible" would be false.
+            $this->line('KHQR feature: <comment>DEMO</comment> (KHQRPAY_DEMO) — simulated locally, no provider request can be made.');
         } else {
             $this->line('KHQR feature: <comment>DISABLED</comment> (KHQR_PAY_ENABLED) — no provider request can be made at all.');
         }
@@ -83,6 +98,8 @@ class ShowKhqrUsage extends Command
         $this->line('');
         $this->comment('Counters are cache-backed (retained ~3 days). Zeroes older than that, '
             .'or after a cache flush, mean "not recorded" — not "no calls".');
+        $this->comment('`cache:clear` / `optimize:clear` flush them — and with them today\'s budget, '
+            .'cooldowns and backoffs. Re-cache config with `config:clear && config:cache` instead.');
 
         if (config('cache.default') === 'array') {
             $this->warn('CACHE_STORE is "array": counters do not survive the request. Use database/redis.');

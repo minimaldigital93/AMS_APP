@@ -329,11 +329,23 @@ QR, matching the missing-credentials guard — and flash its return value as
   this app points at has been faulting since June, so in practice every visit to
   the billing page bought the same discovery for two metered calls and the guard
   outspent the payments it guards. The reasoning is preserved where it actually
-  matters: `platformDiagnostics()` never reads the cache and **clears both
-  verdicts** (`forgetCachedVerdicts()`), because that is the page an operator is
-  standing on while doing the fixing. Keep it distinct from `lastFaultKey()` —
-  that is the six-hour record of *what* refused, and it is only ever displayed;
-  this one suppresses calls.
+  matters: a **live** `platformDiagnostics()` run that comes back **healthy**
+  clears the fault verdict *and* the failure backoff (`forgetCachedVerdicts()`),
+  because that is the page an operator is standing on while doing the fixing. A
+  live run that still finds the fault **re-caches** it instead — it used to clear
+  both verdicts *before* probing, whatever it found, which (with the popup
+  auto-probing after every refused renew) made each renew click cost four
+  metered calls. Keep it distinct from `lastFaultKey()` — that is the six-hour
+  record of *what* refused, and it is only ever displayed; this one suppresses
+  calls.
+- **A backoff in force answers the preflight locally** (`cachedCheckoutVerdict()`):
+  a 429 or a failure backoff on the platform profile returns the fault without a
+  probe, checked before the healthy cache because it is newer news.
+- **One preflight per profile at a time** — `Cache::lock(...preflight-lock...)`
+  with a re-check of the verdicts inside. A wait that runs out fails open.
+- A switched-off handoff probe reports `skipped`, and a healthy profile probe
+  plus `skipped` **is** cached as healthy — with `KHQRPAY_HANDOFF_PREFLIGHT=false`
+  every checkout used to re-probe uncached.
 - **The probes are skipped entirely once `dailyBudgetExhausted()`.** They cost
   what a verify costs, and a health check must never spend the reserve kept for
   a payment. Checkout then **fails open** (an unrunnable check is not a fault);
@@ -355,8 +367,12 @@ subscription + a gateway that won't take payment leaves nowhere in the UI to
 stand).
 
 - **Two audiences, one component, and the difference is `endpoint`.** With it
-  (billing page, admin checkout) the popup runs the live checks and quotes the
-  gateway verbatim. Without it (public signup form, signup checkout) it says
+  (billing page, admin checkout) the popup reads the **free offline report on
+  opening** — config, today's spend, any backoff in force, the last recorded
+  refusal — and runs the live checks (quoting the gateway verbatim) **only from
+  the "Run live check (uses 2 Bakong requests)" button**. It auto-opens after
+  every refused renew (`khqr_fault`), so probing on open was a metered request
+  pair nobody asked for; don't revert `run(false)` in `open()`. Without it (public signup form, signup checkout) it says
   what happened, that no money moved, and what to do — **never** the probe
   results: `detail` names the profile id and the gateway's internals, and an
   unauthenticated probe route would be a free way to spend a metered Bakong
@@ -416,25 +432,65 @@ database is a payment worth asking about.** A record is not a payment.
   off on an install that wants KHQR costs one line of `.env`; shipping it on
   costs a metered token drained by a scheduler nobody remembered. With it false
   **nothing** contacts the gateway — not a page load, the scheduler, a command, a
-  poll, the diagnostics popup or `khqr:diagnose`. Cash, bank transfer and the
+  poll, a queue job, the diagnostics popup or `khqr:diagnose`. Cash, bank transfer and the
   landlord's **manual** static-KHQR channel are untouched (manual never reaches
   the gateway at all).
 - **`featureEnabled()` and `providerCallsPermitted()` are different questions.**
   The first ("may KHQR flows run?") counts **demo** mode as on — demo is a local
   simulation that cannot transmit. The second ("may a request leave?") excludes
   it. Gate 1 of `call()` uses the narrow one.
-- **Six gates, all refusals BEFORE the request**, because a refused Bakong
-  request is charged exactly like a paid one: `khqr_disabled`, `demo_mode`,
-  `no_active_payment`, `rate_limited`, `daily_budget_exhausted`,
-  `max_attempts_reached`. Every allowed call logs its `reason`
-  (`payment_creation` / `payment_verification` / `checkout_preflight` /
-  `manual_diagnostic`); every block logs why. That log is how the next accidental
-  call gets found — which is why `reason` is a required parameter.
+- **Ten gates, all refusals BEFORE the request**, because a refused Bakong
+  request is charged exactly like a paid one, in this order: `khqr_disabled`,
+  `demo_mode`, `invalid_request` (unknown reason/target, a row-bound reason with
+  no row, a row whose `settlement_target` isn't the budget being charged — an
+  unknown target used to get its own `unknown` budget while signing with the
+  platform token), `invalid_credentials` (blank profile/secret — requests used to
+  go out to `/api//…`), `no_active_payment`, `rate_limited` (429),
+  `provider_backoff`, `verify_cooldown`, `max_attempts_reached`,
+  `daily_budget_exhausted` / `budget_unavailable`. Every allowed call logs
+  `KHQR provider request` with `reason`, `target`, `transaction_id`, `profile`,
+  `spent_today`, then `KHQR provider response` with the HTTP status; every block
+  logs why. `khqr:usage` also counts calls **per reason** (`callsByReasonOn()`).
+  That is how the next accidental call gets found — which is why `reason` is a
+  required parameter.
+- **The verify cooldown is claimed atomically IN THE CLIENT, before the
+  request** (`claimSessionSlot()`: `Cache::add` on
+  `khqr:provider:verify-slot:{tx}`, an atomic insert-if-absent on the database,
+  file and redis stores). The old cooldown was check-then-act in
+  `verifyOutcome()` and was only written when the answer came back, so every
+  poll, tab, worker or reconcile run that arrived while a request was in flight
+  made its own — 8 simultaneous processes made 8 requests. `verifyOutcome()`'s
+  outcome cache is now only the *read* side (a verdict served for the rest of the
+  window). With `KHQRPAY_VERIFY_COOLDOWN=0` the slot is an in-flight guard,
+  released after the request. Creation gets a one-shot slot: a transaction is
+  minted once. A poll blocked by the cooldown is **not** a `gateway_error`, and
+  its REFUSED is not cached.
+- **The budget reservation is the LAST gate and FAILS CLOSED.** It used to be
+  reserved before the attempt cap (so a refused call still spent a slot) and to
+  catch any exception — including the budget lock timing out under contention —
+  then count the call and allow it, so the ceiling gave way under exactly the
+  concurrency it exists for. A cooldown-ledger failure fails closed too.
+- **Failure backoff** (`backOffProviderFailure()`, `KHQRPAY_FAILURE_BACKOFF`,
+  default 15 min, per profile): tripped centrally on 401/403/422/5xx and by the
+  service on a blocking refusal message (`isBlockingRefusal()` — "Bakong Token
+  Required", quota wording, a 404 naming the profile). NOT on a timeout — that
+  says nothing about the profile, and the cooldown already stops an immediate
+  retry. `REASON_MANUAL_DIAGNOSTIC` is the only reason let past it (never past a
+  429 or the budget). A 2xx that isn't the JSON envelope reads **REFUSED**, not
+  UNPAID.
+- **Provider text is redacted** (`KhqrProviderClient::redact()`) before it is
+  logged or shown: a transport exception quotes the full request URL, and the
+  hosted-checkout URL is signed (`hash=`).
 - **`KhqrPayment::isActiveKhqrSession(int $grace = 0)` is the active-session
-  rule**, and no migration was needed for it: `channel = 'api'`, status open,
-  status **past `pending`** (a pending row's QR was never minted, so no session
-  exists at the gateway), and the QR still live within `$grace`. `$grace` is
-  `khqr:reconcile`'s rescue window and nothing else.
+  rule**, and no migration was needed for it: `channel = 'api'`, a
+  `transaction_id`, a known `settlement_target`, status open and **past
+  `pending`** (a pending row's QR was never minted, so no session exists at the
+  gateway), not stamped `paid_at`, **`originatedFromCheckout()`** (platform →
+  `subscription_id`; merchant → `rental_id` + `fiscal_period_id` + a minted
+  `qr_url`/`provider_ref` — a row nothing could be booked against is not worth a
+  call), created within the last day, and the QR still live within `$grace`.
+  `$grace` is `khqr:reconcile`'s rescue window and nothing else. Minting has its
+  twin, `isMintableKhqrSession()` (a fresh `pending` row with an owner).
 - **Defence in depth, four layers**: scheduler `->skip()` → command early return
   → `verifyOutcome()` returning `VERIFY_REFUSED` → `KhqrProviderClient`. A
   scheduled command never gates only itself.
@@ -448,7 +504,7 @@ database is a payment worth asking about.** A record is not a payment.
 - **`khqr:diagnose` and the diagnostics endpoint are OFFLINE by default.** A
   report must not spend the allowance it is reporting on: the config half
   (feature switch, credentials, today's spend, webhook URL) is free, and the two
-  probes need `--live` / `?live=1` (what the popup's own fetch sends). A bare GET
+  probes need `--live` / `?live=1` (what the popup's live-check button sends — opening it does not). A bare GET
   of `admin.billing.diagnostics` costs nothing.
 - **`khqr:reconcile` verifies only `qr_generated`/`waiting_payment`**
   (`VERIFIABLE_STATUSES`) inside the window, and hands its grace to
@@ -468,6 +524,12 @@ database is a payment worth asking about.** A record is not a payment.
 - `tests/Feature/RevenueExpense/KhqrZeroRequestTest.php` pins the guarantee with
   `Http::assertNothingSent()` — asserted against the HTTP layer, not against a
   flag someone remembered to check.
+- `tests/Feature/RevenueExpense/KhqrProviderRequestAuditTest.php` pins the rest
+  (disabled, active, cooldown, overlap, expired, paid, reconcile off, budget
+  spent, budget race, 429, 422, browser polling), including two **real
+  multi-process races** (`pcntl_fork` against a shared file cache) for the
+  cooldown and the budget. They skip where pcntl is unavailable. The suite runs
+  with `Http::preventStrayRequests()` (`tests/TestCase.php`).
 
 #### The Bakong token is metered per day, and a refusal costs the same as a sale
 
@@ -483,11 +545,18 @@ things that do — `env` defaults are in `config/services.php`:
   landlord's; a shared cap would let one busy landlord lock out everyone. Past
   the ceiling the gateway is not called at all. **0 disables it** — that is the
   backward-compatibility seam, and it is what an untouched deployment gets.
-- **`KHQRPAY_VERIFY_COOLDOWN`** — minimum seconds between live calls for the
-  same transaction. Every checkout poller *and* `khqr:reconcile` funnel through
-  `verify()`, so this is the single most effective throttle. It must stay **≥
-  the browser poll interval** (`POLL_MS`, 10s in all three checkout views) or it
-  absorbs nothing: at the 4s default every 10s poll was a live call.
+- **`KHQRPAY_VERIFY_COOLDOWN`** (default **60**, was 10) — minimum seconds between
+  live calls for the same transaction, claimed atomically in
+  `KhqrProviderClient`. Every checkout poller *and* `khqr:reconcile` funnel
+  through it, so this is the single most effective throttle. It must stay well
+  **above the browser poll interval** (`POLL_MS`, 10s in all three checkout
+  views) or it absorbs nothing: at the old 10s default every 10s poll was a live
+  call.
+- **`KHQRPAY_FAILURE_BACKOFF`** (default 15) — minutes a profile is not called
+  after a refusal that will still be true next time. See above.
+- **Don't `cache:clear` / `optimize:clear` in production** to refresh config: the
+  budget counters, cooldown slots and backoffs all live in the cache store, so a
+  flush hands the day a fresh allowance. Use `config:clear && config:cache`.
 - **`KHQRPAY_QR_TTL`** — also caps how long one abandoned tab can poll, since a
   row past `expires_at` is terminal and `verify()` short-circuits on it.
 - **`KHQRPAY_RECONCILE_GRACE`** — minutes past a QR's `expires_at` that

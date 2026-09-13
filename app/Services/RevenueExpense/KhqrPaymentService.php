@@ -65,6 +65,9 @@ class KhqrPaymentService
     /** Set by pollAndAdvance(); read by the poll endpoints via lastPollRefused(). */
     private bool $lastPollRefused = false;
 
+    /** The KhqrProviderClient block behind the last verifyOutcome(), if it was blocked. */
+    private ?string $lastVerifyBlock = null;
+
     /**
      * The ONE gateway to khqr.cc. Every Http:: call in this class goes through
      * it, so the feature gate, the active-session rule, the rate-limit backoff,
@@ -327,25 +330,9 @@ class KhqrPaymentService
             return __('messages.khqr_payment_settings_missing');
         }
 
-        $healthyKey = 'khqr:platform:reachable:'.$creds->profileId;
-        if (Cache::get($healthyKey)) {
-            return null;
-        }
-
-        // A profile that refused a moment ago will almost certainly refuse the
-        // next click, and every click costs TWO metered calls. Only a HEALTHY
-        // verdict used to be cached, on the reasoning that a fault must re-probe
-        // so a fixed profile works immediately — but the profile this app is
-        // actually pointed at has been faulting since June, so in practice that
-        // meant every visit to the billing page bought the same discovery again
-        // and the preflight became a bigger drain than the payments it guards.
-        // Held for the same 60 seconds as the healthy verdict, so a profile
-        // fixed at khqr.cc still starts working almost at once — and the
-        // diagnostics popup clears it outright, because that is the page an
-        // operator is standing on while doing the fixing.
-        $cachedFault = Cache::get(self::faultVerdictKey($creds));
-        if (is_string($cachedFault)) {
-            return $cachedFault;
+        $verdict = $this->cachedCheckoutVerdict($creds);
+        if ($verdict !== false) {
+            return $verdict;
         }
 
         // Never spend the last of a metered allowance on a health check. The two
@@ -356,6 +343,68 @@ class KhqrPaymentService
             return null;
         }
 
+        // ONE preflight per profile at a time. Two customers checking out in the
+        // same second used to both find the verdict cache empty and both buy the
+        // same two probes; the second now waits for the first's verdict and reads
+        // it. A wait that runs out (a slow gateway) fails open, like any other
+        // unknown verdict — it is never a reason to probe in parallel.
+        try {
+            return Cache::lock('khqr:platform:preflight-lock:'.$creds->profileId, 30)
+                ->block(10, function () use ($creds): ?string {
+                    $verdict = $this->cachedCheckoutVerdict($creds);
+
+                    return $verdict !== false ? $verdict : $this->probeCheckout($creds);
+                });
+        } catch (\Throwable $e) {
+            Log::warning('KHQRPay checkout preflight skipped — another preflight is still running or the lock is unavailable', [
+                'msg' => KhqrProviderClient::redact($e->getMessage()),
+            ]);
+
+            return null;
+        }
+    }
+
+    /**
+     * What the preflight already knows without asking anyone.
+     *
+     * @return string|null|false a fault reason, null for a cached healthy verdict, false when unknown
+     */
+    private function cachedCheckoutVerdict(KhqrCredentials $creds): string|null|false
+    {
+        // The credential is already backed off for a refusal that describes the
+        // profile (a 429, "Bakong Token Required", a 5xx, a bad signature). Every
+        // probe would be refused locally anyway, and failing open here would hand
+        // the customer to the same refusal as raw JSON — decided without a call.
+        // Checked first: it is newer news than a healthy verdict still cached
+        // from before the refusal.
+        if ($this->provider->rateLimited($creds) || $this->provider->providerBackoff($creds) !== null) {
+            return __('messages.subscription_gateway_unavailable');
+        }
+
+        if (Cache::get('khqr:platform:reachable:'.$creds->profileId)) {
+            return null;
+        }
+
+        // A profile that refused a moment ago will almost certainly refuse the
+        // next click, and every click costs TWO metered calls. Only a HEALTHY
+        // verdict used to be cached, on the reasoning that a fault must re-probe
+        // so a fixed profile works immediately — but the profile this app is
+        // actually pointed at has been faulting since June, so in practice that
+        // meant every visit to the billing page bought the same discovery again
+        // and the preflight became a bigger drain than the payments it guards.
+        // Held for the same 60 seconds as the healthy verdict; a live diagnostic
+        // that comes back healthy clears it at once.
+        $cachedFault = Cache::get(self::faultVerdictKey($creds));
+        if (is_string($cachedFault)) {
+            return $cachedFault;
+        }
+
+        return false;
+    }
+
+    /** Run the preflight probes for real. Only ever called under the preflight lock. */
+    private function probeCheckout(KhqrCredentials $creds): ?string
+    {
         $profile = $this->probeCheckTransaction($creds);
         if ($profile['outcome'] === 'fault') {
             $this->rememberCheckoutFault($creds, $profile);
@@ -370,10 +419,13 @@ class KhqrPaymentService
             return $this->cacheFaultVerdict($creds, __('messages.subscription_gateway_unavailable'));
         }
 
-        // Only cache "healthy" when BOTH probes actually said so — an unknown
-        // (timeout, blip) is let through but must not silence the next check.
-        if ($profile['outcome'] === 'ok' && $handoff['outcome'] === 'ok') {
-            Cache::put($healthyKey, true, now()->addSeconds(60));
+        // Only cache "healthy" when every probe that RAN said so — an unknown
+        // (timeout, blip) is let through but must not silence the next check. A
+        // handoff probe switched off by configuration did not run: without this
+        // it counted as unknown, and with KHQRPAY_HANDOFF_PREFLIGHT=false every
+        // single checkout re-probed the profile uncached.
+        if ($profile['outcome'] === 'ok' && in_array($handoff['outcome'], ['ok', 'skipped'], true)) {
+            Cache::put('khqr:platform:reachable:'.$creds->profileId, true, now()->addSeconds(60));
         }
 
         return null;
@@ -394,17 +446,19 @@ class KhqrPaymentService
      */
     private function rememberCheckoutFault(KhqrCredentials $creds, array $probe): void
     {
+        $message = KhqrProviderClient::redact($probe['message'] ?? null, 200);
+
         Log::warning('KHQRPay checkout preflight failed', [
             'probe' => $probe['probe'] ?? null,
             'status' => $probe['status'] ?? null,
-            'message' => $probe['message'] ?? null,
+            'message' => $message,
         ]);
 
         try {
             Cache::put(self::lastFaultKey($creds), [
                 'probe' => $probe['probe'] ?? null,
                 'status' => $probe['status'] ?? null,
-                'message' => $probe['message'] ?? null,
+                'message' => $message,
                 'at' => Carbon::now()->toIso8601String(),
             ], now()->addHours(6));
         } catch (\Throwable $e) {
@@ -458,20 +512,26 @@ class KhqrPaymentService
     }
 
     /**
-     * Drop both cached verdicts so the very next checkout re-probes for real.
+     * Drop the fault verdict and the failure backoff so the very next checkout
+     * goes through.
      *
-     * Called when diagnostics has just run live probes: whoever is looking at
-     * that report is mid-fix, and making them wait out a cache to find out
-     * whether the fix took is the behaviour the fault cache must not introduce.
+     * Called ONLY when a live diagnostic has just shown the profile healthy:
+     * whoever is looking at that report is mid-fix, and making them wait out a
+     * backoff to find out whether the fix took is what these caches must not do.
+     * It used to run BEFORE the probes, whatever they then found — so opening the
+     * popup on a still-broken profile (which it did by itself after every refused
+     * renew) made the next click re-probe, and every renew attempt on a broken
+     * token cost four metered calls instead of two.
      */
     private function forgetCachedVerdicts(KhqrCredentials $creds): void
     {
         try {
             Cache::forget(self::faultVerdictKey($creds));
-            Cache::forget('khqr:platform:reachable:'.$creds->profileId);
         } catch (\Throwable $e) {
             // Instrumentation only.
         }
+
+        $this->provider->clearProviderBackoff($creds);
     }
 
     private static function lastFaultKey(KhqrCredentials $creds): string
@@ -508,7 +568,7 @@ class KhqrPaymentService
      * report is the last thing that should be spending the allowance kept for a
      * payment. So the config half (credentials, allowance, webhook URL) always
      * answers for free, and the two probes only run when the caller explicitly
-     * asks for $live: `khqr:diagnose --live`, or the popup's own fetch. Most of
+     * asks for $live: `khqr:diagnose --live`, or the popup's live-check button. Most of
      * what goes wrong here is visible in the offline half anyway.
      *
      * @return array{healthy: bool, live: bool, checks: array<int, array{key: string, label: string, state: string, detail: ?string, remedy: ?string, copy: ?string}>, checked_at: string}
@@ -589,6 +649,14 @@ class KhqrPaymentService
         // is the line that tells them apart without a second guess.
         $checks[] = $this->usageCheck();
 
+        // A backoff in force is a finding in its own right, and a free one: it
+        // says the gateway already refused, in its own words, and until when this
+        // app has stopped asking. It is what an auto-opened popup can show without
+        // spending anything.
+        if ($missing === [] && ($backoff = $this->backoffCheck($creds)) !== null) {
+            $checks[] = $backoff;
+        }
+
         if ($missing !== []) {
             $checks[] = $webhook;
 
@@ -652,24 +720,37 @@ class KhqrPaymentService
             return ['healthy' => false, 'live' => $live, 'checks' => $checks, 'checked_at' => Carbon::now()->toIso8601String()];
         }
 
-        // What follows is a live reading, so it supersedes both cached verdicts.
-        // Whoever is looking at this report is mid-fix, and the fault cache must
-        // never make them wait a minute to find out whether the fix took.
-        $this->forgetCachedVerdicts($creds);
-
         // 2 + 3. The two live probes, reported separately: answering a
         //        transaction query and being able to open a checkout are
-        //        different permissions at the gateway.
-        foreach ([
+        //        different permissions at the gateway. REASON_MANUAL_DIAGNOSTIC
+        //        is the one reason KhqrProviderClient lets past a failure
+        //        backoff — the rate limit and the budget still apply.
+        $probes = [
             ['profile', __('messages.khqr_diag_profile'), $this->probeCheckTransaction($creds, KhqrProviderClient::REASON_MANUAL_DIAGNOSTIC)],
             ['handoff', __('messages.khqr_diag_handoff'), $this->probeHandoff($creds, KhqrProviderClient::REASON_MANUAL_DIAGNOSTIC)],
-        ] as [$key, $label, $probe]) {
+        ];
+
+        // A live reading supersedes the cached verdicts — in whichever direction
+        // it points. Healthy: clear the fault verdict and the backoff, so the fix
+        // the reader just made works on the very next click. Still failing: keep
+        // (refresh) the fault verdict, so this report does not buy the next
+        // checkout a fresh pair of probes that can only say the same thing.
+        $outcomes = array_column(array_column($probes, 2), 'outcome');
+        if ($outcomes[0] === 'ok' && in_array($outcomes[1], ['ok', 'skipped'], true)) {
+            $this->forgetCachedVerdicts($creds);
+            $checks = array_values(array_filter($checks, fn (array $c) => $c['key'] !== 'backoff'));
+        } elseif (in_array('fault', $outcomes, true)) {
+            $this->cacheFaultVerdict($creds, __('messages.subscription_gateway_unavailable'));
+        }
+
+        foreach ($probes as [$key, $label, $probe]) {
             $checks[] = [
                 'key' => $key,
                 'label' => $label,
                 'state' => match ($probe['outcome']) {
                     'ok' => 'ok',
                     'fault' => 'fail',
+                    'skipped' => 'info',
                     default => 'warn',
                 },
                 'detail' => $this->probeDetail($probe),
@@ -740,6 +821,49 @@ class KhqrPaymentService
     }
 
     /**
+     * The credential's backoff, as a check — or null when none is in force.
+     *
+     * @return array{key: string, label: string, state: string, detail: string, remedy: ?string, copy: ?string}|null
+     */
+    private function backoffCheck(KhqrCredentials $creds): ?array
+    {
+        $backoff = $this->provider->providerBackoff($creds);
+        $rateLimited = $this->provider->rateLimited($creds);
+
+        if ($backoff === null && ! $rateLimited) {
+            return null;
+        }
+
+        if ($backoff === null) {
+            return [
+                'key' => 'backoff',
+                'label' => __('messages.khqr_diag_backoff'),
+                'state' => 'fail',
+                'detail' => __('messages.khqr_diag_backoff_rate_limited'),
+                'remedy' => __('messages.khqr_fix_quota'),
+                'copy' => null,
+            ];
+        }
+
+        return [
+            'key' => 'backoff',
+            'label' => __('messages.khqr_diag_backoff'),
+            'state' => 'fail',
+            'detail' => __('messages.khqr_diag_backoff_detail', [
+                'status' => $backoff['status'] ?? '—',
+                'message' => ($backoff['message'] ?? '') ?: __('messages.khqr_diag_no_detail'),
+                'until' => isset($backoff['until']) ? Carbon::parse($backoff['until'])->format('H:i') : '—',
+            ]),
+            'remedy' => $this->probeRemedy([
+                'outcome' => 'fault',
+                'status' => $backoff['status'] ?? null,
+                'message' => $backoff['message'] ?? '',
+            ], $creds),
+            'copy' => null,
+        ];
+    }
+
+    /**
      * What to DO about this probe's answer.
      *
      * Four different jobs hide behind "the gateway refused", and they are done
@@ -748,7 +872,7 @@ class KhqrPaymentService
      */
     private function probeRemedy(array $probe, KhqrCredentials $creds): ?string
     {
-        if ($probe['outcome'] === 'ok') {
+        if (in_array($probe['outcome'], ['ok', 'skipped'], true)) {
             return null;
         }
 
@@ -796,7 +920,7 @@ class KhqrPaymentService
     {
         $parts = array_filter([
             $probe['status'] ? 'HTTP '.$probe['status'] : null,
-            $probe['message'] ?: null,
+            $probe['message'] ? KhqrProviderClient::redact($probe['message'], 200) : null,
         ]);
 
         return $parts === [] ? __('messages.khqr_diag_no_detail') : implode(' · ', $parts);
@@ -876,7 +1000,13 @@ class KhqrPaymentService
         // checkout on a perfectly healthy profile — the exact false alarm this
         // guard exists to avoid, and the reason it is written to fail open.
         if ($response->status() === 404) {
-            return $out($this->isBlockingRefusal($message) ? 'fault' : 'ok');
+            if (! $this->isBlockingRefusal($message)) {
+                return $out('ok');
+            }
+
+            $this->provider->backOffProviderFailure($creds, 404, $message, null, $reason);
+
+            return $out('fault');
         }
 
         if (! $response->successful()) {
@@ -885,7 +1015,15 @@ class KhqrPaymentService
 
         $code = (int) ($response->json('responseCode') ?? 0);
 
-        return $out($code !== 0 && $this->isBlockingRefusal($message) ? 'fault' : 'ok');
+        if ($code !== 0 && $this->isBlockingRefusal($message)) {
+            // A credential or quota refusal inside a 200 envelope. KhqrProviderClient
+            // only reads statuses, so the profile-wide backoff is engaged here.
+            $this->provider->backOffProviderFailure($creds, $response->status(), $message, null, $reason);
+
+            return $out('fault');
+        }
+
+        return $out('ok');
     }
 
     /**
@@ -906,7 +1044,7 @@ class KhqrPaymentService
     private function probeHandoff(KhqrCredentials $creds, string $reason = KhqrProviderClient::REASON_CHECKOUT_PREFLIGHT): array
     {
         if (! config('services.khqrpay.handoff_preflight')) {
-            return ['outcome' => 'unknown', 'probe' => 'handoff', 'status' => null, 'message' => __('messages.khqr_diag_handoff_disabled')];
+            return ['outcome' => 'skipped', 'probe' => 'handoff', 'status' => null, 'message' => __('messages.khqr_diag_handoff_disabled')];
         }
 
         $probe = 'PREFLIGHT-'.now()->format('YmdHis').'-'.random_int(100000, 999999);
@@ -955,6 +1093,12 @@ class KhqrPaymentService
         // have rendered a payment form answered with a refusal envelope. That is
         // literally what the customer would have been shown.
         if (is_array($body) && (int) ($body['responseCode'] ?? 0) !== 0) {
+            // Only a refusal that describes the PROFILE backs the credential off;
+            // one about this probe's own token amount does not outlive the probe.
+            if ($response->successful() && $this->isBlockingRefusal($message)) {
+                $this->provider->backOffProviderFailure($creds, $response->status(), $message, null, $reason);
+            }
+
             return $out('fault');
         }
 
@@ -977,9 +1121,11 @@ class KhqrPaymentService
      */
     private function inconclusiveProbe(string $probe, KhqrProviderResult $result): array
     {
+        // A transport exception quotes the full request URL, and the handoff URL
+        // is signed — this string reaches both the log and the admin's screen.
         $message = match (true) {
             $result->wasBlocked() => 'not attempted ('.$result->blockedReason.')',
-            default => (string) $result->error?->getMessage(),
+            default => KhqrProviderClient::redact($result->error?->getMessage()),
         };
 
         if (! $result->wasBlocked()) {
@@ -1074,61 +1220,75 @@ class KhqrPaymentService
 
         $endpoint = $this->qrApiEndpoint($creds);
 
-        // Log the outgoing request (avoid logging secrets)
-        Log::info('KHQRPay request', [
+        // Intent only — whether a request actually leaves is decided (and logged
+        // as "KHQR provider request") by KhqrProviderClient. No secrets.
+        Log::debug('KHQRPay QR mint requested', [
             'endpoint' => $endpoint,
             'transaction' => $row->transaction_id,
             'amount' => $row->amount,
         ]);
 
-        // Through the one gated client. No row is passed for the active-session
-        // check: this request is what CREATES the session, so the row is still
-        // `pending` and by definition not active yet. The feature gate, the
-        // rate-limit backoff and the daily ceiling all still apply, and the
-        // caller has already refused when KHQR is switched off (createQr).
+        // Through the one gated client, WITH the row: this request is what
+        // creates the session, so the client holds it to the creation rule
+        // (KhqrPayment::isMintableKhqrSession — a pending row a checkout just
+        // made) and mints each transaction at most once. The feature gate, both
+        // backoffs and the daily ceiling all apply, and the caller has already
+        // refused when KHQR is switched off (createQr).
         $result = $this->provider->call(
             reason: KhqrProviderClient::REASON_PAYMENT_CREATION,
             target: $row->settlement_target,
-            row: null,
+            row: $row,
             perform: fn () => Http::asForm()->acceptJson()
                 ->connectTimeout(3)->timeout(10)
                 ->post($endpoint, $params),
             creds: $creds,
         );
 
+        // Every failure below leaves the row FAILED, so it is never picked up as
+        // an open session, and tells the landlord the one thing they can act on:
+        // KHQR is unavailable, nothing was charged, take the payment another way.
+        // The technical reason is in the log, not in front of the tenant.
+        $unavailable = __('messages.khqr_payment_temporarily_unavailable');
+
         if ($result->wasBlocked()) {
-            // Nothing was minted and nothing was spent. Leave the row FAILED so
-            // it is never picked up as an open session, and say why.
+            // Nothing was minted and nothing was spent.
             $row->transitionTo(PaymentStatus::Failed);
             $row->save();
-            throw new \RuntimeException('KHQR payment is not available right now ('.$result->blockedReason.').');
+            throw new \RuntimeException($unavailable);
         }
 
         if (! $result->hasResponse()) {
             $row->transitionTo(PaymentStatus::Failed);
             $row->save();
-            throw new \RuntimeException('KHQRPay could not be reached: '.$result->error?->getMessage());
+            throw new \RuntimeException($unavailable);
         }
 
         $response = $result->response;
 
-        // Capture response body for diagnosis (safe to log; no secret in response)
-        $responseBody = $response->body();
+        // The mint response echoes a signature (`hash`) — redacted like any
+        // other provider text before it reaches the log.
+        $responseBody = KhqrProviderClient::redact($response->body(), 1000);
         Log::debug('KHQRPay response', ['status' => $response->status(), 'tran' => $row->transaction_id, 'body' => $responseBody]);
 
         if (! $response->successful()) {
             Log::warning('KHQRPay createQr failed', ['status' => $response->status(), 'tran' => $row->transaction_id, 'body' => $responseBody]);
             $row->transitionTo(PaymentStatus::Failed);
             $row->save();
-            throw new \RuntimeException('KHQRPay did not return a QR (HTTP '.$response->status().').');
+            throw new \RuntimeException($unavailable);
         }
 
         $body = $response->json() ?? [];
         if (isset($body['responseCode']) && (int) $body['responseCode'] !== 0) {
-            Log::warning('KHQRPay createQr returned error', ['code' => $body['responseCode'] ?? null, 'message' => $body['responseMessage'] ?? null, 'tran' => $row->transaction_id]);
+            $message = KhqrProviderClient::redact((string) ($body['responseMessage'] ?? ''), 200);
+            Log::warning('KHQRPay createQr returned error', ['code' => $body['responseCode'] ?? null, 'message' => $message, 'tran' => $row->transaction_id]);
+
+            if ($this->isBlockingRefusal($message)) {
+                $this->provider->backOffProviderFailure($creds, $response->status(), $message, $row, KhqrProviderClient::REASON_PAYMENT_CREATION);
+            }
+
             $row->transitionTo(PaymentStatus::Failed);
             $row->save();
-            throw new \RuntimeException('KHQRPay returned a non-success response.');
+            throw new \RuntimeException($unavailable);
         }
 
         $data = $body['data'] ?? $body;
@@ -1209,6 +1369,8 @@ class KhqrPaymentService
      */
     public function verifyOutcome(KhqrPayment $row, int $sessionGrace = 0): string
     {
+        $this->lastVerifyBlock = null;
+
         if ($row->isPaid()) {
             return self::VERIFY_PAID;
         }
@@ -1242,11 +1404,16 @@ class KhqrPaymentService
                 : self::VERIFY_UNPAID;
         }
 
-        // Cooldown: a public status poll fires every few seconds — never make a
-        // live provider call more than once per verify_cooldown window. The last
-        // result is cached, so a confirmed payment is still seen promptly. A
-        // refusal is cached too: when the allowance is spent, every poll would
-        // otherwise spend another request discovering the same thing.
+        // The last verdict, served locally for the rest of the cooldown window, so
+        // a browser can poll as often as it likes and a confirmed payment is
+        // still seen promptly. A refusal is cached too: when the allowance is
+        // spent, every poll would otherwise re-ask to discover the same thing.
+        //
+        // This is the READ side only. What actually limits requests to one per
+        // transaction per window is the slot KhqrProviderClient claims atomically
+        // before calling out — this cache used to be the whole cooldown, and as a
+        // check-then-act it let every poll that arrived while a request was still
+        // in flight make its own.
         //
         // Keyed apart from the old boolean cache ('khqr:verify:…') so a value
         // written by the previous release is never read back as an outcome.
@@ -1257,7 +1424,13 @@ class KhqrPaymentService
         }
 
         $outcome = $this->queryProviderOutcome($row, $sessionGrace);
-        Cache::put($cooldownKey, $outcome, now()->addSeconds((int) config('services.khqrpay.verify_cooldown', 10)));
+
+        // A poll that landed inside someone else's window has learned nothing,
+        // and caching its "refused" would hide the real verdict the request in
+        // flight is about to write.
+        if ($this->lastVerifyBlock !== KhqrProviderClient::BLOCK_COOLDOWN) {
+            Cache::put($cooldownKey, $outcome, now()->addSeconds($this->provider->verifyCooldownSeconds()));
+        }
 
         return $outcome;
     }
@@ -1317,17 +1490,17 @@ class KhqrPaymentService
         // KHQRPay expects sha1(profile_key . transaction_id)
         $params['hash'] = sha1($creds->secret.$row->transaction_id);
 
-        // One provider HTTP attempt per quota reservation. The daily budget counts upstream requests,
-        // so automatic retries here could spend multiple provider requests while consuming only
-        // one budget slot. Connection failures are handled as a failed verification and can be
-        // retried later by the normal polling flow.
-        // (a request that times out still spent the quota), applies the feature
-        // gate, the ACTIVE-SESSION rule, the rate-limit backoff, the daily
-        // ceiling and the per-session attempt cap, and logs the reason.
+        // One provider HTTP attempt per quota reservation: the daily budget counts
+        // upstream requests, so an automatic retry here would spend two requests
+        // against one slot (and a request that times out has still been charged).
+        // A failure is left to whatever the cooldown next allows.
         //
-        // Every refusal it can return is VERIFY_REFUSED, never VERIFY_UNPAID:
-        // a request that was not made is not evidence the payer has not paid,
-        // and reading it as such is what expires a QR somebody already paid.
+        // The client applies the feature gate, the ACTIVE-SESSION rule, both
+        // backoffs, the atomic per-transaction cooldown, the per-session attempt
+        // cap and the daily ceiling, and logs the reason. Every refusal it can
+        // return is VERIFY_REFUSED, never VERIFY_UNPAID: a request that was not
+        // made is not evidence the payer has not paid, and reading it as such is
+        // what expires a QR somebody already paid.
         $result = $this->provider->call(
             reason: KhqrProviderClient::REASON_PAYMENT_VERIFICATION,
             target: $row->settlement_target,
@@ -1341,8 +1514,13 @@ class KhqrPaymentService
         );
 
         if (! $result->hasResponse()) {
+            $this->lastVerifyBlock = $result->blockedReason;
+
             if ($result->error !== null) {
-                Log::warning('KHQRPay verify error', ['tran' => $row->transaction_id, 'msg' => $result->error->getMessage()]);
+                Log::warning('KHQRPay verify error', [
+                    'tran' => $row->transaction_id,
+                    'msg' => KhqrProviderClient::redact($result->error->getMessage()),
+                ]);
             }
 
             // Neither a block nor a transport failure is a statement about the
@@ -1353,38 +1531,61 @@ class KhqrPaymentService
         $response = $result->response;
 
         // Only a 2xx is the gateway answering the question. 429 (allowance
-        // spent), 401/403 (credentials) and 5xx (profile not provisioned — the
-        // 502 this integration returns) all describe OUR access, not the
-        // payer's money, and used to be indistinguishable from an honest
-        // "not paid yet".
+        // spent), 401/403 (credentials), 422 ("Bakong Token Required") and 5xx
+        // (profile not provisioned — the 502 this integration returns) all
+        // describe OUR access, not the payer's money, and used to be
+        // indistinguishable from an honest "not paid yet". KhqrProviderClient has
+        // already backed the credential off for each of those.
         if (! $response->successful()) {
-            if ($response->status() === 429) {
-                $this->provider->backOffRateLimit($creds, $row);
+            $message = KhqrProviderClient::responseMessage($response);
+
+            // The one 404 that is not "transaction not found": a profile the
+            // gateway does not know. Decided on the words, as the preflight does.
+            if ($response->status() === 404 && $this->isBlockingRefusal($message)) {
+                $this->provider->backOffProviderFailure($creds, 404, $message, $row, KhqrProviderClient::REASON_PAYMENT_VERIFICATION);
             }
 
-            $this->logVerifyRefusal($row, $response->status(), (string) ($response->json('responseMessage') ?? ''));
+            $this->logVerifyRefusal($row, $response->status(), $message);
 
             return self::VERIFY_REFUSED;
         }
 
-        $body = $response->json() ?? [];
+        $body = $response->json();
+
+        // A 2xx that is not the JSON envelope — an HTML error page, a proxy
+        // challenge, a truncated body — is not an answer about the payment. It
+        // used to fall through as an empty envelope and read UNPAID, which is the
+        // verdict that lets a QR be expired.
+        if (! is_array($body)) {
+            $this->logVerifyRefusal($row, $response->status(), 'malformed response: '.KhqrProviderClient::redact(strip_tags($response->body()), 120));
+
+            return self::VERIFY_REFUSED;
+        }
 
         // A non-zero responseCode is normally "transaction not found yet" — the
         // honest pre-payment answer, and genuinely unpaid. A refusal that names
         // a spent allowance or a credential problem is not: the gateway is
-        // declining to look, so it says nothing about the money.
+        // declining to look, so it says nothing about the money — and it will
+        // say the same to every other open checkout on this token, so the
+        // credential is backed off rather than re-asked once per cooldown each.
         if (isset($body['responseCode']) && (int) $body['responseCode'] !== 0) {
-            $message = (string) ($body['responseMessage'] ?? '');
+            $message = KhqrProviderClient::redact((string) ($body['responseMessage'] ?? ''), 200);
             $this->logVerifyRefusal($row, (int) $body['responseCode'], $message);
 
-            return $this->isBlockingRefusal($message) ? self::VERIFY_REFUSED : self::VERIFY_UNPAID;
+            if ($this->isBlockingRefusal($message)) {
+                $this->provider->backOffProviderFailure($creds, $response->status(), $message, $row, KhqrProviderClient::REASON_PAYMENT_VERIFICATION);
+
+                return self::VERIFY_REFUSED;
+            }
+
+            return self::VERIFY_UNPAID;
         }
 
         // The real paid/unpaid state lives inside the data envelope (same shape
         // as the createQr response). The envelope's responseCode === 0 only means
         // the *query* succeeded, NOT that money arrived — relying on it would
         // auto-confirm every poll before the payer has actually paid.
-        $data = $body['data'] ?? $body;
+        $data = is_array($body['data'] ?? null) ? $body['data'] : $body;
 
         $status = strtoupper((string) (
             $data['status']
@@ -1458,7 +1659,7 @@ class KhqrPaymentService
             'tran' => $row->transaction_id,
             'target' => $row->settlement_target,
             'code' => $code,
-            'message' => $message,
+            'message' => KhqrProviderClient::redact($message, 200),
         ]);
     }
 
@@ -1624,6 +1825,8 @@ class KhqrPaymentService
             ? 0
             : $this->claimPostExpiryVerify($row);
 
+        // A webhook that already confirmed the payment is read straight off the
+        // row: no request is made about a payment that is known to have landed.
         $outcome = $row->isPaid() ? self::VERIFY_PAID : $this->verifyOutcome($row, $grace);
 
         if ($outcome === self::VERIFY_PAID) {
@@ -1637,8 +1840,13 @@ class KhqrPaymentService
         // a gateway that declined to answer — and once the row is terminal,
         // verify() short-circuits and the safety net never looks again. Leave it
         // open, tell the page the gateway is unwell, and ask again next tick.
+        //
+        // Except when nobody refused: a poll that merely arrived inside the
+        // verification cooldown (a second tab, a request still in flight) has
+        // nothing new to say, and warning the customer about it would make
+        // frequent polling look like a broken gateway.
         if ($outcome === self::VERIFY_REFUSED) {
-            $this->lastPollRefused = true;
+            $this->lastPollRefused = $this->lastVerifyBlock !== KhqrProviderClient::BLOCK_COOLDOWN;
 
             return $row;
         }
@@ -1684,7 +1892,11 @@ class KhqrPaymentService
     private function claimPostExpiryVerify(KhqrPayment $row): int
     {
         $grace = (int) config('services.khqrpay.reconcile_grace', 60);
-        if ($grace <= 0) {
+
+        // Only a row that the grace would actually make askable is worth the
+        // latch — a paid, failed, never-minted or long-dead row stays at 0
+        // without spending the one rescue it would never have used.
+        if ($grace <= 0 || ! $row->isActiveKhqrSession($grace)) {
             return 0;
         }
 

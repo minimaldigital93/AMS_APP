@@ -39,7 +39,9 @@ function quotaRow(string $transactionId, array $overrides = []): KhqrPayment
 {
     return KhqrPayment::create(array_merge([
         'transaction_id' => $transactionId,
-        'subscription_id' => null,
+        // Minted by a subscription checkout — a platform row with no
+        // subscription is not a session (KhqrPayment::originatedFromCheckout).
+        'subscription_id' => 1,
         'amount' => 24,
         'currency' => 'USD',
         'status' => 'qr_generated',

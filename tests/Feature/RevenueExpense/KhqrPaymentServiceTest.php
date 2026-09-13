@@ -21,6 +21,16 @@ beforeEach(function () {
     config()->set('services.khqrpay.currency', 'USD');
     config()->set('services.khqrpay.demo', false);
 
+    // Platform credentials are read from the database only (KhqrCredentials),
+    // never from the config keys above. Without this row every platform verify
+    // here used to go out with a blank profile id and secret — a request that
+    // KhqrProviderClient now refuses (invalid_credentials) before it is sent.
+    \App\Models\PlatformPaymentSetting::create([
+        'khqrpay_profile_id' => 'profile123',
+        'khqrpay_secret' => 'test-secret',
+        'currency' => 'USD',
+    ]);
+
     $this->admin = makeAdmin();
     $this->period = makeFiscalPeriod($this->admin);
     $this->apartment = makeApartment(null, ['apartment_number' => 'A-101', 'monthly_rent' => 500]);
@@ -165,7 +175,7 @@ it('demo mode builds a local example QR without calling the live API', function 
 it('verify does NOT confirm an api payment that has not actually settled', function () {
     $row = KhqrPayment::create([
         'transaction_id' => 'SUB-VERIFY-1',
-        'subscription_id' => null,
+        'subscription_id' => 1, // minted by a subscription checkout (KhqrPayment::originatedFromCheckout)
         'amount' => 500,
         'currency' => 'USD',
         'status' => 'qr_generated',
@@ -195,7 +205,7 @@ it('verify does NOT confirm an api payment that has not actually settled', funct
 it('verify confirms an api payment only once the status reads PAID', function () {
     $row = KhqrPayment::create([
         'transaction_id' => 'SUB-VERIFY-2',
-        'subscription_id' => null,
+        'subscription_id' => 1, // minted by a subscription checkout (KhqrPayment::originatedFromCheckout)
         'amount' => 500,
         'currency' => 'USD',
         'status' => 'qr_generated',
@@ -223,7 +233,7 @@ it('verify confirms an api payment only once the status reads PAID', function ()
 it('logs a provider refusal once per transaction instead of silently reading unpaid', function () {
     $row = KhqrPayment::create([
         'transaction_id' => 'SUB-VERIFY-3',
-        'subscription_id' => null,
+        'subscription_id' => 1, // minted by a subscription checkout (KhqrPayment::originatedFromCheckout)
         'amount' => 500,
         'currency' => 'USD',
         'status' => 'qr_generated',
@@ -252,6 +262,13 @@ it('logs a provider refusal once per transaction instead of silently reading unp
             && $ctx['tran'] === 'SUB-VERIFY-3'
             && $ctx['code'] === 1
             && str_contains($ctx['message'], 'Bakong Token Required'));
+    // The same refusal is true for every other checkout on this token, so the
+    // credential is backed off — once, not once per poll.
+    Log::shouldReceive('warning')
+        ->once()
+        ->withArgs(fn (string $msg, array $ctx) => $msg === 'KHQR provider backoff engaged'
+            && $ctx['profile'] === 'profile123'
+            && ! str_contains(json_encode($ctx), 'test-secret'));
     Log::shouldReceive('info', 'debug')->zeroOrMoreTimes();
 
     // Three polls, one warning: the poll runs every few seconds for the QR's
@@ -308,7 +325,7 @@ it('finalize records Payments + Accounts exactly once (idempotent)', function ()
 it('spends exactly one Bakong request on a gateway error response, never retrying it', function () {
     $row = KhqrPayment::create([
         'transaction_id' => 'SUB-RETRY-1',
-        'subscription_id' => null,
+        'subscription_id' => 1, // minted by a subscription checkout (KhqrPayment::originatedFromCheckout)
         'amount' => 500,
         'currency' => 'USD',
         'status' => 'qr_generated',
@@ -342,7 +359,7 @@ it('spends exactly one Bakong request on a gateway error response, never retryin
 it('makes exactly one provider attempt, leaving a connection failure to the next poll', function () {
     $row = KhqrPayment::create([
         'transaction_id' => 'SUB-RETRY-2',
-        'subscription_id' => null,
+        'subscription_id' => 1, // minted by a subscription checkout (KhqrPayment::originatedFromCheckout)
         'amount' => 500,
         'currency' => 'USD',
         'status' => 'qr_generated',
@@ -377,7 +394,7 @@ it('makes exactly one provider attempt, leaving a connection failure to the next
 it('counts every live Bakong request it spends, split by settlement target', function () {
     $row = KhqrPayment::create([
         'transaction_id' => 'SUB-COUNT-1',
-        'subscription_id' => null,
+        'subscription_id' => 1, // minted by a subscription checkout (KhqrPayment::originatedFromCheckout)
         'amount' => 500,
         'currency' => 'USD',
         'status' => 'qr_generated',
@@ -412,7 +429,7 @@ it('counts every live Bakong request it spends, split by settlement target', fun
 it('does not count a verify answered from the cooldown cache', function () {
     $row = KhqrPayment::create([
         'transaction_id' => 'SUB-COUNT-2',
-        'subscription_id' => null,
+        'subscription_id' => 1, // minted by a subscription checkout (KhqrPayment::originatedFromCheckout)
         'amount' => 500,
         'currency' => 'USD',
         'status' => 'qr_generated',
@@ -439,7 +456,7 @@ it('does not count a verify answered from the cooldown cache', function () {
 it('counts a request the gateway refused', function () {
     $row = KhqrPayment::create([
         'transaction_id' => 'SUB-COUNT-3',
-        'subscription_id' => null,
+        'subscription_id' => 1, // minted by a subscription checkout (KhqrPayment::originatedFromCheckout)
         'amount' => 500,
         'currency' => 'USD',
         'status' => 'qr_generated',

@@ -50,7 +50,9 @@ function boundRow(string $transactionId, array $overrides = []): KhqrPayment
 {
     return KhqrPayment::create(array_merge([
         'transaction_id' => $transactionId,
-        'subscription_id' => null,
+        // Minted by a subscription checkout — a platform row with no
+        // subscription is not a session (KhqrPayment::originatedFromCheckout).
+        'subscription_id' => 1,
         'amount' => 24,
         'currency' => 'USD',
         'status' => 'qr_generated',
@@ -222,7 +224,7 @@ it('skips the live probes in diagnostics once the allowance is spent', function 
     expect($report['healthy'])->toBeFalse();
 })->group('quota');
 
-it('lets a fresh diagnostics run clear the cached refusal so the next click re-probes', function () {
+it('does not let a diagnostics run that still finds the fault buy the next checkout fresh probes', function () {
     refusingGateway();
 
     $this->service->platformCheckoutFault();
@@ -230,13 +232,34 @@ it('lets a fresh diagnostics run clear the cached refusal so the next click re-p
     $this->service->platformCheckoutFault(); // cached
     Http::assertSentCount(1);
 
-    // Whoever is reading the report is mid-fix. Making them wait out a cache to
-    // learn whether the fix took is precisely what the fault cache must not do.
+    // The live report is an explicit operator action, so it may probe past the
+    // backoff (both probes: 1 + 2 = 3)…
     $this->service->platformDiagnostics(live: true);
-    $sentAfterReport = 2; // profile probe faulted, handoff probe still reported
+    Http::assertSentCount(3);
 
+    // …but it found the profile still broken. It used to clear the cached
+    // verdict BEFORE probing, whatever the probes then said — and the popup ran
+    // it by itself after every refused renew, so each renew click cost four
+    // metered calls instead of two.
+    expect($this->service->platformCheckoutFault())->toBe(__('messages.subscription_gateway_unavailable'));
+    Http::assertSentCount(3);
+})->group('quota');
+
+it('lets a diagnostics run that comes back healthy clear the backoff, so the fix works on the next click', function () {
+    refusingGateway();
     $this->service->platformCheckoutFault();
-    expect(Http::recorded()->count())->toBeGreaterThan($sentAfterReport);
+    expect($this->service->platformCheckoutFault())->not->toBeNull();
+
+    // Fixed at khqr.cc. Whoever is reading the report is mid-fix, and making them
+    // wait out a backoff to learn whether the fix took is what it must not do.
+    Http::swap(new \Illuminate\Http\Client\Factory);
+    Http::fake([
+        'khqr.cc/api/payment/request/*' => Http::response('<html>KHQR payment</html>', 200),
+        'khqr.cc/*' => Http::response(['responseCode' => 1, 'responseMessage' => 'Transaction Not Found'], 404),
+    ]);
+
+    expect($this->service->platformDiagnostics(live: true)['healthy'])->toBeTrue();
+    expect($this->service->platformCheckoutFault())->toBeNull();
 })->group('quota');
 
 /*
