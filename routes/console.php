@@ -57,3 +57,24 @@ Schedule::command('bakong:token renew --if-due')
     ->dailyAt('03:20')
     ->withoutOverlapping(10)
     ->skip(fn () => ! \App\Services\Bakong\BakongProviderClient::featureEnabled());
+
+// Bakong safety net: confirm payments that landed after the payer closed the
+// page. TWO skips, answering different questions — the master switch says
+// whether this installation uses Bakong at all, the reconcile switch whether
+// the net specifically is wanted while it is.
+//
+// It ships OFF, and that is a deliberate downgrade from the KHQRPay version.
+// There the net rescued payments whose WEBHOOK failed to arrive. Bakong sends no
+// webhook at all, so there is no delivery to fail: a payment is confirmed by a
+// poll or it is not. That makes the net far less valuable here and exactly as
+// expensive. Switch it on only where payers routinely close the tab before
+// confirmation, then watch `bakong:usage`.
+//
+// Every fifteen minutes, not every five: with a 6-minute QR and a 60-second
+// cooldown there is nothing a five-minute sweep can catch that this cannot, and
+// three times the runs is three times the spend on a metered token.
+Schedule::command('bakong:reconcile')
+    ->everyFifteenMinutes()
+    ->withoutOverlapping(10)
+    ->skip(fn () => ! \App\Services\Bakong\BakongProviderClient::featureEnabled())
+    ->skip(fn () => ! config('bakong.reconcile_enabled'));
