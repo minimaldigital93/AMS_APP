@@ -103,6 +103,15 @@ class BakongTransactionService
 
         $accountId = (string) config('bakong.account_id');
 
+        if ($accountId === '' && (bool) config('bakong.demo')) {
+            // Demo is an explicit simulation, so it is allowed to run with
+            // nothing configured — that is the whole point of being able to
+            // rehearse the flow before any credential exists. The payload is
+            // still real and still scannable; it simply points at an account
+            // that is not yours, and demo can never verify it against anyone.
+            $accountId = 'demo@aclb';
+        }
+
         if ($accountId === '') {
             throw new \RuntimeException(__('messages.bakong_account_missing'));
         }
@@ -139,13 +148,6 @@ class BakongTransactionService
             ],
             'expires_at' => now()->addMinutes($this->ttlMinutes()),
         ]);
-
-        if ((bool) config('bakong.demo')) {
-            // Demo still builds a REAL payload — it is the flow being
-            // demonstrated, and a fake string would not scan. It simply never
-            // gets verified against anyone.
-            return $this->attachQr($row, $accountId);
-        }
 
         return $this->attachQr($row, $accountId);
     }
@@ -205,6 +207,21 @@ class BakongTransactionService
         if (blank($row->qr_md5)) {
             // Nothing to ask about. Not a statement about the payer.
             return self::VERIFY_REFUSED;
+        }
+
+        // DEMO SETTLES LOCALLY, and short-circuits BEFORE the client is asked.
+        //
+        // Without this, demo mode could mint a QR and then never confirm it —
+        // the client correctly refuses to transmit, so the page span forever and
+        // the one thing a demo exists to show (money arriving, the subscription
+        // activating) was the one thing it could not show. Rehearsing the whole
+        // flow at zero cost is what makes it safe to spend a real request later.
+        //
+        // Hard-disabled in production by config/bakong.php, because a mode that
+        // marks payments settled without anyone paying must never be one env
+        // var away on a live system.
+        if ((bool) config('bakong.demo')) {
+            return $this->demoOutcome($row);
         }
 
         $result = $this->provider->call(
@@ -273,6 +290,29 @@ class BakongTransactionService
         $this->logRefusal($row, 'errorCode '.$errorCode, $result->message());
 
         return self::VERIFY_REFUSED;
+    }
+
+    /**
+     * The local demo verdict: unpaid for a few seconds, then paid.
+     *
+     * The delay is what makes the demo worth running — it exercises the
+     * spinner, the poll loop and the "check now" button rather than jumping
+     * straight to a confirmed page, so the thing being rehearsed is the actual
+     * customer experience.
+     */
+    private function demoOutcome(KhqrPayment $row): string
+    {
+        $after = max(0, (int) config('bakong.demo_settle_after', 15));
+
+        if ($row->created_at !== null && $row->created_at->diffInSeconds(now()) < $after) {
+            return self::VERIFY_UNPAID;
+        }
+
+        Log::info('Bakong DEMO settling a payment locally — no money moved', [
+            'transaction' => $row->transaction_id,
+        ]);
+
+        return self::VERIFY_PAID;
     }
 
     /**

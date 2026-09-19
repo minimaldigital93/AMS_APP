@@ -27,7 +27,7 @@ use Illuminate\Console\Command;
 class BakongTokenCommand extends Command
 {
     protected $signature = 'bakong:token
-                            {action : status | request | verify | renew}
+                            {action : status | request | verify | import | renew}
                             {--code= : the 20-character code Bakong emailed (verify only)}
                             {--if-due : renew only inside the renewal window (renew only)}
                             {--force : skip the confirmation on actions that spend a request}';
@@ -38,8 +38,8 @@ class BakongTokenCommand extends Command
     {
         $action = (string) $this->argument('action');
 
-        if (! in_array($action, ['status', 'request', 'verify', 'renew'], true)) {
-            $this->error("Unknown action [{$action}]. Use status, request, verify or renew.");
+        if (! in_array($action, ['status', 'request', 'verify', 'import', 'renew'], true)) {
+            $this->error("Unknown action [{$action}]. Use status, request, verify, import or renew.");
 
             return self::FAILURE;
         }
@@ -48,6 +48,13 @@ class BakongTokenCommand extends Command
         // refused — it is the report an operator reads to find out WHY.
         if ($action === 'status') {
             return $this->showStatus($tokens);
+        }
+
+        // import contacts nobody, so it works before the switch is ever turned
+        // on — which is the order an operator actually does this in: install the
+        // credential, confirm it offline, then enable.
+        if ($action === 'import') {
+            return $this->import($tokens);
         }
 
         if (! BakongProviderClient::featureEnabled()) {
@@ -119,6 +126,26 @@ class BakongTokenCommand extends Command
         }
 
         return $this->report($tokens->verifyCode($code), 'The token is stored encrypted. Run "bakong:token status" to confirm.');
+    }
+
+    /**
+     * Install a token the operator already holds. Costs nothing, so there is no
+     * spend confirmation — and it is prompted for with secret() rather than
+     * taken on the command line, because a token in a shell history is a
+     * credential in a shell history.
+     */
+    private function import(BakongTokenService $tokens): int
+    {
+        $token = (string) $this->option('code');
+
+        if ($token === '') {
+            $token = (string) $this->secret('Paste the Bakong access token (it will not be echoed)');
+        }
+
+        return $this->report(
+            $tokens->importToken($token),
+            'Nothing was sent to Bakong. Confirm with "bakong:diagnose", then "--live" when you are ready to spend one request.',
+        );
     }
 
     private function renew(BakongTokenService $tokens): int

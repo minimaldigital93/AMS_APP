@@ -392,3 +392,66 @@ it('resolves old KHQRPay rows through the old driver, untouched', function () {
     expect(app(PaymentManager::class)->for($legacy)->provider())->toBe('khqrpay')
         ->and($legacy->usesBakong())->toBeFalse();
 });
+
+// ═══════════════════════ demo: rehearsing at zero cost ═══════════════════════
+
+it('settles a demo payment locally, without ever transmitting', function () {
+    config()->set('bakong.demo', true);
+    config()->set('bakong.demo_settle_after', 0);
+    Http::fake();
+
+    $row = bakongCheckout();
+
+    expect($row->qr_payload)->not->toBeEmpty()
+        ->and(app(BakongTransactionService::class)->verifyOutcome($row))
+        ->toBe(BakongTransactionService::VERIFY_PAID);
+
+    // Without this, demo could mint a QR and never confirm it — the client
+    // correctly refuses to transmit, so the one thing a demo exists to show
+    // (money arriving, the subscription activating) was the one thing it could
+    // not show.
+    Http::assertNothingSent();
+});
+
+it('makes a demo payment wait before settling, so the poll loop is exercised', function () {
+    config()->set('bakong.demo', true);
+    config()->set('bakong.demo_settle_after', 300);
+    Http::fake();
+
+    $row = bakongCheckout();
+
+    // The delay is the point: it rehearses the spinner and the "check now"
+    // button rather than jumping straight to a confirmed page.
+    expect(app(BakongTransactionService::class)->verifyOutcome($row))
+        ->toBe(BakongTransactionService::VERIFY_UNPAID)
+        ->and($row->fresh()->isOpen())->toBeTrue();
+
+    Http::assertNothingSent();
+});
+
+it('runs a demo with no account configured at all', function () {
+    config()->set('bakong.demo', true);
+    config()->set('bakong.account_id', '');
+    Http::fake();
+
+    // Demo is an explicit simulation, so it may run before any credential
+    // exists — that is what makes it useful for rehearsing before setup.
+    $row = bakongCheckout();
+
+    expect($row->qr_md5)->not->toBeNull();
+    Http::assertNothingSent();
+});
+
+it('activates a subscription end to end in demo, with no money and no requests', function () {
+    config()->set('bakong.demo', true);
+    config()->set('bakong.demo_settle_after', 0);
+    Http::fake();
+
+    $row = bakongCheckout();
+    app(BakongTransactionService::class)->pollAndAdvance($row);
+
+    expect($row->fresh()->status)->toBe('paid')
+        ->and($row->fresh()->subscription->fresh()->status)->toBe('active');
+
+    Http::assertNothingSent();
+});

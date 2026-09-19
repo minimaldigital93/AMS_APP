@@ -288,3 +288,80 @@ it('runs the scheduler-facing renewal without prompting', function () {
 
     Http::assertNothingSent();
 });
+
+// ═══════════════════════ importing a token you already hold ═══════════════
+
+it('stores a token you already hold without contacting Bakong at all', function () {
+    Http::fake();
+
+    $jwt = bakongJwt(93);
+
+    // The issue flow is for an integrator with no credential yet. Someone handed
+    // a JWT directly, or moving one between machines, has nothing to issue — and
+    // both alternatives would spend a metered request to reach a state they are
+    // already in. Renewing to import would also REPLACE a perfectly good token.
+    $result = app(BakongTokenService::class)->importToken($jwt);
+
+    expect($result['ok'])->toBeTrue();
+
+    $row = BakongToken::current();
+
+    expect($row->isUsable())->toBeTrue()
+        ->and($row->verified_at)->not->toBeNull()
+        // Expiry still comes out of the token itself, so automatic renewal is
+        // scheduled correctly for an imported credential too.
+        ->and(now()->diffInDays($row->expires_at))->toBeGreaterThan(90);
+
+    Http::assertNothingSent();
+});
+
+it('tolerates a pasted token with quotes or whitespace around it', function () {
+    Http::fake();
+
+    expect(app(BakongTokenService::class)->importToken('  "'.bakongJwt(60).'"  ')['ok'])->toBeTrue()
+        ->and(BakongToken::current()->isUsable())->toBeTrue();
+
+    Http::assertNothingSent();
+});
+
+it('refuses a token that is not shaped like one, and says why', function () {
+    Http::fake();
+
+    // The signature cannot be validated here and this does not pretend to. What
+    // it catches is the ordinary mistake: a half-copied paste, the wrong string
+    // entirely. A well-formed but wrong token surfaces as a 401 on first use.
+    foreach (['', '   ', 'not-a-token', 'only.two'] as $bad) {
+        expect(app(BakongTokenService::class)->importToken($bad)['ok'])->toBeFalse($bad);
+    }
+
+    expect(BakongToken::current())->toBeNull();
+    Http::assertNothingSent();
+});
+
+it('refuses to import an already-expired token', function () {
+    Http::fake();
+
+    // Storing it would leave a row claiming to be verified while the no_token
+    // gate refused every request — the confusing state the empty-token guard
+    // exists to prevent.
+    $result = app(BakongTokenService::class)->importToken(bakongJwt(-1));
+
+    expect($result['ok'])->toBeFalse()
+        ->and($result['message'])->toContain('renew')
+        ->and(BakongToken::current())->toBeNull();
+
+    Http::assertNothingSent();
+});
+
+it('imports before the master switch is ever turned on', function () {
+    Http::fake();
+    config()->set('bakong.enabled', false);
+
+    // The order an operator actually works in: install the credential, confirm
+    // it offline, then enable. Requiring the switch first would mean turning on
+    // a live integration before knowing whether it is configured.
+    $this->artisan('bakong:token import --code='.bakongJwt(93))->assertExitCode(0);
+
+    expect(BakongToken::current()->isUsable())->toBeTrue();
+    Http::assertNothingSent();
+});

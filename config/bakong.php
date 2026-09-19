@@ -75,6 +75,14 @@ return [
     'demo' => (bool) env('BAKONG_DEMO', false) && env('APP_ENV') !== 'production',
 
     /*
+    | Seconds a demo payment waits before settling itself. The delay is the
+    | point: it exercises the spinner, the poll loop and the "check now" button
+    | rather than jumping straight to a confirmed page, so what gets rehearsed
+    | is the customer's actual experience.
+    */
+    'demo_settle_after' => (int) env('BAKONG_DEMO_SETTLE_AFTER', 15),
+
+    /*
     |--------------------------------------------------------------------------
     | Integrator identity
     |--------------------------------------------------------------------------

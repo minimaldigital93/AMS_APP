@@ -1448,4 +1448,9 @@ return [
     'bakong_scan_title' => 'Scan to pay with KHQR',
     'bakong_scan_hint' => 'Open any Bakong-enabled banking app, scan this code, and confirm the payment. This page updates on its own once the money arrives.',
     'bakong_check_now' => 'I have paid — check now',
+    'bakong_token_import_empty' => 'No token was provided. Nothing was stored and nothing was sent.',
+    'bakong_token_import_malformed' => 'That does not look like a Bakong access token (a JWT has three dot-separated parts). Check for a partial copy or surrounding quotes — nothing was sent.',
+    'bakong_token_import_expired' => 'That token expired on :date. Storing it would leave the app claiming to be configured while every request is refused. Run "bakong:token renew" instead.',
+    'bakong_token_imported' => 'Bakong access token stored, valid until :date. Nothing was sent to Bakong.',
+    'bakong_token_imported_no_expiry' => 'Bakong access token stored. Its expiry could not be read, so automatic renewal is off for it — run "bakong:token renew" before it lapses.',
 ];

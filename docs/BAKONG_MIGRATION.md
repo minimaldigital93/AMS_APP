@@ -312,6 +312,7 @@ cache or a `.env` backup.
 php artisan bakong:token status              # free, offline
 php artisan bakong:token request             # 1 request — emails a code
 php artisan bakong:token verify              # 1 request — prompts for the code
+php artisan bakong:token import              # 0 requests — store a token you already hold
 php artisan bakong:token renew [--if-due]    # 1 request; --if-due is the scheduler's
 php artisan bakong:usage [--days=7]          # free, offline
 php artisan bakong:diagnose [--live]         # free; --live spends exactly 1

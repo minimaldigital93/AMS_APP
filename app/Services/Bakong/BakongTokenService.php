@@ -133,6 +133,67 @@ class BakongTokenService
     }
 
     /**
+     * Store a token you ALREADY HOLD, without contacting Bakong at all.
+     *
+     * The issue flow (request_token → emailed code → verify) is for an
+     * integrator that does not have a credential yet. An operator who was
+     * handed a JWT by NBC directly, or who is moving one between machines, has
+     * nothing to issue — and the two alternatives both cost a metered request
+     * to reach a state they are already in. Renewing to import would also
+     * REPLACE a perfectly good token, which is a strange thing to do to a
+     * working credential just to file it.
+     *
+     * Everything needed is inside the token: the expiry comes out of its own
+     * `exp` claim, so this costs ZERO requests and still schedules its own
+     * renewal correctly.
+     *
+     * The shape is checked, not the signature — we cannot validate a Bakong JWT
+     * and should not pretend to. What this catches is the ordinary mistake: a
+     * half-copied paste, a quoted value, the wrong string entirely. A token
+     * that is well-formed but wrong surfaces as a 401 on first use, which
+     * `bakong:diagnose --live` will say plainly.
+     *
+     * @return array{ok: bool, message: string, blocked: ?string}
+     */
+    public function importToken(string $token): array
+    {
+        $token = trim($token, " \t\n\r\0\x0B\"'");
+
+        if ($token === '') {
+            return $this->fail(__('messages.bakong_token_import_empty'));
+        }
+
+        if (substr_count($token, '.') !== 2) {
+            return $this->fail(__('messages.bakong_token_import_malformed'));
+        }
+
+        $expiry = BakongToken::expiryFromJwt($token);
+
+        if ($expiry !== null && $expiry->isPast()) {
+            // Storing it would leave a row that claims to be verified while the
+            // no_token gate refuses every request — the confusing state the
+            // empty-token guard in verifyCode() exists to prevent.
+            return $this->fail(__('messages.bakong_token_import_expired', [
+                'date' => $expiry->toDayDateTimeString(),
+            ]));
+        }
+
+        if ((string) config('bakong.integrator.email') === '') {
+            return $this->fail(__('messages.bakong_token_identity_missing'));
+        }
+
+        $this->store($token, verified: true);
+
+        return [
+            'ok' => true,
+            'message' => $expiry === null
+                ? __('messages.bakong_token_imported_no_expiry')
+                : __('messages.bakong_token_imported', ['date' => $expiry->toDayDateTimeString()]),
+            'blocked' => null,
+        ];
+    }
+
+    /**
      * Renew the token for the registered email.
      *
      * renew_token takes only the email — the OLD token is not required and is
