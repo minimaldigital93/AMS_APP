@@ -42,7 +42,8 @@ class DiagnoseBakong extends Command
         // ---- configuration (free) ----
         $enabled = (bool) config('bakong.enabled');
         $baseUrl = BakongProviderClient::baseUrl();
-        $accountId = (string) config('bakong.account_id');
+        $identity = \App\Services\Bakong\BakongPlatformIdentity::current();
+        $accountId = $identity->accountId;
 
         $checks[] = $this->check('Feature switch', $enabled, $enabled
             ? 'BAKONG_API_ENABLED=true'
@@ -55,9 +56,12 @@ class DiagnoseBakong extends Command
             BakongProviderClient::baseUrlForDisplay(),
             'NBC supplies this at integrator onboarding; it is deliberately not guessed. It must be a full https:// URL — if you pasted a token here, rotate that token.');
 
-        $checks[] = $this->check('Payout account', $accountId !== '', $accountId !== ''
-            ? $accountId
-            : 'not set', 'Set BAKONG_ACCOUNT_ID — without it no subscription QR can be built.');
+        // Kept SHORT on purpose: the table wraps a long cell across lines, which
+        // is exactly where a value someone is trying to read gets broken in
+        // half. The full identity is printed as its own line below the table.
+        $checks[] = $this->check('Payout account', $accountId !== '',
+            $accountId !== '' ? $accountId : 'not set',
+            'Set it in Superadmin → Payment Settings, or as BAKONG_ACCOUNT_ID in .env. Without it no subscription QR can be built.');
 
         // ---- token (free: expiry comes out of the JWT) ----
         $token = $tokens->status();
@@ -116,7 +120,7 @@ class DiagnoseBakong extends Command
             }
         }
 
-        $this->render($checks, $healthy);
+        $this->render($checks, $healthy, $identity);
 
         return $healthy ? self::SUCCESS : self::FAILURE;
     }
@@ -172,7 +176,7 @@ class DiagnoseBakong extends Command
         return compact('label', 'ok', 'detail', 'remedy');
     }
 
-    private function render(array $checks, bool $healthy): void
+    private function render(array $checks, bool $healthy, \App\Services\Bakong\BakongPlatformIdentity $identity): void
     {
         $this->newLine();
         $this->line('<options=bold>Bakong Open API diagnostics</>');
@@ -201,6 +205,19 @@ class DiagnoseBakong extends Command
         }
 
         $this->table(['', 'Check', 'Detail'], $rows);
+
+        // Naming the SOURCE matters as much as the value: an operator who has
+        // just edited Payment Settings needs to know whether .env is still
+        // winning, and one who edited .env needs to know whether a saved row is
+        // overriding them. On its own line so nothing wraps.
+        if ($identity->isConfigured()) {
+            $this->newLine();
+            $this->line('Payout identity: <options=bold>'.$identity->accountId.'</>'
+                .' · '.$identity->merchantName
+                .' · '.$identity->merchantCity
+                .' · '.$identity->currency);
+            $this->line('Configured in: <fg=cyan>'.$identity->source().'</>');
+        }
 
         $this->newLine();
         $this->line($healthy

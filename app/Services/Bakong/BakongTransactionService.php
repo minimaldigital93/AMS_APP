@@ -101,7 +101,11 @@ class BakongTransactionService
             throw new \RuntimeException(__('messages.bakong_payment_disabled'));
         }
 
-        $accountId = (string) config('bakong.account_id');
+        // Payment Settings first, .env as fallback — the same order
+        // KhqrCredentials::platform() uses, because the person who needs to
+        // change a payout account is not the person with shell access.
+        $identity = BakongPlatformIdentity::current();
+        $accountId = $identity->accountId;
 
         if ($accountId === '' && (bool) config('bakong.demo')) {
             // Demo is an explicit simulation, so it is allowed to run with
@@ -133,7 +137,7 @@ class BakongTransactionService
             'provider' => 'bakong',
             'subscription_id' => $subscription->id,
             'amount' => $amount,
-            'currency' => (string) config('bakong.currency', 'USD'),
+            'currency' => $identity->currency,
             'status' => 'pending',
             'settlement_target' => 'platform',
             'channel' => 'api',
@@ -163,12 +167,17 @@ class BakongTransactionService
      */
     private function attachQr(KhqrPayment $row, string $accountId): KhqrPayment
     {
+        $identity = BakongPlatformIdentity::current();
+
         $qr = $this->qr->build(
             billNumber: $row->transaction_id,
             amount: (float) $row->amount,
             bakongAccountId: $accountId,
-            merchantName: (string) config('bakong.merchant_name'),
-            merchantCity: (string) config('bakong.merchant_city'),
+            merchantName: $identity->merchantName,
+            merchantCity: $identity->merchantCity,
+            // The ROW's currency, not the identity's: a QR must be built in the
+            // currency the payment was priced in, even if the operator changes
+            // the setting while a checkout is open.
             currency: (string) $row->currency,
         );
 

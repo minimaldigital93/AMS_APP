@@ -315,3 +315,80 @@ it('does not spend a live check when there is nowhere to send it', function () {
     // to rediscover it would be the wrong lesson.
     Http::assertNothingSent();
 });
+
+// ═════════ Payment Settings outranks .env for the payout identity ═════════
+
+it('prefers the Payment Settings row over .env, and says which is in force', function () {
+    Http::fake();
+    bakongLiveToken();
+
+    config()->set('bakong.account_id', 'from-env@devb');
+    config()->set('bakong.merchant_name', 'From Env');
+
+    // The person who needs to change a payout account is not the person with
+    // shell access, so the settings page has to win.
+    \App\Models\PlatformPaymentSetting::create([
+        'bakong_account_id' => 'from-settings@devb',
+        'merchant_name' => 'From Settings',
+        'merchant_city' => 'Siem Reap',
+        'currency' => 'USD',
+    ]);
+
+    $identity = \App\Services\Bakong\BakongPlatformIdentity::current();
+
+    expect($identity->accountId)->toBe('from-settings@devb')
+        ->and($identity->merchantName)->toBe('From Settings')
+        ->and($identity->merchantCity)->toBe('Siem Reap')
+        ->and($identity->source())->toBe('Payment Settings');
+
+    $this->artisan('bakong:diagnose')
+        ->expectsOutputToContain('from-settings@devb')
+        ->expectsOutputToContain('Payment Settings')
+        ->assertExitCode(0);
+
+    Http::assertNothingSent();
+});
+
+it('falls through to .env when the saved row predates these fields', function () {
+    Http::fake();
+    bakongLiveToken();
+
+    config()->set('bakong.account_id', 'from-env@devb');
+
+    // A row saved before the settings page learned about Bakong has blank
+    // columns. Blank must mean "fall through", not "override with emptiness".
+    \App\Models\PlatformPaymentSetting::create([
+        'khqrpay_profile_id' => 'legacy-profile',
+        'currency' => 'USD',
+    ]);
+
+    $identity = \App\Services\Bakong\BakongPlatformIdentity::current();
+
+    expect($identity->accountId)->toBe('from-env@devb')
+        ->and($identity->isConfigured())->toBeTrue()
+        ->and($identity->source())->toContain('.env');
+
+    Http::assertNothingSent();
+});
+
+it('builds the QR from whatever the identity resolves to', function () {
+    Http::fake();
+
+    \App\Models\PlatformPaymentSetting::create([
+        'bakong_account_id' => 'settings@devb',
+        'merchant_name' => 'Settings Co',
+        'merchant_city' => 'Battambang',
+        'currency' => 'USD',
+    ]);
+
+    $row = bakongOpenRow(['qr_payload' => null, 'qr_md5' => null]);
+    $svc = app(\App\Services\Bakong\BakongTransactionService::class);
+    $fresh = $svc->createSubscriptionQr($row->subscription, 10.00);
+
+    // What the payer sees in their banking app comes from the settings page.
+    expect($fresh->qr_payload)->toContain('settings@devb')
+        ->toContain('Settings Co')
+        ->toContain('Battambang');
+
+    Http::assertNothingSent();
+});

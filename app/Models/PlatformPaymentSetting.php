@@ -23,6 +23,7 @@ class PlatformPaymentSetting extends Model
         'khqrpay_secret',
         'bakong_account_id',
         'merchant_name',
+        'merchant_city',
         'currency',
     ];
 

@@ -83,6 +83,70 @@
             @endif
         </div>
 
+        <!-- Direct Bakong (NBC Open API) -->
+        <div class="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm space-y-4">
+            <div class="flex items-start justify-between gap-4">
+                <div>
+                    <h2 class="text-lg font-semibold text-gray-900">{{ __('Bakong (direct)') }}</h2>
+                    <p class="text-sm text-gray-500">{{ __('What goes inside the KHQR your customers scan. The account below is where subscription money lands.') }}</p>
+                </div>
+                <span class="shrink-0 rounded-full px-2.5 py-1 text-xs font-medium
+                    {{ $bakongEnabled ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-gray-100 text-gray-500 border border-gray-200' }}">
+                    {{ $bakongEnabled ? __('Active') : __('Off') }}
+                </span>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div class="md:col-span-2">
+                    <label class="block text-sm font-medium text-gray-700">{{ __('Bakong account ID') }}</label>
+                    <input type="text" name="bakong_account_id" value="{{ old('bakong_account_id', $settings?->bakong_account_id) }}"
+                        placeholder="{{ __('e.g. yourname@bank') }}"
+                        class="mt-1 w-full rounded-lg border-gray-300 text-sm focus:border-indigo-500 focus:ring-indigo-500">
+                    {{-- A blank field is not "no account" — it falls through to
+                         .env. Saying which value is actually in force saves the
+                         operator guessing whether a server variable still holds
+                         one. --}}
+                    <p class="mt-1 text-xs {{ $bakong->isConfigured() ? 'text-gray-400' : 'text-red-600' }}">
+                        @if ($bakong->isConfigured())
+                            {{ __('In use:') }} <span class="font-medium">{{ $bakong->accountId }}</span>
+                            <span class="text-gray-400">({{ __('from') }} {{ $bakong->source() }})</span>
+                        @else
+                            {{ __('Not set anywhere — no subscription QR can be built until this has a value.') }}
+                        @endif
+                    </p>
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-gray-700">{{ __('Merchant name') }}</label>
+                    <input type="text" name="merchant_name" maxlength="25" value="{{ old('merchant_name', $settings?->merchant_name) }}"
+                        placeholder="{{ $bakong->merchantName }}"
+                        class="mt-1 w-full rounded-lg border-gray-300 text-sm focus:border-indigo-500 focus:ring-indigo-500">
+                    <p class="mt-1 text-xs text-gray-400">{{ __('Shown in the payer’s banking app. Max 25 characters.') }}</p>
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-gray-700">{{ __('Merchant city') }}</label>
+                    <input type="text" name="merchant_city" maxlength="15" value="{{ old('merchant_city', $settings?->merchant_city) }}"
+                        placeholder="{{ $bakong->merchantCity }}"
+                        class="mt-1 w-full rounded-lg border-gray-300 text-sm focus:border-indigo-500 focus:ring-indigo-500">
+                    <p class="mt-1 text-xs text-gray-400">{{ __('Max 15 characters.') }}</p>
+                </div>
+            </div>
+
+            {{-- The access token is deliberately NOT a field here. It is issued
+                 from a terminal, stored encrypted and never rendered — a token
+                 that passes through a browser, a form field or a flash message
+                 is a token in someone's scrollback. --}}
+            <div class="rounded-lg bg-gray-50 border border-gray-200 px-4 py-3">
+                <p class="text-xs font-medium text-gray-700">{{ __('Access token') }}</p>
+                <p class="mt-0.5 text-xs text-gray-500">
+                    {{ __('Managed from the server, never from this page — it must not pass through a browser. Run:') }}
+                    <code class="rounded bg-white border border-gray-200 px-1.5 py-0.5 text-indigo-700">php artisan bakong:token status</code>
+                </p>
+                <p class="mt-1 text-xs text-gray-400">{{ __('The Bakong Open API sends no webhook, so no callback URL is needed for it.') }}</p>
+            </div>
+        </div>
+
         <div class="flex justify-end">
             <button type="submit" class="rounded-lg bg-indigo-600 px-5 py-2.5 text-sm font-medium text-white hover:bg-indigo-700 transition">
                 {{ __('Save') }}
