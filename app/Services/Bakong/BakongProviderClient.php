@@ -139,6 +139,31 @@ class BakongProviderClient
         self::REASON_MANUAL_DIAGNOSTIC,
     ];
 
+    /**
+     * Reasons a provider BACKOFF must not stop.
+     *
+     * The backoff exists to stop an application re-discovering the same dead
+     * credential once per cooldown, each discovery a metered call. But the
+     * token endpoints are how a dead credential gets REPLACED — a 401 backs the
+     * token off, and if that backoff also blocked renewal the integration could
+     * never recover on its own; it would need a human to clear a cache before
+     * the scheduled renewal could even be attempted.
+     *
+     * A manual diagnostic is here for the same reason: it is an operator at the
+     * keyboard deliberately re-testing something they have just tried to fix,
+     * and refusing them locally leaves them no way to discover the fix worked.
+     *
+     * None of these are exempt from the 429 or the daily ceiling, which are
+     * about the ALLOWANCE rather than the credential — and no amount of
+     * urgency makes it sensible to spend a request the day cannot afford.
+     */
+    private const BACKOFF_EXEMPT_REASONS = [
+        self::REASON_TOKEN_REQUEST,
+        self::REASON_TOKEN_VERIFY,
+        self::REASON_TOKEN_RENEW,
+        self::REASON_MANUAL_DIAGNOSTIC,
+    ];
+
     /** Reasons that are ABOUT one payment session and cannot be made without it. */
     private const ROW_BOUND_REASONS = [
         self::REASON_PAYMENT_VERIFICATION,
@@ -296,17 +321,16 @@ class BakongProviderClient
         }
 
         // ---- Gates 7 & 8: this credential already told us no. ----
-        // A manual diagnostic is the one reason let past a backoff: it is an
-        // operator standing at the keyboard deliberately re-testing a profile
-        // they have just tried to fix, and refusing them locally would leave
-        // them with no way to discover the fix worked. It is NOT let past the
-        // 429 or the budget, which are about the allowance rather than the
-        // credential.
+        // See BACKOFF_EXEMPT_REASONS: the token endpoints and the operator's
+        // manual diagnostic are the things that FIX a backed-off credential, so
+        // a backoff must not be what stops them. Neither is exempt from the 429
+        // or the budget, which are about the allowance, not the credential.
         if ($this->ledger->isRateLimited($target)) {
             return $this->refuse(self::BLOCK_RATE_LIMITED, $reason, $endpoint, $target, $row);
         }
 
-        if ($reason !== self::REASON_MANUAL_DIAGNOSTIC && $this->ledger->activeBackoff($target) !== null) {
+        if (! in_array($reason, self::BACKOFF_EXEMPT_REASONS, true)
+            && $this->ledger->activeBackoff($target) !== null) {
             return $this->refuse(self::BLOCK_PROVIDER_BACKOFF, $reason, $endpoint, $target, $row);
         }
 

@@ -36,3 +36,24 @@ Schedule::command('khqr:reconcile')
     ->withoutOverlapping(10)
     ->skip(fn () => ! \App\Services\Payment\KhqrProviderClient::featureEnabled())
     ->skip(fn () => ! config('services.khqrpay.reconcile_enabled'));
+
+// Keep the Bakong access token alive.
+//
+// This is the ONLY automatic path to a Bakong token request, and it answers
+// "nothing to do" on almost every run: renewIfDue() reads the expiry out of the
+// JWT locally and only calls out inside the configured window, so a token
+// lasting ~93 days costs about four requests a YEAR rather than one a day.
+// Asking the API when a token expires would pay a metered request for
+// information the token already states.
+//
+// Daily rather than hourly for the same reason — there is nothing a token
+// checked 24 times a day can catch that one check cannot, and the renewal
+// window is measured in days.
+//
+// skip() on the master switch, like every other scheduled Bakong entry: a
+// scheduled command must never be trusted to gate itself, and `schedule:list`
+// still shows the entry so it is visible rather than commented out.
+Schedule::command('bakong:token renew --if-due')
+    ->dailyAt('03:20')
+    ->withoutOverlapping(10)
+    ->skip(fn () => ! \App\Services\Bakong\BakongProviderClient::featureEnabled());

@@ -1425,4 +1425,18 @@ return [
     'expense_categories_restore_defaults' => 'ស្តារប្រភេទលំនាំដើម',
     'expense_categories_restore_defaults_hint' => 'បន្ថែមមកវិញនូវប្រភេទលំនាំដើមដែលបានលុប។ ប្រភេទផ្ទាល់ខ្លួន និងឈ្មោះដែលបានប្តូរនឹងមិនប៉ះពាល់ទេ។',
     'expense_categories_defaults_restored' => 'បានស្តារប្រភេទលំនាំដើម :count។',
+
+    // ---- Bakong Open API (direct NBC integration) ----------------------
+    'bakong_token_identity_missing' => 'ព័ត៌មានអ្នកភ្ជាប់ Bakong មិនទាន់បានកំណត់ទេ។ សូមកំណត់ BAKONG_EMAIL, BAKONG_ORGANIZATION និង BAKONG_PROJECT ក្នុង .env ជាមុនសិន។',
+    'bakong_token_code_sent' => 'Bakong បានផ្ញើលេខកូដផ្ទៀងផ្ទាត់ ២០ តួអក្សរតាមអ៊ីមែល។ សូមដំណើរការ "php artisan bakong:token verify --code=..." ជាមួយលេខកូដនោះ។',
+    'bakong_token_code_length' => 'លេខកូដផ្ទៀងផ្ទាត់ Bakong មានចំនួន ២០ តួអក្សរជាក់លាក់។ សូមពិនិត្យចន្លោះទំនេរ ឬការចម្លងមិនពេញលេញ — លេខកូដខុសនៅតែចំណាយសំណើដែលគិតថ្លៃ។',
+    'bakong_token_missing_in_response' => 'Bakong រាយការណ៍ថាជោគជ័យ ប៉ុន្តែមិនបានផ្ដល់ token ទេ។ គ្មានអ្វីត្រូវបានរក្សាទុក សូមព្យាយាមម្ដងទៀត។',
+    'bakong_token_issued' => 'បាន​រក្សាទុក token Bakong។ វាត្រូវបានអ៊ិនគ្រីប និងបន្តអាយុកាលដោយស្វ័យប្រវត្តិមុនផុតកំណត់។',
+    'bakong_token_renewed' => 'បានបន្តអាយុកាល token Bakong។',
+    'bakong_token_not_due' => 'token Bakong មិនទាន់ដល់ពេលបន្តអាយុកាលទេ គ្មានសំណើត្រូវបានផ្ញើ។',
+    'bakong_request_blocked' => 'សំណើត្រូវបានបដិសេធនៅក្នុងប្រព័ន្ធមុនពេលផ្ញើ (:reason)។ គ្មានការចំណាយលើកូតា Bakong ឡើយ។',
+    'bakong_unreachable' => 'មិនអាចទាក់ទង Bakong បានទេ។ គ្មានការកាត់ប្រាក់ឡើយ។ សំណើនឹងព្យាយាមម្ដងទៀតនៅពេលអនុញ្ញាត។',
+    'bakong_payment_disabled' => 'ការទូទាត់ Bakong ត្រូវបានបិទសម្រាប់ការដំឡើងនេះ ដូច្នេះមិនអាចចាប់ផ្តើមការទូទាត់បានទេ។ គ្មានការកាត់ប្រាក់ឡើយ។ សូមសុំឲ្យប្រតិបត្តិករបើក (BAKONG_API_ENABLED) ឬទូទាត់ជាសាច់ប្រាក់ ឬតាមធនាគារជំនួសវិញ។',
+    'bakong_payment_unavailable' => 'សេវាទូទាត់មិនអាចប្រើបានបណ្ដោះអាសន្ន ដូច្នេះមិនអាចបង្កើត QR បានទេ។ គ្មានការកាត់ប្រាក់ឡើយ — សូមទទួលការទូទាត់ជាសាច់ប្រាក់ ឬតាមធនាគារ។',
+    'bakong_account_missing' => 'មិនមានលេខគណនី Bakong ត្រូវបានកំណត់ទេ ដូច្នេះមិនអាចបង្កើត KHQR បានឡើយ។ សូមបញ្ចូលវានៅក្នុងការកំណត់ការទូទាត់។',
 ];

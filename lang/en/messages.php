@@ -1431,4 +1431,18 @@ return [
     'expense_categories_restore_defaults' => 'Restore default categories',
     'expense_categories_restore_defaults_hint' => 'Adds back any default category that was deleted. Your own categories and renames are left alone.',
     'expense_categories_defaults_restored' => ':count default category(ies) restored.',
+
+    // ---- Bakong Open API (direct NBC integration) ----------------------
+    'bakong_token_identity_missing' => 'Bakong integrator details are not configured. Set BAKONG_EMAIL, BAKONG_ORGANIZATION and BAKONG_PROJECT in .env first.',
+    'bakong_token_code_sent' => 'Bakong has emailed a 20-character verification code. Run "php artisan bakong:token verify --code=..." with it.',
+    'bakong_token_code_length' => 'The Bakong verification code is exactly 20 characters. Check for stray spaces or a partial copy — an incorrect code still costs a metered request.',
+    'bakong_token_missing_in_response' => 'Bakong reported success but returned no token. Nothing was stored; try again.',
+    'bakong_token_issued' => 'Bakong access token stored. It is encrypted at rest and renewed automatically before it expires.',
+    'bakong_token_renewed' => 'Bakong access token renewed.',
+    'bakong_token_not_due' => 'The Bakong token is not due for renewal yet; no request was made.',
+    'bakong_request_blocked' => 'The request was refused locally before it was sent (:reason). Nothing was spent against the Bakong allowance.',
+    'bakong_unreachable' => 'Bakong could not be reached. Nothing was charged. The request will be retried when the cooldown allows.',
+    'bakong_payment_disabled' => 'Bakong payment is switched off for this installation, so no payment could be started. Nothing was charged. Ask the operator to enable it (BAKONG_API_ENABLED), or settle this by cash or bank transfer instead.',
+    'bakong_payment_unavailable' => 'The payment service is temporarily unavailable, so no QR could be created. Nothing was charged — please take this payment by cash or bank transfer.',
+    'bakong_account_missing' => 'No Bakong account ID is configured, so a KHQR cannot be generated. Add one in Payment Settings.',
 ];
