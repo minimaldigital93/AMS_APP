@@ -4,6 +4,7 @@ namespace App\Services\Payment;
 
 use App\Contracts\PaymentGateway;
 use App\Models\KhqrPayment;
+use App\Services\Payment\Gateways\BakongGateway;
 use App\Services\Payment\Gateways\KhqrPayGateway;
 
 /**
@@ -17,6 +18,7 @@ class PaymentManager
     /** @var array<string, class-string<PaymentGateway>> */
     protected array $drivers = [
         'khqrpay' => KhqrPayGateway::class,
+        'bakong' => BakongGateway::class,
     ];
 
     public function driver(string $provider): PaymentGateway
