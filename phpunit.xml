@@ -31,6 +31,21 @@
              guarantee is tested by flipping it back off per-test, in
              tests/Feature/RevenueExpense/KhqrZeroRequestTest.php. -->
         <env name="KHQR_PAY_ENABLED" value="true"/>
+        <!-- The Bakong suite exercises the gates, so the master switch is ON
+             here and the base URL points at a host that does not exist. A test
+             that slips past the guards therefore fails loudly at
+             Http::preventStrayRequests() rather than spending a metered request
+             against whatever token the machine happens to have configured. -->
+        <env name="BAKONG_API_ENABLED" value="true"/>
+        <env name="BAKONG_API_BASE_URL" value="https://bakong.test"/>
+        <env name="BAKONG_EMAIL" value="integrator@ams.test"/>
+        <env name="BAKONG_ORGANIZATION" value="AMS Test"/>
+        <env name="BAKONG_PROJECT" value="AMS"/>
+        <env name="BAKONG_ACCOUNT_ID" value="ams_test@devb"/>
+        <env name="BAKONG_DAILY_REQUEST_LIMIT" value="80"/>
+        <env name="BAKONG_VERIFY_COOLDOWN" value="60"/>
+        <env name="BAKONG_QR_TTL" value="6"/>
+        <env name="BAKONG_MAX_VERIFY_ATTEMPTS" value="8"/>
         <env name="DB_CONNECTION" value="sqlite"/>
         <env name="DB_DATABASE" value=":memory:"/>
         <env name="MAIL_MAILER" value="array"/>

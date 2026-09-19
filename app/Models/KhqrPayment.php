@@ -30,7 +30,10 @@ class KhqrPayment extends Model
         'channel',
         'checkout_payload',
         'qr_url',
+        'qr_payload',
+        'qr_md5',
         'provider_ref',
+        'provider_hash',
         'paid_at',
         'expires_at',
     ];
@@ -153,6 +156,76 @@ class KhqrPayment extends Model
         }
 
         return $deadline->copy()->addMinutes(max(0, $graceMinutes))->isFuture();
+    }
+
+    /**
+     * Is this row an ACTIVE DIRECT-BAKONG PAYMENT SESSION — the only thing that
+     * justifies a metered request to the NBC Open API about it?
+     *
+     * The same principle as isActiveKhqrSession() — a database row is not a
+     * payment — but the evidence differs, because the two providers make a
+     * session in opposite ways.
+     *
+     * Under KHQRPay a session existed once THE GATEWAY minted one, so the proof
+     * was a provider_ref coming back and the row leaving `pending`. Bakong has
+     * no QR endpoint: AMS builds the payload itself, and the transaction only
+     * exists at Bakong once the payer actually pays it. So the proof that there
+     * is something to ask about is that WE rendered a payable QR — a payload
+     * and its md5, which is literally the lookup key check_transaction_by_md5
+     * takes. Without an md5 there is no question that could be asked, and the
+     * request could only be charged and refused.
+     *
+     *  - provider 'bakong'  — a khqr.cc row is a different gateway's business.
+     *  - channel 'api'      — a manual-channel row is settled by the landlord in
+     *                         their banking app; polling Bakong for it asks
+     *                         about a transaction nobody generated.
+     *  - a qr_md5           — the lookup key exists, so a question exists.
+     *  - status open, past `pending`, not stamped paid — a pending row was never
+     *                         rendered to anyone, and terminal rows are decided.
+     *  - originatedFromCheckout() — a row a confirmed payment could not be
+     *                         booked against is not worth a metered call.
+     *  - still live         — inside its own expiry plus $graceMinutes, and
+     *                         never older than a day whatever expires_at says.
+     *
+     * $graceMinutes is the reconcile rescue window and nothing else. The browser
+     * poller passes 0: an elapsed QR is expired locally, for free.
+     */
+    public function isActiveBakongSession(int $graceMinutes = 0): bool
+    {
+        if ($this->provider !== 'bakong' || $this->channel !== 'api') {
+            return false;
+        }
+
+        $status = PaymentStatus::tryFrom((string) $this->status);
+
+        if ($status === null || ! $status->isOpen() || $status === PaymentStatus::Pending) {
+            return false;
+        }
+
+        if (blank($this->qr_md5) || $this->paid_at !== null || ! $this->originatedFromCheckout()) {
+            return false;
+        }
+
+        $deadline = $this->expires_at
+            ?? $this->created_at?->copy()->addMinutes(max(1, (int) config('bakong.qr_ttl', 6)));
+
+        if ($deadline === null) {
+            return false;
+        }
+
+        // Hard ceiling: a row with a bad expires_at must not stay askable
+        // indefinitely, however generous the grace window is.
+        if ($this->created_at !== null && $this->created_at->lt(now()->subDay())) {
+            return false;
+        }
+
+        return $deadline->copy()->addMinutes(max(0, $graceMinutes))->isFuture();
+    }
+
+    /** Was this row minted against the direct Bakong integration? */
+    public function usesBakong(): bool
+    {
+        return $this->provider === 'bakong';
     }
 
     /**
