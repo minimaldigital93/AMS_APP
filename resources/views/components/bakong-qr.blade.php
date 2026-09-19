@@ -62,11 +62,37 @@
         <button type="button"
                 x-on:click="poll()"
                 x-show="state === 'waiting'"
-                class="mt-4 rounded-lg px-4 py-2 text-sm font-semibold transition
+                x-bind:disabled="checking"
+                class="mt-4 inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold transition
+                       disabled:cursor-not-allowed disabled:opacity-60
                        {{ $dark
                             ? 'bg-white/15 text-white hover:bg-white/25'
                             : 'bg-slate-800 text-white hover:bg-slate-700' }}">
-            {{ __('messages.bakong_check_now') }}
+            <svg x-show="checking" x-cloak class="h-4 w-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 0 1 8-8v4a4 4 0 0 0-4 4H4z"/>
+            </svg>
+            <span x-text="checking ? @js(__('messages.bakong_checking')) : @js(__('messages.bakong_check_now'))"></span>
         </button>
+
+        {{-- The click produced an answer, and the answer was "not yet". Without
+             this line that outcome is pixel-identical to a button that does
+             nothing, which is exactly how this looked in the field. --}}
+        <p x-show="lastCheckedLabel && state === 'waiting'" x-cloak
+           class="mt-2 text-xs {{ $dark ? 'text-white/50' : 'text-slate-400' }}"
+           x-text="lastCheckedLabel"></p>
+
+        {{-- The allowance is gone until tomorrow. This is NOT "we cannot reach
+             the gateway": retrying cannot help, and telling the payer to retry
+             something that cannot work until midnight is worse than silence.
+             The payment may already have arrived — it simply cannot be
+             confirmed today. --}}
+        <p x-show="quotaResetsAt" x-cloak
+           class="mt-3 max-w-xs rounded-lg px-3 py-2 text-xs leading-relaxed
+                  {{ $dark
+                        ? 'border border-amber-400/40 bg-amber-500/15 text-amber-100'
+                        : 'border border-amber-300 bg-amber-50 text-amber-800' }}">
+            {{ __('messages.bakong_quota_exhausted_payer') }}
+        </p>
     </div>
 @endif

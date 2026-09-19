@@ -98,24 +98,39 @@ class SubscriptionCheckout
      *
      * Routed on the ROW, not the config — see rule 2 above.
      *
-     * @return array{payment: KhqrPayment, gateway_error: bool}
+     * @return array{payment: KhqrPayment, gateway_error: bool, gateway_answered: bool, quota_exhausted: ?string}
      */
     public function poll(KhqrPayment $row): array
     {
         if ($row->usesBakong()) {
+            $payment = $this->bakong->pollAndAdvance($row);
+            $exhausted = $this->bakong->upstreamExhausted($row->settlement_target ?: 'platform');
+
             return [
-                'payment' => $this->bakong->pollAndAdvance($row),
+                'payment' => $payment,
                 // A refusal reaches the page as gateway_error so the spinner can
                 // say something. With no webhook behind Bakong, a gateway that
                 // refuses every request is otherwise indistinguishable from a
                 // payer who has not paid yet.
                 'gateway_error' => $this->bakong->lastPollRefused(),
+                // Whether we actually ASKED. The page must not treat a
+                // cooldown-absorbed poll as evidence the gateway is healthy.
+                'gateway_answered' => $this->bakong->lastPollAnswered(),
+                // When the allowance resets, so the page can say something
+                // truthful instead of "try again" about a thing that cannot
+                // work until tomorrow.
+                'quota_exhausted' => $exhausted === null ? null : $exhausted['until']->toIso8601String(),
             ];
         }
 
         return [
             'payment' => $this->khqr->pollAndAdvance($row),
             'gateway_error' => $this->khqr->lastPollRefused(),
+            // KHQRPay rows keep their previous behaviour exactly: every poll
+            // counts as an answer, which is what the old client-side counter
+            // assumed.
+            'gateway_answered' => true,
+            'quota_exhausted' => null,
         ];
     }
 

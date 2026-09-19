@@ -73,6 +73,17 @@ class BakongTransactionService
 
     private ?string $lastBlock = null;
 
+    /**
+     * Did the last poll actually get an ANSWER out of Bakong?
+     *
+     * False when nothing was asked — the cooldown absorbed it, the session is
+     * not askable, the allowance is gone. The checkout page needs this to tell
+     * "we asked and the gateway is unwell" from "we did not ask", and until it
+     * had it the stall warning could never appear: every cooldown-blocked poll
+     * reset the consecutive-miss counter that the warning depends on.
+     */
+    private bool $lastPollAnswered = false;
+
     public function __construct(
         private ?BakongProviderClient $provider = null,
         private ?BakongQrService $qr = null,
@@ -208,8 +219,11 @@ class BakongTransactionService
     public function verifyOutcome(KhqrPayment $row, int $sessionGrace = 0): string
     {
         $this->lastBlock = null;
+        $this->lastPollAnswered = false;
 
         if ($row->isPaid()) {
+            $this->lastPollAnswered = true;
+
             return self::VERIFY_PAID;
         }
 
@@ -230,6 +244,8 @@ class BakongTransactionService
         // marks payments settled without anyone paying must never be one env
         // var away on a live system.
         if ((bool) config('bakong.demo')) {
+            $this->lastPollAnswered = true;
+
             return $this->demoOutcome($row);
         }
 
@@ -252,6 +268,10 @@ class BakongTransactionService
             // A transport failure says nothing about the money.
             return self::VERIFY_REFUSED;
         }
+
+        // From here on Bakong replied — with anything, including a refusal.
+        // That is what makes it an ANSWER rather than a silence.
+        $this->lastPollAnswered = true;
 
         if (! $result->response->successful()) {
             // 401/403 (token), 429 (allowance), 5xx (Bakong unwell) all describe
@@ -429,6 +449,27 @@ class BakongTransactionService
     public function lastPollRefused(): bool
     {
         return $this->lastPollRefused;
+    }
+
+    /** Did the last poll reach Bakong and get a reply? */
+    public function lastPollAnswered(): bool
+    {
+        return $this->lastPollAnswered;
+    }
+
+    /**
+     * Is the upstream allowance spent? Returns when it resets, or null.
+     *
+     * Surfaced to the checkout page so it can say "the payment service has
+     * reached today's limit" instead of the generic "cannot reach the gateway"
+     * — a customer told the wrong thing will keep retrying something that
+     * cannot work until tomorrow.
+     *
+     * @return array{until: \Carbon\Carbon, why: string}|null
+     */
+    public function upstreamExhausted(string $target = 'platform'): ?array
+    {
+        return $this->provider->upstreamExhausted($target);
     }
 
     /** Which gate refused the last verification, if one did. */

@@ -466,6 +466,39 @@ code.
 
 ---
 
+## errorCode 17 — the undocumented one that costs a day
+
+NBC's v1.0.2 error list stops at 11. In production the gateway returns:
+
+```
+HTTP 200 · responseCode 1 · errorCode 17
+"Daily request limit of 100 exceeded. Please try again tomorrow."
+```
+
+Coding strictly to the published list made this a *generic* refusal, so it
+tripped no backoff and the app re-asked once per cooldown for the rest of the
+day — each retry charged exactly like a sale.
+
+`BakongQuotaLedger::markUpstreamExhausted()` now latches it **until local
+midnight**, which is what the message actually says, and gate 7b refuses
+everything meanwhile — **including token renewal and the operator diagnostic**.
+Those two are exempt from the *failure backoff* because they are what fixes a
+bad credential; a spent allowance is not a bad credential, and both would be
+charged and refused.
+
+It is matched by **message as well as code**, since an undocumented code may not
+be the only one. The needles are phrases (`daily request limit`, `quota`,
+`too many request`), never the bare word `limit` — a gateway saying *"amount
+below minimum limit"* is describing one request, not the account.
+
+**This is separate from our own ceiling, and on a shared token it is the one
+that bites.** `daily_request_limit` counts what *we* spend; NBC meters the
+*token*, including every request made by anything else holding it. The allowance
+can be gone while our ledger reads 6 of 80 — which is exactly what happened.
+`bakong:diagnose` reports the two separately for that reason.
+
+---
+
 ## Remaining risks
 
 | Risk | Severity | Mitigation / status |

@@ -1455,4 +1455,9 @@ return [
     'bakong_token_imported_no_expiry' => 'Bakong access token stored. Its expiry could not be read, so automatic renewal is off for it — run "bakong:token renew" before it lapses.',
     'bakong_base_url_missing' => 'not set',
     'bakong_base_url_invalid' => 'NOT A VALID URL — value hidden. If you pasted an access token here, rotate it.',
+    'bakong_checking' => 'Checking…',
+    'bakong_checked_just_now' => 'Checked just now — payment not received yet.',
+    'bakong_checked_ago' => 'Checked :seconds seconds ago — payment not received yet.',
+    'bakong_quota_exhausted_payer' => 'The payment service has reached today’s checking limit, so we cannot confirm this payment until tomorrow. If you have already paid, your money is safe — do not pay again. Please contact us and we will confirm it manually.',
+    'bakong_quota_exhausted_admin' => 'Bakong has refused all checks today: the token’s daily allowance is spent. No further requests will be made until midnight. Anything already paid stays open and will be confirmed once the allowance resets.',
 ];

@@ -90,6 +90,18 @@ class DiagnoseBakong extends Command
             $limit > 0 ? "{$spent} / {$limit} spent" : "{$spent} spent (no ceiling configured)",
             'The ceiling resets at midnight. `bakong:usage` shows what spent it.');
 
+        // The upstream allowance is a SEPARATE finding from our own ceiling,
+        // and on a shared token it is the one that actually bites: NBC can be
+        // out while our ledger reads 6 of 80, because the token is spent by
+        // things we cannot count.
+        $upstream = $ledger->upstreamExhausted('platform');
+
+        $checks[] = $this->check("Bakong's own allowance", $upstream === null,
+            $upstream === null
+                ? 'not reported exhausted'
+                : 'EXHAUSTED until '.$upstream['until']->toDayDateTimeString().' — '.$upstream['why'],
+            'NBC meters the TOKEN, not this app. If our own spend is low, something else is sharing it. No request will be made until it resets.');
+
         $backoff = $ledger->activeBackoff('platform');
 
         $checks[] = $this->check('Provider backoff', $backoff === null,

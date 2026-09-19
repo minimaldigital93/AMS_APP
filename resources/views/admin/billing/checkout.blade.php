@@ -76,6 +76,14 @@
             state: 'waiting', // waiting | paid | failed
             stalled: false,
             misses: 0,
+            // Button feedback. Without these the "check now" button gave no
+            // sign it had done anything — pressed or not the page looked
+            // identical, so a working check was indistinguishable from a dead
+            // button.
+            checking: false,
+            lastCheckedAt: null,
+            lastCheckedLabel: '',
+            quotaResetsAt: null,
             timer: null,
             countdown: '',
             countdownTimer: null,
@@ -85,6 +93,7 @@
                 const deadline = expiresAt ? Date.parse(expiresAt) : NaN;
                 if (isNaN(deadline)) return;
                 const tick = () => {
+                    this.refreshCheckedLabel();
                     const secs = Math.max(0, Math.round((deadline - Date.now()) / 1000));
                     this.countdown = Math.floor(secs / 60) + ':' + String(secs % 60).padStart(2, '0');
                     // Also the stop signal — the server deliberately leaves an
@@ -99,17 +108,41 @@
                 this.countdownTimer = setInterval(tick, 1000);
             },
             stopCountdown() { if (this.countdownTimer) clearInterval(this.countdownTimer); this.countdownTimer = null; },
+            // "Checked 12s ago" — the one thing that makes a check which found
+            // nothing distinguishable from a check that never ran.
+            refreshCheckedLabel() {
+                if (!this.lastCheckedAt) { this.lastCheckedLabel = ''; return; }
+                const secs = Math.round((Date.now() - this.lastCheckedAt) / 1000);
+                this.lastCheckedLabel = secs < 5
+                    ? @js(__('messages.bakong_checked_just_now'))
+                    : @js(__('messages.bakong_checked_ago')).replace(':seconds', secs);
+            },
             // A failed poll never stops the polling — the payment can still land.
             // It only raises a visible warning once it keeps failing.
             miss() { if (++this.misses >= STALL_AFTER) this.stalled = true; },
             async poll() {
+                if (this.checking) return;   // a click landing on top of a tick
+                this.checking = true;
                 try {
                     const res = await fetch(statusUrl, { headers: { 'Accept': 'application/json' } });
                     if (!res.ok) return this.miss();
                     const data = await res.json();
+
+                    this.quotaResetsAt = data.quota_exhausted || null;
+
                     if (data.gateway_error) return this.miss();
+
+                    // ONLY a poll that actually reached the gateway may clear
+                    // the miss counter. A poll the server-side cooldown
+                    // absorbed has learned nothing, and treating it as proof of
+                    // health is why the stall warning could never fire: the
+                    // real sequence is error, cooldown, cooldown, cooldown,
+                    // error — so a counter reset by cooldowns never reaches two.
+                    if (!data.gateway_answered) return;
+
                     this.misses = 0;
                     this.stalled = false;
+                    this.lastCheckedAt = Date.now();
                     if (data.paid) {
                         this.state = 'paid';
                         this.stop();
@@ -120,7 +153,11 @@
                         this.state = 'failed';
                         this.stop();
                     }
-                } catch (e) { this.miss(); }
+                } catch (e) {
+                    this.miss();
+                } finally {
+                    this.checking = false;
+                }
             },
         };
     }

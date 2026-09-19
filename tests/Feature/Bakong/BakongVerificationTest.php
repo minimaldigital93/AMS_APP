@@ -455,3 +455,71 @@ it('activates a subscription end to end in demo, with no money and no requests',
 
     Http::assertNothingSent();
 });
+
+// ═══════ the status endpoint must say whether it actually ASKED ═══════
+
+it('reports gateway_answered=false when the cooldown absorbed the poll', function () {
+    config()->set('bakong.verify_cooldown', 60);
+    bakongNotFound();
+
+    $row = bakongCheckout();
+
+    // First poll reaches Bakong.
+    $first = $this->getJson(route('subscribe.checkout.status', $row->public_token))->assertOk()->json();
+    expect($first['gateway_answered'])->toBeTrue()
+        ->and($first['gateway_error'])->toBeFalse();
+
+    // Second is absorbed by the cooldown — nothing was learned.
+    $second = $this->getJson(route('subscribe.checkout.status', $row->public_token))->assertOk()->json();
+
+    // THE BUG THIS PINS: the page resets its consecutive-miss counter on any
+    // poll that is not an outright error. A cooldown-absorbed poll used to
+    // report gateway_error=false with nothing to distinguish it from a healthy
+    // answer, so the real sequence — error, cooldown, cooldown, cooldown,
+    // error — reset the counter every time and the stall warning could never
+    // reach its threshold of two. A gateway refusing every request looked
+    // exactly like a payer who had not paid yet.
+    expect($second['gateway_answered'])->toBeFalse()
+        ->and($second['gateway_error'])->toBeFalse();
+
+    Http::assertSentCount(1);
+});
+
+it('tells the page when today’s allowance is gone', function () {
+    Http::fake(['bakong.test/*' => Http::response([
+        'data' => null, 'errorCode' => 17, 'responseCode' => 1,
+        'responseMessage' => 'Daily request limit of 100 exceeded. Please try again tomorrow.',
+    ], 200)]);
+
+    $row = bakongCheckout();
+    $body = $this->getJson(route('subscribe.checkout.status', $row->public_token))->assertOk()->json();
+
+    // Distinct from gateway_error: retrying cannot help, so the page says
+    // "cannot confirm until tomorrow, do not pay again" rather than inviting a
+    // retry that is guaranteed to fail.
+    expect($body['quota_exhausted'])->not->toBeNull()
+        ->and($body['gateway_error'])->toBeTrue()
+        ->and($row->fresh()->isOpen())->toBeTrue();
+});
+
+it('keeps KHQRPay rows reporting answered, exactly as before', function () {
+    Http::fake();
+
+    $legacy = KhqrPayment::create([
+        'transaction_id' => 'LEGACY-ANS-1',
+        'provider' => 'khqrpay',
+        'subscription_id' => bakongSubscription()->id,
+        'amount' => 10.00, 'currency' => 'USD', 'status' => 'qr_generated',
+        'settlement_target' => 'platform', 'channel' => 'api',
+        'checkout_payload' => ['type' => 'subscription'],
+        'expires_at' => now()->addMinutes(10),
+    ]);
+
+    $body = $this->getJson(route('subscribe.checkout.status', $legacy->public_token))->assertOk()->json();
+
+    // The old client-side counter assumed every poll was an answer. Changing
+    // that for KHQRPay rows would alter behaviour on the provider we are
+    // migrating AWAY from, for no benefit.
+    expect($body['gateway_answered'])->toBeTrue()
+        ->and($body['quota_exhausted'])->toBeNull();
+});

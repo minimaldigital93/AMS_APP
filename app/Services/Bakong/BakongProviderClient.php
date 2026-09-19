@@ -49,6 +49,9 @@ use Illuminate\Support\Str;
  *   6. no_active_payment— the row is not a payment session this request can be
  *                         about. A database row is not a payment.
  *   7. rate_limited     — Bakong answered 429 recently.
+ *   7b. upstream_quota_exhausted — NBC said the day's allowance is gone.
+ *                         Latched until midnight; NOTHING is exempt, because
+ *                         every request would be charged and refused.
  *   8. provider_backoff — a refusal that will still be true next time.
  *   9. verify_cooldown  — the same transaction was asked about inside the
  *                         cooldown, or is being asked about RIGHT NOW by
@@ -189,6 +192,8 @@ class BakongProviderClient
 
     public const BLOCK_RATE_LIMITED = 'rate_limited';
 
+    public const BLOCK_UPSTREAM_EXHAUSTED = 'upstream_quota_exhausted';
+
     public const BLOCK_PROVIDER_BACKOFF = 'provider_backoff';
 
     public const BLOCK_COOLDOWN = 'verify_cooldown';
@@ -213,6 +218,21 @@ class BakongProviderClient
      * working integration stop asking.
      */
     private const CREDENTIAL_ERROR_CODES = [6, 10];
+
+    /**
+     * Bakong errorCodes that mean THE DAY'S ALLOWANCE IS GONE.
+     *
+     * 17 is not in the v1.0.2 document — its published list stops at 11 — and
+     * that gap cost real money here. The gateway answers HTTP 200 with
+     * responseCode 1, errorCode 17 and "Daily request limit of 100 exceeded.
+     * Please try again tomorrow.", which this client read as a generic refusal
+     * and kept re-asking once per cooldown, all day, against a token that had
+     * nothing left. Every one of those retries is charged exactly like a sale.
+     *
+     * Coding strictly to a published list is what made this possible, so the
+     * message is matched as well as the code — see isQuotaRefusal().
+     */
+    private const QUOTA_ERROR_CODES = [17];
 
     public function __construct(private ?BakongQuotaLedger $ledger = null)
     {
@@ -388,6 +408,15 @@ class BakongProviderClient
         // or the budget, which are about the allowance, not the credential.
         if ($this->ledger->isRateLimited($target)) {
             return $this->refuse(self::BLOCK_RATE_LIMITED, $reason, $endpoint, $target, $row);
+        }
+
+        // NBC itself has said the day is over. NOTHING is exempt from this —
+        // not a token renewal, not the operator's own diagnostic — because
+        // every one of them would be charged and every one would be refused.
+        // Unlike our own ceiling this counts spend we cannot see: the token is
+        // shared, so the allowance can be gone while our ledger reads 6 of 80.
+        if ($this->ledger->upstreamExhausted($target) !== null) {
+            return $this->refuse(self::BLOCK_UPSTREAM_EXHAUSTED, $reason, $endpoint, $target, $row);
         }
 
         if (! in_array($reason, self::BACKOFF_EXEMPT_REASONS, true)
@@ -586,11 +615,23 @@ class BakongProviderClient
             return;
         }
 
+        $errorCode = $result->errorCode();
+        $message = $result->message();
+
+        // THE DAY IS OVER. Latch it until midnight rather than re-discovering
+        // it once per cooldown for the rest of the day — which is what this
+        // integration did until the allowance ran out and the logs filled with
+        // the same sentence 60 seconds apart.
+        if (($errorCode !== null && in_array($errorCode, self::QUOTA_ERROR_CODES, true))
+            || self::isQuotaRefusal($message)) {
+            $this->ledger->markUpstreamExhausted($target, self::redact($message, 160));
+
+            return;
+        }
+
         // A 2xx whose envelope reports an access problem. errorCode is what
         // distinguishes this from the honest "transaction could not be found"
         // that this integration will see far more often than anything else.
-        $errorCode = $result->errorCode();
-
         if ($errorCode !== null && in_array($errorCode, self::CREDENTIAL_ERROR_CODES, true)) {
             $this->ledger->backOff(
                 $target,
@@ -598,6 +639,38 @@ class BakongProviderClient
                 'errorCode '.$errorCode.' '.self::redact($result->message(), 120)
             );
         }
+    }
+
+    /**
+     * Does this message say the allowance is spent?
+     *
+     * The needles are deliberately PHRASES, never the bare word "limit". The
+     * KHQRPay integration learned this the hard way: a gateway answering
+     * "amount below minimum limit" is describing one request's amount, not the
+     * account, and matching it would shut down checkout on a perfectly healthy
+     * token. Every phrase here has to be about a COUNT over a PERIOD.
+     */
+    public static function isQuotaRefusal(string $message): bool
+    {
+        $haystack = strtolower($message);
+
+        foreach ([
+            'daily request limit', 'daily limit', 'request limit', 'limit exceeded',
+            'exceeded limit', 'limit reached', 'out of limit', 'over limit',
+            'quota', 'too many request', 'rate limit', 'ratelimit', 'throttl',
+        ] as $needle) {
+            if (str_contains($haystack, $needle)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /** Is the upstream allowance known to be spent right now? @return array{until: \Carbon\Carbon, why: string}|null */
+    public function upstreamExhausted(string $target = 'platform'): ?array
+    {
+        return $this->ledger->upstreamExhausted($target);
     }
 
     // ------------------------------------------------------------- the rules

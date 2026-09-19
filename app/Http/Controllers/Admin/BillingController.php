@@ -183,23 +183,46 @@ class BillingController extends Controller
     {
         $payment = $this->resolveSubscriptionPayment($token);
         $gatewayError = false;
+        // Assume the gateway answered until a poll says otherwise: a thrown
+        // exception below is a genuine miss, and every non-Bakong row reports
+        // true, preserving the previous behaviour exactly.
+        $gatewayAnswered = true;
+        $quotaExhausted = null;
 
         try {
             // Routed on the ROW, not on configuration: a payment minted at
             // khqr.cc keeps being asked about at khqr.cc, so flipping the
             // provider switch cannot strand a checkout that is already running.
-            ['payment' => $payment, 'gateway_error' => $gatewayError] = $checkout->poll($payment);
+            [
+                'payment' => $payment,
+                'gateway_error' => $gatewayError,
+                // Did we actually ASK? A poll the cooldown absorbed is not evidence
+                // the gateway is healthy, and treating it as such is what kept the
+                // stall warning from ever appearing.
+                'gateway_answered' => $gatewayAnswered,
+                // When today's allowance resets, if it is already spent.
+                'quota_exhausted' => $quotaExhausted,
+                'gateway_answered' => $gatewayAnswered,
+                'quota_exhausted' => $quotaExhausted,
+            ] = $checkout->poll($payment);
         } catch (\Throwable $e) {
             // Never let a gateway failure 500 the poll — the page swallows a
             // non-OK response and would spin forever. Say so instead.
             report($e);
             $gatewayError = true;
+            $gatewayAnswered = false;
         }
 
         return response()->json([
             'status' => $payment->status,
             'paid' => $payment->isPaid(),
             'gateway_error' => $gatewayError,
+            // Did we actually ASK? A poll the cooldown absorbed is not evidence
+            // the gateway is healthy, and treating it as such is what kept the
+            // stall warning from ever appearing.
+            'gateway_answered' => $gatewayAnswered,
+            // When today's allowance resets, if it is already spent.
+            'quota_exhausted' => $quotaExhausted,
             'expires_at' => $payment->expires_at?->toIso8601String(),
             'redirect' => $payment->isPaid() ? route('admin.billing.index') : null,
         ]);

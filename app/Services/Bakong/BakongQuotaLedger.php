@@ -334,6 +334,70 @@ class BakongQuotaLedger
             && Carbon::parse($entry['until'])->isFuture();
     }
 
+    // ------------------------------------------- upstream quota exhaustion
+
+    /**
+     * NBC itself has said the day is over. Stop asking until it isn't.
+     *
+     * This is DIFFERENT from our own daily ceiling, and the difference is the
+     * whole reason it exists. Our ceiling counts what WE spent; this records
+     * what the TOKEN has spent — including every request made by anything else
+     * sharing it, which we cannot see and cannot count. On this account the
+     * token is shared with a hosted-checkout provider, so the allowance can be
+     * gone while our own ledger reads 6 of 80.
+     *
+     * Held until local midnight because that is precisely what Bakong says
+     * ("Please try again tomorrow"), and capped at 24h so a clock oddity can
+     * never latch it shut for longer than a day.
+     */
+    public function markUpstreamExhausted(string $target, string $why): void
+    {
+        $until = Carbon::now()->endOfDay();
+        $seconds = max(60, min(86400, (int) Carbon::now()->diffInSeconds($until, false)));
+
+        try {
+            Cache::put($this->exhaustedKey($target), [
+                'until' => $until->toIso8601String(),
+                'why' => mb_substr($why, 0, 200),
+            ], $seconds);
+
+            Log::warning('Bakong upstream allowance exhausted — no further requests today', [
+                'target' => $target,
+                'until' => $until->toIso8601String(),
+                'our_own_spend_today' => $this->spentToday($target),
+                'why' => mb_substr($why, 0, 200),
+            ]);
+        } catch (\Throwable $e) {
+            // Best-effort: the gate below simply keeps asking, which is how it
+            // behaved before this existed.
+        }
+    }
+
+    /** @return array{until: Carbon, why: string}|null */
+    public function upstreamExhausted(string $target): ?array
+    {
+        try {
+            $entry = Cache::get($this->exhaustedKey($target));
+        } catch (\Throwable $e) {
+            return null;
+        }
+
+        if (! is_array($entry) || ! isset($entry['until'])) {
+            return null;
+        }
+
+        $until = Carbon::parse($entry['until']);
+
+        return $until->isFuture()
+            ? ['until' => $until, 'why' => (string) ($entry['why'] ?? '')]
+            : null;
+    }
+
+    private function exhaustedKey(string $target): string
+    {
+        return 'bakong:upstream-exhausted:'.$target;
+    }
+
     /**
      * Clear both backoffs — for an operator standing on the diagnostics page
      * having just fixed the credential, so a working token is usable
@@ -344,6 +408,7 @@ class BakongQuotaLedger
         try {
             Cache::forget($this->backoffKey($target));
             Cache::forget($this->rateLimitKey($target));
+            Cache::forget($this->exhaustedKey($target));
         } catch (\Throwable $e) {
             // Best-effort.
         }
