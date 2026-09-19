@@ -288,8 +288,8 @@ issue zero Bakong requests.**
 | `BAKONG_API_ENABLED` | `false` | master switch |
 | `BAKONG_API_BASE_URL` | *(empty)* | from NBC; empty also disables |
 | `BAKONG_EMAIL` / `_ORGANIZATION` / `_PROJECT` | *(empty)* | integrator identity |
-| `BAKONG_ACCOUNT_ID` | *(empty)* | where subscription money lands |
-| `BAKONG_MERCHANT_NAME` / `_CITY` / `BAKONG_CURRENCY` | app name / Phnom Penh / USD | printed inside the QR |
+| `BAKONG_ACCOUNT_ID` | *(empty)* | where subscription money lands — **fallback**, see below |
+| `BAKONG_MERCHANT_NAME` / `_CITY` / `BAKONG_CURRENCY` | app name / Phnom Penh / USD | printed inside the QR — **fallback** |
 | `BAKONG_DAILY_REQUEST_LIMIT` | `80` | ceiling; 0 disables |
 | `BAKONG_VERIFY_COOLDOWN` | `60` | seconds between calls per transaction |
 | `BAKONG_QR_TTL` | `6` | minutes a QR stays payable |
@@ -299,6 +299,14 @@ issue zero Bakong requests.**
 | `BAKONG_DEEPLINK_*` | off | open-in-Bakong-app links |
 | `BAKONG_DEMO` | `false` | local simulation, hard-off in production |
 | `BAKONG_CONNECT_TIMEOUT` / `BAKONG_TIMEOUT` | `3` / `8` | seconds; **no retries anywhere** |
+
+**The payout identity lives in Superadmin → Payment Settings**, not in `.env`.
+`BakongPlatformIdentity::current()` reads `platform_payment_settings` first and
+falls back to the variables above — the same order `KhqrCredentials::platform()`
+already uses, and for the same reason: the person who needs to change a payout
+account is not the person with shell access. A blank column falls *through*
+rather than overriding with emptiness, so a row saved before these fields
+existed keeps working. `bakong:diagnose` prints which source is in force.
 
 **The token is never an environment variable.** It is issued at runtime and
 stored encrypted, so a rotated token never sits in a shell history, a config
