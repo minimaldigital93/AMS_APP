@@ -19,6 +19,8 @@
             <span class="font-semibold">${{ number_format($payment->amount, 2) }}/{{ __('mo') }}</span>
         </p>
 
+        <x-bakong-qr :image="$qrImage ?? null" :amount="$payment->amount" :currency="$payment->currency" tone="dark" />
+
         <div class="mt-6">
             <!-- Waiting -->
             <template x-if="state === 'waiting'">
@@ -62,14 +64,17 @@
             {{ __('Once your payment is confirmed you’ll be redirected to sign in. You can keep this page open.') }}
         </p>
 
-        {{-- The spinner cannot tell "not paid yet" from "the payment page showed
-             an error and you came back" — the row sits in qr_generated either
-             way. Without this the customer's only option is to watch it until
-             the QR expires. --}}
-        <button type="button" x-on:click="$dispatch('khqr-diagnostics')"
-                class="mt-3 text-xs text-white/70 underline underline-offset-2 hover:text-white">
-            {{ __('messages.khqr_diag_checkout_help') }}
-        </button>
+        {{-- Hosted checkout only. The spinner cannot tell "not paid yet" from
+             "the payment page showed an error and you came back" — the row sits
+             in qr_generated either way. There is no such page in the direct
+             Bakong flow (the QR is above), so the button would only offer an
+             explanation for something that cannot have happened. --}}
+        @unless ($payment->usesBakong())
+            <button type="button" x-on:click="$dispatch('khqr-diagnostics')"
+                    class="mt-3 text-xs text-white/70 underline underline-offset-2 hover:text-white">
+                {{ __('messages.khqr_diag_checkout_help') }}
+            </button>
+        @endunless
     </div>
 
     <x-khqr-diagnostics

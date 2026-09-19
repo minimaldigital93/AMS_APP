@@ -31,12 +31,16 @@
              guarantee is tested by flipping it back off per-test, in
              tests/Feature/RevenueExpense/KhqrZeroRequestTest.php. -->
         <env name="KHQR_PAY_ENABLED" value="true"/>
-        <!-- The Bakong suite exercises the gates, so the master switch is ON
-             here and the base URL points at a host that does not exist. A test
-             that slips past the guards therefore fails loudly at
-             Http::preventStrayRequests() rather than spending a metered request
-             against whatever token the machine happens to have configured. -->
-        <env name="BAKONG_API_ENABLED" value="true"/>
+        <!-- Bakong is OFF by default here, matching production's own default
+             and keeping the existing KHQRPay suite on the provider it was
+             written for. Every Bakong test turns it on in its own beforeEach,
+             so the gates are still exercised — and BakongProviderSwitchTest
+             pins both sides of the switch explicitly.
+             The base URL points at a host that does not exist, so a test that
+             slips past the guards fails loudly at Http::preventStrayRequests()
+             rather than spending a metered request against whatever token the
+             machine happens to have configured. -->
+        <env name="BAKONG_API_ENABLED" value="false"/>
         <env name="BAKONG_API_BASE_URL" value="https://bakong.test"/>
         <env name="BAKONG_EMAIL" value="integrator@ams.test"/>
         <env name="BAKONG_ORGANIZATION" value="AMS Test"/>

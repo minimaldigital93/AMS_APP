@@ -1445,4 +1445,7 @@ return [
     'bakong_payment_disabled' => 'Bakong payment is switched off for this installation, so no payment could be started. Nothing was charged. Ask the operator to enable it (BAKONG_API_ENABLED), or settle this by cash or bank transfer instead.',
     'bakong_payment_unavailable' => 'The payment service is temporarily unavailable, so no QR could be created. Nothing was charged — please take this payment by cash or bank transfer.',
     'bakong_account_missing' => 'No Bakong account ID is configured, so a KHQR cannot be generated. Add one in Payment Settings.',
+    'bakong_scan_title' => 'Scan to pay with KHQR',
+    'bakong_scan_hint' => 'Open any Bakong-enabled banking app, scan this code, and confirm the payment. This page updates on its own once the money arrives.',
+    'bakong_check_now' => 'I have paid — check now',
 ];

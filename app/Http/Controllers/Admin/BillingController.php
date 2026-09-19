@@ -7,6 +7,7 @@ use App\Http\Controllers\Controller;
 use App\Models\KhqrPayment;
 use App\Models\Plan;
 use App\Models\Subscription;
+use App\Services\Payment\SubscriptionCheckout;
 use App\Services\RevenueExpense\KhqrPaymentService;
 use App\Services\Subscription\SubscriptionService;
 use Illuminate\Contracts\View\View;
@@ -36,7 +37,7 @@ class BillingController extends Controller
     /**
      * Start a renewal or upgrade: mint a subscription QR and hand off to KHQRPay.
      */
-    public function renew(Request $request, KhqrPaymentService $khqr): RedirectResponse
+    public function renew(Request $request, SubscriptionCheckout $checkout): RedirectResponse
     {
         $validated = $request->validate([
             'plan' => ['required', 'exists:plans,slug'],
@@ -54,7 +55,11 @@ class BillingController extends Controller
         // khqr_fault is the popup's trigger: the billing page flashes `error`
         // for ordinary failures too, and a diagnostics dialog is only the right
         // answer when the GATEWAY is what refused.
-        if ($fault = $khqr->platformCheckoutFault()) {
+        //
+        // Under the DIRECT Bakong integration there is no door: the QR is built
+        // locally and shown on this app's own page, so preflightFault() returns
+        // null and the two metered probes are never made.
+        if ($fault = $checkout->preflightFault()) {
             return back()->with('error', $fault)->with('khqr_fault', true);
         }
 
@@ -76,7 +81,7 @@ class BillingController extends Controller
         }
 
         try {
-            $row = $khqr->createSubscriptionQr($subscription, $plan->priceFor($cycle), $plan, $cycle);
+            $row = $checkout->create($subscription, $plan->priceFor($cycle), $plan, $cycle);
         } catch (KhqrPlatformCredentialsMissingException $e) {
             report($e);
 
@@ -88,9 +93,13 @@ class BillingController extends Controller
             return back()->with('error', __('messages.subscription_payment_unavailable'))->with('khqr_fault', true);
         }
 
-        return redirect()->away(
-            $khqr->subscriptionCheckoutUrl($row, route('admin.billing.checkout', $row->public_token))
-        );
+        $returnUrl = route('admin.billing.checkout', $row->public_token);
+
+        // A hosted-checkout provider takes the browser away; the direct Bakong
+        // flow keeps the admin here and shows them the QR.
+        return ($handoff = $checkout->handoffUrl($row, $returnUrl))
+            ? redirect()->away($handoff)
+            : redirect()->to($returnUrl);
     }
 
     /**
@@ -149,7 +158,7 @@ class BillingController extends Controller
     }
 
     /** The hosted checkout page for a pending subscription payment. */
-    public function checkout(string $token): View|RedirectResponse
+    public function checkout(string $token, SubscriptionCheckout $checkout): View|RedirectResponse
     {
         $payment = $this->resolveSubscriptionPayment($token);
 
@@ -163,20 +172,23 @@ class BillingController extends Controller
             'payment' => $payment,
             'statusUrl' => route('admin.billing.status', $payment->public_token),
             'redirectUrl' => route('admin.billing.index'),
+            // Null for a hosted checkout; a data URI for a direct Bakong
+            // payment, rendered from the row's own stored payload.
+            'qrImage' => $checkout->qrImage($payment),
         ]);
     }
 
     /** Poll endpoint the checkout page calls until the payment lands. */
-    public function status(string $token, KhqrPaymentService $khqr): JsonResponse
+    public function status(string $token, SubscriptionCheckout $checkout): JsonResponse
     {
         $payment = $this->resolveSubscriptionPayment($token);
         $gatewayError = false;
 
         try {
-            $payment = $khqr->pollAndAdvance($payment);
-            // A refusal reaches the page as gateway_error too — see
-            // KhqrPaymentService::lastPollRefused().
-            $gatewayError = $khqr->lastPollRefused();
+            // Routed on the ROW, not on configuration: a payment minted at
+            // khqr.cc keeps being asked about at khqr.cc, so flipping the
+            // provider switch cannot strand a checkout that is already running.
+            ['payment' => $payment, 'gateway_error' => $gatewayError] = $checkout->poll($payment);
         } catch (\Throwable $e) {
             // Never let a gateway failure 500 the poll — the page swallows a
             // non-OK response and would spin forever. Say so instead.

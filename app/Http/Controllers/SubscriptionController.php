@@ -8,7 +8,7 @@ use App\Models\Plan;
 use App\Models\Subscription;
 use App\Models\Theme;
 use App\Models\User;
-use App\Services\RevenueExpense\KhqrPaymentService;
+use App\Services\Payment\SubscriptionCheckout;
 use App\Services\Subscription\SubscriptionService;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\JsonResponse;
@@ -43,7 +43,7 @@ class SubscriptionController extends Controller
      * Create the pending account + subscription, then either start the plan's
      * free trial (account usable immediately, no payment) or KHQR checkout.
      */
-    public function store(Request $request, KhqrPaymentService $khqr, SubscriptionService $subscriptions): RedirectResponse
+    public function store(Request $request, SubscriptionCheckout $checkout, SubscriptionService $subscriptions): RedirectResponse
     {
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255'],
@@ -106,12 +106,16 @@ class SubscriptionController extends Controller
         // — see resources/views/components/khqr-diagnostics.blade.php. The guest
         // copy of it never probes the gateway, so it says what happened and what
         // to do without exposing the profile's internals.
-        if ($fault = $khqr->platformCheckoutFault()) {
+        //
+        // Under the DIRECT Bakong integration there is no door: the QR is built
+        // locally and shown on our own page, so preflightFault() returns null
+        // and the two metered probes are never made.
+        if ($fault = $checkout->preflightFault()) {
             return back()->withInput()->with('error', $fault)->with('khqr_fault', true);
         }
 
         try {
-            $row = DB::transaction(function () use ($validated, $plan, $khqr, $cycle) {
+            $row = DB::transaction(function () use ($validated, $plan, $checkout, $cycle) {
                 $user = $this->provisionOwner($validated, 'inactive');
 
                 // Reuse the account's pending subscription if it already has one
@@ -121,7 +125,7 @@ class SubscriptionController extends Controller
                     ['plan_id' => $plan->id, 'status' => 'pending', 'billing_cycle' => $cycle],
                 );
 
-                return $khqr->createSubscriptionQr($subscription, $plan->priceFor($cycle), $plan, $cycle);
+                return $checkout->create($subscription, $plan->priceFor($cycle), $plan, $cycle);
             });
         } catch (KhqrPlatformCredentialsMissingException $e) {
             report($e);
@@ -136,9 +140,14 @@ class SubscriptionController extends Controller
             return back()->withInput()->with('error', __('messages.subscription_payment_unavailable'))->with('khqr_fault', true);
         }
 
-        return redirect()->away(
-            $khqr->subscriptionCheckoutUrl($row, route('subscribe.checkout', $row->public_token))
-        );
+        $returnUrl = route('subscribe.checkout', $row->public_token);
+
+        // A hosted-checkout provider takes the browser away; the direct Bakong
+        // flow keeps the customer here and shows them the QR, which is also
+        // what removes the one-way door this method used to have to guard.
+        return ($handoff = $checkout->handoffUrl($row, $returnUrl))
+            ? redirect()->away($handoff)
+            : redirect()->to($returnUrl);
     }
 
     /**
@@ -189,7 +198,7 @@ class SubscriptionController extends Controller
     }
 
     /** Browser return page after KHQRPay checkout; polls until the webhook confirms. */
-    public function checkout(string $token): View|RedirectResponse
+    public function checkout(string $token, SubscriptionCheckout $checkout): View|RedirectResponse
     {
         $payment = $this->resolveSubscriptionPayment($token);
 
@@ -199,21 +208,28 @@ class SubscriptionController extends Controller
 
         $payment->load('subscription.plan');
 
-        return view('subscribe.checkout', compact('payment'));
+        return view('subscribe.checkout', [
+            'payment' => $payment,
+            // Null for a hosted checkout (the payer paid on khqr.cc); a data
+            // URI for a direct Bakong payment, rendered from the row's own
+            // stored payload so the page makes no request for it.
+            'qrImage' => $checkout->qrImage($payment),
+        ]);
     }
 
     /** Polled by the checkout page; verifies + activates on confirmation. */
-    public function status(string $token, KhqrPaymentService $khqr): JsonResponse
+    public function status(string $token, SubscriptionCheckout $checkout): JsonResponse
     {
         $payment = $this->resolveSubscriptionPayment($token);
         $gatewayError = false;
 
         try {
-            $payment = $khqr->pollAndAdvance($payment);
-            // A gateway that refused to answer (allowance spent, 5xx, timeout)
-            // is the same news to the page as a thrown one: keep polling, but
-            // say so instead of spinning in silence.
-            $gatewayError = $khqr->lastPollRefused();
+            // Routed on the ROW, not on configuration: a payment minted at
+            // khqr.cc keeps being asked about at khqr.cc for the rest of its
+            // life, so a customer mid-checkout when the provider switch is
+            // flipped is not suddenly polled at a gateway their QR does not
+            // exist on — where it would read as unpaid.
+            ['payment' => $payment, 'gateway_error' => $gatewayError] = $checkout->poll($payment);
         } catch (\Throwable $e) {
             // A gateway/booking failure must not turn the poll into a 500 the
             // page silently swallows — the customer would watch the spinner

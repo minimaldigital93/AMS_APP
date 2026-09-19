@@ -14,7 +14,6 @@ use App\Models\User;
 use App\Services\Payment\KhqrProviderClient;
 use App\Services\Payment\KhqrProviderResult;
 use Carbon\Carbon;
-use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
