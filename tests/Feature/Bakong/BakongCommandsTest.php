@@ -284,3 +284,34 @@ it('charges its calls to the same ledger as everything else', function () {
     expect(BakongApiCall::spentByReasonOn('platform'))
         ->toBe([BakongProviderClient::REASON_PAYMENT_VERIFICATION => 1]);
 });
+
+// ═══════════════ diagnose must not hand back a false green ═══════════════
+
+it('fails the diagnosis when the base url is not a URL, and hides the value', function () {
+    Http::fake();
+    bakongLiveToken();
+
+    $secret = 'eyJhbGciOiJIUzI1NiJ9.eyJkYXRhIjp7ImlkIjoic2VjcmV0In19.signature';
+    config()->set('bakong.base_url', $secret);
+
+    $this->artisan('bakong:diagnose')
+        ->expectsOutputToContain('NOT A VALID URL')
+        ->doesntExpectOutputToContain($secret)
+        ->assertExitCode(1);
+
+    Http::assertNothingSent();
+});
+
+it('does not spend a live check when there is nowhere to send it', function () {
+    Http::fake();
+    bakongLiveToken();
+    config()->set('bakong.base_url', 'not-a-url');
+
+    $this->artisan('bakong:diagnose --live')
+        ->expectsOutputToContain('no valid API base URL')
+        ->assertExitCode(1);
+
+    // The operator has already been told which line to fix; spending a request
+    // to rediscover it would be the wrong lesson.
+    Http::assertNothingSent();
+});

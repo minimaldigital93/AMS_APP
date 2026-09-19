@@ -1453,4 +1453,6 @@ return [
     'bakong_token_import_expired' => 'That token expired on :date. Storing it would leave the app claiming to be configured while every request is refused. Run "bakong:token renew" instead.',
     'bakong_token_imported' => 'Bakong access token stored, valid until :date. Nothing was sent to Bakong.',
     'bakong_token_imported_no_expiry' => 'Bakong access token stored. Its expiry could not be read, so automatic renewal is off for it — run "bakong:token renew" before it lapses.',
+    'bakong_base_url_missing' => 'not set',
+    'bakong_base_url_invalid' => 'NOT A VALID URL — value hidden. If you pasted an access token here, rotate it.',
 ];

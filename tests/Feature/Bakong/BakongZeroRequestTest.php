@@ -306,3 +306,55 @@ it('never writes a token, header or request body into the ledger', function () {
         ->and($columns)->not->toContain('payload')
         ->and($columns)->not->toContain('request_body');
 });
+
+// ═══════════════ a base url that is not a url is not configuration ═══════════
+
+it('refuses a base url that is not a URL, instead of reporting all-green', function () {
+    bakongUsableToken();
+    $row = bakongLiveRow();
+
+    // This is not hypothetical. An operator pasted their ACCESS TOKEN into
+    // BAKONG_API_BASE_URL; the value was present, the token had separately
+    // imported fine, and every check passed — so diagnostics reported "this
+    // installation can take a Bakong payment" with no endpoint configured at
+    // all. A false green on a payment integration is worse than a red one.
+    foreach ([
+        'a pasted JWT' => 'eyJhbGciOiJIUzI1NiJ9.eyJkYXRhIjp7fX0.signature',
+        'a bare host' => 'api-bakong.nbc.gov.kh',
+        'a stray word' => 'todo',
+        'the wrong scheme' => 'ftp://api-bakong.nbc.gov.kh',
+    ] as $label => $value) {
+        config()->set('bakong.base_url', $value);
+
+        expect(BakongProviderClient::baseUrl())->toBeNull($label)
+            ->and(BakongProviderClient::featureEnabled())->toBeFalse($label)
+            ->and(bakongVerify($row)->blockedReason)
+            ->toBe(BakongProviderClient::BLOCK_NOT_CONFIGURED, $label);
+    }
+
+    Http::assertNothingSent();
+});
+
+it('never echoes a base url it could not parse', function () {
+    // The likeliest reason this value is malformed is that a credential was
+    // pasted into it, and a diagnostics table that helpfully prints it puts that
+    // credential into a terminal scrollback, a screenshot and a support thread.
+    $secret = 'eyJhbGciOiJIUzI1NiJ9.eyJkYXRhIjp7ImlkIjoic2VjcmV0In19.signature';
+    config()->set('bakong.base_url', $secret);
+
+    expect(BakongProviderClient::baseUrlForDisplay())
+        ->not->toContain($secret)
+        ->not->toContain('eyJ')
+        ->toContain('rotate');
+
+    // A VALID url is not a secret and must still be readable.
+    config()->set('bakong.base_url', 'https://api-bakong.example/');
+    expect(BakongProviderClient::baseUrlForDisplay())->toBe('https://api-bakong.example');
+});
+
+it('accepts a well-formed base url with or without a trailing slash', function () {
+    foreach (['https://api-bakong.example', 'https://api-bakong.example/'] as $value) {
+        config()->set('bakong.base_url', $value);
+        expect(BakongProviderClient::baseUrl())->toBe('https://api-bakong.example');
+    }
+});

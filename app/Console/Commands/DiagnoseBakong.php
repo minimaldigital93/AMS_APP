@@ -41,16 +41,19 @@ class DiagnoseBakong extends Command
 
         // ---- configuration (free) ----
         $enabled = (bool) config('bakong.enabled');
-        $baseUrl = (string) config('bakong.base_url');
+        $baseUrl = BakongProviderClient::baseUrl();
         $accountId = (string) config('bakong.account_id');
 
         $checks[] = $this->check('Feature switch', $enabled, $enabled
             ? 'BAKONG_API_ENABLED=true'
             : 'BAKONG_API_ENABLED is false — nothing contacts Bakong', 'Set BAKONG_API_ENABLED=true in .env, then `php artisan config:cache`.');
 
-        $checks[] = $this->check('API base URL', $baseUrl !== '', $baseUrl !== ''
-            ? $baseUrl
-            : 'not set', 'NBC supplies this at integrator onboarding; it is deliberately not guessed.');
+        // The value is only shown when it is a valid URL. When it is not, the
+        // likeliest cause is a credential pasted into the wrong variable, and
+        // echoing it here would put that credential in a scrollback.
+        $checks[] = $this->check('API base URL', $baseUrl !== null,
+            BakongProviderClient::baseUrlForDisplay(),
+            'NBC supplies this at integrator onboarding; it is deliberately not guessed. It must be a full https:// URL — if you pasted a token here, rotate that token.');
 
         $checks[] = $this->check('Payout account', $accountId !== '', $accountId !== ''
             ? $accountId
@@ -90,7 +93,13 @@ class DiagnoseBakong extends Command
             'A backoff clears itself, and storing a fresh token clears it immediately.');
 
         // ---- the one live check ----
-        if ($this->option('live')) {
+        if ($this->option('live') && $baseUrl === null) {
+            // Refusing locally rather than letting the client refuse: with no
+            // endpoint there is nothing to check, and the operator has already
+            // been told which line to fix.
+            $checks[] = $this->check('Live token check', false,
+                'skipped — there is no valid API base URL to call', 'Fix the base URL above first. Nothing was sent.');
+        } elseif ($this->option('live')) {
             $checks[] = $this->liveCheck($accountId);
         } else {
             $checks[] = [

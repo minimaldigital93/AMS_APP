@@ -82,7 +82,9 @@ class BakongTokenCommand extends Command
         $this->table([], [
             ['Feature enabled', BakongProviderClient::featureEnabled() ? '<fg=green>yes</>' : '<fg=yellow>no</>'],
             ['Requests permitted', BakongProviderClient::providerCallsPermitted() ? '<fg=green>yes</>' : '<fg=yellow>no</>'],
-            ['Base URL', config('bakong.base_url') ?: '<fg=yellow>not set</>'],
+            ['Base URL', BakongProviderClient::baseUrl() !== null
+                ? BakongProviderClient::baseUrlForDisplay()
+                : '<fg=yellow>'.BakongProviderClient::baseUrlForDisplay().'</>'],
             ['Integrator email', $status['email'] ?: '<fg=yellow>not set</>'],
             ['Registered', $status['registered'] ? 'yes' : '<fg=yellow>no — run: bakong:token request</>'],
             ['Verified', $status['verified'] ? 'yes' : '<fg=yellow>no — run: bakong:token verify --code=...</>'],

@@ -240,8 +240,66 @@ class BakongProviderClient
      */
     public static function featureEnabled(): bool
     {
-        return ((bool) config('bakong.enabled') && filled(config('bakong.base_url')))
+        return ((bool) config('bakong.enabled') && self::baseUrl() !== null)
             || (bool) config('bakong.demo');
+    }
+
+    /**
+     * The API root, but ONLY if it is actually a URL.
+     *
+     * `filled()` was not enough, and the way that failed is worth recording: an
+     * operator pasted their ACCESS TOKEN into BAKONG_API_BASE_URL. Every check
+     * passed — the value was present, the token import had separately succeeded
+     * — so diagnostics reported "this installation can take a Bakong payment"
+     * while there was no endpoint configured at all. A false green on a payment
+     * integration is worse than a red one.
+     *
+     * Two things follow from validating here rather than at the call site.
+     * Nothing can be sent to a non-URL, so a mispaste is refused as
+     * `not_configured` instead of failing somewhere deep in the HTTP client with
+     * an unreadable message. And because the commonest reason this value is
+     * malformed is that a SECRET was pasted into it, the value must never be
+     * echoed back — see baseUrlForDisplay().
+     */
+    public static function baseUrl(): ?string
+    {
+        $url = trim((string) config('bakong.base_url'));
+
+        if ($url === '') {
+            return null;
+        }
+
+        $parts = parse_url($url);
+
+        if ($parts === false || ! isset($parts['scheme'], $parts['host'])) {
+            return null;
+        }
+
+        if (! in_array(strtolower($parts['scheme']), ['http', 'https'], true)) {
+            return null;
+        }
+
+        return rtrim($url, '/');
+    }
+
+    /**
+     * How the configured base URL may be shown to a human.
+     *
+     * A VALID url is printed as-is — it is not a secret and an operator needs to
+     * read it. An INVALID one is never printed, because the most likely reason
+     * it is invalid is that a credential was pasted into the wrong variable, and
+     * a diagnostics table that helpfully echoes it puts that credential into a
+     * terminal scrollback, a screenshot and a support thread.
+     */
+    public static function baseUrlForDisplay(): string
+    {
+        if (self::baseUrl() !== null) {
+            return (string) self::baseUrl();
+        }
+
+        return trim((string) config('bakong.base_url')) === ''
+            ? __('messages.bakong_base_url_missing')
+            : __('messages.bakong_base_url_invalid');
     }
 
     /**
@@ -257,7 +315,7 @@ class BakongProviderClient
     {
         return (bool) config('bakong.enabled')
             && ! (bool) config('bakong.demo')
-            && filled(config('bakong.base_url'));
+            && self::baseUrl() !== null;
     }
 
     // ------------------------------------------------------------ the gates
@@ -295,7 +353,10 @@ class BakongProviderClient
         // ---- Gate 3: nowhere to send it. NBC writes the root as {{baseUrl}}
         // and never publishes it, so it is never guessed here — and a
         // half-configured .env is the ordinary state of a machine mid-setup.
-        if (blank(config('bakong.base_url'))) {
+        // Not merely "is something set" — is it a URL. An access token pasted
+        // here passed the old check and produced a confident all-green report
+        // with no endpoint configured.
+        if (self::baseUrl() === null) {
             return $this->refuse(self::BLOCK_NOT_CONFIGURED, $reason, $endpoint, $target, $row);
         }
 
@@ -393,7 +454,7 @@ class BakongProviderClient
         ?KhqrPayment $row,
         bool $slotClaimed,
     ): BakongResult {
-        $url = rtrim((string) config('bakong.base_url'), '/').$endpoint;
+        $url = self::baseUrl().$endpoint;
         $startedAt = microtime(true);
 
         Log::info('Bakong provider request', [
