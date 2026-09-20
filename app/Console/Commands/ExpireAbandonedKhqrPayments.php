@@ -10,24 +10,30 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
 /**
- * Close out API-channel KHQR rows that have been sitting open long after their
- * QR died, WITHOUT asking the gateway about them.
+ * Close out the API-channel KHQR rows khqr.cc left behind, WITHOUT asking any
+ * gateway about them.
  *
- * khqr:reconcile deliberately cannot do this. A row is only expired there on a
- * conclusive unpaid, and a gateway that refuses every request (no Bakong token,
- * spent allowance, 502) never gives one — so a refused row stays open, and once
- * it falls out of the reconcile window nothing looks at it again. That is how
- * two rows reached seventy-three days in qr_generated.
+ * `channel = 'api'` covers both things that ever used it: the dynamic QRs
+ * minted at khqr.cc before the provider was retired in 2026-09, and today's
+ * direct-Bakong subscription QRs. (Tenant rent is 'manual' and is closed by the
+ * landlord's own reject button, so it is never in scope here.)
  *
- * Making the automatic path close them instead would mean writing a payment out
- * of the books on the word of a gateway that declined to answer, which is the
- * one thing the reconcile command is built to never do. So this is the manual
- * counterpart: an operator states, out of band, that a QR from days ago is not
- * going to be paid. Same shape as SuperAdmin\AccountsController::changePlan() —
- * the sanctioned human override for something automation must not decide.
+ * It exists because no automatic path will close these. A row is only expired
+ * automatically on a CONCLUSIVE UNPAID, and a gateway that refuses — a rejected
+ * token, a spent allowance, a 5xx, or simply nothing left to ask because the
+ * session was never rendered — never gives one. So a refused row stays open,
+ * and once it falls out of the reconcile window nothing looks at it again. That
+ * is how two rows reached seventy-three days in qr_generated. With khqr.cc gone
+ * its legacy rows have no gateway at all, and `bakong:reconcile` ships OFF, so
+ * in practice this is the only thing that closes either kind.
  *
- * It spends NO Bakong quota. It is safe to run when the allowance is gone,
- * which is exactly when the backlog it clears tends to have built up.
+ * Automating the close would mean writing a payment out of the books on the
+ * word of a gateway that never answered. So it stays a human override: an
+ * operator states, out of band, that a QR from days ago is not going to be
+ * paid. Same shape as SuperAdmin\AccountsController::changePlan().
+ *
+ * It spends NO Bakong quota, and cannot: there is no client left in this app
+ * that could reach khqr.cc even if it wanted to.
  */
 class ExpireAbandonedKhqrPayments extends Command
 {

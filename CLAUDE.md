@@ -15,7 +15,7 @@ Guidance for working in **AMS_APP** — a multi-tenant SaaS Apartment Management
 | Authorization | `spatie/laravel-permission` (role-based) |
 | Frontend | Blade + Tailwind CSS 3 + Alpine.js + Vite 7 + Chart.js |
 | PDF | `barryvdh/laravel-dompdf` |
-| Payments | KHQRPay (Bakong KHQR) — subscriptions and tenant payments |
+| Payments | **Bakong Open API** (NBC, direct) for subscriptions; a locally built KHQR the landlord confirms for tenant rent. khqr.cc retired 2026-09. |
 | i18n | English + Khmer (`en`, `km`); `lang/en/messages.php`, `lang/km/messages.php` |
 | Tests | Pest 4 |
 | DB | MySQL (prod) / SQLite (dev/test) |
@@ -172,17 +172,27 @@ app/
                                       ApartmentRevenueComparisonService, DashboardCalendarService
     FiscalPeriod/                  ← BalanceSheetService, FiscalPeriodFinancialsService,
                                       FiscalPeriodReportsService, MonthlyPeriodManager
+    Bakong/                        ← the WHOLE direct NBC Open API integration
+      BakongProviderClient         ← the ONLY place that may talk to NBC
+      BakongQuotaLedger            ← ceiling, cooldown, backoffs, exhaustion latch
+      BakongQrService              ← builds + renders the EMV/KHQR payload
+      BakongTokenService           ← issue/verify/renew; expiry read from the JWT
+      BakongTransactionService     ← mint a subscription QR, verify, poll
+      BakongUsageReport            ← the offline allowance report (panel + command)
+      BakongPlatformIdentity       ← WHERE subscription money lands
     Payment/
       PaymentManager               ← resolves PaymentGateway drivers
-      Gateways/KhqrPayGateway      ← KHQRPay driver (implements PaymentGateway)
+      Gateways/BakongGateway       ← subscriptions
+      Gateways/ManualGateway       ← tenant rent (landlord confirms)
+      Gateways/RetiredKhqrPayGateway ← tombstone so khqr.cc history still reads
+      SubscriptionCheckout         ← the one place a subscription payment is minted
       RefundService                ← handles refunds
-      WebhookIngestService         ← processes raw webhook payloads
     Platform/PlatformFinanceService← cross-account platform finance (superadmin)
     Platform/AccountPurgeService   ← full account deletion (rows + files);
                                       soft-delete models never fire DB cascades and
                                       history FKs are RESTRICT — delete children first
     RevenueExpense/                ← BreakEvenService, ExpenseRecordingService,
-                                      IncomeRecordingService, KhqrCredentials,
+                                      IncomeRecordingService,
                                       KhqrPaymentService, MonthlyBillingService,
                                       RevenueExpenseQueryService
     Subscription/SubscriptionService
@@ -230,7 +240,7 @@ and `activeSubscription()` filters on `status` + `expires_at` only — it has no
 idea whether the plan it returns was paid for. So **the plan a customer is
 buying must never be written to a live subscription before payment**.
 `Admin\BillingController::renew()` stamped it up front until 2026-08: a customer
-on Basic who clicked upgrade to Pro, hit the khqr.cc page and closed the tab
+on Basic who clicked upgrade to Pro, reached the checkout page and closed the tab
 kept Pro's room/staff caps free until their Basic term expired.
 
 - The purchase (`plan_id` + `billing_cycle`) rides on the **KhqrPayment**'s
@@ -262,383 +272,231 @@ kept Pro's room/staff caps free until their Basic term expired.
 
 ### Adding a payment provider
 
-Implement `App\Contracts\PaymentGateway` (three methods: `provider()`, `verify()`, `validateWebhook()`) and register the driver in `App\Services\Payment\PaymentManager`.
+Implement `App\Contracts\PaymentGateway` (`provider()`, `verify()`) and register
+the driver in `App\Services\Payment\PaymentManager`. There is deliberately **no
+`validateWebhook()`** — see "No webhook exists" below.
 
-### KHQR secrets
+Three keys are registered, and only two can mint anything:
 
-- **Platform/subscription payments**: signed with `platform_payment_settings.khqrpay_secret` (DB row), **not** `.env KHQRPAY_SECRET`. A 502 after auth passes = the khqr.cc account isn't provisioned for live QR.
-- **Per-merchant tenant payments**: `MerchantPaymentSetting` (per account).
-- KHQRPay webhook: `POST /khqr/callback` — signature-authenticated, **CSRF-exempt** (see `bootstrap/app.php`), throttled 60/min.
+| key | what it is |
+|-----|-----------|
+| `bakong` | SUBSCRIPTIONS, via the direct NBC Open API. |
+| `manual` | TENANT RENT: a KHQR built on this server, confirmed by the landlord. |
+| `khqrpay` | **RETIRED 2026-09.** `RetiredKhqrPayGateway`, a tombstone. |
+
+The retired key is why the registry was not deleted along with the provider:
+`khqr_payments.provider` is **history as much as configuration**, and a settled
+payment from last quarter must not 500 the payments console because the gateway
+that took it no longer exists. Its `verify()` returns `false` meaning *no
+confirmation*, never *unpaid* — and nothing acts on that negative any more.
+
+### khqr.cc is gone — don't bring it back
+
+The KHQRPay middleman was removed in 2026-09 after a month in which the upstream
+Bakong token it held a copy of was drained to its daily limit every day, while
+this app's own ledger showed **six** requests. Every payment then failed with
+`errorCode 17`, and because a refused request is metered exactly like a
+successful one, the day was already lost before anyone noticed.
+
+**What went with it:** `KhqrProviderClient`, `KhqrCredentials`,
+`KhqrPayGateway`, `WebhookIngestService`, `KhqrCallbackController`, the
+`POST /khqr/callback` route and its CSRF exemption, the `<x-khqr-diagnostics>`
+popup and `admin.billing.diagnostics`, the two preflight probes, `khqr:diagnose`,
+`khqr:reconcile`, `khqr:usage`, `khqr:test-qr`, the whole `services.khqrpay`
+config block, and the `khqrpay_profile_id` / `khqrpay_secret` /
+`khqrpay_enabled` columns on both payment-settings tables.
+
+**What deliberately stayed:** `khqr_payments` and `payment_webhooks` rows (money
+records and their audit trail), the `provider` column, and
+`khqr:expire-abandoned` — which is now the *only* thing that will ever close the
+open `channel = 'api'` rows khqr.cc left behind, since no gateway remains to
+give the conclusive unpaid that automatic expiry requires.
+
+`tests/Feature/Payment/KhqrCcRetiredTest.php` pins this **structurally** rather
+than behaviourally — it greps `app/`, `config/`, `routes/` and `resources/views/`
+for anything that could form a request or hold a credential. A test that merely
+watched one flow would pass while a forgotten scheduler kept calling, which is
+exactly how the leak survived so long the first time.
+
+### No webhook exists
+
+The Bakong Open API publishes **no callback of any kind** — all eight documented
+endpoints are outbound request/response. The one webhook this app ever had
+belonged to khqr.cc and was deleted with it.
+
+That is the single real functional loss of the migration, and it must not be
+papered over: a payment is confirmed by **the checkout page's poll while it is
+open**, or by `bakong:reconcile` if that net is switched on, or by hand. If the
+payer closes the tab before confirmation and the net is off, nothing will notice
+the money arrived.
+
+`/khqr/callback` was public **and** CSRF-exempt, so deleting it also removed the
+one route where a forged POST naming a real transaction id would have been the
+cheapest possible way to activate a subscription for free. Nothing is
+CSRF-exempt now (`bootstrap/app.php`); add an exemption back only for an
+endpoint that authenticates every request by its own signature.
+
+### Two flows, two providers, and they do NOT share a token
+
+| | Flow A — subscriptions | Flow B — tenant rent |
+|---|---|---|
+| Money goes to | the platform operator | the landlord's own bank |
+| Provider | `bakong` (NBC Open API) | `manual` |
+| Payout identity | `BakongPlatformIdentity` → `platform_payment_settings.bakong_account_id`, else `config/bakong.php` | `merchant_payment_settings.bakong_account_id` |
+| Confirmed by | polling `check_transaction_by_md5` | **the landlord**, after checking their banking app |
+| Costs metered requests | yes — verification only | **no — zero, ever** |
+| Config | `config/bakong.php` | `config/rent_qr.php` |
+
+**Rent is NOT wired through the platform's Bakong token, and that is a decision
+rather than an omission.** That token is metered at roughly 100 requests a day
+for the whole installation: every landlord's every tenant sharing one allowance
+would let the busiest building lock out everyone else, and it would route a rent
+payment's confirmation through credentials belonging to an account the money
+never touches. Rent settles directly with the landlord, whose bank neither this
+app nor NBC's token can see — which is precisely why the landlord is the oracle.
+
+`App\Services\RevenueExpense\KhqrPaymentService` is the rent channel **and** the
+one place a confirmed payment of either flow is BOOKED (`finalize()`,
+`finalizeSubscription()`). The Bakong side calls into it rather than
+reimplementing it, so there is exactly one path from "the money arrived" to "the
+books say so". **`Http::` does not appear anywhere in that file** — keep it that
+way; a rent payment needing a provider again is a new `PaymentGateway` driver,
+not an outbound call reintroduced there.
 
 ### SaaS signup funnel
 
-`/subscribe` → checkout → KHQR → activate — all in the `guest` middleware group in `web.php`.
+`/subscribe` → checkout → KHQR → activate — all in the `guest` middleware group
+in `web.php`. **The customer never leaves.** There is no `redirect()->away()`
+any more: the QR is built locally and rendered on this app's own page, so a
+failure is something this app can still explain instead of a raw JSON body on
+someone else's domain. `SubscriptionCheckout::handoffUrl()` survives, always
+returning null, as the seam a hosted provider would plug back into — and
+`preflightFault()` returns null for the same reason, which is what removed the
+two metered probes that used to guard the door.
 
-### `redirect()->away()` is a one-way door — preflight the gateway first
+#### ONE CLIENT, AND MINTING IS FREE
 
-Both subscription entry points (`SubscriptionController::store()`,
-`Admin\BillingController::renew()`) hand the browser to khqr.cc's hosted
-checkout. Once it is there, a profile that cannot transact answers with a raw
-JSON body — `{"responseCode":1,"responseMessage":"Bakong Token Required…"}` —
-and the customer is left reading a JSON file on someone else's domain, with no
-way for this app to say what happened or offer a retry. That was the behaviour
-until 2026-08.
+`App\Services\Bakong\BakongProviderClient` is the **only** place in this app that
+may talk to NBC. Every outbound request goes through `call()`; controllers, jobs,
+commands, models, Blade views and scheduled tasks must never construct one. It
+BUILDS the request itself (the call site supplies only a payload), so a call site
+cannot express a request the client has not agreed to.
 
-`KhqrPaymentService::platformCheckoutFault()` is the gate. Call it **before
-minting anything** — a refusal then leaves no half-finished signup and no orphan
-QR, matching the missing-credentials guard — and flash its return value as
-`error` on the form the customer is already on.
+**Creating a QR costs nothing.** The Open API has no QR endpoint — `BakongQrService`
+constructs the EMV payload here — so a customer reaching the checkout page spends
+no allowance at all. Only verification is metered, which is what lets the whole
+budget go on confirming payments rather than creating them. Two consequences:
 
-- **It runs TWO probes, and only the second one catches the reported failure.**
-  `probeCheckTransaction()` asks the read-only `check-transv2-khqrcc` endpoint
-  whether the profile answers at all (wrong secret, wrong profile id, gateway
-  down). `probeHandoff()` asks the hosted-checkout endpoint the customer is
-  about to be sent to whether it will render a payment form or a JSON refusal.
-  **Checking a transaction and taking money are different permissions at
-  khqr.cc**: this account passed probe 1 with a healthy `404 Transaction Not
-  Found` and answered probe 2 with `422 Bakong Token Required: No active
-  official Bakong OpenAPI token configured` — so until 2026-08 the guard
-  reported healthy and customers still landed on the JSON page. A payment form
-  answers as HTML; a refusal answers as JSON with a non-zero `responseCode`, and
-  telling those apart *is* the check.
-- **Both probe a throwaway transaction id, never the row's own.** khqr.cc
-  checkout sessions are single-use (see `createSubscriptionQr`), so GETting the
-  *customer's* checkout URL would burn the session they are about to open —
-  that, and not the request itself, is what must never be done. The handoff
-  probe opens a throwaway session nobody will ever be sent to.
-  `services.khqrpay.handoff_preflight` (`KHQRPAY_HANDOFF_PREFLIGHT`, default on)
-  turns it off if khqr.cc ever objects to those unused sessions.
-- **It fails open, deliberately.** Only a positive showing that the profile
-  can't transact is a fault: 5xx (the unprovisioned-profile signature here),
-  401/403/404, or a non-zero `responseCode` whose message names a credential
-  problem (`isConfigurationRefusal()`). A timeout, a network blip, or a plain
-  "transaction not found" all pass — blocking a working checkout on a flaky
-  probe costs real money. A healthy verdict is cached 60s; a fault never is.
-- **The status poll never 500s.** Both `status()` endpoints catch `Throwable`
-  and return `gateway_error: true` with the row's unchanged status. The checkout
-  pages warn after two consecutive bad polls (`stalled`) but keep polling — the
-  payment can still land, so it is a warning beside the spinner, not a terminal
-  state. A non-OK response used to be silently swallowed and the customer
-  watched the spinner forever.
-- **A healthy verdict is only cached when both probes said so.** An `unknown`
-  (timeout, blip) is let through but never silences the next check, or one
-  timeout buys a broken gateway a free minute of handoffs.
-- **A refusal is cached too, for the same 60 seconds** (`faultVerdictKey()`,
-  added 2026-08). Only the healthy verdict used to be, on the reasoning that a
-  fault must re-probe so a fixed profile works immediately — but the profile
-  this app points at has been faulting since June, so in practice every visit to
-  the billing page bought the same discovery for two metered calls and the guard
-  outspent the payments it guards. The reasoning is preserved where it actually
-  matters: a **live** `platformDiagnostics()` run that comes back **healthy**
-  clears the fault verdict *and* the failure backoff (`forgetCachedVerdicts()`),
-  because that is the page an operator is standing on while doing the fixing. A
-  live run that still finds the fault **re-caches** it instead — it used to clear
-  both verdicts *before* probing, whatever it found, which (with the popup
-  auto-probing after every refused renew) made each renew click cost four
-  metered calls. Keep it distinct from `lastFaultKey()` — that is the six-hour
-  record of *what* refused, and it is only ever displayed; this one suppresses
-  calls.
-- **A backoff in force answers the preflight locally** (`cachedCheckoutVerdict()`):
-  a 429 or a failure backoff on the platform profile returns the fault without a
-  probe, checked before the healthy cache because it is newer news.
-- **One preflight per profile at a time** — `Cache::lock(...preflight-lock...)`
-  with a re-check of the verdicts inside. A wait that runs out fails open.
-- A switched-off handoff probe reports `skipped`, and a healthy profile probe
-  plus `skipped` **is** cached as healthy — with `KHQRPAY_HANDOFF_PREFLIGHT=false`
-  every checkout used to re-probe uncached.
-- **The probes are skipped entirely once `dailyBudgetExhausted()`.** They cost
-  what a verify costs, and a health check must never spend the reserve kept for
-  a payment. Checkout then **fails open** (an unrunnable check is not a fault);
-  diagnostics reports the two probes as skipped, since `usageCheck()` directly
-  above them has already stated the finding.
-- Checkout views read `$payment->subscription?->plan?->…`: a superadmin can
-  delete a Plan mid-checkout, and a 500 there replaces "confirming your payment"
-  with an error page mid-payment.
+- The payload is **stored** (`khqr_payments.qr_payload` + `qr_md5`), never
+  rebuilt: `check_transaction_by_md5` takes the md5 of that exact string, so a
+  later settings edit would otherwise make an already-paid transaction
+  permanently unverifiable.
+- The QR reaches the browser as an inline `data:` URI. The old manual channel
+  handed the payload to `api.qrserver.com` as a query parameter — putting a live
+  payment instruction, with the account id and amount, on a third party's server,
+  and making the QR vanish whenever that service was unreachable.
 
-#### …and when it does refuse, a popup says which part
+**Eleven gates, all refusals BEFORE the request** (a refused Bakong request is
+charged exactly like a paid one), cheapest and most absolute first: `disabled`,
+`demo_mode`, `not_configured`, `invalid_request`, `no_token`,
+`no_active_payment`, `rate_limited`, `upstream_quota_exhausted`,
+`provider_backoff`, `verify_cooldown`, `max_attempts`, `daily_budget`. Every
+allowed request and every refusal is written to `bakong_api_calls` with the
+reason — which is why `reason` is a required parameter and a request nobody can
+account for is refused outright.
 
-One flash sentence is all the customer needs; whoever has to *fix* the profile
-needs to know which check failed and in whose words.
-`<x-khqr-diagnostics>` (`components/khqr-diagnostics.blade.php`) is that popup,
-and `KhqrPaymentService::platformDiagnostics()` is the one report behind it —
-also printed by `php artisan khqr:diagnose`, which exists because the failure
-can lock the operator out of the very page the popup lives on (no active
-subscription + a gateway that won't take payment leaves nowhere in the UI to
-stand).
+#### The token is metered per day, and NBC meters the TOKEN, not this app
 
-- **Two audiences, one component, and the difference is `endpoint`.** With it
-  (billing page, admin checkout) the popup reads the **free offline report on
-  opening** — config, today's spend, any backoff in force, the last recorded
-  refusal — and runs the live checks (quoting the gateway verbatim) **only from
-  the "Run live check (uses 2 Bakong requests)" button**. It auto-opens after
-  every refused renew (`khqr_fault`), so probing on open was a metered request
-  pair nobody asked for; don't revert `run(false)` in `open()`. Without it (public signup form, signup checkout) it says
-  what happened, that no money moved, and what to do — **never** the probe
-  results: `detail` names the profile id and the gateway's internals, and an
-  unauthenticated probe route would be a free way to spend a metered Bakong
-  token. `admin.billing.diagnostics` is auth'd and throttled 10/min.
-- **`khqr_fault` is the auto-open trigger**, flashed beside `error` only by the
-  gateway refusal paths — the billing page flashes `error` for ordinary
-  failures too, and a diagnostics dialog is the wrong answer to those.
-- **The last recorded refusal is shown beside the fresh run.** The gateway is
-  allowed to answer differently a minute later (and a healthy verdict is cached
-  for one), so an all-green report in front of someone staring at the failure is
-  worse than no report.
-- **Both checkout pages carry a "payment page didn't open?" button.** The
-  spinner cannot tell "not paid yet" from "khqr.cc showed you JSON and you came
-  back" — the row sits in `qr_generated` either way — so without it the
-  customer's only option is to watch it until the QR expires.
-- The webhook URL is reported as `info`, not a pass/fail: nothing here can read
-  back what is pasted into the khqr.cc profile, and a missing one is exactly the
-  case where the payment succeeds and the checkout page spins forever.
-- **Every check carries its own `remedy`, and the generic paragraph is only a
-  fallback.** "The gateway refused" hides four different jobs — add a credential
-  (our settings page), wait out an allowance (nobody, it clears at midnight),
-  re-copy a secret (our settings page), get a token activated (khqr.cc, and only
-  khqr.cc) — done in different places by different people. `probeRemedy()` picks
-  the one that applies from the status and the gateway's words; a healthy check
-  gets none. Rendering the catch-all beside a specific remedy is what left the
-  reader unsure which applied, so the blade shows it only when a failing check
-  has no remedy of its own (`failedWithoutRemedy`).
-- **`copy` is for values that must leave the screen intact**: the webhook URL,
-  and — only when the refusal needs someone at khqr.cc (`needsGatewayOperator()`)
-  — a support sentence quoting their own words back with the profile id and the
-  fact that check-transaction answers fine. A quota or bad-secret refusal gets
-  no support sentence; there is nobody to send it to.
-- **The allowance is a check of its own** (`usageCheck()`), printed above the
-  probes: a spent token and an unconfigured one produce similar-looking
-  refusals, and only one of them resolves itself.
-- `khqr:diagnose` prints remedy and copy lines too — an SSH session and a
-  support call must not read different advice off the same report.
+`config/bakong.php`; `env` names in `.env.example`.
 
-`tests/Feature/Subscription/CheckoutPreflightTest.php` pins it.
-
-#### NO KHQR = NO BAKONG REQUESTS — `KHQR_PAY_ENABLED` and the one client
-
-`App\Services\Payment\KhqrProviderClient` is the **only** place in this app that
-may talk to khqr.cc. All four outbound requests — both preflight probes, the QR
-mint, the verify — are closures handed to `call()`, so a request cannot leave the
-process unless that method lets it. **Never add an `Http::` call to a KHQR
-endpoint anywhere else**; the whole point is that the next person cannot forget
-the guards, because the guards are not at the call site.
-
-The leak this replaced was never one bug. It was a scheduler, three browser
-pollers, two preflight probes and a diagnostics page, each individually
-reasonable, all reasoning from the same wrong premise: **that a KHQR row in the
-database is a payment worth asking about.** A record is not a payment.
-
-- **`services.khqrpay.enabled` (`KHQR_PAY_ENABLED`) defaults to FALSE.** An
-  absent variable means disabled, deliberately and asymmetrically: shipping it
-  off on an install that wants KHQR costs one line of `.env`; shipping it on
-  costs a metered token drained by a scheduler nobody remembered. With it false
-  **nothing** contacts the gateway — not a page load, the scheduler, a command, a
-  poll, a queue job, the diagnostics popup or `khqr:diagnose`. Cash, bank transfer and the
-  landlord's **manual** static-KHQR channel are untouched (manual never reaches
-  the gateway at all).
-- **`featureEnabled()` and `providerCallsPermitted()` are different questions.**
-  The first ("may KHQR flows run?") counts **demo** mode as on — demo is a local
-  simulation that cannot transmit. The second ("may a request leave?") excludes
-  it. Gate 1 of `call()` uses the narrow one.
-- **Ten gates, all refusals BEFORE the request**, because a refused Bakong
-  request is charged exactly like a paid one, in this order: `khqr_disabled`,
-  `demo_mode`, `invalid_request` (unknown reason/target, a row-bound reason with
-  no row, a row whose `settlement_target` isn't the budget being charged — an
-  unknown target used to get its own `unknown` budget while signing with the
-  platform token), `invalid_credentials` (blank profile/secret — requests used to
-  go out to `/api//…`), `no_active_payment`, `rate_limited` (429),
-  `provider_backoff`, `verify_cooldown`, `max_attempts_reached`,
-  `daily_budget_exhausted` / `budget_unavailable`. Every allowed call logs
-  `KHQR provider request` with `reason`, `target`, `transaction_id`, `profile`,
-  `spent_today`, then `KHQR provider response` with the HTTP status; every block
-  logs why. `khqr:usage` also counts calls **per reason** (`callsByReasonOn()`).
-  That is how the next accidental call gets found — which is why `reason` is a
-  required parameter.
-- **The verify cooldown is claimed atomically IN THE CLIENT, before the
-  request** (`claimSessionSlot()`: `Cache::add` on
-  `khqr:provider:verify-slot:{tx}`, an atomic insert-if-absent on the database,
-  file and redis stores). The old cooldown was check-then-act in
-  `verifyOutcome()` and was only written when the answer came back, so every
-  poll, tab, worker or reconcile run that arrived while a request was in flight
-  made its own — 8 simultaneous processes made 8 requests. `verifyOutcome()`'s
-  outcome cache is now only the *read* side (a verdict served for the rest of the
-  window). With `KHQRPAY_VERIFY_COOLDOWN=0` the slot is an in-flight guard,
-  released after the request. Creation gets a one-shot slot: a transaction is
-  minted once. A poll blocked by the cooldown is **not** a `gateway_error`, and
-  its REFUSED is not cached.
-- **The budget reservation is the LAST gate and FAILS CLOSED.** It used to be
-  reserved before the attempt cap (so a refused call still spent a slot) and to
-  catch any exception — including the budget lock timing out under contention —
-  then count the call and allow it, so the ceiling gave way under exactly the
-  concurrency it exists for. A cooldown-ledger failure fails closed too.
-- **Failure backoff** (`backOffProviderFailure()`, `KHQRPAY_FAILURE_BACKOFF`,
-  default 15 min, per profile): tripped centrally on 401/403/422/5xx and by the
-  service on a blocking refusal message (`isBlockingRefusal()` — "Bakong Token
-  Required", quota wording, a 404 naming the profile). NOT on a timeout — that
-  says nothing about the profile, and the cooldown already stops an immediate
-  retry. `REASON_MANUAL_DIAGNOSTIC` is the only reason let past it (never past a
-  429 or the budget). A 2xx that isn't the JSON envelope reads **REFUSED**, not
-  UNPAID.
-- **Provider text is redacted** (`KhqrProviderClient::redact()`) before it is
-  logged or shown: a transport exception quotes the full request URL, and the
-  hosted-checkout URL is signed (`hash=`).
-- **`KhqrPayment::isActiveKhqrSession(int $grace = 0)` is the active-session
-  rule**, and no migration was needed for it: `channel = 'api'`, a
-  `transaction_id`, a known `settlement_target`, status open and **past
-  `pending`** (a pending row's QR was never minted, so no session exists at the
-  gateway), not stamped `paid_at`, **`originatedFromCheckout()`** (platform →
-  `subscription_id`; merchant → `rental_id` + `fiscal_period_id` + a minted
-  `qr_url`/`provider_ref` — a row nothing could be booked against is not worth a
-  call), created within the last day, and the QR still live within `$grace`.
-  `$grace` is `khqr:reconcile`'s rescue window and nothing else. Minting has its
-  twin, `isMintableKhqrSession()` (a fresh `pending` row with an owner).
-- **Defence in depth, four layers**: scheduler `->skip()` → command early return
-  → `verifyOutcome()` returning `VERIFY_REFUSED` → `KhqrProviderClient`. A
-  scheduled command never gates only itself.
-- **Disabled answers `VERIFY_REFUSED`, never `VERIFY_UNPAID`.** A feature flag is
-  not evidence about a payer's money; "unpaid" would let the net expire every
-  open row the moment KHQR was switched off, writing any landed payment out of
-  the books. Same rule as a 429 or a 5xx.
-- **The inbound webhook keeps working with the feature off.** It costs no quota
-  and money that already landed must still reach the books;
-  `isValidCallbackFor()` is local hash arithmetic.
-- **`khqr:diagnose` and the diagnostics endpoint are OFFLINE by default.** A
-  report must not spend the allowance it is reporting on: the config half
-  (feature switch, credentials, today's spend, webhook URL) is free, and the two
-  probes need `--live` / `?live=1` (what the popup's live-check button sends — opening it does not). A bare GET
-  of `admin.billing.diagnostics` costs nothing.
-- **`khqr:reconcile` verifies only `qr_generated`/`waiting_payment`**
-  (`VERIFIABLE_STATUSES`) inside the window, and hands its grace to
-  `verifyOutcome($row, $grace)` so the client's session gate allows the rescue.
-- **The deadline rescue survives, bounded to one call per session.**
-  `pollAndAdvance()` still verifies an *just*-elapsed QR once
-  (`claimPostExpiryVerify()`, a cache latch) — a payment can land in the last
-  seconds — but not once per poll forever, which is what an abandoned tab used to
-  cost. It deliberately does **not** expire the row on that refusal: `finalize()`
-  refuses a closed row, so expiring here would shut the webhook *and* the
-  reconcile net out of a payment that did land. **The three checkout views
-  therefore stop polling on their own countdown** rather than waiting to be told
-  the row is `expired` — don't revert that, or an elapsed QR spins forever.
-- **`KHQRPAY_MAX_VERIFY_ATTEMPTS` (20) caps one session's total cost** across the
-  poller and the net together. The cooldown caps the rate, `qr_ttl` caps the
-  window; this caps the product. 0 disables it.
-- `tests/Feature/RevenueExpense/KhqrZeroRequestTest.php` pins the guarantee with
-  `Http::assertNothingSent()` — asserted against the HTTP layer, not against a
-  flag someone remembered to check.
-- `tests/Feature/RevenueExpense/KhqrProviderRequestAuditTest.php` pins the rest
-  (disabled, active, cooldown, overlap, expired, paid, reconcile off, budget
-  spent, budget race, 429, 422, browser polling), including two **real
-  multi-process races** (`pcntl_fork` against a shared file cache) for the
-  cooldown and the budget. They skip where pcntl is unavailable. The suite runs
-  with `Http::preventStrayRequests()` (`tests/TestCase.php`).
-
-#### The Bakong token is metered per day, and a refusal costs the same as a sale
-
-Bakong rates the upstream OpenAPI token per calendar day (this account's
-allowance is ~100 requests). A request that is *refused* is charged exactly like
-one that answers, so an app that keeps polling a spent token spends the rest of
-the day discovering it is spent. Five guards bound it, and they are the only
-things that do — `env` defaults are in `config/services.php`:
-
-- **`KHQRPAY_DAILY_BUDGET`** — a hard ceiling on live calls **per settlement
-  target** per day (`dailyBudgetExhausted()`). Per-target because platform rows
-  spend the SaaS operator's token and merchant rows spend the individual
-  landlord's; a shared cap would let one busy landlord lock out everyone. Past
-  the ceiling the gateway is not called at all. **0 disables it** — that is the
-  backward-compatibility seam, and it is what an untouched deployment gets.
-- **`KHQRPAY_VERIFY_COOLDOWN`** (default **60**, was 10) — minimum seconds between
-  live calls for the same transaction, claimed atomically in
-  `KhqrProviderClient`. Every checkout poller *and* `khqr:reconcile` funnel
-  through it, so this is the single most effective throttle. It must stay well
-  **above the browser poll interval** (`POLL_MS`, 10s in all three checkout
-  views) or it absorbs nothing: at the old 10s default every 10s poll was a live
-  call.
-- **`KHQRPAY_FAILURE_BACKOFF`** (default 15) — minutes a profile is not called
-  after a refusal that will still be true next time. See above.
+- **`BAKONG_API_ENABLED`** — master switch, defaults **false**, asymmetrically:
+  shipping it off on an install that wants Bakong costs one line of `.env`;
+  shipping it on costs a metered token drained by something nobody remembered.
+  With it off checkout **refuses** rather than falling back — there is nothing
+  left to fall back to, and a session nobody can confirm is worse than none.
+  An **empty `BAKONG_API_BASE_URL` is a second off switch** (NBC never publishes
+  it in the document, so it is never guessed).
+- **`BAKONG_DAILY_REQUEST_LIMIT`** (80) — our own ceiling, reserved atomically
+  under a lock and **failing closed**. Deliberately below NBC's ~100 so hitting
+  it is a local event we can see, not an upstream refusal affecting everything
+  else on the token. `BAKONG_UPSTREAM_DAILY_LIMIT` (100) is **display only**.
+- **`BAKONG_VERIFY_COOLDOWN`** (60) — minimum seconds between requests about the
+  same transaction, claimed atomically (`Cache::add`) **before** the request.
+  Must stay well above the browser poll interval (10s in all checkout views) or
+  it absorbs nothing.
+- **`BAKONG_QR_TTL`** (6 min) × the cooldown ≈ 6 requests per checkout;
+  `BAKONG_MAX_VERIFY_ATTEMPTS` (8) caps that product.
+- **`BAKONG_RECONCILE_ENABLED`** — ships **OFF**, and that is a deliberate
+  downgrade from the KHQRPay net: there, it rescued payments whose *webhook*
+  failed. Bakong sends none, so there is no delivery to fail — a payment is
+  confirmed by a poll or it is not. Switch it on only where payers routinely
+  close the tab, then watch `bakong:usage`.
 - **Don't `cache:clear` / `optimize:clear` in production** to refresh config: the
-  budget counters, cooldown slots and backoffs all live in the cache store, so a
-  flush hands the day a fresh allowance. Use `config:clear && config:cache`.
-- **`KHQRPAY_QR_TTL`** — also caps how long one abandoned tab can poll, since a
-  row past `expires_at` is terminal and `verify()` short-circuits on it.
-- **`KHQRPAY_RECONCILE_GRACE`** — minutes past a QR's `expires_at` that
-  `khqr:reconcile` keeps re-verifying it. **This is the quota bound on the
-  safety net**, and until 2026-08 there was nothing playing that role: the run
-  swept every open API row created in the last *day*. With a 10-minute QR that
-  is 288 live calls per abandoned checkout, and because a profile with no Bakong
-  token refuses every one of them — and a refusal (correctly) never closes the
-  row — nothing took the row back out of scope. The allowance was gone by
-  ~02:30 with nobody having touched the app. See `reconcileWindow()`.
-- **`KHQRPAY_RECONCILE_ENABLED`** (now also defaulting to **false**) — switch for
-  that safety net, applied as `->skip()` in `routes/console.php` rather than a
-  commented-out schedule line, **beside a second `->skip()` on
-  `KHQR_PAY_ENABLED`**: the master switch says whether KHQR is used at all, this
-  one whether the net specifically is wanted while it is. Set it false while the khqr.cc profile has no usable Bakong token: the
-  net cannot confirm anything then, so every run is pure spend. **Turn it back
-  on once the token is active** or paid-but-unnotified rows stop being rescued.
+  cooldown slots, backoffs and exhaustion latch live in the cache. Use
+  `config:clear && config:cache`. (The daily *budget* is a table, not a counter —
+  that is why `bakong_api_calls` exists.)
 
-`php artisan khqr:usage` reports spend against the budget. It counts
-`queryProviderOutcome()` **and both preflight probes** (since 2026-08 — they
-were uncounted, so the ceiling protecting the allowance could be sailed past by
-the probes meant to protect it, and the table under-reported every checkout
-attempt by two).
-
-`php artisan khqr:expire-abandoned` clears open rows the window has left behind,
-**without calling the gateway**. `khqr:reconcile` deliberately cannot do this —
-it only expires on a conclusive unpaid, and a permanently-refusing gateway never
-gives one, which is how two rows sat in `qr_generated` for seventy-three days.
-Closing them is a human judgement ("a QR from days ago will not be paid"), so it
-is an operator command with a confirmation, not automation. Safe to run when the
-allowance is already spent, which is when the backlog exists.
+**`upstreamExhausted` is a separate finding from our own ceiling, and on a shared
+token it is the one that bites.** Our ceiling counts what *we* spent; the latch
+records what the TOKEN has spent, including every request made by anything else
+holding it, which we cannot see and cannot count. `errorCode 17` (undocumented:
+"Daily request limit of 100 exceeded") sets it, latched until local midnight and
+exempt from nothing. This is not hypothetical — it is what arrived at a spend of
+six while khqr.cc shared the credential.
 
 #### A refusal is not a verdict — `verifyOutcome()`, not `verify()`
 
-`verify()` returns bool, and every caller read its `false` as *"the payer has
-not paid"*. For a 200 saying "transaction not found" that is right. For a
-refusal — spent allowance, 429, 5xx, timeout — it is a guess, and it is the
-expensive kind: the money may already have landed, and a row expired on that
-guess is a payment written out of the books with no way back. Over-limit makes
-the refusal the *normal* answer rather than the rare one, which is how a quota
-problem becomes a money problem.
+`verify()` returns bool, and a `false` read as *"the payer has not paid"* is a
+guess of the expensive kind: the money may already have landed, and a row expired
+on that guess is a payment written out of the books with no way back. Over-limit
+makes the refusal the *normal* answer rather than the rare one, which is how a
+quota problem becomes a money problem.
 
-`KhqrPaymentService::verifyOutcome()` has three results — `VERIFY_PAID`,
-`VERIFY_UNPAID`, `VERIFY_REFUSED`. **Only a 2xx from the gateway can say
-unpaid.** `verify()` stays as the thin bool wrapper so the `PaymentGateway`
-contract is unchanged; anything that acts on a **negative** — expiring a row,
-giving up on it — must use `verifyOutcome()` and treat a refusal as "ask again
-later":
+`BakongTransactionService::verifyOutcome()` has three results — `VERIFY_PAID`,
+`VERIFY_UNPAID`, `VERIFY_REFUSED`. **Only a 2xx from Bakong can say unpaid.**
+Anything acting on a *negative* — expiring a row, giving up on it — must use it:
 
 - `pollAndAdvance()` never expires on a refusal, and sets `lastPollRefused()`,
-  which all three poll endpoints return as `gateway_error` so the checkout page
-  warns beside the spinner instead of spinning in silence.
-- `ReconcileKhqrPayments` skips both finalize **and** expire on a refusal.
-  Expiry is terminal, so expiring here means the safety net never looks at that
-  QR again even after the gateway recovers. That is also why the run needs a
-  **window** (`reconcileWindow()`): "leave it open and ask again" has no exit
-  when the gateway never answers, so the bound has to come from how long the
-  asking lasts, not from the answer.
-- The cooldown caches the **outcome string** under `khqr:verify:outcome:…`,
-  keyed apart from the old boolean `khqr:verify:…` so a value written by the
-  previous release is never read back as an outcome.
+  which the poll endpoints return as `gateway_error` so the page warns beside the
+  spinner instead of spinning in silence. It also reports `gateway_answered`,
+  because a poll the **cooldown absorbed is not evidence the gateway is healthy** —
+  treating it as such is what kept the stall warning from ever appearing.
+- `ReconcileBakongPayments` skips both finalize **and** expire on a refusal.
+- A **legacy khqr.cc row** reports `gateway_error: true` / `gateway_answered:
+  false` and is never polled at all. Bakong has never heard of that transaction
+  and would answer "could not be found" — which reads as UNPAID, which expires
+  the QR. Settling one is a human job (SuperAdmin → Accounts → change plan, the
+  sanctioned out-of-band path).
 
-#### The preflight has to know a spent allowance from a broken one
+#### The superadmin sees the allowance, and looking costs nothing
 
-`isConfigurationRefusal()` matches credential words (`token`, `profile`,
-`hash`, …); a rate-limited gateway says none of them, so the preflight returned
-`unknown`, **failed open**, and handed the customer to khqr.cc to read the same
-refusal as raw JSON — the exact scenario the preflight exists to prevent, for
-the one cause it could not name. `isQuotaRefusal()` covers it and
-`isBlockingRefusal()` is the union both probes now decide on; **429 joins
-401/403/5xx** as a positive fault in both probes.
+`App\Services\Bakong\BakongUsageReport` is the one report behind **Superadmin →
+Payment Settings** (`<x-bakong-usage>`, refreshed every 30s from
+`superadmin.settings.payment.usage`) and `php artisan bakong:usage`, so a browser
+and an SSH session cannot read different numbers off the same day.
 
-Its needles are deliberately **phrases** (`rate limit`, `daily limit`, `quota`,
-…), never the bare word `limit`: the handoff probe asks for a 0.01 amount, and a
-gateway answering *"amount below minimum limit"* is describing the probe, not
-the profile. Matching that would block checkout on a healthy account — the false
-alarm this guard is written to fail open on.
+**It is entirely offline and must stay so** — the moment anyone opens it is the
+moment the allowance is under pressure, and a report that spent what it reports
+on would be worse than none. That is also why the meter can poll every 30
+seconds where the KHQRPay diagnostics popup had to be click-to-run: each refresh
+there was two metered requests.
 
-`tests/Feature/RevenueExpense/KhqrQuotaGuardTest.php` pins all three (how a
-refusal is *read*); `tests/Feature/RevenueExpense/KhqrQuotaBoundTest.php` pins
-what *bounds* the spend — the reconcile window, the counted probes, the cached
-refusal and `khqr:expire-abandoned`.
+Design notes worth keeping:
+- The **bar is our ceiling**; `upstreamExhausted` is called out **above** it, in
+  NBC's own words. Folding them together would let the page read "47 / 80, plenty
+  left" on a day that is over.
+- **`checkouts_left`** translates the remainder into the unit an operator
+  actually thinks in — "74 requests left" answers nothing about whether today's
+  signups will go through. It is **hidden while exhausted**, or the page
+  contradicts itself at the worst moment.
+- The **7-day bars** exist because one day's number cannot tell a busy Tuesday
+  from a leak; a flat line near the ceiling with nobody signing up is the shape
+  the khqr.cc drain made.
+- The **token's expiry is a second clock** (read out of the JWT, never asked for)
+  and belongs on the same page because both stop payments dead.
+
+`tests/Feature/SuperAdmin/PlatformPaymentSettingsTest.php` pins it, including
+`Http::assertNothingSent()` on both the page and the JSON endpoint.
 
 ### Signup takes over the row it matches — so only never-activated rows qualify
 
@@ -1497,6 +1355,12 @@ composer test         # config:clear then artisan test
 php artisan migrate   # run migrations
 npm run dev           # vite dev mode
 npm run build         # build production assets
+
+# Bakong — all offline unless stated
+php artisan bakong:usage              # allowance spent per day, and on what
+php artisan bakong:diagnose           # can this install take a payment? (--live = 1 request)
+php artisan bakong:token status       # token expiry, read from the JWT
+php artisan khqr:expire-abandoned     # close open api-channel rows; calls nobody
 ```
 
 Tests: `tests/Feature/{Auth,Payment,Subscription,SuperAdmin,FiscalPeriod,Middleware,RevenueExpense}`. Add a test when changing payment, subscription, scoping, or fiscal-period behavior.
@@ -1513,6 +1377,8 @@ Tests: `tests/Feature/{Auth,Payment,Subscription,SuperAdmin,FiscalPeriod,Middlew
 - `AuditLogger::record()` never throws — an audit-write failure must not roll back the money action it records.
 - **Do not add a "Fixed Monthly Costs" summary card** to the break-even page (`shared/revenue_expense/break_even.blade.php`) — it has been removed intentionally more than once.
 - `Subscription` is intentionally NOT `BelongsToAccount`-scoped — do not add it.
+- **Never add an `Http::` call to a Bakong endpoint outside `BakongProviderClient`**, and never reintroduce one into `KhqrPaymentService` (the rent channel contacts nobody, by design). The guards are not at the call site precisely so the next person cannot forget them.
+- **Nothing is CSRF-exempt.** The only exemption this app ever had was the khqr.cc webhook; add one back only for an endpoint that authenticates every request by its own signature.
 - Payment `status` columns are VARCHAR, not DB enum — do not convert them.
 - **Room maintenance mode** is the boolean `apartments.under_maintenance`, deliberately NOT a third `status` enum value (the enum was narrowed back to available/occupied in `2026_06_08_141001_remove_maintenance_from_apartments_status` — don't re-add it). `status` answers "is someone living here?"; `under_maintenance` answers "is this unit part of the rentable stock?". Rules:
   - Use `Apartments::rentable()` for occupancy / expected-revenue / break-even **denominators** so a maintenance unit never reads as a room the owner failed to rent.

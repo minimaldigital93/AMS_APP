@@ -18,13 +18,13 @@ use Illuminate\Support\Str;
  * jobs, commands, models, Blade views and scheduled tasks must never construct
  * a Bakong request of their own.
  *
- * NOTE THE DIFFERENCE FROM KhqrProviderClient: that class takes the request as
- * a CLOSURE from the call site, because khqr.cc's four endpoints have four
- * different shapes. Every documented Bakong endpoint is the same shape — POST
- * JSON to {baseUrl}{path}, optionally bearing the access token — so this class
- * BUILDS the request itself and the call site only supplies a payload. That is
- * a stronger guarantee: a call site here cannot express a request this class
- * has not agreed to, rather than merely being trusted not to.
+ * THE CALL SITE SUPPLIES A PAYLOAD, NEVER A REQUEST. Every documented Bakong
+ * endpoint is the same shape — POST JSON to {baseUrl}{path}, optionally bearing
+ * the access token — so this class builds the request itself. The retired
+ * khqr.cc client could not do that: its four endpoints had four different
+ * shapes, so each call site handed in a closure and was merely trusted to
+ * behave. Building it here is the stronger guarantee — a call site cannot
+ * express a request this class has not agreed to.
  *
  * WHY ANY OF THIS EXISTS. Bakong meters the upstream token per CALENDAR DAY
  * (~100 requests on this account) and charges a REFUSED request exactly like a

@@ -10,7 +10,6 @@ use App\Http\Controllers\Admin\SettingsController;
 use App\Http\Controllers\Admin\TenantController;
 use App\Http\Controllers\Admin\TenantVehicleController;
 use App\Http\Controllers\Admin\UserController;
-use App\Http\Controllers\KhqrCallbackController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\SuperAdmin\AccountsController as SuperAdminAccountsController;
 use App\Http\Controllers\SuperAdmin\DashboardController as SuperAdminDashboardController;
@@ -43,10 +42,11 @@ Route::middleware('guest')->group(function () {
         ->middleware('throttle:30,1')->name('subscribe.checkout.status');
 });
 
-// KHQRPay webhook (signature-authenticated, CSRF-exempt — see bootstrap/app.php)
-Route::post('/khqr/callback', KhqrCallbackController::class)
-    ->middleware('throttle:60,1')
-    ->name('khqr.callback');
+// NO PAYMENT WEBHOOK EXISTS. /khqr/callback was deleted with khqr.cc in
+// 2026-09: it was public and CSRF-exempt, it authenticated against a khqr.cc
+// secret this app no longer holds, and the Bakong Open API publishes no
+// callback of any kind to replace it. A Bakong payment is confirmed by the
+// checkout page's poll or by `bakong:reconcile`, never by an inbound request.
 
 // Language Switch Route — guest-accessible so the login page can be switched
 // to Khmer before signing in. Guests only get the session locale; the account
@@ -115,9 +115,14 @@ Route::middleware(['auth', 'role:superadmin'])->prefix('superadmin')->name('supe
     Route::get('/accounts/{account}', [SuperAdminAccountsController::class, 'show'])->name('accounts.show');
     Route::post('/accounts/{account}/reset-password', [SuperAdminAccountsController::class, 'resetPassword'])->name('accounts.reset-password');
 
-    // Platform payment settings (bank + KHQRPay credentials for subscription payments)
+    // Platform payment settings: the direct-Bakong payout identity for
+    // subscription payments, plus the token's daily allowance meter.
     Route::get('/settings/payment', [\App\Http\Controllers\SuperAdmin\PlatformPaymentSettingsController::class, 'edit'])->name('settings.payment');
     Route::put('/settings/payment', [\App\Http\Controllers\SuperAdmin\PlatformPaymentSettingsController::class, 'update'])->name('settings.payment.update');
+    // The Bakong allowance meter, refreshed in place. Reads the local ledger,
+    // the cache and the token's own JWT — it cannot spend a Bakong request, so
+    // there is nothing here to throttle.
+    Route::get('/settings/payment/usage', [\App\Http\Controllers\SuperAdmin\PlatformPaymentSettingsController::class, 'usage'])->name('settings.payment.usage');
 
     // Platform payments console: subscription transactions, webhooks, refunds
     Route::get('/payments', [\App\Http\Controllers\SuperAdmin\PaymentsController::class, 'index'])->name('payments.index');
@@ -165,10 +170,6 @@ Route::middleware(['auth', 'role:admin|superadmin', 'subscription.active'])->gro
     Route::post('/admin/billing/cancel', [\App\Http\Controllers\Admin\BillingController::class, 'cancel'])->name('admin.billing.cancel');
     Route::get('/admin/billing/checkout/{token}', [\App\Http\Controllers\Admin\BillingController::class, 'checkout'])->name('admin.billing.checkout');
     Route::get('/admin/billing/checkout/{token}/status', [\App\Http\Controllers\Admin\BillingController::class, 'status'])->name('admin.billing.status');
-    // Live KHQR gateway diagnostics behind the "payment problem" popup. Throttled
-    // because each call costs real requests against a metered Bakong token.
-    Route::get('/admin/billing/diagnostics', [\App\Http\Controllers\Admin\BillingController::class, 'diagnostics'])
-        ->middleware('throttle:10,1')->name('admin.billing.diagnostics');
 
     // Property Management Routes
     Route::get('/admin/properties', [\App\Http\Controllers\Admin\PropertyController::class, 'index'])->name('admin.properties.index');

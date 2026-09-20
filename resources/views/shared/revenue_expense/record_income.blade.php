@@ -1019,13 +1019,22 @@
                     </div>
 
                     <!-- How and when -->
-                    {{-- KHQR is only offered when the installation actually has it
-                         switched on. Without this the collector picks KHQR, waits
-                         for a QR, and gets a 502 explaining the feature is off —
-                         with cash sitting right beside it the whole time. The
-                         server refuses it regardless (createQr), so this is the
-                         affordance agreeing with the rule rather than the rule. --}}
-                    @php $khqrOffered = \App\Services\Payment\KhqrProviderClient::featureEnabled(); @endphp
+                    {{-- KHQR is only offered when this account can actually
+                         collect by it. Without the check the collector picks
+                         KHQR, waits for a QR, and gets a 502 about missing
+                         settings — with cash sitting right beside it the whole
+                         time. createQr() refuses it regardless, so this is the
+                         affordance agreeing with the rule rather than the rule.
+
+                         The test is a Bakong account id or a saved static image
+                         / bank account, exactly what KhqrPaymentService::
+                         canCollect() asks. It is a local settings read, not a
+                         feature flag and not a gateway call. --}}
+                    @php
+                        $merchantPay = \App\Models\MerchantPaymentSetting::forAccount(current_account_id());
+                        $khqrOffered = $merchantPay !== null
+                            && (filled($merchantPay->bakong_account_id) || $merchantPay->canUseManual());
+                    @endphp
                     <div class="grid {{ $khqrOffered ? 'grid-cols-2' : 'grid-cols-1' }} gap-2">
                         <label class="flex items-center justify-center gap-2 py-2.5 border rounded-xl cursor-pointer text-sm transition select-none"
                             :class="checkoutMethod === 'cash' ? 'bg-emerald-50 border-emerald-300 text-emerald-700 font-medium' : 'border-slate-200 text-slate-500 hover:border-slate-300'">
@@ -1102,13 +1111,17 @@
                                 </div>
                             </template>
 
-                            <div x-show="khqrChannel === 'api' && !khqrPaid && !khqrExpired" class="flex flex-col items-center gap-1">
-                                <div class="flex items-center justify-center gap-2 text-amber-600 text-sm">
-                                    <svg class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/></svg>
-                                    {{ __('messages.waiting_for_payment') }}
-                                </div>
-                                <p x-show="khqrCountdown" class="text-xs text-slate-400">{{ __('messages.payment_expires_in') }} <span class="font-medium tabular-nums" x-text="khqrCountdown"></span></p>
-                            </div>
+                            {{-- No spinner here any more. There used to be one for
+                                 the 'api' channel, where khqr.cc would confirm the
+                                 payment on its own and the collector's job was to
+                                 wait. Nothing confirms a rent payment now except
+                                 the landlord, so an animated "waiting for payment"
+                                 beside the button that IS the confirmation would
+                                 promise something that is never coming. The
+                                 countdown stays: the transaction id does expire. --}}
+                            <p x-show="khqrCountdown && !khqrPaid && !khqrExpired" class="text-xs text-slate-400">
+                                {{ __('messages.payment_expires_in') }} <span class="font-medium tabular-nums" x-text="khqrCountdown"></span>
+                            </p>
                             <!-- Expired / failed — friendly fallback, no infinite spinner -->
                             <div x-show="khqrExpired" class="bg-amber-50 border border-amber-200 rounded-lg px-4 py-3 text-left space-y-2">
                                 <p class="text-sm font-semibold text-amber-800">{{ __('messages.payment_session_ended') }}</p>
@@ -1301,17 +1314,14 @@ function billingManager() {
         showLateFee: false,
         chargesStatus: 'none',
 
-        // KHQR (KHQRPay) flow
+        // KHQR rent flow — built here, confirmed by the landlord.
         khqrActive: false,
         khqrLoading: false,
         khqrUrl: '',
         khqrAmount: '0.00',
-        khqrStatusUrl: '',
         khqrPaid: false,
         khqrError: '',
-        khqrTimer: null,
-        khqrVisibilityBound: false,
-        khqrChannel: 'api',
+        khqrChannel: 'manual',
         khqrBank: {},
         khqrConfirmUrl: '',
         khqrConfirming: false,
@@ -1691,7 +1701,7 @@ function billingManager() {
             this.showCheckout = true;
         },
 
-        // ---- KHQR (KHQRPay) ----
+        // ---- KHQR rent: built here, confirmed by the landlord ----
         onCheckoutSubmit(e) {
             // Cash / Bank keep the normal form POST; KHQR is handled via fetch.
             if (this.checkoutMethod === 'khqr') {
@@ -1701,16 +1711,14 @@ function billingManager() {
         },
 
         resetKhqr() {
-            this.stopKhqrPoll();
             this.stopKhqrCountdown();
             this.khqrActive = false;
             this.khqrLoading = false;
             this.khqrUrl = '';
             this.khqrAmount = '0.00';
-            this.khqrStatusUrl = '';
             this.khqrPaid = false;
             this.khqrError = '';
-            this.khqrChannel = 'api';
+            this.khqrChannel = 'manual';
             this.khqrBank = {};
             this.khqrConfirmUrl = '';
             this.khqrConfirming = false;
@@ -1743,8 +1751,7 @@ function billingManager() {
                 if (!res.ok) throw new Error(j.message || ('HTTP ' + res.status));
                 this.khqrUrl = j.qr_url || '';
                 this.khqrAmount = j.amount || this.khqrAmount;
-                this.khqrStatusUrl = j.status_url || '';
-                this.khqrChannel = j.channel || 'api';
+                this.khqrChannel = j.channel || 'manual';
                 this.khqrBank = j.bank || {};
                 this.khqrConfirmUrl = j.confirm_url || '';
                 this.khqrLoading = false;
@@ -1752,10 +1759,13 @@ function billingManager() {
                     this.khqrError = '{{ __('messages.khqr_no_qr') }}';
                     return;
                 }
-                if (this.khqrChannel === 'api') {
-                    this.startKhqrPoll();
-                    this.startKhqrCountdown(j.expires_at);
-                }
+                // NO POLLING. Under khqr.cc this modal asked the gateway every
+                // ten seconds whether the tenant had paid, and a backgrounded
+                // tab could spend a day's allowance on its own. Nothing can
+                // answer that question now except the landlord standing here, so
+                // the only timer left is the countdown to the transaction id's
+                // expiry.
+                this.startKhqrCountdown(j.expires_at);
             } catch (err) {
                 this.khqrLoading = false;
                 this.khqrError = err.message || 'Failed to generate KHQR.';
@@ -1790,64 +1800,10 @@ function billingManager() {
             }
         },
 
-        startKhqrPoll() {
-            this.stopKhqrPoll();
-            // 10s, not 3.5s: every poll can cost the landlord's metered Bakong
-            // token a live request. The webhook settles the payment; this poll
-            // only moves the modal along, so it is paced for the quota.
-            this.khqrTimer = setInterval(() => this.checkKhqr(), 10000);
-            if (!this.khqrVisibilityBound) {
-                this.khqrVisibilityBound = true;
-                document.addEventListener('visibilitychange', () => this.onKhqrVisibilityChange());
-            }
-        },
-
-        stopKhqrPoll() {
-            if (this.khqrTimer) { clearInterval(this.khqrTimer); this.khqrTimer = null; }
-        },
-
-        // A QR left open in a backgrounded tab was polling the live provider
-        // every tick with nobody watching — enough to burn a whole day's API
-        // quota off one abandoned checkout. Pause while hidden, resume (with an
-        // immediate check) when the tab comes back.
-        onKhqrVisibilityChange() {
-            if (document.hidden) {
-                this.stopKhqrPoll();
-            } else if (this.khqrActive && !this.khqrPaid && !this.khqrExpired) {
-                this.checkKhqr();
-                this.khqrTimer = setInterval(() => this.checkKhqr(), 10000);
-            }
-        },
-
-        async checkKhqr() {
-            if (!this.khqrStatusUrl) return;
-            // Open states the gateway may still advance to "paid".
-            const OPEN = ['pending', 'qr_generated', 'waiting_payment'];
-            try {
-                const res = await fetch(this.khqrStatusUrl, {
-                    headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' }
-                });
-                if (!res.ok) return; // transient server hiccup — keep polling
-                const j = await res.json().catch(() => ({}));
-                if (j.paid) {
-                    this.khqrPaid = true;
-                    this.stopKhqrPoll();
-                    this.stopKhqrCountdown();
-                    this.printBill(this.checkoutRentalId);
-                    setTimeout(() => window.location.reload(), 1300);
-                    return;
-                }
-                // Anything neither paid nor still open is terminal (expired /
-                // failed / cancelled) — stop and offer a fresh QR instead of
-                // spinning "waiting for payment" forever.
-                if (j.status && !OPEN.includes(j.status)) {
-                    this.stopKhqrPoll();
-                    this.stopKhqrCountdown();
-                    this.khqrExpired = true;
-                    this.khqrCountdown = '';
-                }
-            } catch (e) { /* keep polling */ }
-        },
+        // startKhqrPoll() / checkKhqr() / onKhqrVisibilityChange() lived here
+        // and are gone with khqr.cc. They existed to watch a payment somebody
+        // else would confirm; the status endpoint they called is now purely
+        // local and can only ever report what this same browser just did.
 
         // Live countdown to the QR's expiry, so the payer knows their window.
         startKhqrCountdown(expiresAt) {
@@ -1859,13 +1815,11 @@ function billingManager() {
                 const m = Math.floor(secs / 60);
                 const s = secs % 60;
                 this.khqrCountdown = m + ':' + String(s).padStart(2, '0');
-                // Also the stop signal. The server deliberately leaves an
-                // elapsed QR OPEN now — expiring it would shut the webhook out
-                // of a payment that landed at the deadline — so the modal can no
-                // longer wait for the poll to report 'expired'.
+                // Also the stop signal: nothing polls any more, so the modal
+                // has to notice the deadline itself.
                 if (secs <= 0) {
                     this.stopKhqrCountdown();
-                    if (!this.khqrPaid) { this.stopKhqrPoll(); this.khqrExpired = true; this.khqrCountdown = ''; }
+                    if (!this.khqrPaid) { this.khqrExpired = true; this.khqrCountdown = ''; }
                 }
             };
             tick();

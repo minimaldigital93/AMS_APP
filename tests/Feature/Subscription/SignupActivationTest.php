@@ -15,8 +15,8 @@ beforeEach(function () {
     ]);
 });
 
-it('creates a pending account + subscription and redirects to checkout on signup', function () {
-    config(['services.khqrpay.demo' => true]);
+it('creates a pending account + subscription and shows the checkout QR on signup', function () {
+    Http::fake();
 
     $response = $this->post(route('subscribe.store'), [
         'name' => 'New Owner',
@@ -35,20 +35,47 @@ it('creates a pending account + subscription and redirects to checkout on signup
     expect($sub->status)->toBe('pending');
 
     $payment = KhqrPayment::where('subscription_id', $sub->id)->first();
-    expect($payment)->not->toBeNull();
+    expect($payment)->not->toBeNull()
+        ->and($payment->provider)->toBe('bakong')
+        ->and($payment->qr_payload)->not->toBeEmpty();
 
-    // Signup redirects AWAY to the KHQRPay hosted-checkout URL; success_url points
-    // back at our local polling page (subscribe.checkout) for after the payment.
-    $location = $response->headers->get('Location');
-    expect($location)->toContain('/api/payment/request/');
-    expect($location)->toContain(urlencode(route('subscribe.checkout', $payment->public_token)));
+    // THE CUSTOMER NEVER LEAVES. khqr.cc was a hosted checkout, so signup used
+    // to redirect()->away() to someone else's domain — a one-way door this app
+    // could say nothing through, which is what the two metered preflight probes
+    // existed to guard. The direct Bakong QR is built here and shown here.
+    $response->assertRedirect(route('subscribe.checkout', $payment->public_token));
+
+    // And minting it cost nothing: the payload is EMV built locally.
+    Http::assertNothingSent();
 });
 
-it('does not 500 when KHQRPay fails during signup — rolls back and shows an error', function () {
-    config(['services.khqrpay.demo' => false, 'services.khqrpay.secret' => 'x', 'services.khqrpay.profile_id' => 'p']);
+it('does not 500 when the payout account is not configured — rolls back and says so', function () {
+    // Cleared / never-configured state: no Payment Settings row, blank .env.
+    config(['bakong.account_id' => '', 'bakong.demo' => false]);
+    Http::fake();
 
-    // KHQRPay is down / misconfigured — minting the QR fails.
-    Http::fake(['khqr.cc/*' => Http::response('Not Found', 404)]);
+    $response = $this->post(route('subscribe.store'), [
+        'name' => 'No Payout Owner',
+        'phone' => '0999000444',
+        'password' => 'password123',
+        'password_confirmation' => 'password123',
+        'plan' => 'pro',
+    ]);
+
+    // Its own message, not the generic "try again in a moment": nobody can
+    // retry their way out of an unset payout account.
+    $response->assertRedirect();
+    $response->assertSessionHas('error', __('messages.bakong_account_missing'));
+
+    Http::assertNothingSent();
+    // The whole signup transaction rolled back — no orphaned account.
+    expect(User::where('phone', '0999000444')->exists())->toBeFalse();
+    expect(Subscription::count())->toBe(0);
+});
+
+it('does not 500 when Bakong is switched off entirely — rolls back and shows an error', function () {
+    config(['bakong.enabled' => false]);
+    Http::fake();
 
     $response = $this->post(route('subscribe.store'), [
         'name' => 'Unlucky Owner',
@@ -61,31 +88,8 @@ it('does not 500 when KHQRPay fails during signup — rolls back and shows an er
     $response->assertRedirect();           // back to the form, NOT a 500
     $response->assertSessionHas('error');
 
-    // The whole signup transaction rolled back — no orphaned account/subscription.
+    Http::assertNothingSent();
     expect(User::where('phone', '0999000999')->exists())->toBeFalse();
-    expect(Subscription::count())->toBe(0);
-});
-
-it('does not 500 (or call the gateway) when platform KHQRPay credentials are not configured', function () {
-    // Cleared / never-configured state: no DB row, blank env credentials.
-    config(['services.khqrpay.demo' => false, 'services.khqrpay.profile_id' => '', 'services.khqrpay.secret' => '']);
-
-    // The fallback guard must short-circuit BEFORE any HTTP call is attempted.
-    Http::fake(['khqr.cc/*' => Http::response('Not Found', 404)]);
-
-    $response = $this->post(route('subscribe.store'), [
-        'name' => 'No Creds Owner',
-        'phone' => '0999000444',
-        'password' => 'password123',
-        'password_confirmation' => 'password123',
-        'plan' => 'pro',
-    ]);
-
-    $response->assertRedirect();           // friendly redirect, NOT a 500
-    $response->assertSessionHas('error', __('messages.khqr_payment_settings_missing'));
-
-    Http::assertNothingSent();             // never reached the gateway
-    expect(User::where('phone', '0999000444')->exists())->toBeFalse();
     expect(Subscription::count())->toBe(0);
 });
 

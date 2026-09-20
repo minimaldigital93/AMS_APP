@@ -4,10 +4,9 @@ use App\Models\KhqrPayment;
 use App\Models\Plan;
 use App\Models\Subscription;
 use App\Models\User;
-use App\Services\RevenueExpense\KhqrPaymentService;
+use App\Services\Bakong\BakongTransactionService;
 
 beforeEach(function () {
-    config(['services.khqrpay.demo' => true]); // local QR, no live HTTP
     seedRoles();
 
     $this->plan = Plan::create([
@@ -24,18 +23,18 @@ beforeEach(function () {
     $this->sub = Subscription::create([
         'account_id' => $this->owner->id, 'plan_id' => $this->plan->id, 'status' => 'pending',
     ]);
-    $this->svc = app(KhqrPaymentService::class);
+    $this->svc = app(BakongTransactionService::class);
 });
 
 it('retires the previous QR and mints a fresh session each time checkout is re-initiated', function () {
-    // Re-initiating checkout (re-register / renew) must hand the customer a fresh,
-    // live khqr.cc session — reusing the old transaction_id shows "session expired".
+    // Two live QRs for one subscription is a double-payment waiting to happen —
+    // and under Bakong it is also two md5s to poll, so twice the metered cost
+    // for one sale.
     $first = $this->svc->createSubscriptionQr($this->sub, 24.0);
     $second = $this->svc->createSubscriptionQr($this->sub, 24.0);
 
     expect($second->id)->not->toBe($first->id);       // fresh transaction minted
     expect($first->fresh()->status)->toBe('expired'); // stale QR retired
-    // Double-payment invariant: at most one *payable* (open) QR per subscription.
     expect(KhqrPayment::where('subscription_id', $this->sub->id)
         ->whereIn('status', \App\Enums\PaymentStatus::openValues())
         ->count())->toBe(1);
@@ -58,9 +57,25 @@ it('sets an expiry on a freshly minted subscription QR', function () {
     expect($row->expires_at->isFuture())->toBeTrue();
 });
 
-it('lazily expires a dead QR when the status page is polled', function () {
+it('mints the QR without contacting Bakong at all', function () {
+    Illuminate\Support\Facades\Http::fake();
+
+    $row = $this->svc->createSubscriptionQr($this->sub, 24.0);
+
+    // The single biggest saving of the direct integration over a hosted
+    // checkout: the payload is EMV built here, so a customer reaching the
+    // checkout page costs nothing. Only verification is metered — which is why
+    // the whole quota budget can be spent on confirming payments rather than on
+    // creating them.
+    Illuminate\Support\Facades\Http::assertNothingSent();
+    expect($row->qr_payload)->not->toBeEmpty()
+        ->and($row->qr_md5)->toBe(md5($row->qr_payload));
+});
+
+it('leaves a dead QR open rather than expiring it on a refusal', function () {
     $payment = KhqrPayment::create([
         'transaction_id' => 'SUB-EXP-1',
+        'provider' => 'bakong',
         'subscription_id' => $this->sub->id,
         'amount' => 24,
         'currency' => 'USD',
@@ -68,11 +83,22 @@ it('lazily expires a dead QR when the status page is polled', function () {
         'settlement_target' => 'platform',
         'channel' => 'api',
         'checkout_payload' => ['type' => 'subscription'],
-        'expires_at' => now()->subMinute(), // already dead
+        'expires_at' => now()->subHours(3), // long dead
     ]);
 
     $res = $this->getJson(route('subscribe.checkout.status', $payment->public_token));
 
-    $res->assertOk()->assertJson(['status' => 'expired', 'paid' => false]);
+    // A REFUSAL IS NOT A VERDICT. Nothing answered — the row has no md5, so
+    // there was no question to ask and the client refused locally — and
+    // expiring on that would write a payment out of the books if the money had
+    // in fact landed at the deadline. finalize() refuses a closed row, so the
+    // expiry would also shut `bakong:reconcile` out of ever rescuing it.
+    $res->assertOk()->assertJson(['paid' => false, 'gateway_error' => true]);
+    expect($payment->fresh()->isOpen())->toBeTrue();
+
+    // The checkout page stops on its own countdown rather than waiting to be
+    // told the row is expired, and `khqr:expire-abandoned` is the human closer
+    // for whatever is still open a day later.
+    $this->artisan('khqr:expire-abandoned', ['--hours' => 1, '--force' => true])->assertSuccessful();
     expect($payment->fresh()->status)->toBe('expired');
 });

@@ -26,21 +26,20 @@
         <env name="BCRYPT_ROUNDS" value="4"/>
         <env name="BROADCAST_CONNECTION" value="null"/>
         <env name="CACHE_STORE" value="array"/>
-        <!-- The suite exercises the KHQR feature, so the master gate is ON here.
-             Its production default is OFF (config/services.php) — the zero-request
-             guarantee is tested by flipping it back off per-test, in
-             tests/Feature/RevenueExpense/KhqrZeroRequestTest.php. -->
-        <env name="KHQR_PAY_ENABLED" value="true"/>
-        <!-- Bakong is OFF by default here, matching production's own default
-             and keeping the existing KHQRPay suite on the provider it was
-             written for. Every Bakong test turns it on in its own beforeEach,
-             so the gates are still exercised — and BakongProviderSwitchTest
-             pins both sides of the switch explicitly.
-             The base URL points at a host that does not exist, so a test that
-             slips past the guards fails loudly at Http::preventStrayRequests()
-             rather than spending a metered request against whatever token the
-             machine happens to have configured. -->
-        <env name="BAKONG_API_ENABLED" value="false"/>
+        <!-- The suite exercises subscription checkout, and since khqr.cc was
+             retired Bakong is the only thing that can mint one — so the master
+             gate is ON here. Its production default is OFF (config/bakong.php);
+             the zero-request guarantee is tested by flipping it back off
+             per-test, in tests/Feature/Bakong/BakongZeroRequestTest.php, and
+             BakongProviderSwitchTest pins both sides of the switch explicitly.
+
+             Turning it on is safe BECAUSE MINTING COSTS NOTHING: the QR payload
+             is built locally. Only verification calls out, and the base URL
+             below points at a host that does not exist — so a test that slips
+             past the guards fails loudly at Http::preventStrayRequests() rather
+             than spending a metered request against whatever token the machine
+             happens to have configured. -->
+        <env name="BAKONG_API_ENABLED" value="true"/>
         <env name="BAKONG_API_BASE_URL" value="https://bakong.test"/>
         <env name="BAKONG_EMAIL" value="integrator@ams.test"/>
         <env name="BAKONG_ORGANIZATION" value="AMS Test"/>

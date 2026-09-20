@@ -64,21 +64,7 @@
             {{ __('Once your payment is confirmed you’ll be redirected to sign in. You can keep this page open.') }}
         </p>
 
-        {{-- Hosted checkout only. The spinner cannot tell "not paid yet" from
-             "the payment page showed an error and you came back" — the row sits
-             in qr_generated either way. There is no such page in the direct
-             Bakong flow (the QR is above), so the button would only offer an
-             explanation for something that cannot have happened. --}}
-        @unless ($payment->usesBakong())
-            <button type="button" x-on:click="$dispatch('khqr-diagnostics')"
-                    class="mt-3 text-xs text-white/70 underline underline-offset-2 hover:text-white">
-                {{ __('messages.khqr_diag_checkout_help') }}
-            </button>
-        @endunless
     </div>
-
-    <x-khqr-diagnostics
-        :retry-url="route('subscribe.create', array_filter(['plan' => $payment->subscription?->plan?->slug]))" />
 
     <script>
         function khqrCheckout({ statusUrl, loginUrl, expiresAt }) {
@@ -88,9 +74,10 @@
             // a server hiccup is normal and self-heals on the next tick.
             const STALL_AFTER = 2;
             // Every poll can cost a live Bakong request (server-side cooldown
-            // gates it, this is the second bound). The webhook is the real
-            // settlement path — polling is the fallback, so it is paced for a
-            // metered token, not for the fastest possible confirmation.
+            // gates it, this is the second bound). THERE IS NO WEBHOOK — NBC
+            // publishes none — so this poll is the only thing that will ever
+            // notice the money arrive while the page is open. It is still paced
+            // for a metered token rather than for the fastest confirmation.
             const POLL_MS = 10000;
             return {
                 state: 'waiting', // waiting | paid | failed

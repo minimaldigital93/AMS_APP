@@ -112,9 +112,8 @@ class BakongTransactionService
             throw new \RuntimeException(__('messages.bakong_payment_disabled'));
         }
 
-        // Payment Settings first, .env as fallback — the same order
-        // KhqrCredentials::platform() uses, because the person who needs to
-        // change a payout account is not the person with shell access.
+        // Payment Settings first, .env as fallback, because the person who
+        // needs to change a payout account is not the person with shell access.
         $identity = BakongPlatformIdentity::current();
         $accountId = $identity->accountId;
 
@@ -128,7 +127,11 @@ class BakongTransactionService
         }
 
         if ($accountId === '') {
-            throw new \RuntimeException(__('messages.bakong_account_missing'));
+            // Its own exception type, so both checkout entry points can show
+            // the operator's actual problem rather than the generic "try again
+            // in a moment" that every transient failure gets. Nobody can retry
+            // their way out of an unset payout account.
+            throw new \App\Exceptions\PlatformPayoutNotConfiguredException(__('messages.bakong_account_missing'));
         }
 
         // At most one payable QR per subscription at a time. Two live QRs for

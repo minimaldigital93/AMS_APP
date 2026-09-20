@@ -7,6 +7,10 @@
     <h1 class="text-2xl font-semibold text-slate-800 tracking-tight">{{ __('messages.payment_settings') }}</h1>
     <p class="mt-1 text-sm text-gray-500">{{ __('messages.payment_settings_hint') }}</p>
 
+    @if (session('success'))
+        <div class="mt-4 rounded-lg bg-emerald-50 border border-emerald-200 px-4 py-3 text-sm text-emerald-700">{{ session('success') }}</div>
+    @endif
+
     @if ($errors->any())
         <div class="mt-4 rounded-lg bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-600">
             <ul class="list-disc list-inside space-y-0.5">
@@ -21,54 +25,58 @@
         @csrf
         @method('PUT')
 
-        <!-- KHQRPay API (auto-verified channel) -->
+        <!-- Where rent lands -->
         <div class="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm space-y-4">
-            <div class="flex items-start justify-between gap-4">
-                <div>
-                    <h2 class="text-lg font-semibold text-gray-900">{{ __('messages.khqrpay_api') }}</h2>
-                    <p class="text-sm text-gray-500">{{ __('messages.khqrpay_api_hint') }}</p>
-                </div>
-                <label class="inline-flex items-center gap-2 shrink-0 text-sm font-medium text-gray-700">
-                    <input type="hidden" name="khqrpay_enabled" value="0">
-                    <input type="checkbox" name="khqrpay_enabled" value="1" @checked(old('khqrpay_enabled', $settings?->khqrpay_enabled))
-                        class="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500">
-                    {{ __('messages.enabled') }}
-                </label>
+            <div>
+                <h2 class="text-lg font-semibold text-gray-900">{{ __('messages.rent_payout_title') }}</h2>
+                <p class="text-sm text-gray-500">{{ __('messages.rent_payout_hint') }}</p>
             </div>
 
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+                <label class="block text-sm font-medium text-gray-700">{{ __('messages.bakong_account_id') }}</label>
+                <input type="text" name="bakong_account_id" value="{{ old('bakong_account_id', $settings?->bakong_account_id) }}"
+                    placeholder="{{ __('messages.bakong_account_id_placeholder') }}"
+                    class="mt-1 w-full rounded-lg border-gray-300 text-sm focus:border-indigo-500 focus:ring-indigo-500">
+                {{-- The account id is what makes a per-tenant, exact-amount QR
+                     possible at all. Without it checkout falls back to the
+                     uploaded static image, which carries no amount — so the
+                     difference is worth stating on the field rather than
+                     leaving the collector to discover it at the counter. --}}
+                <p class="mt-1 text-xs text-gray-400">{{ __('messages.bakong_account_id_rent_hint') }}</p>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
-                    <label class="block text-sm font-medium text-gray-700">{{ __('messages.khqrpay_profile_id') }}</label>
-                    <input type="text" name="khqrpay_profile_id" value="{{ old('khqrpay_profile_id', $settings?->khqrpay_profile_id) }}"
+                    <label class="block text-sm font-medium text-gray-700">{{ __('messages.bank_name') }}</label>
+                    <input type="text" name="bank_name" value="{{ old('bank_name', $settings?->bank_name) }}"
                         class="mt-1 w-full rounded-lg border-gray-300 text-sm focus:border-indigo-500 focus:ring-indigo-500">
                 </div>
                 <div>
-                    <label class="block text-sm font-medium text-gray-700">{{ __('messages.khqrpay_secret') }}</label>
-                    <input type="password" name="khqrpay_secret" value="" autocomplete="new-password"
-                        placeholder="{{ $secretConfigured ? __('messages.khqrpay_secret_replace_placeholder') : '' }}"
+                    <label class="block text-sm font-medium text-gray-700">{{ __('messages.bank_account_name') }}</label>
+                    <input type="text" name="bank_account_name" value="{{ old('bank_account_name', $settings?->bank_account_name) }}"
                         class="mt-1 w-full rounded-lg border-gray-300 text-sm focus:border-indigo-500 focus:ring-indigo-500">
-                    @if ($secretConfigured)
-                        <p class="mt-1 flex items-center gap-1 text-xs font-medium text-emerald-600">
-                            <svg class="h-3.5 w-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="m4.5 12.75 6 6 9-13.5" /></svg>
-                            {{ __('messages.khqrpay_secret_saved') }}
-                        </p>
-                    @else
-                        <p class="mt-1 text-xs text-gray-400">{{ __('messages.khqrpay_secret_hint') }}</p>
-                    @endif
                 </div>
                 <div>
-                    <label class="block text-sm font-medium text-gray-700">{{ __('messages.currency') }}</label>
-                    <select name="currency" class="mt-1 w-full rounded-lg border-gray-300 text-sm focus:border-indigo-500 focus:ring-indigo-500">
-                        <option value="USD" @selected(old('currency', $settings?->currency ?? 'USD') === 'USD')>USD ($)</option>
-                        <option value="KHR" @selected(old('currency', $settings?->currency) === 'KHR')>KHR (៛)</option>
-                    </select>
+                    <label class="block text-sm font-medium text-gray-700">{{ __('messages.bank_account_number') }}</label>
+                    <input type="text" name="bank_account_number" value="{{ old('bank_account_number', $settings?->bank_account_number) }}"
+                        class="mt-1 w-full rounded-lg border-gray-300 text-sm focus:border-indigo-500 focus:ring-indigo-500">
                 </div>
             </div>
 
+            <div class="md:w-1/3">
+                <label class="block text-sm font-medium text-gray-700">{{ __('messages.currency') }}</label>
+                <select name="currency" class="mt-1 w-full rounded-lg border-gray-300 text-sm focus:border-indigo-500 focus:ring-indigo-500">
+                    <option value="USD" @selected(old('currency', $settings?->currency ?? 'USD') === 'USD')>USD ($)</option>
+                    <option value="KHR" @selected(old('currency', $settings?->currency) === 'KHR')>KHR (៛)</option>
+                </select>
+            </div>
+
+            {{-- Said plainly, because it is the workflow and not a limitation to
+                 be discovered: nobody but the landlord can see rent arrive in
+                 their own bank, so nobody but the landlord can confirm it. --}}
             <div class="rounded-lg bg-gray-50 border border-gray-200 px-4 py-3">
-                <label class="block text-xs font-medium text-gray-700">{{ __('messages.khqrpay_webhook_url') }}</label>
-                <p class="text-xs text-gray-400">{{ __('messages.khqrpay_webhook_url_hint') }}</p>
-                <code class="mt-1 block break-all rounded bg-white border border-gray-200 px-2 py-1 text-xs text-indigo-700">{{ route('khqr.callback') }}</code>
+                <p class="text-xs font-medium text-gray-700">{{ __('messages.rent_manual_confirm_title') }}</p>
+                <p class="mt-0.5 text-xs text-gray-500">{{ __('messages.rent_manual_confirm_body') }}</p>
             </div>
         </div>
 

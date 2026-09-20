@@ -188,14 +188,17 @@ Gates 5 and 8 have an exception list: the three token endpoints and the manual
 diagnostic are exempt from the **backoff**, because they are what *fixes* a
 backed-off credential. None of them is exempt from the 429 or the ceiling.
 
-### Why this is a sibling of `KhqrProviderClient`, not a refactor of it
+### Why it was built beside `KhqrProviderClient` rather than as a refactor of it
 
 The original plan was a shared `ProviderQuotaLedger`. In the building it turned
-out the genuinely shared part is small — two cache wrappers — because the daily
-ceiling counts rows in a Bakong-specific table. So the primitives live in
-`BakongQuotaLedger` and `KhqrProviderClient` is left **untouched**: it is pinned
-by a fork-based concurrency suite, it is retired wholesale in Phase 21, and
+out the genuinely shared part was small — two cache wrappers — because the daily
+ceiling counts rows in a Bakong-specific table. So the primitives went into
+`BakongQuotaLedger` and the KHQRPay client was left **untouched**: it was pinned
+by a fork-based concurrency suite, it was due to be retired wholesale, and
 refactoring a live payment guard on its way out is risk with no payoff.
+
+That judgement paid off in Phase 21: the old client was **deleted in one
+commit** rather than unpicked from a shared abstraction.
 
 ---
 
@@ -437,32 +440,35 @@ what.
 
 ## Rollback plan
 
-**One environment variable, at any point, with no deploy:**
+**There is no provider to roll back TO any more.** khqr.cc was removed in Phase
+21 (below), so `BAKONG_API_ENABLED=false` is now a *stop* switch rather than a
+*switch-over*: the next subscription checkout refuses with a message instead of
+falling back.
 
 ```bash
-# .env
+# .env — stop taking subscription payments, immediately, no deploy
 BAKONG_API_ENABLED=false
 php artisan config:clear && php artisan config:cache
 ```
 
-The next subscription checkout is a KHQRPay checkout again. Nothing else has to
-change, and nothing has to be un-migrated:
+What that does and does not do:
 
-- Payments **already minted** through Bakong keep being polled through Bakong,
-  because routing is by `khqr_payments.provider`, not by config. They are not
-  stranded — but with the master switch off the outbound call is refused, which
-  means those rows stay **open** rather than being expired on a request that was
-  never made. Turning the switch back on picks them up again; or let them lapse
-  and let the customer retry.
-- The three migrations are **additive and nullable**, so the old code runs
-  against the new schema unchanged. There is no `down()` to run, and running one
-  would be the riskier choice.
-- `khqr_payments`, `payments`, `accounts` and every booked ledger row are
-  untouched by this work.
+- **Refuses new checkouts before any row exists**, so there is no orphan session
+  left behind and no QR shown to a customer that nobody is watching.
+- Payments **already minted** keep being routed by `khqr_payments.provider`, not
+  by config. With the switch off the outbound call is refused, so those rows stay
+  **open** rather than being expired on a request that was never made. Turning it
+  back on picks them up again.
+- **Nothing is un-migrated.** Every ledger row, payment and subscription is
+  untouched.
 
-**If you need to go further back:** `git revert` the range, redeploy, and leave
-the migrations in place. The added columns and two tables are inert to the old
-code.
+**Rolling back the CODE is a different question.** Reverting past Phase 21
+restores files that expect `services.khqrpay` config and the
+`khqrpay_profile_id` / `khqrpay_secret` columns, which the Phase 21 migration
+drops. So a revert needs `php artisan migrate:rollback --step=1` as well — and
+that gives back the *columns*, never the *values*: an encrypted secret cannot be
+un-dropped. Re-issue it at khqr.cc if it is ever wanted again, which it should
+not be.
 
 ---
 
@@ -507,31 +513,81 @@ can be gone while our ledger reads 6 of 80 — which is exactly what happened.
 | **Response shapes come from a May-2021 document** | medium | every shape is read defensively — a 2xx that is not the envelope is REFUSED, not UNPAID. Confirm against one real payment before relying on it. |
 | **`generate_deeplink_by_qr` auth is unstated** | low | the deeplink feature ships **off**; the token is attached opportunistically, never required. Confirm with NBC before enabling. |
 | **Tag 62 sub-tag choice** | low | NBC's sample uses sub-tag 08 (purpose); this uses 01 (bill number), the EMVCo field for what we put there. Verification is unaffected — the md5 is over whatever we emit. Check one QR in a real banking app. |
-| **Flow B still on KHQRPay/manual** | accepted | decision 1. Rent collection is unchanged and costs no Bakong requests. |
-| **`api.qrserver.com` still used by the KHQRPay manual channel** | medium | `BakongQrService` replaces it for Bakong; the legacy manual path still ships the payload to a third party. Worth fixing next, independently of this migration. |
+| **Flow B is manual** | accepted | decision 1. Rent is confirmed by the landlord and costs **zero** Bakong requests. Verifying it through the platform token would put every landlord's tenants on one ~100/day allowance. |
+| **A closed tab means no confirmation** | medium | **the one real functional loss.** khqr.cc had a genuine server-to-server webhook; NBC publishes none. Mitigations: the "I have paid — check now" button, `BAKONG_RECONCILE_ENABLED=true`, reopening the checkout link, or confirming by hand. |
+| ~~`api.qrserver.com` used by the manual channel~~ | **resolved** | Phase 21: the rent QR is rendered locally as an inline `data:` URI. Nothing leaves the server, and the QR no longer vanishes when a third party is unreachable. |
 | **One shared allowance if Flow B is ever migrated** | future | the per-target budget exists; a landlord would need their own integrator token first. |
 
 ---
 
-## Phase 21 — removing KHQRPay
+## Phase 21 — khqr.cc removed (2026-09-19)
 
-**Not started, and not to be started until a Bakong payment has settled in
-production.** Nothing is removed until it is proven unused.
+**Done, on the branch, not yet deployed.** The trigger was not a tidy-up: the
+upstream token khqr.cc held a copy of was being drained to NBC's daily limit
+every day for a month while this app's own ledger showed **six** requests. Every
+payment then failed with `errorCode 17`, and a refused request is metered exactly
+like a paid one — so the day was gone before anyone could notice. Splitting the
+credential was the only way to make the allowance legible.
 
-| KHQRPay dependency | Replacement | Tested | Safe to remove |
-|---|---|---|---|
-| `subscriptionCheckoutUrl()` / hosted redirect | on-site QR page | ✅ | ☐ *(after prod)* |
-| `platformCheckoutFault()` / `probeHandoff()` | not needed — no one-way door | ✅ | ☐ |
-| `createSubscriptionQr()` (Flow A) | `BakongTransactionService` | ✅ | ☐ |
-| `queryProviderOutcome()` (Flow A) | `BakongTransactionService::verifyOutcome()` | ✅ | ☐ |
-| `requestQr()` (Flow B mint) | **still in use** — Flow B stays | — | ✗ keep |
-| `/khqr/callback` + `KhqrCallbackController` | nothing — Bakong has no webhook | ✅ | ✗ keep while Flow B runs |
-| `KhqrProviderClient` | `BakongProviderClient` | ✅ | ✗ keep while Flow B runs |
-| `khqr:*` commands | `bakong:*` commands | ✅ | ✗ keep while Flow B runs |
-| khqr.cc config keys | `config/bakong.php` | ✅ | ✗ keep while Flow B runs |
+### What was deleted
 
-**Keep permanently even after KHQRPay is gone:** `WebhookIngestService` and
-`payment_webhooks` (provider-agnostic, and historical deliveries are audit
-evidence), the `PaymentStatus` state machine, `finalize()` /
-`finalizeSubscription()`, `PaymentReversalService`, and every existing
-`khqr_payments` row.
+| Removed | Replaced by |
+|---|---|
+| `KhqrProviderClient`, `KhqrProviderResult` | `BakongProviderClient`, `BakongResult` |
+| `KhqrCredentials` | `BakongPlatformIdentity` (identity, not credentials) |
+| `KhqrPayGateway` | `BakongGateway` + `ManualGateway` |
+| `WebhookIngestService`, `KhqrCallbackController`, `POST /khqr/callback`, its CSRF exemption | **nothing — there is no webhook.** See below. |
+| `<x-khqr-diagnostics>`, `admin.billing.diagnostics` | `<x-bakong-usage>` on Superadmin → Payment Settings |
+| `platformCheckoutFault()` + both preflight probes | not needed — no one-way door to guard |
+| `khqr:diagnose`, `khqr:reconcile`, `khqr:usage`, `khqr:test-qr` | `bakong:diagnose`, `bakong:reconcile`, `bakong:usage` |
+| the whole `services.khqrpay` config block | `config/bakong.php` + `config/rent_qr.php` |
+| `khqrpay_profile_id` / `khqrpay_secret` / `khqrpay_enabled` columns | dropped — a credential nothing reads is a credential nobody rotates |
+| `KhqrPaymentService`'s provider half (2214 → 462 lines) | `Http::` no longer appears in that file at all |
+
+### What deliberately stayed
+
+- **`khqr_payments` and `payment_webhooks` rows.** Money records and their audit
+  trail. `provider` still says `khqrpay` on the old ones and still resolves,
+  through `RetiredKhqrPayGateway` — a tombstone whose `verify()` returns *false
+  meaning no confirmation*, never *unpaid*, and which nothing acts on. Without
+  it a settled payment from last quarter would 500 the payments console.
+- **`khqr:expire-abandoned`.** Now the only thing that will ever close the open
+  `channel = 'api'` rows khqr.cc left behind: automatic expiry requires a
+  conclusive unpaid, and there is no gateway left to give one.
+- **The rent channel**, rebuilt local: `BakongQrService` renders the QR as an
+  inline `data:` URI from the landlord's own `bakong_account_id`, and the
+  landlord confirms receipt. Zero requests, no credentials, no third party.
+
+### Two behaviours that changed, and are worth knowing before deploying
+
+1. **There is no webhook, and now no endpoint either.** A subscription is
+   confirmed by the checkout page's poll *while it is open* (~60s), by
+   `bakong:reconcile` if switched on, or by hand. A payer who closes the tab with
+   the net off gets no confirmation. This is the one real functional loss.
+2. **A legacy khqr.cc row reports `gateway_error: true` / `gateway_answered:
+   false` forever** and is never polled. Bakong has never heard of that
+   transaction and would answer "could not be found" — which reads as UNPAID,
+   which expires the QR. Settle one by hand: SuperAdmin → Accounts → change plan.
+
+### Deploy order — do not reorder
+
+1. **Before deploying**, find any open khqr.cc rows. The webhook that could still
+   settle them is about to be removed:
+   ```bash
+   php artisan tinker --execute="echo App\Models\KhqrPayment::where('provider','khqrpay')->whereIn('status',App\Enums\PaymentStatus::openValues())->count();"
+   ```
+   Non-zero: settle or close them first (`khqr:expire-abandoned --dry-run`).
+2. Deploy the branch. The migration **drops the khqr.cc credential columns** —
+   irreversible as to values.
+3. Confirm Superadmin → Payment Settings shows the payout account and a sane
+   allowance meter. Opening it costs nothing.
+4. Take **one** real subscription payment end to end.
+5. Only then remove the NBC token from the khqr.cc dashboard. **Check what else
+   uses that khqr.cc profile first** — Smart_sell does, and it will stop taking
+   payments the moment the token is revoked.
+6. Consider `BAKONG_RECONCILE_ENABLED=true` to cover closed tabs, then watch
+   `bakong:usage` for a few days.
+
+**Capacity after the split:** 100 requests/day ÷ ~6 per checkout ≈ **15
+subscription payments a day**, all of it now visible in one meter. Tenant rent
+adds nothing to that figure.

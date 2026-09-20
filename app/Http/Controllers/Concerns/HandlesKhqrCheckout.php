@@ -11,13 +11,22 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
 /**
- * KHQR checkout endpoints shared by Admin and Supervisor controllers.
+ * Tenant-rent KHQR checkout endpoints shared by Admin and Supervisor controllers.
  *
- * - khqrGenerate(): create a payment for the selected checkout items. Channel
- *   depends on the landlord's payment settings: 'api' (KHQRPay dynamic QR,
- *   auto-verified) or 'manual' (static KHQR / bank details, landlord confirms).
- * - khqrStatus():   polled by the modal; verifies + finalizes once Bakong pays.
- * - khqrConfirm()/khqrReject(): manual-channel resolution by the landlord.
+ * - khqrGenerate(): build a KHQR for the selected checkout items from the
+ *   landlord's own Bakong account, and show it.
+ * - khqrStatus():   reports a row's status and expiry. PURELY LOCAL — it
+ *   contacts nobody, because there is nobody to contact: rent lands in the
+ *   landlord's bank, which neither this app nor the platform's Bakong token
+ *   can see. The checkout modal no longer polls it (nothing but this same
+ *   browser can change the answer); it remains as the read endpoint, and it
+ *   still lazily expires a row whose window has closed.
+ * - khqrConfirm()/khqrReject(): the landlord resolves it after checking their
+ *   banking app. This is the ONLY thing that settles a rent payment.
+ *
+ * The 'api' channel — a dynamic QR minted and auto-verified at khqr.cc with the
+ * landlord's own profile — went with the provider in 2026-09. Rows that used it
+ * are still readable; nothing creates a new one.
  *
  * The host controller supplies role context via HasFiscalPeriodScope
  * (getActiveFiscalPeriod / ledgerUserId) and the route prefix below.
@@ -109,27 +118,26 @@ trait HandlesKhqrCheckout
             return response()->json(['message' => $e->getMessage()], 502);
         }
 
-        $response = [
+        $settings = MerchantPaymentSetting::forAccount($rental->account_id);
+
+        return response()->json([
             'transaction_id' => $row->transaction_id,
             'amount' => number_format($row->amount, 2, '.', ''),
-            'qr_url' => $row->qr_url,
+            // A data URI built from the row's own stored payload, so the
+            // tenant's browser makes no request for the thing it is about to
+            // pay; falls back to the landlord's uploaded static image.
+            'qr_url' => $khqr->qrImage($row) ?: $row->qr_url,
             'channel' => $row->channel,
             'status_url' => route($this->khqrRoutePrefix().'.khqr_status', $row->transaction_id),
             'expires_at' => $row->expires_at?->toIso8601String(),
-        ];
-
-        if ($row->channel === 'manual') {
-            $settings = MerchantPaymentSetting::forAccount($rental->account_id);
-            $response['confirm_url'] = route($this->khqrRoutePrefix().'.khqr_confirm', $row->transaction_id);
-            $response['reject_url'] = route($this->khqrRoutePrefix().'.khqr_reject', $row->transaction_id);
-            $response['bank'] = [
+            'confirm_url' => route($this->khqrRoutePrefix().'.khqr_confirm', $row->transaction_id),
+            'reject_url' => route($this->khqrRoutePrefix().'.khqr_reject', $row->transaction_id),
+            'bank' => [
                 'bank_name' => $settings?->bank_name,
                 'account_name' => $settings?->bank_account_name,
                 'account_number' => $settings?->bank_account_number,
-            ];
-        }
-
-        return response()->json($response);
+            ],
+        ]);
     }
 
     public function khqrStatus(string $transactionId, KhqrPaymentService $khqr): JsonResponse
@@ -139,10 +147,9 @@ trait HandlesKhqrCheckout
         return response()->json([
             'status' => $row->status,
             'paid' => $row->isPaid(),
-            // Reported for parity with the subscription poll endpoints: true
-            // means the gateway gave no verdict (the landlord's own Bakong
-            // allowance is spent, or khqr.cc is unwell), so the row is still
-            // open and unsettled rather than known-unpaid.
+            // Always false. Kept so the three checkout pages keep one response
+            // shape: the rent channel asks no gateway, so no gateway can refuse
+            // it. Only the direct Bakong subscription poll can answer true.
             'gateway_error' => $khqr->lastPollRefused(),
             'expires_at' => $row->expires_at?->toIso8601String(),
         ]);

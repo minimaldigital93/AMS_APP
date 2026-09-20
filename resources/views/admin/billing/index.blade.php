@@ -72,13 +72,6 @@
         <div class="mt-8 flex flex-wrap items-center justify-between gap-3">
             <div class="flex flex-wrap items-baseline gap-3">
                 <h2 class="text-lg font-semibold text-gray-900">{{ __('Renew or change plan') }}</h2>
-                {{-- Always available, not only after a failure: the gateway can
-                     also break AFTER the handoff (payment taken, no callback),
-                     and that is the case where nothing on this page says so. --}}
-                <button type="button" x-on:click="$dispatch('khqr-diagnostics')"
-                        class="text-xs text-gray-500 underline hover:text-gray-700">
-                    {{ __('messages.khqr_diag_open') }}
-                </button>
             </div>
             <div class="inline-flex rounded-full bg-gray-100 p-1 text-sm font-medium">
                 <button type="button" @click="cycle = 'monthly'" :class="cycle === 'monthly' ? 'bg-white text-gray-900 shadow' : 'text-gray-500'" class="rounded-full px-4 py-1.5">{{ __('messages.monthly') }}</button>
@@ -117,7 +110,7 @@
                             <input type="hidden" name="plan" value="{{ $p->slug }}">
                             <input type="hidden" name="billing_cycle" x-model="cycle">
                             <button type="submit" class="rounded-xl px-4 py-2.5 text-sm font-semibold whitespace-nowrap {{ $current ? 'bg-indigo-600 text-white hover:bg-indigo-500' : 'bg-gray-900 text-white hover:bg-gray-700' }}">
-                                {{ $current ? __('Renew via KHQR') : __('Switch via KHQR') }}
+                                {{ $current ? __('messages.renew_via_khqr') : __('messages.switch_via_khqr') }}
                             </button>
                         </form>
                     </div>
@@ -125,14 +118,5 @@
             @endforeach
         </div>
     </div>
-
-    {{-- Opens itself when a checkout was just refused (khqr_fault), and on
-         demand from the link above. Admin variant: runs the live gateway
-         checks. --}}
-    <x-khqr-diagnostics
-        :endpoint="route('admin.billing.diagnostics')"
-        :reason="session('khqr_fault') ? session('error') : null"
-        :auto-open="(bool) session('khqr_fault')"
-        :settings-url="auth()->user()?->hasRole('superadmin') ? route('superadmin.settings.payment') : null" />
 </div>
 @endsection

@@ -2,7 +2,7 @@
 
 namespace App\Http\Controllers;
 
-use App\Exceptions\KhqrPlatformCredentialsMissingException;
+use App\Exceptions\PlatformPayoutNotConfiguredException;
 use App\Models\KhqrPayment;
 use App\Models\Plan;
 use App\Models\Subscription;
@@ -95,24 +95,13 @@ class SubscriptionController extends Controller
                 ->with('status', __('messages.flash_trial_started', ['days' => $plan->trial_days]));
         }
 
-        // Ask the gateway whether it can take a payment BEFORE creating anything.
-        // redirect()->away() below is a one-way door: once the browser is on
-        // khqr.cc, a profile that can't transact answers with a raw JSON body
-        // and this app never gets to say what went wrong. Refuse here instead,
-        // so the customer sees a warning on this form with their input intact —
-        // and, like the missing-credentials guard, no half-finished signup is
-        // left behind.
-        // khqr_fault opens the "payment could not be started" popup on the form
-        // — see resources/views/components/khqr-diagnostics.blade.php. The guest
-        // copy of it never probes the gateway, so it says what happened and what
-        // to do without exposing the profile's internals.
-        //
-        // Under the DIRECT Bakong integration there is no door: the QR is built
-        // locally and shown on our own page, so preflightFault() returns null
-        // and the two metered probes are never made.
-        if ($fault = $checkout->preflightFault()) {
-            return back()->withInput()->with('error', $fault)->with('khqr_fault', true);
-        }
+        // There is deliberately NO gateway preflight here any more. It existed
+        // because redirect()->away() to khqr.cc was a one-way door: a profile
+        // that could not transact answered with a raw JSON body and this app
+        // never got to say what went wrong. The direct Bakong checkout is
+        // rendered on our own page, so a failure is something this app can
+        // still explain — and the two metered probes that guarded the door went
+        // with the provider.
 
         try {
             $row = DB::transaction(function () use ($validated, $plan, $checkout, $cycle) {
@@ -127,17 +116,20 @@ class SubscriptionController extends Controller
 
                 return $checkout->create($subscription, $plan->priceFor($cycle), $plan, $cycle);
             });
-        } catch (KhqrPlatformCredentialsMissingException $e) {
+        } catch (PlatformPayoutNotConfiguredException $e) {
             report($e);
 
-            return back()->withInput()->with('error', $e->getMessage())->with('khqr_fault', true);
+            return back()->withInput()->with('error', $e->getMessage());
         } catch (\Throwable $e) {
-            // A KHQRPay outage / misconfiguration must not 500 the public signup
-            // page — roll back (the transaction already did) and show a friendly
-            // message instead of an uncaught exception.
+            // A misconfigured payout identity or a dead Bakong token must not
+            // 500 the public signup page — roll back (the transaction already
+            // did) and show a friendly message instead of an uncaught
+            // exception. The operator's own copy of the diagnosis lives in
+            // Superadmin → Payment Settings and `php artisan bakong:diagnose`;
+            // a stranger on a signup form can do nothing with it.
             report($e);
 
-            return back()->withInput()->with('error', __('messages.subscription_payment_unavailable'))->with('khqr_fault', true);
+            return back()->withInput()->with('error', __('messages.subscription_payment_unavailable'));
         }
 
         $returnUrl = route('subscribe.checkout', $row->public_token);

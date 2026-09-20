@@ -90,81 +90,23 @@ class KhqrPayment extends Model
         return $this->statusEnum()->isOpen();
     }
 
-    /**
-     * Is this row an ACTIVE KHQR PAYMENT SESSION — the only thing that justifies
-     * an outbound request to khqr.cc?
+    /*
+     * isActiveKhqrSession() and isMintableKhqrSession() used to live here.
      *
-     * A database row is not a payment. "status is open" is not enough either: an
-     * open row can be a QR that died an hour ago, a manual bank transfer that
-     * the gateway has never heard of, or a mint that failed before any session
-     * existed at the provider. Asking Bakong about any of those spends a metered
-     * request on a question that cannot be answered, which is how a token rated
-     * ~100/day went missing overnight with nobody touching the app.
-     *
-     * Each condition excludes a class of row that used to be verified:
-     *
-     *  - channel 'api' — a manual-channel row is settled by the landlord in
-     *    their banking app; the gateway has no record of it at all.
-     *  - a transaction id and a known settlement target — nothing to ask about,
-     *    or no budget (and no token) the request could honestly be charged to.
-     *  - status still open, and not stamped paid — terminal rows (paid/expired/
-     *    failed/cancelled/refunded/rejected) are already decided.
-     *  - status past 'pending' — pending means the QR was never successfully
-     *    minted, so there is no session at the gateway to ask about. This is the
-     *    line between "a billing row exists" and "a payment session exists".
-     *  - it came out of a checkout flow — see originatedFromCheckout(): a row a
-     *    confirmed payment could not even be booked against is not worth a call.
-     *  - the session is still live — its own expires_at is in the future, or
-     *    within $graceMinutes of having passed — and never older than a day,
-     *    whatever expires_at says.
-     *
-     * $graceMinutes is the khqr:reconcile rescue window and nothing else: a
-     * payment can land in the last seconds before expiry and its webhook can
-     * still fail, and then the net is the only thing that will ever find it. The
-     * browser pollers pass 0 — an elapsed QR is expired locally instead, for
-     * free.
-     *
-     * Rows minted before expires_at existed fall back to created_at + the
-     * configured QR lifetime, the same fallback khqr:reconcile uses.
-     *
-     * Credentials are the one condition not checked here — they live outside the
-     * row, and KhqrProviderClient refuses a request it has nothing to sign with.
+     * They answered "is this row worth a metered khqr.cc request?" — the rule
+     * that a DATABASE ROW IS NOT A PAYMENT WORTH ASKING ABOUT, which is what
+     * the quota leak of 2026-08 came down to. The provider is gone, so no rent
+     * row is ever asked about again; the rule itself survives, applied to the
+     * only gateway left, as isActiveBakongSession() below.
      */
-    public function isActiveKhqrSession(int $graceMinutes = 0): bool
-    {
-        $status = PaymentStatus::tryFrom((string) $this->status);
-
-        if ($status === null || ! $status->isOpen() || $status === PaymentStatus::Pending) {
-            return false;
-        }
-
-        if (! $this->hasGatewayIdentity() || $this->paid_at !== null || ! $this->originatedFromCheckout()) {
-            return false;
-        }
-
-        $deadline = $this->expires_at
-            ?? $this->created_at?->copy()->addMinutes(max(1, (int) config('services.khqrpay.qr_ttl', 30)));
-
-        if ($deadline === null) {
-            return false;
-        }
-
-        // Hard ceiling, the same one khqr:reconcile's window has always had: a
-        // row with a bad expires_at must not stay askable indefinitely.
-        if ($this->created_at !== null && $this->created_at->lt(now()->subDay())) {
-            return false;
-        }
-
-        return $deadline->copy()->addMinutes(max(0, $graceMinutes))->isFuture();
-    }
 
     /**
      * Is this row an ACTIVE DIRECT-BAKONG PAYMENT SESSION — the only thing that
      * justifies a metered request to the NBC Open API about it?
      *
-     * The same principle as isActiveKhqrSession() — a database row is not a
-     * payment — but the evidence differs, because the two providers make a
-     * session in opposite ways.
+     * The same principle the retired isActiveKhqrSession() applied — a database
+     * row is not a payment — but the evidence differs, because the two
+     * providers made a session in opposite ways.
      *
      * Under KHQRPay a session existed once THE GATEWAY minted one, so the proof
      * was a provider_ref coming back and the row leaving `pending`. Bakong has
@@ -229,33 +171,16 @@ class KhqrPayment extends Model
     }
 
     /**
-     * May the QR for this row be minted at the gateway right now?
-     *
-     * The creation-side twin of isActiveKhqrSession(): a mint is only justified
-     * for a row a checkout has JUST created — still `pending`, still inside its
-     * own lifetime, owned by something the payment would be booked against. A
-     * row that is already minted, failed, or abandoned is not re-minted.
-     */
-    public function isMintableKhqrSession(): bool
-    {
-        return $this->status === PaymentStatus::Pending->value
-            && $this->hasGatewayIdentity()
-            && $this->paid_at === null
-            && $this->hasCheckoutOwner()
-            && ($this->expires_at === null || $this->expires_at->isFuture());
-    }
-
-    /**
      * Was this row produced by one of the checkout flows, with something a
      * confirmed payment can be booked against?
      *
-     *  - platform: KhqrPaymentService::createSubscriptionQr() — a subscription.
-     *    Hosted checkout mints no QR image here, so there is nothing more to
-     *    require.
+     *  - platform: BakongTransactionService::createSubscriptionQr() — a
+     *    subscription.
      *  - merchant: KhqrPaymentService::createQr() — a rental and its fiscal
-     *    period, plus evidence the mint actually succeeded at the gateway (a QR
-     *    url or a provider reference). A tenant cannot pay a QR that was never
-     *    shown, so there is nothing at the gateway to ask about.
+     *    period, plus evidence something payable was actually rendered: a QR
+     *    payload (built here), a QR url (the landlord's static image, or a
+     *    hosted image on a legacy khqr.cc row) or a provider reference. A tenant
+     *    cannot pay a QR that was never shown.
      */
     public function originatedFromCheckout(): bool
     {
@@ -264,6 +189,7 @@ class KhqrPayment extends Model
         }
 
         return $this->settlement_target !== 'merchant'
+            || filled($this->qr_payload)
             || filled($this->qr_url)
             || filled($this->provider_ref);
     }
@@ -275,14 +201,6 @@ class KhqrPayment extends Model
             'merchant' => $this->rental_id !== null && $this->fiscal_period_id !== null,
             default => false,
         };
-    }
-
-    /** An api-channel row with an id to ask about and a token to charge it to. */
-    private function hasGatewayIdentity(): bool
-    {
-        return $this->channel === 'api'
-            && filled($this->transaction_id)
-            && in_array($this->settlement_target, ['platform', 'merchant'], true);
     }
 
     /**

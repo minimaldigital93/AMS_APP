@@ -12,12 +12,12 @@ use App\Models\PlatformPaymentSetting;
  *   1. platform_payment_settings — the superadmin's own Payment Settings page
  *   2. config/bakong.php (.env)  — the fallback
  *
- * This mirrors KhqrCredentials::platform(), which resolves the KHQRPay profile
- * and secret from the same table for the same reason: **the person who needs to
- * change a payout account is not the person with shell access.** A payout
- * account that can only be changed by editing .env and running config:cache is
- * a payout account that gets changed late, under pressure, by whoever happens
- * to have SSH — which is exactly the moment to not be editing production files.
+ * The order is inherited from the retired KHQRPay credential resolver, for the
+ * reason that outlived it: **the person who needs to change a payout account is
+ * not the person with shell access.** A payout account that can only be changed
+ * by editing .env and running config:cache is a payout account that gets changed
+ * late, under pressure, by whoever happens to have SSH — which is exactly the
+ * moment not to be editing production files.
  *
  * The .env fallback is not dead weight. It is what makes a fresh install, a CI
  * run and a local demo work before anyone has opened the settings page, and it

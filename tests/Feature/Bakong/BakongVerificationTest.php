@@ -347,35 +347,22 @@ it('expires an elapsed QR locally, without spending a request', function () {
 
 // ═════════════════ the webhook that cannot exist ═════════════════
 
-it('rejects any webhook claiming to settle a Bakong payment', function () {
-    Http::fake();
-    $row = bakongCheckout();
+it('exposes no webhook endpoint at all', function () {
+    // The Bakong Open API publishes no callback, no push and no signing scheme.
+    // /khqr/callback — public and CSRF-exempt — belonged to khqr.cc and was
+    // deleted with it in 2026-09, because a forged POST naming a real
+    // transaction id would otherwise have been the cheapest possible way to
+    // activate a subscription for free.
+    expect(\Illuminate\Support\Facades\Route::has('khqr.callback'))->toBeFalse();
 
-    $gateway = app(PaymentManager::class)->for($row);
-
-    expect($gateway->provider())->toBe('bakong');
-
-    // The Bakong Open API publishes no callback, no push and no signing scheme,
-    // so nothing arriving at the public, CSRF-exempt /khqr/callback can be
-    // genuine. Without this, a forged POST naming a real transaction id would
-    // be the cheapest possible way to activate a subscription for free.
-    expect($gateway->validateWebhook($row, [
-        'transaction_id' => $row->transaction_id,
+    $this->postJson('/khqr/callback', [
+        'transaction_id' => 'ANYTHING',
         'status' => 'PAID',
         'amount' => '10.00',
-        'hash' => 'whatever',
-    ]))->toBeFalse();
-
-    $this->postJson(route('khqr.callback'), [
-        'transaction_id' => $row->transaction_id,
-        'status' => 'PAID',
-        'amount' => '10.00',
-    ])->assertForbidden();
-
-    expect($row->fresh()->status)->not->toBe('paid');
+    ])->assertNotFound();
 });
 
-it('resolves old KHQRPay rows through the old driver, untouched', function () {
+it('resolves old KHQRPay rows through the retired driver, untouched', function () {
     Http::fake();
 
     $legacy = KhqrPayment::create([
@@ -387,8 +374,9 @@ it('resolves old KHQRPay rows through the old driver, untouched', function () {
         'checkout_payload' => ['type' => 'subscription'],
     ]);
 
-    // The provider column predates this migration and defaults to 'khqrpay',
-    // so every existing row keeps answering through the driver that minted it.
+    // The provider column predates this migration, so every existing row keeps
+    // answering through the driver that minted it — now a tombstone that can
+    // never call out. See PaymentManagerTest.
     expect(app(PaymentManager::class)->for($legacy)->provider())->toBe('khqrpay')
         ->and($legacy->usesBakong())->toBeFalse();
 });
@@ -502,7 +490,7 @@ it('tells the page when today’s allowance is gone', function () {
         ->and($row->fresh()->isOpen())->toBeTrue();
 });
 
-it('keeps KHQRPay rows reporting answered, exactly as before', function () {
+it('tells the page plainly that a legacy khqr.cc row has no one left to ask', function () {
     Http::fake();
 
     $legacy = KhqrPayment::create([
@@ -517,9 +505,17 @@ it('keeps KHQRPay rows reporting answered, exactly as before', function () {
 
     $body = $this->getJson(route('subscribe.checkout.status', $legacy->public_token))->assertOk()->json();
 
-    // The old client-side counter assumed every poll was an answer. Changing
-    // that for KHQRPay rows would alter behaviour on the provider we are
-    // migrating AWAY from, for no benefit.
-    expect($body['gateway_answered'])->toBeTrue()
+    // While khqr.cc existed this reported gateway_answered=true, because every
+    // poll really was an answer. Now there is no client to ask with, and saying
+    // "answered" would make a permanently unanswerable row look like a payer
+    // who simply has not paid — the page would spin in silence forever. It says
+    // the gateway did not answer instead, which is exactly true, and the row
+    // stays open for a human (SuperAdmin → Accounts → change plan).
+    expect($body['gateway_answered'])->toBeFalse()
+        ->and($body['gateway_error'])->toBeTrue()
+        ->and($body['paid'])->toBeFalse()
         ->and($body['quota_exhausted'])->toBeNull();
+
+    Http::assertNothingSent();
+    expect($legacy->fresh()->isOpen())->toBeTrue();
 });

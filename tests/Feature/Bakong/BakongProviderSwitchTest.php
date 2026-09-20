@@ -13,23 +13,24 @@ use Illuminate\Support\Facades\Http;
 /**
  * THE SWITCH, AND THE THING IT MUST NOT BREAK.
  *
- * Migrating a live payment provider is only safe if going back is one
- * environment variable — and if flipping it cannot strand the customers who are
- * already mid-checkout. Those are two different rules, and conflating them is
- * the bug:
+ * khqr.cc was retired in 2026-09 and Bakong is now the only provider that can
+ * mint a subscription payment. That collapses one of the two rules this file
+ * was written for, but not the other — and the surviving one is the one that
+ * protects money:
  *
- *  1. WHICH PROVIDER MINTS A NEW PAYMENT is decided by CONFIGURATION
- *     (BAKONG_API_ENABLED). Rollback is flipping it off.
+ *  1. WHETHER A NEW PAYMENT CAN BE MINTED is decided by CONFIGURATION
+ *     (BAKONG_API_ENABLED). With it off, checkout REFUSES. There is no fallback
+ *     any more, and that is deliberate: minting a session nobody can confirm is
+ *     worse than refusing, because it shows the customer a QR nobody is
+ *     watching and is then swept by every net that looks for open rows.
  *
  *  2. WHICH PROVIDER ANSWERS FOR AN EXISTING PAYMENT is decided by the ROW
- *     (khqr_payments.provider). A QR minted at khqr.cc must keep being asked
- *     about at khqr.cc for the rest of its life. If the switch changed this
- *     too, flipping it would start polling every in-flight khqr.cc QR against
- *     Bakong — where that transaction does not exist, so Bakong would answer
- *     "transaction could not be found", which reads as UNPAID, which expires
- *     the QR. Every customer paying at the moment of the switch would lose
- *     their checkout, and any who had already paid would have it written out of
- *     the books.
+ *     (khqr_payments.provider), and this still matters with one provider left.
+ *     A QR minted at khqr.cc must never be asked about at Bakong, where that
+ *     transaction does not exist — Bakong would answer "transaction could not
+ *     be found", which reads as UNPAID, which expires the QR. A payment that
+ *     had in fact landed would be written out of the books on the strength of a
+ *     question asked at the wrong gateway.
  */
 beforeEach(function () {
     Cache::flush();
@@ -39,10 +40,6 @@ beforeEach(function () {
     config()->set('bakong.account_id', 'ams_test@devb');
     config()->set('bakong.integrator.email', 'integrator@ams.test');
     config()->set('bakong.demo', false);
-    // The suite runs KHQRPay in demo mode, which short-circuits every request
-    // locally. These tests are about WHERE a request goes, so the legacy path
-    // has to be able to actually make one.
-    config()->set('services.khqrpay.demo', false);
 
     BakongToken::create([
         'email' => 'integrator@ams.test',
@@ -51,11 +48,7 @@ beforeEach(function () {
         'verified_at' => now(),
     ]);
 
-    // Platform KHQRPay credentials, so the legacy path is genuinely usable and
-    // a failure to take it shows up as a failure rather than as a fallback.
     PlatformPaymentSetting::create([
-        'khqrpay_profile_id' => 'profile-1',
-        'khqrpay_secret' => 'secret-1',
         'bakong_account_id' => 'platform@aclb',
         'merchant_name' => 'AMS',
         'currency' => 'USD',
@@ -89,7 +82,7 @@ it('mints through Bakong when the switch is on, and keeps the payer on our own p
     $checkout = app(SubscriptionCheckout::class);
     $row = $checkout->create(switchSubscription(), 10.00);
 
-    expect($checkout->usesBakong())->toBeTrue()
+    expect($checkout->available())->toBeTrue()
         ->and($row->provider)->toBe('bakong')
         ->and($row->qr_md5)->not->toBeNull()
         // Null handoff means "render our own checkout page": there is no
@@ -101,87 +94,88 @@ it('mints through Bakong when the switch is on, and keeps the payer on our own p
     Http::assertNothingSent();
 });
 
-it('makes no preflight probes at all under Bakong', function () {
+it('makes no preflight probes at all', function () {
     config()->set('bakong.enabled', true);
     Http::fake();
 
-    // platformCheckoutFault() spends TWO metered requests probing a gateway the
-    // customer is about to be redirected to. Under Bakong they are never
-    // redirected anywhere, so the question does not arise.
+    // The retired platformCheckoutFault() spent TWO metered requests probing a
+    // gateway the customer was about to be redirected to. They are never
+    // redirected anywhere now, so the question does not arise.
     expect(app(SubscriptionCheckout::class)->preflightFault())->toBeNull();
 
     Http::assertNothingSent();
 });
 
-it('falls straight back to KHQRPay when the switch is off', function () {
+it('refuses to mint rather than falling back when the switch is off', function () {
     config()->set('bakong.enabled', false);
-    Http::fake(['khqr.cc/*' => Http::response(['responseCode' => 0, 'data' => []], 200)]);
+    Http::fake();
 
     $checkout = app(SubscriptionCheckout::class);
-    $row = $checkout->create(switchSubscription(), 10.00);
 
-    expect($checkout->usesBakong())->toBeFalse()
-        ->and($row->fresh()->provider)->toBe('khqrpay')  // the column defaults at the DB level
-        // A hosted checkout: the browser IS taken away, to a signed khqr.cc URL.
-        ->and($checkout->handoffUrl($row, 'https://ams.test/return'))->toContain('khqr.cc')
-        ->and($checkout->qrImage($row))->toBeNull();
+    expect($checkout->available())->toBeFalse();
+    expect(fn () => $checkout->create(switchSubscription(), 10.00))
+        ->toThrow(RuntimeException::class);
+
+    // Refused BEFORE any row exists, so there is no orphan session to sweep.
+    expect(KhqrPayment::count())->toBe(0);
+    Http::assertNothingSent();
 });
 
 it('is switched by one environment variable and nothing else', function () {
     Http::fake();
 
     // No controller edit, no migration, no deploy step — which matters because
-    // the moment rollback is needed is the moment nobody wants to be editing
-    // controllers.
+    // the moment a switch-off is needed is the moment nobody wants to be
+    // editing controllers.
     config()->set('bakong.enabled', true);
-    expect(app(SubscriptionCheckout::class)->usesBakong())->toBeTrue();
+    expect(app(SubscriptionCheckout::class)->available())->toBeTrue();
 
     config()->set('bakong.enabled', false);
-    expect(app(SubscriptionCheckout::class)->usesBakong())->toBeFalse();
+    expect(app(SubscriptionCheckout::class)->available())->toBeFalse();
 
     // An empty base URL is a second off switch: a half-configured .env must not
     // put customers on a provider that cannot be reached.
     config()->set('bakong.enabled', true);
     config()->set('bakong.base_url', '');
-    expect(app(SubscriptionCheckout::class)->usesBakong())->toBeFalse();
+    expect(app(SubscriptionCheckout::class)->available())->toBeFalse();
 });
 
 // ═════════════════ rule 2: the row decides existing payments ═════════════════
 
-it('keeps polling an in-flight KHQRPay payment at khqr.cc after the switch is flipped', function () {
-    config()->set('bakong.enabled', false);
-    Http::fake(['khqr.cc/*' => Http::response(['responseCode' => 0, 'data' => []], 200)]);
-
-    $legacy = app(SubscriptionCheckout::class)->create(switchSubscription(), 10.00);
-    expect($legacy->fresh()->provider)->toBe('khqrpay');
-
-    // The operator switches providers while this customer is still paying.
+it('never polls a legacy khqr.cc payment against Bakong', function () {
     config()->set('bakong.enabled', true);
-    Cache::flush();
+    Http::fake();
 
-    Http::fake([
-        'khqr.cc/*' => Http::response(['responseCode' => 1, 'responseMessage' => 'Transaction not found'], 200),
-        // If the poll were routed by CONFIG instead of by the row, it would
-        // arrive here — and Bakong, which has never heard of this transaction,
-        // would answer "could not be found". That reads as UNPAID, and UNPAID
-        // is the verdict that expires the QR.
-        'bakong.test/*' => Http::response(['responseCode' => 1, 'errorCode' => 1], 200),
+    $legacy = KhqrPayment::create([
+        'transaction_id' => 'LEGACY-SWITCH-1',
+        'provider' => 'khqrpay',
+        'subscription_id' => switchSubscription()->id,
+        'amount' => 10.00, 'currency' => 'USD', 'status' => 'qr_generated',
+        'settlement_target' => 'platform', 'channel' => 'api',
+        'checkout_payload' => ['type' => 'subscription'],
+        'expires_at' => now()->addMinutes(5),
     ]);
 
-    app(SubscriptionCheckout::class)->poll($legacy->fresh());
+    $result = app(SubscriptionCheckout::class)->poll($legacy);
 
-    Http::assertSent(fn ($r) => str_contains($r->url(), 'khqr.cc'));
-    Http::assertNotSent(fn ($r) => str_contains($r->url(), 'bakong.test'));
+    // Bakong has never heard of this transaction and would answer "could not be
+    // found" — which reads as UNPAID, and UNPAID is the verdict that expires a
+    // QR. So the row is not asked about at all: it reports no answer, stays
+    // open, and waits for a human.
+    Http::assertNothingSent();
+    expect($result['gateway_error'])->toBeTrue()
+        ->and($result['gateway_answered'])->toBeFalse()
+        ->and($result['payment']->isOpen())->toBeTrue();
 });
 
-it('keeps answering for a Bakong payment after the switch is turned back off', function () {
+it('keeps answering for a Bakong payment after the switch is turned off', function () {
     config()->set('bakong.enabled', true);
     Http::fake();
 
     $row = app(SubscriptionCheckout::class)->create(switchSubscription(), 10.00);
     expect($row->provider)->toBe('bakong');
 
-    // Rollback, mid-checkout. The row still knows who minted it.
+    // Switched off mid-checkout. The row still knows who minted it.
     config()->set('bakong.enabled', false);
 
     expect($row->fresh()->usesBakong())->toBeTrue()
@@ -200,7 +194,7 @@ it('keeps answering for a Bakong payment after the switch is turned back off', f
 it('never routes a payment to a provider that did not mint it', function () {
     Http::fake();
 
-    foreach (['khqrpay' => false, 'bakong' => true] as $provider => $expected) {
+    foreach (['khqrpay' => false, 'manual' => false, 'bakong' => true] as $provider => $expected) {
         $row = new KhqrPayment(['provider' => $provider]);
         expect($row->usesBakong())->toBe($expected, $provider);
     }

@@ -161,6 +161,19 @@ return [
     'daily_request_limit' => (int) env('BAKONG_DAILY_REQUEST_LIMIT', 80),
 
     /*
+    | What NBC itself allows the token per calendar day. DISPLAY ONLY — nothing
+    | is enforced against it, because nothing here can see the whole figure:
+    | the meter is on the TOKEN, so anything else sharing it spends from the
+    | same allowance invisibly.
+    |
+    | It exists so the superadmin's usage panel can say what the local ceiling
+    | is a reserve *against*. Reading "6 / 80" without it invites the conclusion
+    | that 74 requests are available, when the true remainder is whatever NBC
+    | has left — which is why errorCode 17 can arrive at a spend of six.
+    */
+    'upstream_daily_limit' => (int) env('BAKONG_UPSTREAM_DAILY_LIMIT', 100),
+
+    /*
     | Minimum seconds between live requests about the SAME transaction, claimed
     | atomically BEFORE the request so it holds across tabs, users, PHP-FPM
     | workers, queue workers and the reconcile run alike.

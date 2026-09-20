@@ -1,7 +1,7 @@
 @props([
     // Inline SVG data URI built from the payment row's own stored payload.
-    // Null for a hosted-checkout (KHQRPay) row, where the payer paid elsewhere
-    // and there is nothing for this component to show.
+    // Null for a legacy khqr.cc row, where the payer was sent to a hosted page
+    // on someone else's domain and there is nothing for this component to show.
     'image' => null,
     'amount' => null,
     'currency' => 'USD',
@@ -18,12 +18,12 @@
     {{--
         THE WHOLE CHECKOUT NOW HAPPENS HERE.
 
-        Under KHQRPay the customer was redirected to khqr.cc to pay, and this
-        page only ever showed a spinner waiting for the webhook. The Bakong Open
-        API has no hosted checkout, so the QR is built locally and shown on our
-        own page — which removes the one-way door that the two preflight probes
-        existed to guard, and means a failure is something this app can still
-        explain instead of a JSON body on someone else's domain.
+        Under khqr.cc the customer was redirected away to pay, and this page only
+        ever showed a spinner waiting for the webhook. The Bakong Open API has no
+        hosted checkout, so the QR is built locally and shown on our own page —
+        which removed the one-way door that the two preflight probes existed to
+        guard, and means a failure is something this app can still explain
+        instead of a JSON body on someone else's domain.
 
         The image is a data: URI, so the payer's browser makes NO request for the
         thing it is about to pay. That matters beyond privacy: the old manual

@@ -45,10 +45,11 @@ return Application::configure(basePath: dirname(__DIR__))
             'subscription.active' => EnsureSubscriptionActive::class,
         ]);
 
-        // KHQRPay webhook is authenticated by its own signature, not a CSRF token.
-        $middleware->validateCsrfTokens(except: [
-            'khqr/callback',
-        ]);
+        // NOTHING IS CSRF-EXEMPT. The one exemption this app ever had was the
+        // khqr.cc payment webhook, retired in 2026-09 with the provider; the
+        // Bakong Open API sends no callbacks, so no route needs to accept an
+        // unauthenticated cross-site POST. Add one back only for an endpoint
+        // that authenticates every request by its own signature.
 
         $middleware->statefulApi();
     })

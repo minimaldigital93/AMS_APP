@@ -2,13 +2,12 @@
 
 namespace App\Http\Controllers\Admin;
 
-use App\Exceptions\KhqrPlatformCredentialsMissingException;
+use App\Exceptions\PlatformPayoutNotConfiguredException;
 use App\Http\Controllers\Controller;
 use App\Models\KhqrPayment;
 use App\Models\Plan;
 use App\Models\Subscription;
 use App\Services\Payment\SubscriptionCheckout;
-use App\Services\RevenueExpense\KhqrPaymentService;
 use App\Services\Subscription\SubscriptionService;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\JsonResponse;
@@ -35,7 +34,7 @@ class BillingController extends Controller
     }
 
     /**
-     * Start a renewal or upgrade: mint a subscription QR and hand off to KHQRPay.
+     * Start a renewal or upgrade: mint a subscription QR and show it here.
      */
     public function renew(Request $request, SubscriptionCheckout $checkout): RedirectResponse
     {
@@ -47,21 +46,12 @@ class BillingController extends Controller
         $cycle = ($validated['billing_cycle'] ?? 'monthly') === 'yearly' && $plan->hasYearly() ? 'yearly' : 'monthly';
         $accountId = current_account_id();
 
-        // Ask the gateway whether it can take a payment BEFORE minting anything.
-        // redirect()->away() below is a one-way door: once the browser is on
-        // khqr.cc, a profile that can't transact answers with a raw JSON body
-        // and this page never gets to say what went wrong. Refuse here so the
-        // billing page shows the warning instead — and leaves no orphan QR.
-        // khqr_fault is the popup's trigger: the billing page flashes `error`
-        // for ordinary failures too, and a diagnostics dialog is only the right
-        // answer when the GATEWAY is what refused.
-        //
-        // Under the DIRECT Bakong integration there is no door: the QR is built
-        // locally and shown on this app's own page, so preflightFault() returns
-        // null and the two metered probes are never made.
-        if ($fault = $checkout->preflightFault()) {
-            return back()->with('error', $fault)->with('khqr_fault', true);
-        }
+        // There is deliberately NO gateway preflight here any more. It existed
+        // because redirect()->away() to khqr.cc was a one-way door: a profile
+        // that could not transact answered with a raw JSON body and this page
+        // never got to say what went wrong. The direct Bakong checkout has no
+        // door — the QR is built locally and shown below — so the two metered
+        // probes that guarded it are pure cost and are gone with the provider.
 
         // One subscription row per account — reuse it for renewals/upgrades.
         //
@@ -82,66 +72,25 @@ class BillingController extends Controller
 
         try {
             $row = $checkout->create($subscription, $plan->priceFor($cycle), $plan, $cycle);
-        } catch (KhqrPlatformCredentialsMissingException $e) {
+        } catch (PlatformPayoutNotConfiguredException $e) {
             report($e);
 
-            return back()->with('error', $e->getMessage())->with('khqr_fault', true);
+            return back()->with('error', $e->getMessage());
         } catch (\Throwable $e) {
-            // Don't 500 the billing page when KHQRPay is down / misconfigured.
+            // Don't 500 the billing page when the payout identity or the Bakong
+            // token is misconfigured.
             report($e);
 
-            return back()->with('error', __('messages.subscription_payment_unavailable'))->with('khqr_fault', true);
+            return back()->with('error', __('messages.subscription_payment_unavailable'));
         }
 
         $returnUrl = route('admin.billing.checkout', $row->public_token);
 
-        // A hosted-checkout provider takes the browser away; the direct Bakong
-        // flow keeps the admin here and shows them the QR.
+        // The direct Bakong flow keeps the admin here and shows them the QR;
+        // handoffUrl() is the seam a hosted provider would plug back into.
         return ($handoff = $checkout->handoffUrl($row, $returnUrl))
             ? redirect()->away($handoff)
             : redirect()->to($returnUrl);
-    }
-
-    /**
-     * Live gateway diagnostics behind the "payment problem" popup.
-     *
-     * Answers the question a failed checkout leaves behind — WHICH part of the
-     * KHQR setup is refusing — instead of the one sentence the customer-facing
-     * flash can say. Admin-only, because `detail` quotes the gateway verbatim
-     * and names the profile id: it is the fix-it view, not the apology.
-     *
-     * Never 500s. This is the page someone opens precisely because something is
-     * already broken, so a failure here has to report itself rather than
-     * replace the popup with an error.
-     */
-    public function diagnostics(Request $request, KhqrPaymentService $khqr): JsonResponse
-    {
-        try {
-            // Offline unless the caller explicitly asks to probe. The popup's
-            // own fetch sends ?live=1, so a human opening the dialog still gets
-            // the real gateway answer — but the bare URL (a bookmark, a crawler,
-            // an uptime check, a second tab) costs nothing. Two metered Bakong
-            // requests must never be spendable by merely loading a route.
-            $report = $khqr->platformDiagnostics(live: $request->boolean('live'));
-            $report['last_fault'] = $khqr->lastPlatformCheckoutFault();
-
-            return response()->json($report);
-        } catch (\Throwable $e) {
-            report($e);
-
-            return response()->json([
-                'healthy' => false,
-                'checks' => [[
-                    'key' => 'diagnostics',
-                    'label' => __('messages.khqr_diag_failed'),
-                    'state' => 'fail',
-                    'detail' => $e->getMessage(),
-                ]],
-                'live' => false,
-                'checked_at' => now()->toIso8601String(),
-                'last_fault' => null,
-            ]);
-        }
     }
 
     /** Self-service cancel: keep access until the period ends, just stop renewing. */
@@ -157,7 +106,7 @@ class BillingController extends Controller
         return back()->with('success', __('messages.subscription_cancelled'));
     }
 
-    /** The hosted checkout page for a pending subscription payment. */
+    /** The checkout page for a pending subscription payment. */
     public function checkout(string $token, SubscriptionCheckout $checkout): View|RedirectResponse
     {
         $payment = $this->resolveSubscriptionPayment($token);
@@ -172,8 +121,8 @@ class BillingController extends Controller
             'payment' => $payment,
             'statusUrl' => route('admin.billing.status', $payment->public_token),
             'redirectUrl' => route('admin.billing.index'),
-            // Null for a hosted checkout; a data URI for a direct Bakong
-            // payment, rendered from the row's own stored payload.
+            // A data URI rendered from the row's own stored payload; null for
+            // a legacy khqr.cc row, which was paid on someone else's page.
             'qrImage' => $checkout->qrImage($payment),
         ]);
     }
@@ -190,9 +139,9 @@ class BillingController extends Controller
         $quotaExhausted = null;
 
         try {
-            // Routed on the ROW, not on configuration: a payment minted at
-            // khqr.cc keeps being asked about at khqr.cc, so flipping the
-            // provider switch cannot strand a checkout that is already running.
+            // Routed on the ROW, not on configuration, so a legacy khqr.cc
+            // payment is never asked about at a gateway where it does not
+            // exist — which would read as unpaid.
             [
                 'payment' => $payment,
                 'gateway_error' => $gatewayError,
@@ -201,8 +150,6 @@ class BillingController extends Controller
                 // stall warning from ever appearing.
                 'gateway_answered' => $gatewayAnswered,
                 // When today's allowance resets, if it is already spent.
-                'quota_exhausted' => $quotaExhausted,
-                'gateway_answered' => $gatewayAnswered,
                 'quota_exhausted' => $quotaExhausted,
             ] = $checkout->poll($payment);
         } catch (\Throwable $e) {

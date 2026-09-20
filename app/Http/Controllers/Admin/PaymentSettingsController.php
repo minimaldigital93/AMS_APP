@@ -8,30 +8,37 @@ use Illuminate\Contracts\View\View;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 
+/**
+ * Where a landlord's RENT money lands — their own Bakong account and bank
+ * details. Rent settles directly with them; the platform never holds it and
+ * never sees it arrive, which is why the landlord is also the one who confirms
+ * each payment.
+ *
+ * The KHQRPay (khqr.cc) fields that used to be this page — enable, profile id,
+ * secret — went with the provider in 2026-09. Nothing signs anything here any
+ * more and nothing leaves the server: the QR is built from the account id below
+ * and shown at checkout.
+ *
+ * NONE OF THIS IS A SECRET. A Bakong account id and a bank account number are
+ * printed on the QR and read out to tenants; they are payment instructions, not
+ * credentials, which is why they are rendered straight back into the form.
+ */
 class PaymentSettingsController extends Controller
 {
-    /**
-     * Show the merchant credentials form.
-     */
     public function edit(): View
     {
-        $settings = MerchantPaymentSetting::forAccount(current_account_id());
-
         return view('admin.settings.payment', [
-            'settings' => $settings,
-            'secretConfigured' => $settings !== null && filled($settings->khqrpay_secret),
+            'settings' => MerchantPaymentSetting::forAccount(current_account_id()),
         ]);
     }
 
-    /**
-     * Save the credentials. A blank secret keeps the stored one.
-     */
     public function update(Request $request): RedirectResponse
     {
         $validated = $request->validate([
-            'khqrpay_enabled' => ['nullable', 'boolean'],
-            'khqrpay_profile_id' => ['nullable', 'string', 'max:255'],
-            'khqrpay_secret' => ['nullable', 'string', 'max:255'],
+            'bakong_account_id' => ['nullable', 'string', 'max:255'],
+            'bank_name' => ['nullable', 'string', 'max:255'],
+            'bank_account_name' => ['nullable', 'string', 'max:255'],
+            'bank_account_number' => ['nullable', 'string', 'max:255'],
             'currency' => ['required', 'in:USD,KHR'],
         ]);
 
@@ -40,18 +47,7 @@ class PaymentSettingsController extends Controller
             ?? new MerchantPaymentSetting(['account_id' => $accountId]);
         $settings->account_id = $accountId;
 
-        $settings->fill([
-            'khqrpay_enabled' => (bool) ($validated['khqrpay_enabled'] ?? false),
-            'khqrpay_profile_id' => $validated['khqrpay_profile_id'] ?? null,
-            'currency' => $validated['currency'],
-        ]);
-
-        // Blank secret = keep the existing one (it is never echoed to the form).
-        if (filled($validated['khqrpay_secret'] ?? null)) {
-            $settings->khqrpay_secret = $validated['khqrpay_secret'];
-        }
-
-        $settings->save();
+        $settings->fill($validated)->save();
 
         return redirect()->route('admin.settings.payment')
             ->with('success', __('messages.payment_settings_saved'));
