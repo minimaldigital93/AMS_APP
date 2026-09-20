@@ -193,6 +193,10 @@ class BakongTransactionService
             // currency the payment was priced in, even if the operator changes
             // the setting while a checkout is open.
             currency: (string) $row->currency,
+            // The ROW's expiry, for the same reason: the deadline the payer's
+            // banking app shows and the deadline this app enforces must be one
+            // fact, not two that drift apart.
+            expiresAt: $row->expires_at,
         );
 
         $row->forceFill([

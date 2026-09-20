@@ -102,14 +102,27 @@ it('builds a dynamic KHQR whose fields match the documented sample', function ()
         ->and(bakongCrcIsValid($qr->payload))->toBeTrue();
 });
 
-it('carries the bill number in tag 62, not tag 99', function () {
-    // The KHQRPay builder this replaces used tag 99, which is not an EMVCo
-    // additional-data field at all.
+it('carries the bill number in tag 62, and timestamps — not a bill number — in tag 99', function () {
+    // This test used to assert tag 99 was ABSENT, and that is how the bug
+    // shipped: the KHQRPay builder had misused 99 for a bill number, so
+    // removing the misuse took the whole tag with it, and the assertion then
+    // defended the absence. "Not an EMVCo field" and "not required" are
+    // different claims — KHQR defines 99 itself, and an expiration is
+    // mandatory on any QR carrying an amount. Without it a banking app has no
+    // deadline to honour and rejects the code as invalid.
     $qr = (new BakongQrService)->build('RENT-7-002', 300.0, 'landlord@aclb');
     $tags = bakongParseTlv($qr->payload);
 
-    expect($tags)->not->toHaveKey('99')
-        ->and($tags['62'])->toBe('0110RENT-7-002');
+    expect($tags['62'])->toBe('0110RENT-7-002')
+        ->and($tags)->toHaveKey('99');
+
+    $ts = bakongParseTlv($tags['99']);
+
+    // Timestamps, 13-digit unix milliseconds — and emphatically not the bill
+    // number the old builder put here.
+    expect($ts['00'])->toHaveLength(13)
+        ->and($ts['01'])->toHaveLength(13)
+        ->and($tags['99'])->not->toContain('RENT-7-002');
 });
 
 it('writes riel as a whole number, because KHR has no minor unit', function () {

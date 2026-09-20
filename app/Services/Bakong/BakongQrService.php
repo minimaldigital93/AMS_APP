@@ -78,6 +78,7 @@ class BakongQrService
         ?string $merchantName = null,
         ?string $merchantCity = null,
         ?string $currency = null,
+        ?\DateTimeInterface $expiresAt = null,
     ): BakongQr {
         $bakongAccountId = trim($bakongAccountId);
 
@@ -101,7 +102,8 @@ class BakongQrService
             .$this->tlv('58', 'KH')
             .$this->tlv('59', $name)
             .$this->tlv('60', $city)
-            .$this->tlv('62', $this->tlv('01', substr($this->sanitise($billNumber, self::MAX_BILL_NUMBER), 0, self::MAX_BILL_NUMBER)));
+            .$this->tlv('62', $this->tlv('01', substr($this->sanitise($billNumber, self::MAX_BILL_NUMBER), 0, self::MAX_BILL_NUMBER)))
+            .$this->timestampTag($expiresAt);
 
         // The checksum covers the "6304" header of its own field, so it is
         // appended before the CRC is computed. Getting this wrong produces a QR
@@ -148,6 +150,42 @@ class BakongQrService
     public function dataUri(string $payload, int $size = 280): string
     {
         return 'data:image/svg+xml;base64,'.base64_encode($this->svg($payload, $size));
+    }
+
+    /**
+     * Tag 99 — the KHQR timestamp, and the reason a structurally perfect QR
+     * can still be rejected.
+     *
+     * It is NOT an EMVCo field, which is exactly why it was left out when this
+     * builder replaced the KHQRPay one: the old builder used tag 99 for a bill
+     * number, that was wrong, and removing it took the whole tag with it. But
+     * KHQR defines 99 for itself, and for a DYNAMIC QR — any QR carrying an
+     * amount — the expiration is required. Without it a banking app has no
+     * deadline to honour and refuses the code outright: "invalid QR".
+     *
+     *   99
+     *     00  creation timestamp    unix MILLISECONDS, 13 digits
+     *     01  expiration timestamp  unix MILLISECONDS, 13 digits, in the future
+     *
+     * The expiry passed in is the payment row's own, so the deadline the payer
+     * sees in their banking app and the deadline this app enforces are the same
+     * fact rather than two drifting ones. A missing expiry falls back to the
+     * configured QR lifetime, and an expiry already in the past is pushed to
+     * the minimum: a QR that is born expired scans as invalid, which is
+     * indistinguishable to the payer from the bug this fixes.
+     */
+    private function timestampTag(?\DateTimeInterface $expiresAt): string
+    {
+        $nowMs = (int) round(microtime(true) * 1000);
+
+        $expiryMs = $expiresAt !== null
+            ? $expiresAt->getTimestamp() * 1000
+            : $nowMs + ((int) config('bakong.qr_ttl', 6) * 60 * 1000);
+
+        // At least a minute of life, whatever was asked for.
+        $expiryMs = max($expiryMs, $nowMs + 60_000);
+
+        return $this->tlv('99', $this->tlv('00', (string) $nowMs).$this->tlv('01', (string) $expiryMs));
     }
 
     /**

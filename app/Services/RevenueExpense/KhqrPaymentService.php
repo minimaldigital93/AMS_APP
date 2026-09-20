@@ -144,6 +144,10 @@ class KhqrPaymentService
                 merchantName: $settings?->bank_account_name ?: $settings?->bank_name,
                 merchantCity: null,
                 currency: $settings?->currency ?: config('rent_qr.currency', 'USD'),
+                // Rent QRs live by their own clock (config/rent_qr.php), not
+                // Bakong's — nothing here is metered — but the tag is required
+                // for any QR carrying an amount, whoever confirms it.
+                expiresAt: now()->addMinutes((int) config('rent_qr.ttl', 30)),
             );
 
             return ['qr_payload' => $qr->payload, 'qr_md5' => $qr->md5];
