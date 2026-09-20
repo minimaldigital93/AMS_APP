@@ -126,6 +126,26 @@ class BakongTokenCommand extends Command
 
     private function request(BakongTokenService $tokens): int
     {
+        // /v1/request_token IS in NBC's Open API document (v1.0.2, May 2021),
+        // which is why this action exists. It is NOT on the live production
+        // host, which answers `HTTP 404 · errorCode 3 · Cannot POST
+        // /v1/request_token` — registration moved to the web portal at
+        // /register, and the token arrives by email from there.
+        //
+        // The warning is BEFORE the confirmation rather than in the error,
+        // because the allowance is spent by the attempt: the ledger records
+        // the request, and the 404 comes back after it has already been
+        // counted. An error message here would be an explanation delivered one
+        // request too late.
+        $this->newLine();
+        $this->warn('This endpoint is documented but returns 404 on the live API.');
+        $this->line('  NBC registers integrators through the portal instead:');
+        $this->line('    <fg=cyan>'.rtrim((string) config('bakong.base_url'), '/').'/register</>');
+        $this->line('  The token is emailed to you from there. Then run:');
+        $this->line('    <fg=cyan>php artisan bakong:token import</>   (offline, costs nothing)');
+        $this->newLine();
+        $this->line('Continue only if NBC has told you this endpoint is live for your account.');
+
         if (! $this->confirmSpend('Register this integrator and ask Bakong to email a verification code')) {
             return self::FAILURE;
         }
@@ -201,7 +221,10 @@ class BakongTokenCommand extends Command
         $this->line($what.'.');
         $this->warn('This spends 1 request from today’s Bakong allowance.');
 
-        return $this->confirm('Continue?', true);
+        // Defaults to NO. Pressing return on a prompt is not a decision, and
+        // this one cannot be taken back — a refused Bakong request is metered
+        // exactly like a successful one.
+        return $this->confirm('Continue?', false);
     }
 
     /** @param array{ok: bool, message: string, blocked: ?string} $result */
