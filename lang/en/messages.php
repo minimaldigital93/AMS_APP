@@ -1494,4 +1494,6 @@ return [
     'bakong_rate_backoff_hint' => 'Silence after Bakong says we are asking too often.',
     'bakong_reconcile_grace_label' => 'Reconcile grace (min)',
     'bakong_reconcile_grace_hint' => 'How long the sweep leaves a payment alone before asking about it. Only matters if the sweep is on.',
+    'khqr_confirming' => 'Recording…',
+    'khqr_bank_details' => 'Bank transfer details',
 ];

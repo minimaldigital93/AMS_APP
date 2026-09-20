@@ -1070,76 +1070,94 @@
                 </form>
 
                 <!-- KHQR QR panel (shown after Generate) -->
-                <div x-show="khqrActive" x-cloak class="p-5 overflow-y-auto flex-1 text-center space-y-4">
-                    <div>
-                        <p class="text-xs text-slate-400">{{ __('messages.scan_to_pay') }}</p>
-                        <p class="text-3xl font-bold text-rose-600 mt-1">$<span x-text="khqrAmount"></span></p>
-                    </div>
+                {{-- ══════════════════ the rent QR panel ══════════════════
+                     Stripped to the QR, the amount and one action.
+
+                     THE ONE ACTION CANNOT BECOME A SPINNER. Rent is the
+                     `manual` channel on purpose: the money goes to the
+                     landlord's own bank, which neither this app nor NBC's token
+                     can see, and it is deliberately not wired through the
+                     platform's Bakong token — one allowance of ~100/day cannot
+                     carry every landlord's every tenant. So nothing is coming
+                     to confirm this payment except the person holding the
+                     phone. A "waiting for payment" spinner here would spin
+                     until the QR expired and then book nothing.
+
+                     What DID go: the amount shouting in 3xl rose, the bank
+                     block sitting open above the button competing with the QR,
+                     a hint line explaining the button next to the button, and
+                     a full-width grey Cancel with the same visual weight as the
+                     action that takes money. The bank details are a fallback
+                     for a payer who cannot scan, so they fold away. --}}
+                <div x-show="khqrActive" x-cloak class="p-6 overflow-y-auto flex-1 text-center">
 
                     <!-- Generating -->
-                    <div x-show="khqrLoading" class="py-12 flex flex-col items-center gap-3 text-slate-400">
-                        <svg class="w-8 h-8 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/></svg>
+                    <div x-show="khqrLoading" class="py-16 flex flex-col items-center gap-3 text-slate-400">
+                        <svg class="w-7 h-7 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/></svg>
                         <span class="text-sm">{{ __('messages.generating_qr') }}</span>
                     </div>
 
-                    <!-- Error -->
                     <div x-show="khqrError" class="bg-red-50 border border-red-100 rounded-lg px-4 py-3 text-red-600 text-sm" x-text="khqrError"></div>
 
-                    <!-- QR + waiting / manual confirmation -->
-                    <template x-if="!khqrLoading && !khqrError && (khqrUrl || khqrChannel === 'manual')">
-                        <div class="space-y-4">
-                            <div x-show="khqrUrl && !khqrExpired" class="inline-block p-3 bg-white border border-slate-200 rounded-2xl">
-                                <img :src="khqrUrl" alt="KHQR" class="w-56 h-56 object-contain mx-auto">
+                    <template x-if="!khqrLoading && !khqrError">
+                        <div>
+                            {{-- ── confirmed: the whole panel becomes the receipt ── --}}
+                            <div x-show="khqrPaid" class="py-14 flex flex-col items-center gap-3 text-emerald-600">
+                                <svg class="w-14 h-14" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/></svg>
+                                <span class="text-base font-semibold">{{ __('messages.payment_received') }}</span>
                             </div>
 
-                            <!-- Manual channel: bank details + landlord confirms receipt -->
-                            <template x-if="khqrChannel === 'manual'">
-                                <div class="space-y-3">
-                                    <div x-show="khqrBank.bank_name || khqrBank.account_number"
-                                        class="bg-slate-50 border border-slate-200 rounded-lg px-4 py-3 text-left text-sm text-slate-600 space-y-1">
+                            {{-- ── expired: one way forward, nothing else on screen ── --}}
+                            <div x-show="khqrExpired && !khqrPaid" class="py-10 space-y-3">
+                                <p class="text-sm font-semibold text-amber-800">{{ __('messages.payment_session_ended') }}</p>
+                                <p class="text-xs text-amber-700">{{ __('messages.payment_session_ended_hint') }}</p>
+                                <button type="button" @click="regenerateKhqr()"
+                                    class="w-full py-2.5 bg-amber-500 hover:bg-amber-600 text-white text-sm font-semibold rounded-lg transition">
+                                    {{ __('messages.payment_try_again') }}
+                                </button>
+                            </div>
+
+                            {{-- ── live: QR, amount, one action ── --}}
+                            <div x-show="!khqrPaid && !khqrExpired" class="space-y-5">
+                                <div x-show="khqrUrl" class="inline-block p-3 bg-white border border-slate-200 rounded-2xl">
+                                    <img :src="khqrUrl" alt="KHQR" class="w-60 h-60 object-contain mx-auto">
+                                </div>
+
+                                <div>
+                                    <p class="text-2xl font-semibold text-slate-800 tabular-nums">{{ currency_symbol() }}<span x-text="khqrAmount"></span></p>
+                                    <p class="mt-0.5 text-xs text-slate-400" x-show="khqrCountdown">
+                                        {{ __('messages.payment_expires_in') }} <span class="tabular-nums" x-text="khqrCountdown"></span>
+                                    </p>
+                                </div>
+
+                                {{-- The confirmation. Its own spinner while the
+                                     write is in flight, so the collector knows
+                                     the tap landed. --}}
+                                <button type="button" @click="confirmKhqrManual()" :disabled="khqrConfirming"
+                                    class="w-full py-3 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold rounded-lg transition disabled:opacity-60 flex items-center justify-center gap-2">
+                                    <svg x-show="khqrConfirming" x-cloak class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/></svg>
+                                    <span x-text="khqrConfirming ? @js(__('messages.khqr_confirming')) : @js(__('messages.khqr_mark_received'))"></span>
+                                </button>
+
+                                {{-- Folded away: only a payer who cannot scan
+                                     needs these, and open they competed with
+                                     the QR for the same glance. --}}
+                                <details x-show="khqrBank.bank_name || khqrBank.account_number" class="text-left">
+                                    <summary class="cursor-pointer text-xs text-slate-400 hover:text-slate-600 select-none">{{ __('messages.khqr_bank_details') }}</summary>
+                                    <div class="mt-2 bg-slate-50 border border-slate-200 rounded-lg px-4 py-3 text-sm text-slate-600 space-y-1">
                                         <div x-show="khqrBank.bank_name"><span class="text-slate-400">{{ __('messages.bank_name') }}:</span> <span class="font-medium" x-text="khqrBank.bank_name"></span></div>
                                         <div x-show="khqrBank.account_name"><span class="text-slate-400">{{ __('messages.bank_account_name') }}:</span> <span class="font-medium" x-text="khqrBank.account_name"></span></div>
                                         <div x-show="khqrBank.account_number"><span class="text-slate-400">{{ __('messages.bank_account_number') }}:</span> <span class="font-medium" x-text="khqrBank.account_number"></span></div>
                                     </div>
-                                    <div x-show="!khqrPaid" class="space-y-2">
-                                        <p class="text-xs text-slate-400">{{ __('messages.khqr_manual_confirm_hint') }}</p>
-                                        <button type="button" @click="confirmKhqrManual()" :disabled="khqrConfirming"
-                                            class="w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold rounded-lg transition disabled:opacity-50">
-                                            {{ __('messages.khqr_mark_received') }}
-                                        </button>
-                                    </div>
-                                </div>
-                            </template>
-
-                            {{-- No spinner here any more. There used to be one for
-                                 the 'api' channel, where khqr.cc would confirm the
-                                 payment on its own and the collector's job was to
-                                 wait. Nothing confirms a rent payment now except
-                                 the landlord, so an animated "waiting for payment"
-                                 beside the button that IS the confirmation would
-                                 promise something that is never coming. The
-                                 countdown stays: the transaction id does expire. --}}
-                            <p x-show="khqrCountdown && !khqrPaid && !khqrExpired" class="text-xs text-slate-400">
-                                {{ __('messages.payment_expires_in') }} <span class="font-medium tabular-nums" x-text="khqrCountdown"></span>
-                            </p>
-                            <!-- Expired / failed — friendly fallback, no infinite spinner -->
-                            <div x-show="khqrExpired" class="bg-amber-50 border border-amber-200 rounded-lg px-4 py-3 text-left space-y-2">
-                                <p class="text-sm font-semibold text-amber-800">{{ __('messages.payment_session_ended') }}</p>
-                                <p class="text-xs text-amber-700">{{ __('messages.payment_session_ended_hint') }}</p>
-                                <button type="button" @click="regenerateKhqr()"
-                                    class="w-full py-2 bg-amber-500 hover:bg-amber-600 text-white text-sm font-semibold rounded-lg transition">
-                                    {{ __('messages.payment_try_again') }}
-                                </button>
-                            </div>
-                            <div x-show="khqrPaid" class="flex flex-col items-center gap-2 text-emerald-600">
-                                <svg class="w-12 h-12" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/></svg>
-                                <span class="text-sm font-semibold">{{ __('messages.payment_received') }}</span>
+                                </details>
                             </div>
                         </div>
                     </template>
 
-                    <button type="button" @click="closeCheckout()"
-                        class="w-full py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-600 text-sm font-medium rounded-lg transition">{{ __('messages.cancel') }}</button>
+                    {{-- A quiet way out, not a second button with the same
+                         weight as the one that books money. --}}
+                    <button type="button" @click="closeCheckout()" x-show="!khqrPaid"
+                        class="mt-6 text-xs text-slate-400 hover:text-slate-600 underline underline-offset-2 transition">{{ __('messages.cancel') }}</button>
                 </div>
             </div>
         </div>
