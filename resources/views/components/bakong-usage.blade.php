@@ -133,10 +133,24 @@
             @endif
         </p>
         @unless ($token['usable'])
+            {{-- `import` for a first token, never `request`: /v1/request_token
+                 is in NBC's v1.0.2 document but 404s on the live API, and the
+                 attempt is metered before the 404 comes back. NBC issues the
+                 first token from its web portal and emails it; import is
+                 offline and costs nothing. Pointing at `request` here sent the
+                 operator to spend a request on a dead endpoint at the exact
+                 moment the page was telling them something was wrong. --}}
             <p class="mt-1 text-xs text-red-700">
                 {{ __('messages.bakong_usage_token_remedy') }}
-                <code class="rounded bg-white/70 px-1.5 py-0.5">php artisan bakong:token {{ $token['registered'] ? 'renew' : 'request' }}</code>
+                <code class="rounded bg-white/70 px-1.5 py-0.5">php artisan bakong:token {{ $token['registered'] ? 'renew' : 'import' }}</code>
             </p>
+            @unless ($token['registered'])
+                <p class="mt-1 text-xs text-red-700">
+                    {{ __('messages.bakong_usage_token_portal') }}
+                    <a href="{{ rtrim(config('bakong.base_url'), '/') }}/register" target="_blank" rel="noopener noreferrer"
+                       class="underline">{{ rtrim(config('bakong.base_url'), '/') }}/register</a>
+                </p>
+            @endunless
         @endunless
     </div>
 
