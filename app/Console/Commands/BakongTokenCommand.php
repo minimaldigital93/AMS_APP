@@ -86,6 +86,11 @@ class BakongTokenCommand extends Command
                 ? BakongProviderClient::baseUrlForDisplay()
                 : '<fg=yellow>'.BakongProviderClient::baseUrlForDisplay().'</>'],
             ['Integrator email', $status['email'] ?: '<fg=yellow>not set</>'],
+            ['Matches the token', match ($status['email_matches']) {
+                true => '<fg=green>yes</>',
+                false => '<fg=red>NO — renewal will fail in ~90 days</>',
+                default => '<fg=gray>token carries no email claim</>',
+            }],
             ['Registered', $status['registered'] ? 'yes' : '<fg=yellow>no — run: bakong:token request</>'],
             ['Verified', $status['verified'] ? 'yes' : '<fg=yellow>no — run: bakong:token verify --code=...</>'],
             ['Usable now', $status['usable'] ? '<fg=green>yes</>' : '<fg=red>no</>'],
@@ -99,6 +104,21 @@ class BakongTokenCommand extends Command
         ]);
 
         $this->newLine();
+
+        // Said in full, not as a diff: the failure mode this catches is a
+        // single wrong letter, which is exactly what the eye slides over.
+        if ($status['email_matches'] === false) {
+            $this->warn('BAKONG_EMAIL does not match the address this token was issued to.');
+            $this->line('  .env says:      '.$status['email']);
+            $this->line('  the token says: '.$status['token_email']);
+            $this->newLine();
+            $this->line('Payments work either way today — the token is looked up locally by');
+            $this->line('whichever string .env holds. But renew_token sends .env\'s value to NBC,');
+            $this->line('so renewal fails silently in ~90 days. Fix .env to the token\'s address,');
+            $this->line('then re-import so the stored row is keyed to it as well.');
+            $this->newLine();
+        }
+
         $this->line('This report is offline — it made no Bakong request.');
 
         return self::SUCCESS;

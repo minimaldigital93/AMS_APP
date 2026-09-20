@@ -293,6 +293,13 @@ class BakongTokenService
             'expires_at' => $row?->expires_at?->toIso8601String(),
             'renewed_at' => $row?->renewed_at?->toIso8601String(),
             'fingerprint' => $row?->fingerprint() ?? 'none',
+            // The address NBC will be sent on renewal, against the address NBC
+            // actually issued to. Null when the token carries no email claim —
+            // which is "unknown", not "fine".
+            'token_email' => $tokenEmail = BakongToken::emailFromJwt($row?->token),
+            'email_matches' => $tokenEmail === null
+                ? null
+                : strcasecmp($tokenEmail, (string) config('bakong.integrator.email')) === 0,
         ];
     }
 
