@@ -190,3 +190,48 @@ it('offers the token as a WRITE-ONLY field', function () {
         ->and($html)->toContain('type="password" name="bakong_token" value=""')
         ->and($html)->toContain('autocomplete="off"');
 });
+
+it('puts every operationally meaningful bakong key on the page', function () {
+    // The claim this feature makes is "Bakong is configured in Payment
+    // Settings". This asserts the claim against config/bakong.php itself, so
+    // adding a new key without a field fails here rather than being discovered
+    // by an operator who cannot change it.
+    $exempt = [
+        // The host we POST a bearer token to. A form that can repoint it turns
+        // a borrowed superadmin session into credential theft.
+        'base_url',
+        // A "pretend the payment succeeded" switch; hard-disabled in
+        // production and not something to put on a production screen.
+        'demo', 'demo_settle_after',
+        // HTTP plumbing.
+        'connect_timeout', 'timeout',
+        // Unbuilt feature; two of its four values are URLs.
+        'deeplink.enabled', 'deeplink.app_icon_url', 'deeplink.app_name', 'deeplink.callback',
+        // The payout identity — on the page already, under its own names.
+        'account_id', 'merchant_name', 'merchant_city', 'currency',
+    ];
+
+    $flatten = function (array $a, string $prefix = '') use (&$flatten): array {
+        $out = [];
+        foreach ($a as $k => $v) {
+            $key = $prefix ? "$prefix.$k" : $k;
+            $out = is_array($v) ? array_merge($out, $flatten($v, $key)) : array_merge($out, [$key]);
+        }
+
+        return $out;
+    };
+
+    $mapped = array_values(\App\Services\Bakong\BakongRuntimeConfig::overridableKeys());
+
+    $missing = [];
+    foreach ($flatten(config('bakong')) as $key) {
+        if (in_array($key, $exempt, true)) {
+            continue;
+        }
+        if (! in_array("bakong.$key", $mapped, true)) {
+            $missing[] = $key;
+        }
+    }
+
+    expect($missing)->toBe([]);
+});

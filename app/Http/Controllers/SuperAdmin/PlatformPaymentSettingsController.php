@@ -105,6 +105,15 @@ class PlatformPaymentSettingsController extends Controller
             'bakong_qr_ttl' => ['nullable', 'integer', 'min:1', 'max:60'],
             'bakong_max_verify_attempts' => ['nullable', 'integer', 'min:1', 'max:60'],
             'bakong_reconcile_enabled' => ['nullable', 'boolean'],
+            // Renewal spends a request, so a window of days is a quota choice.
+            // Floored at 1: renewing on the day of expiry leaves no room for a
+            // failed attempt.
+            'bakong_token_renew_days' => ['nullable', 'integer', 'min:1', 'max:60'],
+            // Display only — what the meter measures our ceiling against.
+            'bakong_upstream_daily_limit' => ['nullable', 'integer', 'min:1', 'max:10000'],
+            'bakong_failure_backoff' => ['nullable', 'integer', 'min:1', 'max:720'],
+            'bakong_rate_limit_backoff' => ['nullable', 'integer', 'min:1', 'max:720'],
+            'bakong_reconcile_grace' => ['nullable', 'integer', 'min:1', 'max:1440'],
 
             // ── the access token ──
             // The ONE credential on this page. Write-only: validated, handed
@@ -135,6 +144,11 @@ class PlatformPaymentSettingsController extends Controller
             'bakong_qr_ttl' => $validated['bakong_qr_ttl'] ?? null,
             'bakong_max_verify_attempts' => $validated['bakong_max_verify_attempts'] ?? null,
             'bakong_reconcile_enabled' => $request->boolean('bakong_reconcile_enabled'),
+            'bakong_token_renew_days' => $validated['bakong_token_renew_days'] ?? null,
+            'bakong_upstream_daily_limit' => $validated['bakong_upstream_daily_limit'] ?? null,
+            'bakong_failure_backoff' => $validated['bakong_failure_backoff'] ?? null,
+            'bakong_rate_limit_backoff' => $validated['bakong_rate_limit_backoff'] ?? null,
+            'bakong_reconcile_grace' => $validated['bakong_reconcile_grace'] ?? null,
         ])->save();
 
         // AFTER the settings save, deliberately: importToken() stamps the row

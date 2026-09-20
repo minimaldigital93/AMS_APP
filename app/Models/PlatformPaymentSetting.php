@@ -36,6 +36,11 @@ class PlatformPaymentSetting extends Model
         'bakong_qr_ttl',
         'bakong_max_verify_attempts',
         'bakong_reconcile_enabled',
+        'bakong_token_renew_days',
+        'bakong_upstream_daily_limit',
+        'bakong_failure_backoff',
+        'bakong_rate_limit_backoff',
+        'bakong_reconcile_grace',
         'merchant_name',
         'merchant_city',
         'currency',
@@ -57,6 +62,11 @@ class PlatformPaymentSetting extends Model
             'bakong_verify_cooldown' => 'integer',
             'bakong_qr_ttl' => 'integer',
             'bakong_max_verify_attempts' => 'integer',
+            'bakong_token_renew_days' => 'integer',
+            'bakong_upstream_daily_limit' => 'integer',
+            'bakong_failure_backoff' => 'integer',
+            'bakong_rate_limit_backoff' => 'integer',
+            'bakong_reconcile_grace' => 'integer',
         ];
     }
 

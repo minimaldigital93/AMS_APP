@@ -206,6 +206,18 @@
                        class="underline">{{ rtrim(config('bakong.base_url'), '/') }}/register</a>
                 </p>
                 <p class="mt-1 text-xs text-gray-400">{{ __('messages.bakong_token_blank_note') }}</p>
+
+                {{-- Belongs beside the token rather than with the quota
+                     numbers: it is the token's lifecycle. It is ALSO a quota
+                     decision, because a renewal spends a request. --}}
+                <div class="mt-3 sm:w-56">
+                    <label class="block text-sm font-medium text-gray-700">{{ __('messages.bakong_renew_days_label') }}</label>
+                    <input type="number" name="bakong_token_renew_days"
+                           value="{{ old('bakong_token_renew_days', $settings?->bakong_token_renew_days) }}"
+                           placeholder="{{ $envDefaults['bakong.token_renew_days'] }}"
+                           class="mt-1 w-full rounded-lg border-gray-300 text-sm focus:border-indigo-500 focus:ring-indigo-500">
+                    <p class="mt-1 text-xs text-gray-500">{{ __('messages.bakong_renew_days_hint') }}</p>
+                </div>
             </div>
         </div>
 
@@ -225,6 +237,10 @@
                     ['bakong_verify_cooldown',     'bakong.verify_cooldown',     'bakong_cooldown_label',    'bakong_cooldown_hint'],
                     ['bakong_qr_ttl',              'bakong.qr_ttl',              'bakong_qr_ttl_label',      'bakong_qr_ttl_hint'],
                     ['bakong_max_verify_attempts', 'bakong.max_verify_attempts', 'bakong_max_attempts_label','bakong_max_attempts_hint'],
+                    ['bakong_upstream_daily_limit', 'bakong.upstream_daily_limit','bakong_upstream_limit_label','bakong_upstream_limit_hint'],
+                    ['bakong_failure_backoff',     'bakong.failure_backoff',     'bakong_failure_backoff_label','bakong_failure_backoff_hint'],
+                    ['bakong_rate_limit_backoff',  'bakong.rate_limit_backoff',  'bakong_rate_backoff_label', 'bakong_rate_backoff_hint'],
+                    ['bakong_reconcile_grace',     'bakong.reconcile_grace',     'bakong_reconcile_grace_label','bakong_reconcile_grace_hint'],
                 ] as [$field, $configKey, $label, $hint])
                     <div>
                         {{-- Reserved height: these labels wrap to two lines at

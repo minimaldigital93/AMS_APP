@@ -56,7 +56,26 @@ final class BakongRuntimeConfig
         'bakong_qr_ttl' => 'bakong.qr_ttl',
         'bakong_max_verify_attempts' => 'bakong.max_verify_attempts',
         'bakong_reconcile_enabled' => 'bakong.reconcile_enabled',
+        'bakong_token_renew_days' => 'bakong.token_renew_days',
+        'bakong_upstream_daily_limit' => 'bakong.upstream_daily_limit',
+        'bakong_failure_backoff' => 'bakong.failure_backoff',
+        'bakong_rate_limit_backoff' => 'bakong.rate_limit_backoff',
+        'bakong_reconcile_grace' => 'bakong.reconcile_grace',
     ];
+
+    /**
+     * The config keys this page can override.
+     *
+     * Exposed so a test can hold config/bakong.php against it: a key added
+     * without a field should fail there, not be discovered by an operator who
+     * cannot change it.
+     *
+     * @return array<string, string>
+     */
+    public static function overridableKeys(): array
+    {
+        return self::MAP;
+    }
 
     /**
      * What .env said, captured before anything overrode it.
