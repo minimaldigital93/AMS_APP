@@ -3,10 +3,13 @@
 namespace App\Http\Controllers\SuperAdmin;
 
 use App\Http\Controllers\Controller;
+use App\Models\BakongToken;
 use App\Models\PlatformPaymentSetting;
+use App\Services\Audit\AuditLogger;
 use App\Services\Bakong\BakongPlatformIdentity;
 use App\Services\Bakong\BakongProviderClient;
 use App\Services\Bakong\BakongRuntimeConfig;
+use App\Services\Bakong\BakongTokenService;
 use App\Services\Bakong\BakongUsageReport;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\JsonResponse;
@@ -64,7 +67,7 @@ class PlatformPaymentSettingsController extends Controller
         return response()->json($usage->build());
     }
 
-    public function update(Request $request): RedirectResponse
+    public function update(Request $request, BakongTokenService $tokens, AuditLogger $audit): RedirectResponse
     {
         $validated = $request->validate([
             'currency' => ['required', 'in:USD,KHR'],
@@ -102,6 +105,13 @@ class PlatformPaymentSettingsController extends Controller
             'bakong_qr_ttl' => ['nullable', 'integer', 'min:1', 'max:60'],
             'bakong_max_verify_attempts' => ['nullable', 'integer', 'min:1', 'max:60'],
             'bakong_reconcile_enabled' => ['nullable', 'boolean'],
+
+            // ── the access token ──
+            // The ONE credential on this page. Write-only: validated, handed
+            // straight to the importer, and never rendered back. Blank means
+            // "leave the stored token alone", so saving any other field does
+            // not require re-pasting it.
+            'bakong_token' => ['nullable', 'string'],
         ]);
 
         $settings = PlatformPaymentSetting::current() ?? new PlatformPaymentSetting;
@@ -126,6 +136,33 @@ class PlatformPaymentSettingsController extends Controller
             'bakong_max_verify_attempts' => $validated['bakong_max_verify_attempts'] ?? null,
             'bakong_reconcile_enabled' => $request->boolean('bakong_reconcile_enabled'),
         ])->save();
+
+        // AFTER the settings save, deliberately: importToken() stamps the row
+        // with config('bakong.integrator.email'), and BakongRuntimeConfig has
+        // just pushed the email saved above over .env. Importing first would
+        // key the token to the OLD address and then look it up by the new one,
+        // which is a token that exists and can never be found.
+        if (filled($token = (string) $request->input('bakong_token'))) {
+            BakongRuntimeConfig::apply();
+
+            $result = $tokens->importToken($token);
+
+            // Nothing about the token goes into the flash but its outcome. The
+            // importer's own message is reused so the page and the command
+            // cannot describe the same failure differently.
+            if (! ($result['ok'] ?? false)) {
+                return redirect()->route('superadmin.settings.payment')
+                    ->withErrors(['bakong_token' => $result['message'] ?? __('messages.bakong_token_import_malformed')]);
+            }
+
+            // The VALUE is never logged — only that it changed, and the
+            // fingerprint, which is what lets two reports be told apart
+            // without putting a live credential in the audit table.
+            $audit->record('bakong.token.imported', $settings, [
+                'fingerprint' => BakongToken::current()?->fingerprint(),
+                'source' => 'payment_settings',
+            ]);
+        }
 
         return redirect()->route('superadmin.settings.payment')
             ->with('success', __('messages.payment_settings_saved'));

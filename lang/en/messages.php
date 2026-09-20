@@ -1477,4 +1477,11 @@ return [
     'bakong_reconcile_label' => 'Catch payments whose payer closed the tab',
     'bakong_reconcile_hint' => 'Bakong sends no webhook, so this sweep is the only thing that notices a payment made after the page was closed — and it spends requests on the days nobody does. Leave it off until the meter shows room.',
     'bakong_usage_token_portal' => 'Do not use bakong:token request — that endpoint is documented but returns 404, and the attempt is metered. NBC issues the first token from its portal:',
+    'bakong_token_label' => 'Bakong access token',
+    'bakong_token_stored' => 'Stored',
+    'bakong_token_stored_detail' => 'Fingerprint :fingerprint · expires :date. The token itself is never shown.',
+    'bakong_token_none' => 'No token stored',
+    'bakong_token_placeholder' => 'Paste a new token to replace the stored one',
+    'bakong_token_hint' => 'NBC issues the first token from its developer portal and emails it to your registered address:',
+    'bakong_token_blank_note' => 'Leave blank to keep the stored token. Once stored it is encrypted, never displayed again, and renewed automatically before it expires.',
 ];

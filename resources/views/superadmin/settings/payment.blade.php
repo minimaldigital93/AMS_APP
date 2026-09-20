@@ -164,6 +164,49 @@
                            class="mt-1 w-full rounded-lg border-gray-300 text-sm focus:border-indigo-500 focus:ring-indigo-500">
                 </div>
             </div>
+            {{-- ───────────────────────── the access token ─────────────────────
+                 The only credential on this page, and the only field that is
+                 never rendered back. What is shown instead is the fingerprint
+                 and expiry of what is stored — enough to tell two tokens apart
+                 and to see when this one dies, without putting a live bearer
+                 credential in a browser, a screenshot or a scrollback.
+
+                 It is `password`, autocomplete is off, and it is in
+                 dontFlash() so a validation error elsewhere on this form
+                 cannot bounce it back into old(). --}}
+            <div class="border-t border-gray-100 pt-4">
+                <label class="block text-sm font-medium text-gray-700">{{ __('messages.bakong_token_label') }}</label>
+
+                <div class="mt-1 flex items-center gap-2 text-xs">
+                    @if ($usage['token']['usable'])
+                        <span class="inline-flex items-center rounded-full bg-green-50 px-2 py-0.5 font-medium text-green-700">{{ __('messages.bakong_token_stored') }}</span>
+                        <span class="text-gray-500">{{ __('messages.bakong_token_stored_detail', [
+                            'fingerprint' => $usage['token']['fingerprint'],
+                            'date' => $usage['token']['expires_at_human'] ?? '—',
+                        ]) }}</span>
+                    @else
+                        <span class="inline-flex items-center rounded-full bg-red-50 px-2 py-0.5 font-medium text-red-700">{{ __('messages.bakong_token_none') }}</span>
+                    @endif
+                </div>
+
+                <input type="password" name="bakong_token" value="" autocomplete="off" spellcheck="false"
+                       placeholder="{{ __('messages.bakong_token_placeholder') }}"
+                       class="mt-2 w-full rounded-lg border-gray-300 font-mono text-xs focus:border-indigo-500 focus:ring-indigo-500">
+
+                @error('bakong_token')
+                    <p class="mt-1 text-xs text-red-600">{{ $message }}</p>
+                @enderror
+
+                {{-- Says where it comes from, because the command whose name
+                     matches what the operator wants (`request`) is metered and
+                     404s. --}}
+                <p class="mt-1 text-xs text-gray-500">
+                    {{ __('messages.bakong_token_hint') }}
+                    <a href="{{ rtrim(config('bakong.base_url'), '/') }}/register" target="_blank" rel="noopener noreferrer"
+                       class="underline">{{ rtrim(config('bakong.base_url'), '/') }}/register</a>
+                </p>
+                <p class="mt-1 text-xs text-gray-400">{{ __('messages.bakong_token_blank_note') }}</p>
+            </div>
         </div>
 
         {{-- ──────────────────────── the quota guards ───────────────────────

@@ -163,15 +163,30 @@ it('refuses an integrator email that is not an address', function () {
         ->assertSessionHasErrors('bakong_email');
 });
 
-it('never offers the base URL or the token as a form field', function () {
+it('never offers the base URL as a form field', function () {
     $page = $this->actingAs(superadminFor())
         ->get(route('superadmin.settings.payment'))
         ->assertOk();
 
     // base_url is the host this app POSTs a bearer token to. A form that can
     // repoint it turns a borrowed superadmin session into credential theft, and
-    // the value never changes anyway. The token is never rendered at all.
+    // the value never changes anyway — so unlike the token, it stays in .env.
     $page->assertDontSee('name="bakong_api_base_url"', false)
-        ->assertDontSee('name="base_url"', false)
-        ->assertDontSee('name="bakong_token"', false);
+        ->assertDontSee('name="base_url"', false);
+});
+
+it('offers the token as a WRITE-ONLY field', function () {
+    // The token IS a field now, by request. What makes that acceptable is not
+    // the field's presence but its shape: masked, never pre-filled, and
+    // excluded from flashed input. This asserts the shape, because a later
+    // edit that "helpfully" repopulates it would look like a convenience and
+    // be a credential disclosure. BakongTokenFieldTest pins the behaviour.
+    $html = $this->actingAs(superadminFor())
+        ->get(route('superadmin.settings.payment'))
+        ->assertOk()
+        ->getContent();
+
+    expect($html)->toContain('name="bakong_token"')
+        ->and($html)->toContain('type="password" name="bakong_token" value=""')
+        ->and($html)->toContain('autocomplete="off"');
 });

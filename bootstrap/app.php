@@ -54,6 +54,14 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->statefulApi();
     })
     ->withExceptions(function (Exceptions $exceptions): void {
+        // A failed validation flashes the whole request body back into the
+        // session so the form can be repopulated. The Bakong access token must
+        // never take that ride: it is a bearer credential for money, the
+        // session outlives the request, and a token that reaches old() is a
+        // token the page can render back. Laravel's default list covers
+        // passwords; this one is ours.
+        $exceptions->dontFlash(['bakong_token']);
+
         // A POST body over php.ini's post_max_size throws before the session
         // middleware runs, so a flash-redirect is usually impossible — render
         // the friendly 413 page instead of the framework error page. When a
