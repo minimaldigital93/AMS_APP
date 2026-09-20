@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\PlatformPaymentSetting;
 use App\Services\Bakong\BakongPlatformIdentity;
 use App\Services\Bakong\BakongProviderClient;
+use App\Services\Bakong\BakongRuntimeConfig;
 use App\Services\Bakong\BakongUsageReport;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\JsonResponse;
@@ -46,6 +47,9 @@ class PlatformPaymentSettingsController extends Controller
             // page costs no Bakong request, which is the point — see
             // BakongUsageReport.
             'usage' => $usage->build(),
+            // What each blank field falls back to, so "empty" reads as
+            // "inherits X" rather than as "off".
+            'envDefaults' => BakongRuntimeConfig::envDefaults(),
         ]);
     }
 
@@ -73,6 +77,31 @@ class PlatformPaymentSettingsController extends Controller
             // of silently truncated at build time.
             'merchant_name' => ['nullable', 'string', 'max:25'],
             'merchant_city' => ['nullable', 'string', 'max:15'],
+
+            // ── the switch ──
+            'bakong_enabled' => ['nullable', 'boolean'],
+
+            // ── integrator identity ──
+            // The email is renew_token's ENTIRE payload, so a typo here is
+            // invisible for ninety days and then stops payments. It is
+            // editable precisely because the person who read the verification
+            // code out of the inbox is not the person with shell access.
+            'bakong_email' => ['nullable', 'email', 'max:255'],
+            'bakong_organization' => ['nullable', 'string', 'max:255'],
+            'bakong_project' => ['nullable', 'string', 'max:255'],
+
+            // ── quota guards ──
+            // Bounded, because these are the only thing standing between a
+            // busy day and errorCode 17. The upper bound on the daily limit is
+            // NBC's own ~100: a local ceiling above it cannot bind, and an
+            // operator who sets one has quietly disabled their own safety net.
+            'bakong_daily_request_limit' => ['nullable', 'integer', 'min:1', 'max:'.(int) config('bakong.upstream_daily_limit', 100)],
+            // Must stay well above the browser poll interval (10s) or it
+            // absorbs nothing and every poll becomes a metered request.
+            'bakong_verify_cooldown' => ['nullable', 'integer', 'min:15', 'max:600'],
+            'bakong_qr_ttl' => ['nullable', 'integer', 'min:1', 'max:60'],
+            'bakong_max_verify_attempts' => ['nullable', 'integer', 'min:1', 'max:60'],
+            'bakong_reconcile_enabled' => ['nullable', 'boolean'],
         ]);
 
         $settings = PlatformPaymentSetting::current() ?? new PlatformPaymentSetting;
@@ -82,6 +111,20 @@ class PlatformPaymentSettingsController extends Controller
             'bakong_account_id' => $validated['bakong_account_id'] ?? null,
             'merchant_name' => $validated['merchant_name'] ?? null,
             'merchant_city' => $validated['merchant_city'] ?? null,
+
+            // A blank numeric or text field is stored as NULL, never 0 or '',
+            // because null is what falls back to .env. Clearing a field here
+            // means "stop overriding", not "set it to nothing" — see
+            // BakongRuntimeConfig.
+            'bakong_enabled' => $request->boolean('bakong_enabled'),
+            'bakong_email' => $validated['bakong_email'] ?? null,
+            'bakong_organization' => $validated['bakong_organization'] ?? null,
+            'bakong_project' => $validated['bakong_project'] ?? null,
+            'bakong_daily_request_limit' => $validated['bakong_daily_request_limit'] ?? null,
+            'bakong_verify_cooldown' => $validated['bakong_verify_cooldown'] ?? null,
+            'bakong_qr_ttl' => $validated['bakong_qr_ttl'] ?? null,
+            'bakong_max_verify_attempts' => $validated['bakong_max_verify_attempts'] ?? null,
+            'bakong_reconcile_enabled' => $request->boolean('bakong_reconcile_enabled'),
         ])->save();
 
         return redirect()->route('superadmin.settings.payment')

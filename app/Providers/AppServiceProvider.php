@@ -3,6 +3,7 @@
 namespace App\Providers;
 
 use App\Models\Subscription;
+use App\Services\Bakong\BakongRuntimeConfig;
 use App\Services\NotificationService;
 use App\Services\Payment\PaymentManager;
 use App\Services\Period\WorkingMonthContext;
@@ -40,6 +41,13 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        // The settings page outranks .env for the Bakong operating config, so
+        // the saved row is pushed over config() before anything reads it. Must
+        // happen first: the quota ledger, the provider client and the usage
+        // meter all read these keys, and two of them reading different values
+        // is the failure this replaces. Never throws — see the class.
+        BakongRuntimeConfig::apply();
+
         // Force HTTPS in production or when FORCE_HTTPS is enabled. Read via
         // config (not env()) — env() returns null under config:cache, which is
         // how both the live host and deploy.sh run.

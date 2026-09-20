@@ -27,10 +27,38 @@ class PlatformPaymentSetting extends Model
         'bank_account_number',
         'khqr_image_path',
         'bakong_account_id',
+        'bakong_enabled',
+        'bakong_email',
+        'bakong_organization',
+        'bakong_project',
+        'bakong_daily_request_limit',
+        'bakong_verify_cooldown',
+        'bakong_qr_ttl',
+        'bakong_max_verify_attempts',
+        'bakong_reconcile_enabled',
         'merchant_name',
         'merchant_city',
         'currency',
     ];
+
+    /**
+     * Null survives every cast here (Laravel returns null before casting), and
+     * that matters: null is "not set, read .env", so it must not become false
+     * or 0. See BakongRuntimeConfig.
+     *
+     * @return array<string, string>
+     */
+    protected function casts(): array
+    {
+        return [
+            'bakong_enabled' => 'boolean',
+            'bakong_reconcile_enabled' => 'boolean',
+            'bakong_daily_request_limit' => 'integer',
+            'bakong_verify_cooldown' => 'integer',
+            'bakong_qr_ttl' => 'integer',
+            'bakong_max_verify_attempts' => 'integer',
+        ];
+    }
 
     /** The singleton row, or null when the operator has never saved one. */
     public static function current(): ?self

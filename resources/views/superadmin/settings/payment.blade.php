@@ -112,6 +112,107 @@
             </div>
         </div>
 
+        {{-- ─────────────────── the switch + who we are to NBC ─────────────────
+             These used to be .env only, which meant the person who read the
+             verification code out of the inbox could not correct the address it
+             was sent to without SSH. Every field here falls back to .env when
+             left blank, so clearing one means "stop overriding", not "set it to
+             nothing". --}}
+        <div class="rounded-xl bg-white shadow-sm border border-gray-100 p-5 space-y-4">
+            <div>
+                <h2 class="text-lg font-semibold text-gray-900">{{ __('messages.bakong_api_title') }}</h2>
+                <p class="mt-1 text-sm text-gray-500">{{ __('messages.bakong_api_hint') }}</p>
+            </div>
+
+            <label class="flex items-start gap-3">
+                <input type="hidden" name="bakong_enabled" value="0">
+                <input type="checkbox" name="bakong_enabled" value="1"
+                       @checked(old('bakong_enabled', $settings?->bakong_enabled ?? $envDefaults['bakong.enabled'] ?? false))
+                       class="mt-0.5 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500">
+                <span>
+                    <span class="block text-sm font-medium text-gray-900">{{ __('messages.bakong_enabled_label') }}</span>
+                    {{-- Said plainly because the failure is silent: with this
+                         off, checkout REFUSES rather than falling back. There is
+                         nothing left to fall back to. --}}
+                    <span class="block text-xs text-gray-500">{{ __('messages.bakong_enabled_hint') }}</span>
+                </span>
+            </label>
+
+            <div class="grid gap-4 sm:grid-cols-3">
+                <div class="sm:col-span-3">
+                    <label class="block text-sm font-medium text-gray-700">{{ __('messages.bakong_email_label') }}</label>
+                    <input type="email" name="bakong_email"
+                           value="{{ old('bakong_email', $settings?->bakong_email) }}"
+                           placeholder="{{ $envDefaults['bakong.integrator.email'] ?: __('messages.bakong_not_set') }}"
+                           class="mt-1 w-full rounded-lg border-gray-300 text-sm focus:border-indigo-500 focus:ring-indigo-500">
+                    {{-- The one field on this page whose mistake is invisible
+                         for ninety days: it is renew_token's entire payload. --}}
+                    <p class="mt-1 text-xs text-gray-500">{{ __('messages.bakong_email_hint') }}</p>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700">{{ __('messages.bakong_organization_label') }}</label>
+                    <input type="text" name="bakong_organization"
+                           value="{{ old('bakong_organization', $settings?->bakong_organization) }}"
+                           placeholder="{{ $envDefaults['bakong.integrator.organization'] ?: __('messages.bakong_not_set') }}"
+                           class="mt-1 w-full rounded-lg border-gray-300 text-sm focus:border-indigo-500 focus:ring-indigo-500">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700">{{ __('messages.bakong_project_label') }}</label>
+                    <input type="text" name="bakong_project"
+                           value="{{ old('bakong_project', $settings?->bakong_project) }}"
+                           placeholder="{{ $envDefaults['bakong.integrator.project'] ?: __('messages.bakong_not_set') }}"
+                           class="mt-1 w-full rounded-lg border-gray-300 text-sm focus:border-indigo-500 focus:ring-indigo-500">
+                </div>
+            </div>
+        </div>
+
+        {{-- ──────────────────────── the quota guards ───────────────────────
+             The only thing between a busy day and errorCode 17. They live next
+             to the meter above on purpose: tuning them is a decision made while
+             looking at what today actually spent. --}}
+        <div class="rounded-xl bg-white shadow-sm border border-gray-100 p-5 space-y-4">
+            <div>
+                <h2 class="text-lg font-semibold text-gray-900">{{ __('messages.bakong_quota_title') }}</h2>
+                <p class="mt-1 text-sm text-gray-500">{{ __('messages.bakong_quota_hint') }}</p>
+            </div>
+
+            <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                @foreach ([
+                    ['bakong_daily_request_limit', 'bakong.daily_request_limit', 'bakong_daily_limit_label', 'bakong_daily_limit_hint'],
+                    ['bakong_verify_cooldown',     'bakong.verify_cooldown',     'bakong_cooldown_label',    'bakong_cooldown_hint'],
+                    ['bakong_qr_ttl',              'bakong.qr_ttl',              'bakong_qr_ttl_label',      'bakong_qr_ttl_hint'],
+                    ['bakong_max_verify_attempts', 'bakong.max_verify_attempts', 'bakong_max_attempts_label','bakong_max_attempts_hint'],
+                ] as [$field, $configKey, $label, $hint])
+                    <div>
+                        {{-- Reserved height: these labels wrap to two lines at
+                             some widths and not others, which left the four
+                             inputs on a ragged baseline. --}}
+                        <label class="block text-sm font-medium text-gray-700 sm:min-h-[2.5rem]">{{ __('messages.'.$label) }}</label>
+                        <input type="number" name="{{ $field }}"
+                               value="{{ old($field, $settings?->{$field}) }}"
+                               placeholder="{{ $envDefaults[$configKey] }}"
+                               class="mt-1 w-full rounded-lg border-gray-300 text-sm focus:border-indigo-500 focus:ring-indigo-500">
+                        <p class="mt-1 text-xs text-gray-500">{{ __('messages.'.$hint) }}</p>
+                    </div>
+                @endforeach
+            </div>
+
+            <label class="flex items-start gap-3 border-t border-gray-100 pt-4">
+                <input type="hidden" name="bakong_reconcile_enabled" value="0">
+                <input type="checkbox" name="bakong_reconcile_enabled" value="1"
+                       @checked(old('bakong_reconcile_enabled', $settings?->bakong_reconcile_enabled ?? $envDefaults['bakong.reconcile_enabled'] ?? false))
+                       class="mt-0.5 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500">
+                <span>
+                    <span class="block text-sm font-medium text-gray-900">{{ __('messages.bakong_reconcile_label') }}</span>
+                    {{-- Ships off, and the hint says why rather than just what:
+                         Bakong sends no webhook, so this is the only net for a
+                         payer who closed the tab — and pure spend on the days
+                         nobody does. --}}
+                    <span class="block text-xs text-gray-500">{{ __('messages.bakong_reconcile_hint') }}</span>
+                </span>
+            </label>
+        </div>
+
         <div class="flex justify-end">
             <button type="submit" class="rounded-lg bg-indigo-600 px-5 py-2.5 text-sm font-medium text-white hover:bg-indigo-700 transition">
                 {{ __('messages.save') }}
