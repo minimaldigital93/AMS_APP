@@ -395,6 +395,21 @@ budget go on confirming payments rather than creating them. Two consequences:
   handed the payload to `api.qrserver.com` as a query parameter — putting a live
   payment instruction, with the account id and amount, on a third party's server,
   and making the QR vanish whenever that service was unreachable.
+- **Every amount-bearing QR must carry KHQR tag 99** — creation + expiration,
+  unix milliseconds, 13 digits — or a banking app has no deadline to honour and
+  refuses the code outright as "invalid QR code", however correct everything
+  else about it is (valid TLV, byte-counted lengths, a verifying CRC-16). It is
+  not an EMVCo field, which is exactly why an earlier builder's misuse of it (a
+  bill number) got the whole tag deleted along with the misuse in 2026-09 —
+  "not an EMVCo field" and "not a required field" are different claims, and a
+  test asserting the tag ABSENT let that ship confirmed-green. The expiry
+  written into tag 99 is the payment row's own `expires_at`, already set before
+  the QR is built, so the deadline the payer's banking app shows and the
+  deadline this app enforces are one fact rather than two that can drift; rent
+  QRs pass `config/rent_qr.php`'s own lifetime the same way. An expiry already
+  in the past is floored at one minute — a QR born expired scans as invalid,
+  which is this same bug wearing a different hat.
+  `tests/Feature/Payment/BakongQrTimestampTest.php` pins it.
 
 **Eleven gates, all refusals BEFORE the request** (a refused Bakong request is
 charged exactly like a paid one), cheapest and most absolute first: `disabled`,
@@ -443,6 +458,86 @@ holding it, which we cannot see and cannot count. `errorCode 17` (undocumented:
 "Daily request limit of 100 exceeded") sets it, latched until local midnight and
 exempt from nothing. This is not hypothetical — it is what arrived at a spend of
 six while khqr.cc shared the credential.
+
+#### Superadmin → Payment Settings outranks .env for the whole operating config, not just the payout identity
+
+`App\Services\Bakong\BakongRuntimeConfig` pushes any non-null column on
+`platform_payment_settings` over `config('bakong.…')` in `boot()`, so the page
+and the env vars above are two ways to set the *same* values, not two separate
+ones — and the page wins. It overrides by rewriting `config()` itself rather
+than adding a resolver: there are 52 `config('bakong.…')` read sites across
+services, the quota ledger, commands and views, and a resolver would be 52
+chances to miss one — the one missed being a gate enforcing a stale limit while
+the page showed the new one, the exact "two places disagree" failure this
+integration has already shipped twice.
+
+- **A `null` column means "not set here, read `.env`"**, never false/zero —
+  which is what lets this land on an installation whose settings row predates
+  these columns, and lets CI and a fresh install work before anyone opens the
+  page. `bakong_enabled` is therefore a **nullable boolean**, not a flag
+  defaulting to false (a false default would switch payments off for every
+  existing install the moment the migration ran).
+- **`BakongRuntimeConfig::overridableKeys()`** is asserted against
+  `config/bakong.php` in `BakongSettingsOverrideTest` — a config key added
+  later without a form field fails the test, instead of being discovered by an
+  operator who cannot change it.
+- **Not overridable, on purpose, three different reasons:** `base_url` (the
+  host this app POSTs the bearer token to — a form that can repoint it turns a
+  borrowed superadmin session into credential theft), the demo switches (a
+  "mark it paid" control has no business on a production settings screen), and
+  the HTTP timeouts / unbuilt deeplink block (plumbing, not an operator
+  decision).
+
+**The access token itself is pasteable on the same page too** — the one
+CREDENTIAL among fields that are otherwise identity (account id, merchant name,
+city — all printed inside every QR a customer scans). What makes exposing it
+acceptable is its shape, not its presence: `type=password`, never pre-filled
+(`value=""` always), added to `bootstrap/app.php`'s `dontFlash()` (a failed
+validation elsewhere on the form must not carry a bearer credential into the
+session via `old()`), encrypted at rest, blank-means-keep-the-stored-token, and
+shown back only as fingerprint + expiry, never the value. It is imported
+through `BakongTokenService::importToken()` — the same offline path
+`bakong:token import` uses — run **after** the settings save and a fresh
+`BakongRuntimeConfig::apply()`, because `importToken()` stamps the row with
+`config('bakong.integrator.email')`: importing before the save would key the
+token to the *old* address and then look it up by the new one, a token that
+exists and can never be found. Audited as `bakong.token.imported` with the
+fingerprint only.
+
+`tests/Feature/SuperAdmin/BakongSettingsOverrideTest.php` and
+`tests/Feature/SuperAdmin/BakongTokenFieldTest.php` pin both halves.
+
+#### `request_token` is dead on the live API — `import` is the real first step
+
+NBC's Open API document (v1.0.2) describes `request_token` alongside
+`renew_token`, which is why `bakong:token request` exists — but the endpoint
+404s on the live host, and the request is metered by the *attempt*:
+`bakong_api_calls` records it before the 404 arrives, so a better error message
+would be an explanation delivered one request too late. The document is stale;
+the API is the authority. A first token instead comes from NBC's web portal
+(`/register`) and arrives by email — `bakong:token import` is that path, and it
+is **offline and costs nothing**. `renew` takes over from there for the ~90-day
+cycle. `request` stays in the CLI (a documented endpoint dark today may be lit
+for a particular account, or restored), but its `confirmSpend()` now defaults
+its prompt to **no** — pressing return is not a decision, and a refused Bakong
+request is metered exactly like a successful one — and both the command's own
+warning and the allowance panel's "no token" remedy point at `import` and the
+portal, never at `request`.
+
+**`BAKONG_EMAIL` is two things wearing one name**, and a typo in it is invisible
+everywhere this app looks: locally it's a lookup key (`store()` stamps it on the
+token row, `current()` reads back by that same string, so the two always agree
+with each other); upstream it's the entire payload of `renew_token`. Payments
+mint, verify and settle, and `bakong:token status` reports usable, right up
+until renewal fails ~90 days later with no visible connection to a letter
+mistyped once and copied between hosts. `bakong:token status` now reads the
+email back out of the JWT itself (a claim read costs nothing, the same way
+expiry already was) and reports a mismatch by naming both spellings in full,
+never a diff — the failure being caught is exactly the kind the eye slides
+over. A token carrying no email claim reports that, not a mismatch: a check
+that cries wolf is how the real one gets ignored. It is a report, not a
+correction — which spelling NBC actually holds is their fact, not this app's to
+derive.
 
 #### A refusal is not a verdict — `verifyOutcome()`, not `verify()`
 
