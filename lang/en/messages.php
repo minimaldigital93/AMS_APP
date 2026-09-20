@@ -1437,7 +1437,7 @@ return [
     'bakong_token_not_due' => 'The Bakong token is not due for renewal yet; no request was made.',
     'bakong_request_blocked' => 'The request was refused locally before it was sent (:reason). Nothing was spent against the Bakong allowance.',
     'bakong_unreachable' => 'Bakong could not be reached. Nothing was charged. The request will be retried when the cooldown allows.',
-    'bakong_payment_disabled' => 'Bakong payment is switched off for this installation, so no payment could be started. Nothing was charged. Ask the operator to enable it (BAKONG_API_ENABLED), or settle this by cash or bank transfer instead.',
+    'bakong_payment_disabled' => 'Bakong payment is switched off for this installation, so no payment could be started. Nothing was charged. Ask the operator to enable it, or settle this by cash or bank transfer instead.',
     'bakong_payment_unavailable' => 'The payment service is temporarily unavailable, so no QR could be created. Nothing was charged — please take this payment by cash or bank transfer.',
     'bakong_account_missing' => 'No Bakong account ID is configured, so a KHQR cannot be generated. Add one in Payment Settings.',
     'bakong_scan_title' => 'Scan to pay with KHQR',
