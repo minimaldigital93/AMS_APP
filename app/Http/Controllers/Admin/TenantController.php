@@ -237,7 +237,7 @@ class TenantController extends Controller
      */
     public function show(Tenants $tenant): View
     {
-        $tenant->load(['apartment.floor', 'apartment.activeFixedExpenses', 'rentals.apartment', 'rentals.payments', 'utilities', 'attachments', 'vehicles']);
+        $tenant->load(['apartment.floor', 'apartment.activeFixedExpenses', 'rentals.apartment', 'rentals.payments', 'utilities', 'attachments', 'vehicles', 'user']);
 
         return view('shared.tenants.show', compact('tenant') + ['panel' => 'admin']);
     }

@@ -212,10 +212,10 @@ class UserController extends Controller
         $password = Str::random(10);
         $user->forceFill(['password' => Hash::make($password)])->save();
 
-        return back()->with('success_sticky', __('messages.flash_account_password_reset', [
+        return back()->with('password_reveal', [
             'name' => $user->name,
             'password' => $password,
-        ]));
+        ]);
     }
 
     /**

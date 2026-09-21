@@ -295,8 +295,8 @@ class AccountsController extends Controller
     }
 
     /**
-     * Reset a customer account's login password to a fixed default. The phone
-     * number — their login identifier — is left untouched on purpose.
+     * Reset a customer account's login password to a fresh random value. The
+     * phone number — their login identifier — is left untouched on purpose.
      */
     public function resetPassword(User $account): RedirectResponse
     {
@@ -307,12 +307,13 @@ class AccountsController extends Controller
         $password = Str::random(10);
         $account->forceFill(['password' => Hash::make($password)])->save();
 
-        // Sticky: the message contains the new password — it must stay on
-        // screen until it has been copied (plain 'success' auto-dismisses).
-        return back()->with('success_sticky', __('messages.flash_account_password_reset', [
+        // password_reveal (not success_sticky): the password gets its own
+        // copyable <code> block instead of being glued into a sentence — see
+        // partials/flash.blade.php.
+        return back()->with('password_reveal', [
             'name' => $account->name,
             'password' => $password,
-        ]));
+        ]);
     }
 
     /** Change the account's plan (no payment — superadmin override). */

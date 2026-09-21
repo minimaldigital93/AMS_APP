@@ -23,13 +23,14 @@ it('shows remember-me on the login form', function () {
     $this->get(route('login'))->assertOk()->assertSee('name="remember"', false);
 });
 
-it('flashes a team-member password reset as sticky', function () {
+it('flashes a team-member password reset as a dedicated reveal, not a plain success message', function () {
     $admin = makeAdmin();
     $staff = User::factory()->create(['status' => 'active', 'account_id' => $admin->id]);
     $staff->assignRole('supervisor');
 
     $this->actingAs($admin)
         ->post(route('admin.users.reset-password', $staff))
-        ->assertSessionHas('success_sticky')
-        ->assertSessionMissing('success');
+        ->assertSessionHas('password_reveal')
+        ->assertSessionMissing('success')
+        ->assertSessionMissing('success_sticky');
 });

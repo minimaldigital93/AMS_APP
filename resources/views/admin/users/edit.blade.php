@@ -128,10 +128,10 @@
         <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div>
                 <h2 class="text-sm font-semibold text-gray-900">{{ __('messages.reset_password') }}</h2>
-                <p class="text-sm text-gray-500 mt-1">{{ __('messages.reset_password_help', ['password' => '12345678']) }}</p>
+                <p class="text-sm text-gray-500 mt-1">{{ __('messages.reset_password_help') }}</p>
             </div>
             <form method="POST" action="{{ route('admin.users.reset-password', $user) }}"
-                  data-confirm="{{ __('messages.confirm_reset_password', ['name' => $user->name, 'password' => '12345678']) }}"
+                  data-confirm="{{ __('messages.confirm_reset_password', ['name' => $user->name]) }}"
                   data-confirm-title="{{ __('messages.reset_password') }}"
                   data-confirm-ok="{{ __('messages.confirm_reset_password_ok') }}">
                 @csrf
