@@ -5,11 +5,11 @@
 <div class="max-w-6xl mx-auto space-y-8" x-data="revenueExpense()">
 
     {{-- Header --}}
-    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-            <h1 class="text-2xl font-semibold text-slate-800 tracking-tight">{{ __('messages.revenue_expense') }}</h1>
+    <div class="flex flex-row items-center justify-between gap-3">
+        <div class="min-w-0">
+            <h1 class="text-2xl font-semibold text-slate-800 tracking-tight truncate">{{ __('messages.revenue_expense') }}</h1>
         </div>
-        <div class="flex items-center gap-2">
+        <div class="flex items-center gap-2 shrink-0">
             {{-- Record actions live here now, not in the sidebar: the month on
                  screen rides along so the form opens on the same month. --}}
             @php
@@ -35,7 +35,7 @@
                  fiscal-period switcher remains here (period stays independent). --}}
             @if($fiscalPeriods->count() > 1)
             <form method="GET" action="{{ route($panel.'.revenue_expense.index') }}">
-                <select name="period" onchange="this.form.submit()" class="text-sm border-slate-200 rounded-lg focus:ring-sky-500 focus:border-sky-500">
+                <select name="period" onchange="this.form.submit()" class="text-sm border-slate-200 rounded-lg focus:ring-sky-500 focus:border-sky-500 max-w-[120px] sm:max-w-none">
                     @foreach($fiscalPeriods as $fp)
                     <option value="{{ $fp->id }}" {{ $fp->id === $activePeriod->id ? 'selected' : '' }}>{{ $fp->name }}</option>
                     @endforeach
