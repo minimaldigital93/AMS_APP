@@ -130,7 +130,14 @@ class BakongToken extends Model
             return null;
         }
 
-        return Carbon::createFromTimestamp((int) $claims['exp']);
+        // In the APP timezone, not UTC. Eloquent writes a datetime by
+        // formatting whatever timezone the Carbon carries into a naive
+        // "Y-m-d H:i:s" string, then parses it back in the app timezone — so a
+        // UTC Carbon round-tripped through the column came back shifted by the
+        // offset. Every token was believed to expire 7 hours before it really
+        // did: `isUsable()` went false early and every request in that window
+        // refused with no_token while NBC would still have accepted it.
+        return Carbon::createFromTimestamp((int) $claims['exp'], config('app.timezone'));
     }
 
     /**

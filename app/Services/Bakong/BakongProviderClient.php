@@ -357,17 +357,28 @@ class BakongProviderClient
         ?KhqrPayment $row = null,
         string $target = 'platform',
         int $sessionGrace = 0,
+        ?int $accountId = null,
     ): BakongResult {
+        // A merchant-target call spends the LANDLORD's token against the
+        // LANDLORD's allowance, so it must name the account. Refusing here
+        // rather than falling back to the platform credential is the whole
+        // point: NBC meters per token, and quietly borrowing the platform's
+        // would put every landlord's tenants on the same ~80/day ceiling the
+        // subscriptions depend on — and confirm one party's money with
+        // another party's credential.
+        if ($target === 'merchant' && $accountId === null) {
+            return $this->refuse(self::BLOCK_INVALID_REQUEST, $reason, $endpoint, $target, $row, null);
+        }
         // ---- Gate 1: the master switch. Nothing gets past this. ----
         if (! (bool) config('bakong.enabled')) {
-            return $this->refuse(self::BLOCK_DISABLED, $reason, $endpoint, $target, $row);
+            return $this->refuse(self::BLOCK_DISABLED, $reason, $endpoint, $target, $row, $accountId);
         }
 
         // ---- Gate 2: demo simulates the whole flow and must never transmit.
         // Reaching here in demo is a bug in the caller, not a configuration,
         // hence a distinct reason rather than folding it into 'disabled'.
         if ((bool) config('bakong.demo')) {
-            return $this->refuse(self::BLOCK_DEMO, $reason, $endpoint, $target, $row);
+            return $this->refuse(self::BLOCK_DEMO, $reason, $endpoint, $target, $row, $accountId);
         }
 
         // ---- Gate 3: nowhere to send it. NBC writes the root as {{baseUrl}}
@@ -377,28 +388,28 @@ class BakongProviderClient
         // here passed the old check and produced a confident all-green report
         // with no endpoint configured.
         if (self::baseUrl() === null) {
-            return $this->refuse(self::BLOCK_NOT_CONFIGURED, $reason, $endpoint, $target, $row);
+            return $this->refuse(self::BLOCK_NOT_CONFIGURED, $reason, $endpoint, $target, $row, $accountId);
         }
 
         // ---- Gate 4: a request that cannot be accounted for is not made. ----
         if (! $this->wellFormed($reason, $endpoint, $target, $row)) {
-            return $this->refuse(self::BLOCK_INVALID_REQUEST, $reason, $endpoint, $target, $row);
+            return $this->refuse(self::BLOCK_INVALID_REQUEST, $reason, $endpoint, $target, $row, $accountId);
         }
 
         // ---- Gate 5: nothing to authenticate with. An EXPIRED token counts as
         // absent: Bakong charges a 401 exactly like a successful call, so
         // sending a credential we can already see is dead spends the allowance
         // to be told what we knew for free.
-        $token = $this->usableToken();
+        $token = $this->usableToken($target, $accountId);
 
         if (in_array($endpoint, self::AUTHENTICATED_ENDPOINTS, true) && $token === null) {
-            return $this->refuse(self::BLOCK_NO_TOKEN, $reason, $endpoint, $target, $row);
+            return $this->refuse(self::BLOCK_NO_TOKEN, $reason, $endpoint, $target, $row, $accountId);
         }
 
         // ---- Gate 6: is there actually a payment session to ask about? ----
         if ($row !== null && in_array($reason, self::ROW_BOUND_REASONS, true)
             && ! $row->isActiveBakongSession($sessionGrace)) {
-            return $this->refuse(self::BLOCK_NO_ACTIVE_PAYMENT, $reason, $endpoint, $target, $row);
+            return $this->refuse(self::BLOCK_NO_ACTIVE_PAYMENT, $reason, $endpoint, $target, $row, $accountId);
         }
 
         // ---- Gates 7 & 8: this credential already told us no. ----
@@ -406,8 +417,8 @@ class BakongProviderClient
         // manual diagnostic are the things that FIX a backed-off credential, so
         // a backoff must not be what stops them. Neither is exempt from the 429
         // or the budget, which are about the allowance, not the credential.
-        if ($this->ledger->isRateLimited($target)) {
-            return $this->refuse(self::BLOCK_RATE_LIMITED, $reason, $endpoint, $target, $row);
+        if ($this->ledger->isRateLimited($target, $accountId)) {
+            return $this->refuse(self::BLOCK_RATE_LIMITED, $reason, $endpoint, $target, $row, $accountId);
         }
 
         // NBC itself has said the day is over. NOTHING is exempt from this —
@@ -415,13 +426,13 @@ class BakongProviderClient
         // every one of them would be charged and every one would be refused.
         // Unlike our own ceiling this counts spend we cannot see: the token is
         // shared, so the allowance can be gone while our ledger reads 6 of 80.
-        if ($this->ledger->upstreamExhausted($target) !== null) {
-            return $this->refuse(self::BLOCK_UPSTREAM_EXHAUSTED, $reason, $endpoint, $target, $row);
+        if ($this->ledger->upstreamExhausted($target, $accountId) !== null) {
+            return $this->refuse(self::BLOCK_UPSTREAM_EXHAUSTED, $reason, $endpoint, $target, $row, $accountId);
         }
 
         if (! in_array($reason, self::BACKOFF_EXEMPT_REASONS, true)
-            && $this->ledger->activeBackoff($target) !== null) {
-            return $this->refuse(self::BLOCK_PROVIDER_BACKOFF, $reason, $endpoint, $target, $row);
+            && $this->ledger->activeBackoff($target, $accountId) !== null) {
+            return $this->refuse(self::BLOCK_PROVIDER_BACKOFF, $reason, $endpoint, $target, $row, $accountId);
         }
 
         // ---- Gate 9: one question about one transaction at a time. ----
@@ -431,7 +442,7 @@ class BakongProviderClient
 
         if ($row !== null && $reason === self::REASON_PAYMENT_VERIFICATION) {
             if (! $this->ledger->claimVerifySlot($row->transaction_id)) {
-                return $this->refuse(self::BLOCK_COOLDOWN, $reason, $endpoint, $target, $row);
+                return $this->refuse(self::BLOCK_COOLDOWN, $reason, $endpoint, $target, $row, $accountId);
             }
 
             $slotClaimed = true;
@@ -446,21 +457,21 @@ class BakongProviderClient
                 $this->ledger->releaseVerifySlot($row->transaction_id);
             }
 
-            return $this->refuse(self::BLOCK_ATTEMPTS, $reason, $endpoint, $target, $row);
+            return $this->refuse(self::BLOCK_ATTEMPTS, $reason, $endpoint, $target, $row, $accountId);
         }
 
         // ---- Gate 11: the day's allowance. LAST, and FAILS CLOSED. ----
-        $reservation = $this->ledger->reserve($target, $reason, $endpoint, $row?->id);
+        $reservation = $this->ledger->reserve($target, $reason, $endpoint, $row?->id, $accountId);
 
         if (is_string($reservation)) {
             if ($slotClaimed) {
                 $this->ledger->releaseVerifySlot($row->transaction_id);
             }
 
-            return $this->refuse($reservation, $reason, $endpoint, $target, $row);
+            return $this->refuse($reservation, $reason, $endpoint, $target, $row, $accountId);
         }
 
-        return $this->perform($reservation, $reason, $endpoint, $payload, $token, $target, $row, $slotClaimed);
+        return $this->perform($reservation, $reason, $endpoint, $payload, $token, $target, $row, $slotClaimed, $accountId);
     }
 
     // ------------------------------------------------------------ the request
@@ -482,6 +493,7 @@ class BakongProviderClient
         string $target,
         ?KhqrPayment $row,
         bool $slotClaimed,
+        ?int $accountId = null,
     ): BakongResult {
         $url = self::baseUrl().$endpoint;
         $startedAt = microtime(true);
@@ -491,7 +503,7 @@ class BakongProviderClient
             'reason' => $reason,
             'target' => $target,
             'transaction' => $row?->transaction_id,
-            'spent_today' => $this->ledger->spentToday($target),
+            'spent_today' => $this->ledger->spentToday($target, $accountId),
             'limit' => $this->ledger->limit(),
             // The token is never logged, not even truncated — only a stable
             // fingerprint, so two log lines can be told to be the same
@@ -555,7 +567,7 @@ class BakongProviderClient
             'transaction' => $row?->transaction_id,
         ]);
 
-        $this->reactToRefusal($result, $target, $reason);
+        $this->reactToRefusal($result, $target, $reason, $accountId);
 
         return $result;
     }
@@ -595,12 +607,12 @@ class BakongProviderClient
      * allowance and gets its own, shorter backoff so a spent minute-rate does
      * not silence the token for a quarter of an hour.
      */
-    private function reactToRefusal(BakongResult $result, string $target, string $reason): void
+    private function reactToRefusal(BakongResult $result, string $target, string $reason, ?int $accountId = null): void
     {
         $status = $result->status();
 
         if ($status === 429) {
-            $this->ledger->rateLimited($target, $result->message() ?: 'HTTP 429');
+            $this->ledger->rateLimited($target, $result->message() ?: 'HTTP 429', $accountId);
 
             return;
         }
@@ -609,7 +621,8 @@ class BakongProviderClient
             $this->ledger->backOff(
                 $target,
                 max(1, (int) config('bakong.failure_backoff', 15)),
-                'HTTP '.$status.' '.self::redact($result->message(), 120)
+                'HTTP '.$status.' '.self::redact($result->message(), 120),
+                $accountId
             );
 
             return;
@@ -624,7 +637,7 @@ class BakongProviderClient
         // the same sentence 60 seconds apart.
         if (($errorCode !== null && in_array($errorCode, self::QUOTA_ERROR_CODES, true))
             || self::isQuotaRefusal($message)) {
-            $this->ledger->markUpstreamExhausted($target, self::redact($message, 160));
+            $this->ledger->markUpstreamExhausted($target, self::redact($message, 160), $accountId);
 
             return;
         }
@@ -636,7 +649,8 @@ class BakongProviderClient
             $this->ledger->backOff(
                 $target,
                 max(1, (int) config('bakong.failure_backoff', 15)),
-                'errorCode '.$errorCode.' '.self::redact($result->message(), 120)
+                'errorCode '.$errorCode.' '.self::redact($result->message(), 120),
+                $accountId
             );
         }
     }
@@ -738,8 +752,24 @@ class BakongProviderClient
         }
     }
 
-    private function usableToken(): ?string
+    private function usableToken(string $target, ?int $accountId = null): ?string
     {
+        // The landlord's own credential. Null covers "never set", "switched
+        // off" and "expired" alike — every one of them means there is nothing
+        // to spend, and an expired token is ABSENT rather than broken because
+        // Bakong charges a 401 exactly like a success.
+        if ($target === 'merchant') {
+            if ($accountId === null) {
+                return null;
+            }
+
+            try {
+                return app(MerchantBakongCredentials::class)->tokenFor($accountId);
+            } catch (\Throwable $e) {
+                return null;
+            }
+        }
+
         try {
             $row = BakongToken::current();
         } catch (\Throwable $e) {
@@ -751,7 +781,7 @@ class BakongProviderClient
 
     // --------------------------------------------------------------- refusal
 
-    private function refuse(string $blockedReason, string $reason, string $endpoint, string $target, ?KhqrPayment $row): BakongResult
+    private function refuse(string $blockedReason, string $reason, string $endpoint, string $target, ?KhqrPayment $row, ?int $accountId = null): BakongResult
     {
         $this->ledger->recordBlocked(
             in_array($target, self::TARGETS, true) ? $target : 'platform',
@@ -759,6 +789,7 @@ class BakongProviderClient
             in_array($endpoint, self::ENDPOINTS, true) ? $endpoint : 'unknown',
             $row?->id,
             $blockedReason,
+            $accountId,
         );
 
         Log::info('Bakong provider request blocked', [

@@ -2,6 +2,7 @@
 
 use App\Services\Bakong\BakongQr;
 use App\Services\Bakong\BakongQrService;
+use Carbon\Carbon;
 
 /**
  * THE PAYLOAD IS THE PRODUCT, AND THE KEY.
@@ -194,12 +195,22 @@ it('binds the md5 to the exact string it was taken from', function () {
 
 it('is byte-stable for identical inputs', function () {
     // The payload is stored rather than rebuilt for verification, but it must
-    // still be deterministic: a builder that varied per call (a timestamp, a
-    // random field) would make two QRs for one payment unverifiable.
+    // still be deterministic: a builder that varied per call (a random field,
+    // a reordered tag) would make two QRs for one payment unverifiable.
+    //
+    // The clock is FROZEN because tag 99 stamps creation/expiration in unix
+    // MILLISECONDS, so "the same inputs" includes the instant. Without this the
+    // two builds straddle a millisecond boundary every so often and the test
+    // fails for a reason that has nothing to do with determinism — which is
+    // exactly the kind of red that gets ignored on a payment path.
+    Carbon::setTestNow('2026-08-20 10:00:00');
+
     $a = (new BakongQrService)->build('SUB-46', 99.99, 'ams_test@devb', 'AMS', 'Phnom Penh', 'USD');
     $b = (new BakongQrService)->build('SUB-46', 99.99, 'ams_test@devb', 'AMS', 'Phnom Penh', 'USD');
 
     expect($a->payload)->toBe($b->payload)->and($a->md5)->toBe($b->md5);
+
+    Carbon::setTestNow();
 });
 
 it('changes the md5 when anything that matters changes', function () {

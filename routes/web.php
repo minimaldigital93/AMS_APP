@@ -22,6 +22,7 @@ use App\Http\Controllers\Supervisor\SettingsController as SupervisorSettingsCont
 use App\Http\Controllers\Supervisor\TenantController as SupervisorTenantController;
 use App\Http\Controllers\Supervisor\TenantVehicleController as SupervisorTenantVehicleController;
 use App\Http\Controllers\Tenant\DashboardController as TenantDashboardController;
+use App\Http\Controllers\Tenant\PaymentController as TenantPaymentController;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
 
@@ -99,6 +100,28 @@ Route::get('/supervisor/dashboard', [SupervisorDashboardController::class, 'inde
 Route::get('/tenant/dashboard', [TenantDashboardController::class, 'index'])
     ->middleware(['auth', 'role:tenant'])
     ->name('tenant.dashboard');
+
+// Tenant self-service payments.
+//
+// Deliberately NOT behind `subscription.active`: that middleware sends any
+// non-admin to supervisor.dashboard, which a tenant cannot reach — a lapsed
+// landlord subscription would bounce their tenants into a 403 loop rather than
+// a page. Nor behind `fiscal.period`, which falls through for tenants anyway;
+// the QR path does its own active-period check, where a missing period is a
+// refusal to mint rather than a redirect.
+Route::middleware(['auth', 'role:tenant'])->prefix('tenant')->name('tenant.')->group(function () {
+    Route::get('/payments', [TenantPaymentController::class, 'index'])->name('payments.index');
+    Route::get('/payments/{side}/{year}/{month}', [TenantPaymentController::class, 'show'])
+        ->whereIn('side', ['rent', 'charges'])
+        ->whereNumber(['year', 'month'])
+        ->name('payments.show');
+    Route::post('/payments/{side}/{year}/{month}', [TenantPaymentController::class, 'pay'])
+        ->whereIn('side', ['rent', 'charges'])
+        ->whereNumber(['year', 'month'])
+        ->name('payments.pay');
+    Route::get('/payments/qr/{transaction}', [TenantPaymentController::class, 'qr'])->name('payments.qr');
+    Route::get('/payments/qr/{transaction}/status', [TenantPaymentController::class, 'status'])->name('payments.status');
+});
 
 // SuperAdmin Platform Panel (SaaS layer) — reads across all accounts.
 Route::middleware(['auth', 'role:superadmin'])->prefix('superadmin')->name('superadmin.')->group(function () {
@@ -271,6 +294,7 @@ Route::middleware(['auth', 'role:admin|superadmin', 'subscription.active'])->gro
     // Merchant Payment Settings (bank details, static KHQR, optional KHQRPay API)
     Route::get('/admin/settings/payment', [\App\Http\Controllers\Admin\PaymentSettingsController::class, 'edit'])->name('admin.settings.payment');
     Route::put('/admin/settings/payment', [\App\Http\Controllers\Admin\PaymentSettingsController::class, 'update'])->name('admin.settings.payment.update');
+    Route::delete('/admin/settings/payment/bakong-token', [\App\Http\Controllers\Admin\PaymentSettingsController::class, 'forgetToken'])->name('admin.settings.payment.forget_token');
 
     // Theme Settings (per-user theme picker). MUST be declared before the
     // '/admin/settings/{key}' wildcard below or it gets swallowed by it.
@@ -307,6 +331,11 @@ Route::middleware(['auth', 'role:admin|superadmin', 'subscription.active'])->gro
         Route::delete('/admin/revenue-expense/clear-charges/{rental}', [RevenueExpenseController::class, 'clearTenantCharges'])->name('admin.revenue_expense.clear_charges');
         Route::post('/admin/revenue-expense/checkout', [RevenueExpenseController::class, 'checkoutTenant'])->name('admin.revenue_expense.checkout');
         Route::post('/admin/revenue-expense/collect-outstanding/{tenant}', [RevenueExpenseController::class, 'collectOutstanding'])->name('admin.revenue_expense.collect_outstanding');
+
+        // Tenant-initiated payments awaiting the landlord's confirmation.
+        Route::get('/admin/revenue-expense/pending-payments', [RevenueExpenseController::class, 'pendingPayments'])->name('admin.revenue_expense.pending_payments');
+        Route::post('/admin/revenue-expense/pending-payments/{transaction}/confirm', [RevenueExpenseController::class, 'confirmPendingPayment'])->name('admin.revenue_expense.pending_confirm');
+        Route::post('/admin/revenue-expense/pending-payments/{transaction}/reject', [RevenueExpenseController::class, 'rejectPendingPayment'])->name('admin.revenue_expense.pending_reject');
         Route::delete('/admin/revenue-expense/payments/{payment}/reverse', [RevenueExpenseController::class, 'reversePayment'])->name('admin.revenue_expense.reverse_payment');
         // KHQR (KHQRPay) dynamic-QR payment
         Route::post('/admin/revenue-expense/khqr/generate', [RevenueExpenseController::class, 'khqrGenerate'])->name('admin.revenue_expense.khqr_generate');
@@ -394,6 +423,11 @@ Route::middleware(['auth', 'role:supervisor|admin|superadmin', 'subscription.act
         Route::delete('/revenue-expense/clear-charges/{rental}', [SupervisorRevenueExpenseController::class, 'clearTenantCharges'])->name('supervisor.revenue_expense.clear_charges');
         Route::post('/revenue-expense/checkout', [SupervisorRevenueExpenseController::class, 'checkoutTenant'])->name('supervisor.revenue_expense.checkout');
         Route::post('/revenue-expense/collect-outstanding/{tenant}', [SupervisorRevenueExpenseController::class, 'collectOutstanding'])->name('supervisor.revenue_expense.collect_outstanding');
+
+        // Tenant-initiated payments awaiting the landlord's confirmation.
+        Route::get('/revenue-expense/pending-payments', [SupervisorRevenueExpenseController::class, 'pendingPayments'])->name('supervisor.revenue_expense.pending_payments');
+        Route::post('/revenue-expense/pending-payments/{transaction}/confirm', [SupervisorRevenueExpenseController::class, 'confirmPendingPayment'])->name('supervisor.revenue_expense.pending_confirm');
+        Route::post('/revenue-expense/pending-payments/{transaction}/reject', [SupervisorRevenueExpenseController::class, 'rejectPendingPayment'])->name('supervisor.revenue_expense.pending_reject');
         Route::delete('/revenue-expense/payments/{payment}/reverse', [SupervisorRevenueExpenseController::class, 'reversePayment'])->name('supervisor.revenue_expense.reverse_payment');
         // KHQR (KHQRPay) dynamic-QR payment
         Route::post('/revenue-expense/khqr/generate', [SupervisorRevenueExpenseController::class, 'khqrGenerate'])->name('supervisor.revenue_expense.khqr_generate');

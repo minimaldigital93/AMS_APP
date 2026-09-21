@@ -83,6 +83,9 @@ function bakongRace(int $workers, Closure $work, ?Closure $beforeFork = null): a
         $table->string('endpoint', 64);
         $table->string('reason', 32);
         $table->string('target', 16)->default('platform');
+        // Mirrors the real schema: whose allowance the call was charged to.
+        // Null is the platform's own budget.
+        $table->unsignedBigInteger('account_id')->nullable();
         $table->unsignedBigInteger('khqr_payment_id')->nullable();
         $table->boolean('allowed');
         $table->string('blocked_reason', 32)->nullable();

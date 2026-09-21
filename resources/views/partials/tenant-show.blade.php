@@ -774,7 +774,8 @@
                         @else
                             <div class="bg-white rounded-xl border border-slate-100 divide-y divide-slate-100">
                                 @foreach($histRentRows as $row)
-                                    <div class="flex items-center justify-between gap-3 px-3 py-2.5">
+                                    <div class="px-3 py-2.5">
+                                    <div class="flex items-center justify-between gap-3">
                                         <span class="text-sm font-medium text-slate-700 w-20 shrink-0">{{ $row['label'] }}</span>
                                         <span class="text-sm font-semibold {{ $row['paid'] ? 'text-emerald-700' : 'text-slate-400' }} flex-1 text-right">{{ money($row['amount_paid'] ?? $row['rent_amount']) }}</span>
                                         <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium w-16 justify-center shrink-0 {{ $row['paid'] ? 'bg-emerald-50 text-emerald-600' : 'bg-red-50 text-red-600' }}">{{ $row['paid'] ? __('messages.paid') : __('messages.unpaid') }}</span>
@@ -790,6 +791,29 @@
                                         @else
                                             <span class="w-7 shrink-0"></span>
                                         @endif
+                                    </div>
+
+                                    {{-- How the money actually arrived. Without
+                                         this the row says a month was paid but
+                                         not by what means, and a tenant's KHQR
+                                         payment cannot be matched to a bank
+                                         statement or told apart from cash. --}}
+                                    @if($row['paid'])
+                                        <div class="flex flex-wrap items-center gap-x-2 gap-y-0.5 mt-1 pl-20 text-[11px] text-slate-400">
+                                            @if($row['payment_method'])
+                                                <span class="font-medium text-slate-500">{{ __('messages.'.$row['payment_method']) }}</span>
+                                            @endif
+                                            @if($row['paid_at'])
+                                                <span>· {{ $row['paid_at']->format('M j, Y') }}</span>
+                                            @endif
+                                            @if(($row['late_fee'] ?? 0) > 0)
+                                                <span>· {{ __('messages.late_fee') }} {{ money($row['late_fee']) }}</span>
+                                            @endif
+                                            @if($row['transaction_reference'])
+                                                <span class="font-mono">· {{ $row['transaction_reference'] }}</span>
+                                            @endif
+                                        </div>
+                                    @endif
                                     </div>
                                 @endforeach
                             </div>

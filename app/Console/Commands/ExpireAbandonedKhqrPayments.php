@@ -54,6 +54,18 @@ class ExpireAbandonedKhqrPayments extends Command
         $rows = KhqrPayment::query()
             ->whereIn('status', PaymentStatus::openValues())
             ->where('channel', 'api')
+            // RENT IS NEVER SWEPT ON AGE ALONE.
+            //
+            // Since landlords can hold their own Bakong token, a rent QR is
+            // minted channel='api' too — but expiring one here would close a
+            // payment nobody has actually asked Bakong about. A tenant who paid
+            // and then closed the page would have their money silently written
+            // out of the books AND removed from the landlord's confirmation
+            // queue, which is the one place it was still visible.
+            //
+            // A rent row is resolved by an answer — the tenant's poll, or the
+            // landlord confirming or rejecting it — never by a clock.
+            ->where(fn ($q) => $q->whereNull('settlement_target')->orWhere('settlement_target', '!=', 'merchant'))
             ->where(fn ($q) => $q
                 ->where('expires_at', '<', $cutoff)
                 ->orWhere(fn ($legacy) => $legacy->whereNull('expires_at')->where('created_at', '<', $cutoff)))

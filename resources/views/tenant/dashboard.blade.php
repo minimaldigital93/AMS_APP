@@ -85,6 +85,23 @@
         </div>
     </div>
 
+    {{-- What is owed, and the way to pay it. The stats below are a summary;
+         this is the one line the tenant can act on. --}}
+    @if($rental && $paymentStats['outstanding'] > 0)
+    <a href="{{ route('tenant.payments.index') }}"
+       class="block rounded-xl bg-amber-50 border border-amber-200 p-4 sm:p-5 hover:bg-amber-100 transition">
+        <div class="flex items-center justify-between gap-4">
+            <div>
+                <p class="text-sm font-medium text-amber-800">{{ __('messages.total_outstanding') }}</p>
+                <p class="text-2xl sm:text-3xl font-bold text-amber-900 mt-0.5">{{ money($paymentStats['outstanding']) }}</p>
+            </div>
+            <span class="shrink-0 px-4 py-2.5 rounded-lg bg-indigo-600 text-white text-sm font-semibold">
+                {{ __('messages.my_payments') }} &rarr;
+            </span>
+        </div>
+    </a>
+    @endif
+
     {{-- Apartment & Payment Stats --}}
     @if($rental)
     <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">

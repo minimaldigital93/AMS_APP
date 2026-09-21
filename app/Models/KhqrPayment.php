@@ -23,6 +23,7 @@ class KhqrPayment extends Model
         'subscription_id',
         'fiscal_period_id',
         'user_id',
+        'initiated_by_user_id',
         'amount',
         'currency',
         'status',
@@ -72,6 +73,27 @@ class KhqrPayment extends Model
     public function subscription(): BelongsTo
     {
         return $this->belongsTo(Subscription::class, 'subscription_id');
+    }
+
+    /** Who started the payment — null on rows minted before tenants could. */
+    public function initiatedBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'initiated_by_user_id');
+    }
+
+    /**
+     * Rent sessions a tenant started and nobody has settled yet.
+     *
+     * This is the landlord's queue: money the payer says they have sent, which
+     * only the landlord can confirm against their own bank. A landlord-started
+     * session is deliberately excluded — it is already on the screen that
+     * created it, and listing it twice invites a double confirmation.
+     */
+    public function scopeAwaitingLandlord($query)
+    {
+        return $query->whereNotNull('rental_id')
+            ->whereNotNull('initiated_by_user_id')
+            ->whereIn('status', PaymentStatus::openValues());
     }
 
     public function isPaid(): bool

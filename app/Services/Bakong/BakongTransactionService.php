@@ -223,6 +223,24 @@ class BakongTransactionService
      *
      * ONLY a 2xx answer may say UNPAID. Everything else is REFUSED.
      */
+    /**
+     * Whose allowance a row's verification is charged to.
+     *
+     * Null for anything settling to the platform (subscriptions), which keeps
+     * the platform budget spelled exactly as before. For rent it is the
+     * landlord who owns the rental — the same account id every BelongsToAccount
+     * query on that row already resolves to.
+     */
+    public function merchantAccountFor(KhqrPayment $row): ?int
+    {
+        if (($row->settlement_target ?: 'platform') !== 'merchant') {
+            return null;
+        }
+
+        return $row->rental?->account_id
+            ?? $row->rental()->withoutGlobalScopes()->first()?->account_id;
+    }
+
     public function verifyOutcome(KhqrPayment $row, int $sessionGrace = 0): string
     {
         $this->lastBlock = null;
@@ -263,6 +281,11 @@ class BakongTransactionService
             row: $row,
             target: $row->settlement_target ?: 'platform',
             sessionGrace: $sessionGrace,
+            // Rent settles to the landlord, so it is verified with the
+            // landlord's own token against the landlord's own allowance. The
+            // account is derived from the row's rental rather than the session,
+            // because reconcile runs with nobody signed in.
+            accountId: $this->merchantAccountFor($row),
         );
 
         if ($result->wasBlocked()) {

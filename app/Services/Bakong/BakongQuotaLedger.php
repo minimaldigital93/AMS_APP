@@ -56,7 +56,7 @@ class BakongQuotaLedger
      * reporting on. The ceiling itself is enforced by reserve(), which is what
      * makes it unforgettable.
      */
-    public function exhausted(string $target): bool
+    public function exhausted(string $target, ?int $accountId = null): bool
     {
         $limit = $this->limit();
 
@@ -65,7 +65,7 @@ class BakongQuotaLedger
         }
 
         try {
-            return BakongApiCall::spentOn($target) >= $limit;
+            return BakongApiCall::spentOn($target, null, $accountId) >= $limit;
         } catch (\Throwable $e) {
             // Unreadable ledger is not a positive finding that the day is
             // spent. reserve() is where this has to fail closed; answering
@@ -75,10 +75,10 @@ class BakongQuotaLedger
         }
     }
 
-    public function spentToday(string $target): int
+    public function spentToday(string $target, ?int $accountId = null): int
     {
         try {
-            return BakongApiCall::spentOn($target);
+            return BakongApiCall::spentOn($target, null, $accountId);
         } catch (\Throwable $e) {
             return 0;
         }
@@ -100,7 +100,7 @@ class BakongQuotaLedger
      * Returns the ledger row (to be stamped with the outcome afterwards) or a
      * BLOCK_* reason string. FAILS CLOSED on every error path.
      */
-    public function reserve(string $target, string $reason, string $endpoint, ?int $paymentId): BakongApiCall|string
+    public function reserve(string $target, string $reason, string $endpoint, ?int $paymentId, ?int $accountId = null): BakongApiCall|string
     {
         $limit = $this->limit();
 
@@ -110,19 +110,21 @@ class BakongQuotaLedger
             // seam — and not a setting any deployment taking real payments
             // should be using.
             if ($limit <= 0) {
-                return $this->writeAllowed($target, $reason, $endpoint, $paymentId);
+                return $this->writeAllowed($target, $reason, $endpoint, $paymentId, $accountId);
             }
 
-            $lockKey = 'bakong:budget-lock:'.Carbon::now()->toDateString().':'.$target;
+            // The lock is per BUDGET, not per target: two landlords must not
+            // queue behind each other for a ceiling they do not share.
+            $lockKey = 'bakong:budget-lock:'.Carbon::now()->toDateString().':'.$this->budgetKey($target, $accountId);
 
             $reserved = Cache::lock($lockKey, self::LOCK_TTL)->block(
                 self::LOCK_WAIT,
-                function () use ($target, $reason, $endpoint, $paymentId, $limit): BakongApiCall|false {
-                    if (BakongApiCall::spentOn($target) >= $limit) {
+                function () use ($target, $reason, $endpoint, $paymentId, $limit, $accountId): BakongApiCall|false {
+                    if (BakongApiCall::spentOn($target, null, $accountId) >= $limit) {
                         return false;
                     }
 
-                    return $this->writeAllowed($target, $reason, $endpoint, $paymentId);
+                    return $this->writeAllowed($target, $reason, $endpoint, $paymentId, $accountId);
                 }
             );
 
@@ -144,13 +146,14 @@ class BakongQuotaLedger
         }
     }
 
-    private function writeAllowed(string $target, string $reason, string $endpoint, ?int $paymentId): BakongApiCall
+    private function writeAllowed(string $target, string $reason, string $endpoint, ?int $paymentId, ?int $accountId = null): BakongApiCall
     {
         return BakongApiCall::create([
             'called_on' => Carbon::now()->toDateString(),
             'endpoint' => $endpoint,
             'reason' => $reason,
             'target' => $target,
+            'account_id' => $accountId,
             'khqr_payment_id' => $paymentId,
             'allowed' => true,
         ]);
@@ -165,7 +168,7 @@ class BakongQuotaLedger
      * nothing, and counting it would let a burst of correctly-blocked polls
      * lock out the payment that matters.
      */
-    public function recordBlocked(string $target, string $reason, string $endpoint, ?int $paymentId, string $blockedReason): void
+    public function recordBlocked(string $target, string $reason, string $endpoint, ?int $paymentId, string $blockedReason, ?int $accountId = null): void
     {
         try {
             BakongApiCall::create([
@@ -173,6 +176,7 @@ class BakongQuotaLedger
                 'endpoint' => $endpoint,
                 'reason' => $reason,
                 'target' => $target,
+                'account_id' => $accountId,
                 'khqr_payment_id' => $paymentId,
                 'allowed' => false,
                 'blocked_reason' => $blockedReason,
@@ -266,14 +270,14 @@ class BakongQuotaLedger
      * Deliberately NOT tripped by a timeout: a timeout says nothing about the
      * token, and the cooldown already prevents an immediate retry.
      */
-    public function backOff(string $target, int $minutes, string $why): void
+    public function backOff(string $target, int $minutes, string $why, ?int $accountId = null): void
     {
         if ($minutes <= 0) {
             return;
         }
 
         try {
-            Cache::put($this->backoffKey($target), [
+            Cache::put($this->backoffKey($target, $accountId), [
                 'until' => Carbon::now()->addMinutes($minutes)->toIso8601String(),
                 'why' => mb_substr($why, 0, 200),
             ], $minutes * 60);
@@ -283,9 +287,9 @@ class BakongQuotaLedger
     }
 
     /** @return array{until: Carbon, why: string}|null */
-    public function activeBackoff(string $target): ?array
+    public function activeBackoff(string $target, ?int $accountId = null): ?array
     {
-        foreach ([$this->backoffKey($target), $this->rateLimitKey($target)] as $key) {
+        foreach ([$this->backoffKey($target, $accountId), $this->rateLimitKey($target, $accountId)] as $key) {
             try {
                 $entry = Cache::get($key);
             } catch (\Throwable $e) {
@@ -307,12 +311,12 @@ class BakongQuotaLedger
     }
 
     /** Bakong itself answered 429 — a fact about the provider, not our config. */
-    public function rateLimited(string $target, string $why): void
+    public function rateLimited(string $target, string $why, ?int $accountId = null): void
     {
         $minutes = max(1, (int) config('bakong.rate_limit_backoff', 5));
 
         try {
-            Cache::put($this->rateLimitKey($target), [
+            Cache::put($this->rateLimitKey($target, $accountId), [
                 'until' => Carbon::now()->addMinutes($minutes)->toIso8601String(),
                 'why' => mb_substr($why, 0, 200),
             ], $minutes * 60);
@@ -321,10 +325,10 @@ class BakongQuotaLedger
         }
     }
 
-    public function isRateLimited(string $target): bool
+    public function isRateLimited(string $target, ?int $accountId = null): bool
     {
         try {
-            $entry = Cache::get($this->rateLimitKey($target));
+            $entry = Cache::get($this->rateLimitKey($target, $accountId));
         } catch (\Throwable $e) {
             return false;
         }
@@ -350,13 +354,13 @@ class BakongQuotaLedger
      * ("Please try again tomorrow"), and capped at 24h so a clock oddity can
      * never latch it shut for longer than a day.
      */
-    public function markUpstreamExhausted(string $target, string $why): void
+    public function markUpstreamExhausted(string $target, string $why, ?int $accountId = null): void
     {
         $until = Carbon::now()->endOfDay();
         $seconds = max(60, min(86400, (int) Carbon::now()->diffInSeconds($until, false)));
 
         try {
-            Cache::put($this->exhaustedKey($target), [
+            Cache::put($this->exhaustedKey($target, $accountId), [
                 'until' => $until->toIso8601String(),
                 'why' => mb_substr($why, 0, 200),
             ], $seconds);
@@ -364,7 +368,7 @@ class BakongQuotaLedger
             Log::warning('Bakong upstream allowance exhausted — no further requests today', [
                 'target' => $target,
                 'until' => $until->toIso8601String(),
-                'our_own_spend_today' => $this->spentToday($target),
+                'our_own_spend_today' => $this->spentToday($target, $accountId),
                 'why' => mb_substr($why, 0, 200),
             ]);
         } catch (\Throwable $e) {
@@ -374,10 +378,10 @@ class BakongQuotaLedger
     }
 
     /** @return array{until: Carbon, why: string}|null */
-    public function upstreamExhausted(string $target): ?array
+    public function upstreamExhausted(string $target, ?int $accountId = null): ?array
     {
         try {
-            $entry = Cache::get($this->exhaustedKey($target));
+            $entry = Cache::get($this->exhaustedKey($target, $accountId));
         } catch (\Throwable $e) {
             return null;
         }
@@ -393,9 +397,9 @@ class BakongQuotaLedger
             : null;
     }
 
-    private function exhaustedKey(string $target): string
+    private function exhaustedKey(string $target, ?int $accountId = null): string
     {
-        return 'bakong:upstream-exhausted:'.$target;
+        return 'bakong:upstream-exhausted:'.$this->budgetKey($target, $accountId);
     }
 
     /**
@@ -403,24 +407,38 @@ class BakongQuotaLedger
      * having just fixed the credential, so a working token is usable
      * immediately rather than after a wait nobody can explain.
      */
-    public function clearBackoffs(string $target): void
+    public function clearBackoffs(string $target, ?int $accountId = null): void
     {
         try {
-            Cache::forget($this->backoffKey($target));
-            Cache::forget($this->rateLimitKey($target));
-            Cache::forget($this->exhaustedKey($target));
+            Cache::forget($this->backoffKey($target, $accountId));
+            Cache::forget($this->rateLimitKey($target, $accountId));
+            Cache::forget($this->exhaustedKey($target, $accountId));
         } catch (\Throwable $e) {
             // Best-effort.
         }
     }
 
-    private function backoffKey(string $target): string
+    private function backoffKey(string $target, ?int $accountId = null): string
     {
-        return 'bakong:backoff:'.$target;
+        return 'bakong:backoff:'.$this->budgetKey($target, $accountId);
     }
 
-    private function rateLimitKey(string $target): string
+    private function rateLimitKey(string $target, ?int $accountId = null): string
     {
-        return 'bakong:ratelimit:'.$target;
+        return 'bakong:ratelimit:'.$this->budgetKey($target, $accountId);
+    }
+
+    /**
+     * WHOSE allowance this is.
+     *
+     * A null account is the platform's own budget, so every existing key keeps
+     * its exact spelling and nothing cached under the old scheme is orphaned.
+     * A landlord verifying their own tenants' rent gets a budget of their own —
+     * their ceiling, their cooldowns, their exhaustion latch — because they are
+     * spending their own token against NBC's per-token meter.
+     */
+    private function budgetKey(string $target, ?int $accountId): string
+    {
+        return $accountId === null ? $target : $target.':'.$accountId;
     }
 }

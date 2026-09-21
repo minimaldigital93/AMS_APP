@@ -34,8 +34,41 @@ class MerchantPaymentSetting extends Model
         'bank_account_number',
         'khqr_image_path',
         'bakong_account_id',
+        'bakong_enabled',
         'currency',
     ];
+
+    protected function casts(): array
+    {
+        return [
+            // Encrypted at rest, the way the retired provider's secret column
+            // was — this is a live bearer credential for the landlord's bank.
+            'bakong_token' => 'encrypted',
+            'bakong_token_expires_at' => 'datetime',
+            'bakong_token_imported_at' => 'datetime',
+            // Nullable on purpose: null means "not set", never false.
+            'bakong_enabled' => 'boolean',
+        ];
+    }
+
+    /**
+     * The settings row for an account, created if this is the first time the
+     * landlord has saved anything. Bypasses the account scope for the same
+     * reason forAccount() does — it is addressed by explicit account id.
+     */
+    public static function forAccountOrNew(int $accountId): self
+    {
+        $existing = static::forAccount($accountId);
+
+        if ($existing) {
+            return $existing;
+        }
+
+        $row = new static;
+        $row->forceFill(['account_id' => $accountId]);
+
+        return $row;
+    }
 
     /** Resolve (or start) the settings row for an account, bypassing the scope. */
     public static function forAccount(?int $accountId): ?self

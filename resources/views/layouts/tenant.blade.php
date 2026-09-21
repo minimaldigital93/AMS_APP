@@ -64,6 +64,9 @@
     @include('partials.pwa-head')
 </head>
 <body class="ams-themed flex flex-col h-screen" x-data="sidebarState()" x-init="init()">
+    {{-- Suppresses the topbar hamburger on phones: the bottom bar replaces the
+         off-canvas drawer there, exactly as it does on the other panels. --}}
+    @php($useBottomNav = true)
     <!-- Top Bar -->
     @include('layouts.topbar')
 
@@ -157,5 +160,6 @@
     @stack('scripts')
     @include('partials.responsive-tables')
     @include('partials.confirm-modal')
+    @include('layouts.tenant-bottom-nav')
 </body>
 </html>

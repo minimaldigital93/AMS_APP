@@ -477,6 +477,14 @@
             </a>
 
             {{-- Record Income --}}
+            <a href="{{ route('supervisor.revenue_expense.pending_payments') }}" class="submenu-item nav-link flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm {{ request()->routeIs('supervisor.revenue_expense.pending_payments') ? 'text-emerald-700 active' : 'text-gray-700 hover:text-emerald-700' }} transition-all sidebar-transition">
+                <span class="nav-icon sidebar-transition">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                </span>
+                <span class="nav-text truncate sidebar-label">{{ __('messages.pending_tenant_payments') }}</span>
+            </a>
             <a href="{{ route('supervisor.revenue_expense.record_income') }}" class="submenu-item nav-link flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm {{ request()->routeIs('supervisor.revenue_expense.record_income') ? 'text-emerald-700 active' : 'text-gray-700 hover:text-emerald-700' }} transition-all sidebar-transition">
                 <span class="nav-icon sidebar-transition">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">

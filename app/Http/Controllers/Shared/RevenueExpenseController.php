@@ -22,6 +22,7 @@ use App\Models\Attachment;
 use App\Models\BusinessExpense;
 use App\Models\ExpenseCategory;
 use App\Models\FiscalPeriods;
+use App\Models\KhqrPayment;
 use App\Models\MerchantPaymentSetting;
 use App\Models\Payments;
 use App\Models\Rentals;
@@ -33,6 +34,7 @@ use App\Services\Billing\BillingPeriod;
 use App\Services\RevenueExpense\BreakEvenService;
 use App\Services\RevenueExpense\ExpenseRecordingService;
 use App\Services\RevenueExpense\IncomeRecordingService;
+use App\Services\RevenueExpense\KhqrPaymentService;
 use App\Services\RevenueExpense\MonthlyBillingService;
 use App\Services\RevenueExpense\PaymentReversalService;
 use App\Services\RevenueExpense\RevenueExpenseQueryService;
@@ -87,6 +89,71 @@ abstract class RevenueExpenseController extends Controller
     protected function panelView(string $view, array $data = [])
     {
         return view($this->viewName($view), $this->panelViewData($data));
+    }
+
+    /**
+     * Rent payments a TENANT started and nobody has confirmed yet.
+     *
+     * Rent settles into the landlord's own bank, which this app cannot see, so
+     * a tenant-initiated QR can only ever be confirmed by the landlord looking
+     * at their statement. Before this page existed such a session was minted
+     * and then visible to nobody: the tenant saw "waiting for confirmation"
+     * and the landlord was never told there was anything to confirm.
+     *
+     * Deliberately NOT narrowed by the active property. Every other page here
+     * follows PropertyContext, but this one is a work queue for money already
+     * sent — hiding half of it behind a filter the user may have set weeks ago
+     * is how a payment goes unconfirmed. Supervisor property scoping still
+     * applies, because that is a permission rather than a view preference.
+     */
+    public function pendingPayments()
+    {
+        $apartmentIds = $this->supervisorVisibleApartments()->pluck('id');
+
+        $pending = KhqrPayment::awaitingLandlord()
+            ->whereHas('rental', fn ($q) => $q->whereIn('apartment_id', $apartmentIds))
+            ->with(['rental.tenant', 'rental.apartment.floor.property', 'initiatedBy'])
+            ->orderByDesc('created_at')
+            ->get();
+
+        return $this->panelView('pending_payments', ['pending' => $pending]);
+    }
+
+    /**
+     * Confirm a tenant-initiated payment from the queue.
+     *
+     * The trait's khqrConfirm() answers JSON for the in-page checkout panel;
+     * this is the same settlement reached from a plain form, so it redirects
+     * with a flash instead. Ownership is the trait's own ownKhqrPayment() —
+     * re-resolving the rental under the account scope — so the queue cannot
+     * become a way to settle another account's payment by id.
+     */
+    public function confirmPendingPayment(string $transaction, KhqrPaymentService $khqr): RedirectResponse
+    {
+        $row = $this->ownKhqrPayment($transaction);
+
+        if ($row->isPaid()) {
+            return redirect()->route($this->panel().'.revenue_expense.pending_payments')
+                ->with('info', __('messages.flash_tenant_payment_already_settled'));
+        }
+
+        $khqr->confirmManual($row);
+
+        return redirect()->route($this->panel().'.revenue_expense.pending_payments')
+            ->with('success', __('messages.flash_tenant_payment_confirmed'));
+    }
+
+    /** Refuse a tenant-initiated payment that never arrived. Books nothing. */
+    public function rejectPendingPayment(string $transaction, KhqrPaymentService $khqr): RedirectResponse
+    {
+        $row = $this->ownKhqrPayment($transaction);
+
+        if (! $row->isPaid()) {
+            $khqr->rejectManual($row);
+        }
+
+        return redirect()->route($this->panel().'.revenue_expense.pending_payments')
+            ->with('success', __('messages.flash_tenant_payment_rejected'));
     }
 
     /**

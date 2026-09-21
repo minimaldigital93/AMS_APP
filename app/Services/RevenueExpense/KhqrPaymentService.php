@@ -12,6 +12,7 @@ use App\Models\Rentals;
 use App\Models\Subscription;
 use App\Models\User;
 use App\Services\Bakong\BakongQrService;
+use App\Services\Bakong\MerchantBakongCredentials;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -34,18 +35,25 @@ use Illuminate\Support\Facades\Log;
  *
  *  1. THE RENT CHANNEL (Flow B, settlement_target=merchant). A KHQR is built on
  *     this server from the landlord's own Bakong account id — exact amount,
- *     their money, their bank — and shown to the tenant. The landlord confirms
- *     receipt by hand (confirmManual) after checking their banking app, or
- *     rejects it (rejectManual). Nothing auto-confirms it, because nothing is
- *     watching: rent settles directly in the landlord's account, which the
- *     platform's Bakong token cannot see and must not be spent asking about.
+ *     their money, their bank — and shown to the tenant.
  *
- *     Why manual rather than wiring rent through the direct Bakong Open API:
- *     that token is the PLATFORM's, metered at roughly 100 requests a day for
- *     the whole installation. Every landlord's every tenant sharing one
- *     allowance would make the busiest building lock out everyone else — and
- *     would route a rent payment's verification through credentials that have
- *     nothing to do with the account the money lands in.
+ *     HOW IT IS CONFIRMED depends on whether the landlord holds a Bakong token
+ *     of their OWN (merchant_payment_settings.bakong_token):
+ *
+ *       - Without one — the default — the row is minted manual/manual and the
+ *         landlord confirms receipt by hand (confirmManual) after checking
+ *         their banking app, or rejects it (rejectManual). Nothing auto-
+ *         confirms it, because nothing is watching.
+ *       - With one, the row is minted bakong/api and TenantPaymentVerifier
+ *         checks it against that landlord's own credential and own allowance.
+ *
+ *     What must NEVER happen is rent being verified with the PLATFORM's token.
+ *     That one is metered at roughly 100 requests a day for the whole
+ *     installation and is shared with every subscription: every landlord's
+ *     every tenant on it would let the busiest building lock out everyone else,
+ *     and it would confirm one party's money with another party's credentials.
+ *     BakongProviderClient refuses a merchant-target call that names no account
+ *     precisely so that cannot be done by accident.
  *
  *  2. BOOKING (both flows). finalize() replays the stored checkout payload
  *     through IncomeRecordingService::checkout(), idempotent under a row lock,
@@ -66,13 +74,14 @@ class KhqrPaymentService
     /**
      * Create a pending KhqrPayment for a tenant RENT payment (Flow B).
      *
-     * Always the manual channel. The 'api' channel — a dynamic QR minted and
-     * auto-verified at khqr.cc using the landlord's own profile — was removed
-     * with the provider; rows that used it survive in the table and are read
-     * exactly as they were left.
+     * The channel follows the landlord's own credential: 'api' when they hold a
+     * Bakong token that can verify the payment, 'manual' when they do not and
+     * will confirm it by hand. Legacy khqr.cc rows (also 'api') survive in the
+     * table and are read exactly as they were left — no gateway remains that
+     * could answer about them, which is why they are never polled.
      *
      * @param  array  $payload  checkout payload (pay_rent, pay_utilities, rent_amount, late_fee, payment_date, note)
-     * @return KhqrPayment with channel='manual' and the QR payload populated
+     * @return KhqrPayment with the QR payload populated
      */
     public function createQr(Rentals $rental, FiscalPeriods $period, int $userId, float $amount, array $payload): KhqrPayment
     {
@@ -88,6 +97,22 @@ class KhqrPaymentService
 
         $transactionId = 'KHQR-'.$rental->id.'-'.now()->format('YmdHis').'-'.random_int(100, 999);
 
+        // A rent QR is a VERIFIABLE session only when the landlord holds a
+        // Bakong token of their own. That single fact decides three things at
+        // once, which is why it is settled here at mint time rather than
+        // re-derived by each reader:
+        //
+        //   - whether the provider client will answer about it at all
+        //     (isActiveBakongSession() requires bakong/api),
+        //   - whether `khqr:expire-abandoned` may close it — it only touches
+        //     channel='api', and closing a row automatically is only safe when
+        //     a conclusive "unpaid" is actually obtainable,
+        //   - and which gateway a historical row reads back as.
+        //
+        // Without a token it stays manual/manual: the landlord confirms it by
+        // hand and nothing ever expires it on a guess.
+        $verifiable = $this->merchantCanSelfVerify($rental->account_id);
+
         $row = KhqrPayment::create([
             'transaction_id' => $transactionId,
             'rental_id' => $rental->id,
@@ -97,8 +122,8 @@ class KhqrPaymentService
             'currency' => ($settings?->currency) ?: config('rent_qr.currency', 'USD'),
             'status' => 'pending',
             'settlement_target' => 'merchant',
-            'provider' => 'manual',
-            'channel' => 'manual',
+            'provider' => $verifiable ? 'bakong' : 'manual',
+            'channel' => $verifiable ? 'api' : 'manual',
             'checkout_payload' => $payload,
             'expires_at' => now()->addMinutes($this->qrTtlMinutes()),
         ]);
@@ -108,6 +133,26 @@ class KhqrPaymentService
         $row->save();
 
         return $row;
+    }
+
+    /**
+     * Can this landlord's own credential confirm their tenants' payments?
+     *
+     * Resolved locally and defensively — a failure to answer means "no", which
+     * keeps the row on the manual path rather than minting a session nothing
+     * can ever verify.
+     */
+    private function merchantCanSelfVerify(?int $accountId): bool
+    {
+        if ($accountId === null) {
+            return false;
+        }
+
+        try {
+            return app(MerchantBakongCredentials::class)->tokenFor($accountId) !== null;
+        } catch (\Throwable $e) {
+            return false;
+        }
     }
 
     /**

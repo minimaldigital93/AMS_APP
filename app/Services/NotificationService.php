@@ -441,7 +441,7 @@ class NotificationService
                     'amount' => number_format((float) $p->amount, 2),
                 ]),
                 'time' => $p->due_date,
-                'url' => route('tenant.dashboard'),
+                'url' => route('tenant.payments.index'),
             ]);
         }
 
@@ -463,7 +463,7 @@ class NotificationService
                     'amount' => number_format((float) $p->amount, 2),
                 ]),
                 'time' => $p->due_date,
-                'url' => route('tenant.dashboard'),
+                'url' => route('tenant.payments.index'),
             ]);
         }
 
@@ -486,7 +486,7 @@ class NotificationService
                     'date' => $p->paid_at?->format('M d'),
                 ]),
                 'time' => $p->paid_at,
-                'url' => route('tenant.dashboard'),
+                'url' => route('tenant.payments.index'),
             ]);
         }
 
@@ -508,7 +508,7 @@ class NotificationService
                     'amount' => number_format((float) $u->charge_amount, 2),
                 ]),
                 'time' => $u->created_at,
-                'url' => route('tenant.dashboard'),
+                'url' => route('tenant.payments.show', ['side' => 'charges', 'year' => $u->billing_year, 'month' => $u->billing_month]),
             ]);
         }
 

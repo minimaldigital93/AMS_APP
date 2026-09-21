@@ -28,6 +28,7 @@ class BakongApiCall extends Model
         'endpoint',
         'reason',
         'target',
+        'account_id',
         'khqr_payment_id',
         'allowed',
         'blocked_reason',
@@ -53,11 +54,18 @@ class BakongApiCall extends Model
      * a call that was blocked cost Bakong nothing, and counting it would let a
      * burst of correctly-refused polls lock out the payment that matters.
      */
-    public static function spentOn(string $target, ?Carbon $day = null): int
+    public static function spentOn(string $target, ?Carbon $day = null, ?int $accountId = null): int
     {
         return static::query()
             ->whereDate('called_on', ($day ?? Carbon::now())->toDateString())
             ->where('target', $target)
+            // Null is the platform's OWN spend, not "any account" — a landlord
+            // verifying their tenants' rent has a ceiling of their own, and
+            // counting everyone together would let one building exhaust the
+            // allowance for every other. whereNull is therefore deliberate.
+            ->where(fn ($q) => $accountId === null
+                ? $q->whereNull('account_id')
+                : $q->where('account_id', $accountId))
             ->where('allowed', true)
             ->count();
     }

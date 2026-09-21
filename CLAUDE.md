@@ -310,7 +310,15 @@ config block, and the `khqrpay_profile_id` / `khqrpay_secret` /
 records and their audit trail), the `provider` column, and
 `khqr:expire-abandoned` — which is now the *only* thing that will ever close the
 open `channel = 'api'` rows khqr.cc left behind, since no gateway remains to
-give the conclusive unpaid that automatic expiry requires.
+give the conclusive unpaid that automatic expiry requires. It skips
+`settlement_target = 'merchant'` entirely, so the rent rows a landlord verifies
+with their own token are never closed on age — see "A landlord may confirm
+automatically using a token of their own".
+
+The retired `khqrpay_*` columns on `merchant_payment_settings` were the
+landlord's own API credentials, commented at the time as *"enables dynamic-QR
+auto-verification"*. That capability died with the provider rather than with
+the idea, and `bakong_token` / `bakong_enabled` restore it against NBC.
 
 `tests/Feature/Payment/KhqrCcRetiredTest.php` pins this **structurally** rather
 than behaviourally — it greps `app/`, `config/`, `routes/` and `resources/views/`
@@ -341,19 +349,49 @@ endpoint that authenticates every request by its own signature.
 | | Flow A — subscriptions | Flow B — tenant rent |
 |---|---|---|
 | Money goes to | the platform operator | the landlord's own bank |
-| Provider | `bakong` (NBC Open API) | `manual` |
+| Provider | `bakong` (NBC Open API) | `manual`, or `bakong` on the LANDLORD's own token |
 | Payout identity | `BakongPlatformIdentity` → `platform_payment_settings.bakong_account_id`, else `config/bakong.php` | `merchant_payment_settings.bakong_account_id` |
-| Confirmed by | polling `check_transaction_by_md5` | **the landlord**, after checking their banking app |
-| Costs metered requests | yes — verification only | **no — zero, ever** |
-| Config | `config/bakong.php` | `config/rent_qr.php` |
+| Confirmed by | polling `check_transaction_by_md5` | **the landlord** — by hand, or by their own token polling for them |
+| Costs metered requests | yes — verification only | **never the platform's**; the landlord's own allowance when they opt in |
+| Config | `config/bakong.php` | `config/rent_qr.php` + `merchant_payment_settings` |
 
-**Rent is NOT wired through the platform's Bakong token, and that is a decision
-rather than an omission.** That token is metered at roughly 100 requests a day
-for the whole installation: every landlord's every tenant sharing one allowance
-would let the busiest building lock out everyone else, and it would route a rent
-payment's confirmation through credentials belonging to an account the money
-never touches. Rent settles directly with the landlord, whose bank neither this
-app nor NBC's token can see — which is precisely why the landlord is the oracle.
+**Rent is NEVER wired through the PLATFORM's Bakong token, and that is a
+decision rather than an omission.** That token is metered at roughly 100
+requests a day for the whole installation: every landlord's every tenant
+sharing one allowance would let the busiest building lock out everyone else,
+and it would route a rent payment's confirmation through credentials belonging
+to an account the money never touches.
+
+**A landlord may confirm automatically using a token of their own.**
+`merchant_payment_settings.bakong_token` (encrypted, pasted on Admin → Settings
+→ Payment, handled exactly like the superadmin's platform token) plus
+`bakong_enabled`. Then the money, the credential and the quota all belong to
+the same party. The rules:
+
+- **It is OFF until switched on.** No token, not enabled, or an expired token
+  ⇒ the row is minted `manual`/`manual` and the landlord confirms by hand from
+  **Revenue & Expense → Tenant payments to confirm**
+  (`{panel}.revenue_expense.pending_payments`). Silence is the default because
+  the alternative spends an allowance nobody agreed to spend.
+- **A merchant-target call MUST name its account.** `BakongProviderClient::call()`
+  refuses `target: 'merchant'` with a null `accountId` rather than falling back
+  to the platform credential — that fallback is the whole failure mode.
+- **Budgets are per account.** `bakong_api_calls.account_id` (null = the
+  platform's own spend) and `BakongQuotaLedger`'s cache keys carry it, so one
+  landlord's ceiling, cooldowns, backoffs and `errorCode 17` latch are theirs
+  alone. Sharing a single `merchant` budget is the same lock-out bug one level
+  down.
+- **A refusal is still not a verdict.** `TenantPaymentVerifier` acts only on
+  `VERIFY_PAID`; over-limit, backed-off and no-token all leave the row open for
+  the landlord, and the tenant page says the check could not be made.
+- **`khqr:expire-abandoned` never touches rent.** Landlord-verified rent rows
+  are `channel = 'api'` like subscriptions, but a rent row is resolved by an
+  ANSWER, never a clock: expiring one on age would close a payment nobody asked
+  Bakong about and drop it out of the landlord's queue, which is the one place
+  it was still visible.
+
+`tests/Feature/Tenants/TenantAutoConfirmTest.php` and
+`tests/Feature/Payment/MerchantBakongTokenTest.php` pin all of it.
 
 `App\Services\RevenueExpense\KhqrPaymentService` is the rent channel **and** the
 one place a confirmed payment of either flow is BOOKED (`finalize()`,

@@ -80,6 +80,74 @@
             </div>
         </div>
 
+        {{-- The landlord's OWN Bakong credential.
+
+             This is what turns manual confirmation into automatic: with a token
+             of their own, their tenants' payments verify against their own bank
+             and their own daily allowance. It is deliberately not the platform's
+             token — that one is metered at ~80 requests a day for the entire
+             installation and is shared with subscriptions, so one building's
+             rent day would lock out every other landlord and every signup.
+
+             The token is the only credential on this page. Everything else here
+             is printed on the QR a tenant scans. --}}
+        <div class="space-y-4 rounded-xl border border-gray-200 p-4">
+            <div>
+                <h3 class="text-sm font-semibold text-gray-800">{{ __('messages.bakong_auto_confirm_title') }}</h3>
+                <p class="mt-0.5 text-xs text-gray-500">{{ __('messages.bakong_auto_confirm_body') }}</p>
+            </div>
+
+            @if($bakongToken['configured'])
+                <div class="flex flex-wrap items-center justify-between gap-3 rounded-lg bg-gray-50 border border-gray-200 px-4 py-3">
+                    <div class="text-xs text-gray-600">
+                        <p>
+                            <span class="font-medium text-gray-700">{{ __('messages.bakong_token_label') }}</span>
+                            <span class="font-mono">{{ $bakongToken['fingerprint'] }}</span>
+                        </p>
+                        <p class="mt-0.5">
+                            @if($bakongToken['expired'])
+                                <span class="font-medium text-red-600">{{ __('messages.bakong_token_expired_badge') }}</span>
+                            @elseif($bakongToken['expires_at'])
+                                {{ __('messages.expires') }}: {{ $bakongToken['expires_at']->toDayDateTimeString() }}
+                            @else
+                                {{ __('messages.bakong_token_no_expiry') }}
+                            @endif
+                        </p>
+                    </div>
+                    <button type="button"
+                        onclick="document.getElementById('forget-bakong-token').submit()"
+                        class="rounded-lg border border-gray-300 px-3 py-2 text-xs font-medium text-gray-700 hover:bg-gray-100">
+                        {{ __('messages.remove') }}
+                    </button>
+                </div>
+            @endif
+
+            <div>
+                <label class="block text-sm font-medium text-gray-700">{{ __('messages.bakong_token_label') }}</label>
+                {{-- value is ALWAYS empty: a live bearer credential is never
+                     rendered back into a page. Blank on save means keep the
+                     stored one. --}}
+                <input type="password" name="bakong_token" value="" autocomplete="new-password"
+                    placeholder="{{ $bakongToken['configured'] ? __('messages.bakong_token_keep_placeholder') : 'eyJhbGciOi…' }}"
+                    class="mt-1 w-full rounded-lg border-gray-300 text-sm font-mono focus:border-indigo-500 focus:ring-indigo-500">
+                <p class="mt-1 text-xs text-gray-500">{{ __('messages.bakong_token_hint') }}</p>
+                @error('bakong_token')
+                    <p class="mt-1 text-xs text-red-600">{{ $message }}</p>
+                @enderror
+            </div>
+
+            <label class="flex items-start gap-3">
+                <input type="hidden" name="bakong_enabled" value="0">
+                <input type="checkbox" name="bakong_enabled" value="1"
+                    @checked(old('bakong_enabled', $settings?->bakong_enabled ?? false))
+                    class="mt-0.5 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500">
+                <span class="text-sm text-gray-700">
+                    {{ __('messages.bakong_auto_confirm_enable') }}
+                    <span class="block text-xs text-gray-500">{{ __('messages.bakong_auto_confirm_enable_hint') }}</span>
+                </span>
+            </label>
+        </div>
+
         {{-- The static scan-to-pay QR is uploaded on System Settings (one place
              for every uploaded image); this page only says where it lives. --}}
         <div class="rounded-lg border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-600">
@@ -94,6 +162,14 @@
                 {{ __('messages.save') }}
             </button>
         </div>
+    </form>
+
+    {{-- Its own form: removing a credential is a deliberate action, never a
+         side effect of saving a bank name. Outside the settings form because
+         forms cannot nest. --}}
+    <form id="forget-bakong-token" method="POST" action="{{ route('admin.settings.payment.forget_token') }}" class="hidden">
+        @csrf
+        @method('DELETE')
     </form>
 </div>
 @endsection

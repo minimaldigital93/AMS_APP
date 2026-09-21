@@ -184,6 +184,14 @@ class Tenants extends Model
                     // The row the payment-history modal reverses when the rent
                     // was recorded by mistake (PaymentReversalService).
                     'payment_id' => $rentPayment?->id,
+                    // How the money arrived and what identifies it upstream.
+                    // Without these the admin could see THAT a month was paid
+                    // but not how, nor match it against a bank statement — and
+                    // a tenant-initiated KHQR payment was indistinguishable
+                    // from cash taken at the door.
+                    'payment_method' => $rentPayment?->payment_method,
+                    'transaction_reference' => $rentPayment?->transaction_reference,
+                    'late_fee' => (float) ($rentPayment?->late_fee ?? 0),
                     // Total of everything the tenant actually paid this month.
                     'amount_paid' => $monthPayments->isNotEmpty() ? (float) $monthPayments->sum('amount') : null,
                     'pay_date' => $payDate->toDateString(),
