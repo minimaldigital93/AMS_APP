@@ -41,6 +41,7 @@ class PaymentSettingsController extends Controller
         return view('admin.settings.payment', [
             'settings' => MerchantPaymentSetting::forAccount($accountId),
             'bakongToken' => $this->credentials->statusFor($accountId),
+            'bakongDiagnosis' => $this->credentials->diagnose($accountId),
         ]);
     }
 

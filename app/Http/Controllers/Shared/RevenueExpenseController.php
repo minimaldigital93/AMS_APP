@@ -29,6 +29,7 @@ use App\Models\Rentals;
 use App\Models\Tenants;
 use App\Models\Utilities;
 use App\Services\Attachments\AttachmentService;
+use App\Services\Bakong\MerchantBakongCredentials;
 use App\Services\Billing\BillingCycleService;
 use App\Services\Billing\BillingPeriod;
 use App\Services\RevenueExpense\BreakEvenService;
@@ -43,6 +44,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Pagination\LengthAwarePaginator;
+use Illuminate\Support\Facades\Auth;
 
 /**
  * Shared implementation of the Revenue & Expense module used by both the Admin
@@ -106,7 +108,7 @@ abstract class RevenueExpenseController extends Controller
      * is how a payment goes unconfirmed. Supervisor property scoping still
      * applies, because that is a permission rather than a view preference.
      */
-    public function pendingPayments()
+    public function pendingPayments(MerchantBakongCredentials $credentials)
     {
         $apartmentIds = $this->supervisorVisibleApartments()->pluck('id');
 
@@ -116,7 +118,20 @@ abstract class RevenueExpenseController extends Controller
             ->orderByDesc('created_at')
             ->get();
 
-        return $this->panelView('pending_payments', ['pending' => $pending]);
+        // One diagnosis for the whole page: every row here belongs to the same
+        // account (BelongsToAccount), so there is only ever one landlord's
+        // auto-confirm setup to explain, not one per row.
+        $accountId = current_account_id();
+
+        return $this->panelView('pending_payments', [
+            'pending' => $pending,
+            'bakongDiagnosis' => $accountId ? $credentials->diagnose($accountId) : ['active' => false, 'reason' => 'not_configured'],
+            // Only an admin can fix this from here — a supervisor is told to
+            // ask the owner instead of being handed a link that would 403.
+            // Read off the user's role, not the panel, the same split
+            // MonthCloseBacklog::closeUrlFor() makes.
+            'bakongSettingsUrl' => Auth::user()?->hasRole('admin') ? route('admin.settings.payment') : null,
+        ]);
     }
 
     /**

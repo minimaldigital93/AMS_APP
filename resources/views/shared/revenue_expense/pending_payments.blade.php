@@ -24,6 +24,34 @@
         </a>
     </div>
 
+    {{-- Not shown when it's simply "not set up yet" — an empty queue full of
+         manual rows already says that. It speaks up only when auto-confirm is
+         active (so the rows below need a second explanation) or when it's
+         SUPPOSED to be active but a platform-level switch is quietly stopping
+         it, which nothing else on this page would ever reveal. --}}
+    @unless($bakongDiagnosis['reason'] === 'not_configured')
+        <div @class([
+                'rounded-lg border px-4 py-3 text-xs flex flex-wrap items-center justify-between gap-2',
+                'bg-emerald-50 border-emerald-200 text-emerald-700' => $bakongDiagnosis['active'],
+                'bg-amber-50 border-amber-200 text-amber-700' => ! $bakongDiagnosis['active'],
+            ])>
+            <span>
+                @if($bakongDiagnosis['active'])
+                    {{ __('messages.bakong_diag_active') }}
+                @else
+                    {{ __('messages.pending_row_needs_setup') }} {{ __('messages.bakong_diag_'.$bakongDiagnosis['reason']) }}
+                @endif
+            </span>
+            @if(! $bakongDiagnosis['active'])
+                @if($bakongSettingsUrl)
+                    <a href="{{ $bakongSettingsUrl }}" class="font-medium underline shrink-0">{{ __('messages.go_to_payment_settings') }}</a>
+                @else
+                    <span class="shrink-0">{{ __('messages.pending_row_ask_owner') }}</span>
+                @endif
+            @endif
+        </div>
+    @endunless
+
     @if($pending->isEmpty())
         <div class="bg-white rounded-xl border border-slate-100 shadow-sm p-10 text-center">
             <p class="text-slate-500">{{ __('messages.no_pending_tenant_payments') }}</p>
@@ -67,6 +95,18 @@
                             <span class="inline-block mt-1 px-2 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-700">
                                 {{ __('messages.awaiting_confirmation') }}
                             </span>
+                            @if($row->channel === 'api')
+                                <span class="block mt-1 px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-700">
+                                    {{ __('messages.pending_row_auto_checking') }}
+                                </span>
+                            @elseif($bakongDiagnosis['active'])
+                                {{-- channel was decided once, at mint time — a row started
+                                     before auto-confirm was switched on stays manual forever,
+                                     even though new sessions now confirm themselves. --}}
+                                <p class="mt-1 text-xs text-slate-400 max-w-[14rem]">
+                                    {{ __('messages.pending_row_started_before_auto') }}
+                                </p>
+                            @endif
                         </div>
                     </div>
 

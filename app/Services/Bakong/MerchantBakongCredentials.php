@@ -110,6 +110,51 @@ class MerchantBakongCredentials
     }
 
     /**
+     * Why isn't this landlord's auto-confirm live right now — if it isn't?
+     *
+     * `statusFor()` reports the raw settings; this reads them the way
+     * `BakongProviderClient::call()`'s gates would, in the same order, so the
+     * reason given here is the reason a real verification attempt would be
+     * refused. A refusal with no visible cause is exactly what sent the
+     * landlord's-own-token design its "why is this still manual" support
+     * question in the first place — most of the causes ARE visible on this
+     * page already (no token, unchecked box, expired badge), but the platform
+     * master switch is not: a landlord can do everything right here and still
+     * get nothing, with nothing on THIS page to say why.
+     *
+     * @return array{active: bool, reason: string}
+     */
+    public function diagnose(int $accountId): array
+    {
+        $status = $this->statusFor($accountId);
+
+        if (! $status['configured']) {
+            return ['active' => false, 'reason' => 'not_configured'];
+        }
+
+        if (! $status['enabled']) {
+            return ['active' => false, 'reason' => 'not_enabled'];
+        }
+
+        if ($status['expired']) {
+            return ['active' => false, 'reason' => 'expired'];
+        }
+
+        // Same order BakongProviderClient::call() checks them in: the master
+        // switch before demo, because demo can only matter once the switch is
+        // already on.
+        if (! (bool) config('bakong.enabled')) {
+            return ['active' => false, 'reason' => 'platform_disabled'];
+        }
+
+        if ((bool) config('bakong.demo')) {
+            return ['active' => false, 'reason' => 'demo_mode'];
+        }
+
+        return ['active' => true, 'reason' => 'active'];
+    }
+
+    /**
      * What the settings page prints. Never the value — a fingerprint is enough
      * to tell two credentials apart without putting a live one on a screen or
      * in an audit row.

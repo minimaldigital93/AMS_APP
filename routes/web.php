@@ -121,6 +121,13 @@ Route::middleware(['auth', 'role:tenant'])->prefix('tenant')->name('tenant.')->g
         ->name('payments.pay');
     Route::get('/payments/qr/{transaction}', [TenantPaymentController::class, 'qr'])->name('payments.qr');
     Route::get('/payments/qr/{transaction}/status', [TenantPaymentController::class, 'status'])->name('payments.status');
+
+    // Language toggle + logout, reachable on phones: the bottom nav replaces
+    // the off-canvas sidebar there and the sidebar's own logout button never
+    // shows on a phone screen, so without this page a tenant on mobile had no
+    // way to sign out or switch to Khmer. Posts to the existing global
+    // `language.switch` / `logout` routes — this page adds no new write path.
+    Route::get('/settings', [\App\Http\Controllers\Tenant\SettingsController::class, 'edit'])->name('settings');
 });
 
 // SuperAdmin Platform Panel (SaaS layer) — reads across all accounts.

@@ -1544,6 +1544,19 @@ return [
     'bakong_token_expired_badge' => 'Expired — payments are confirmed by hand until you paste a new one',
     'bakong_token_no_expiry' => 'No expiry date could be read from this token.',
     'bakong_token_removed' => 'Access token removed. Payments are confirmed by hand from now on.',
+
+    // Why auto-confirm isn't live, stated plainly — the settings page can show
+    // everything correct and still not work because of the platform switch,
+    // which nothing else on the page explains.
+    'bakong_diag_active' => 'Active — new tenant payments confirm automatically.',
+    'bakong_diag_not_enabled' => 'Your token is valid, but auto-confirm is switched off below — tick the box to turn it on.',
+    'bakong_diag_platform_disabled' => 'Your token and settings here are correct, but Bakong access is currently switched off for this whole platform. Contact support to have it enabled.',
+    'bakong_diag_demo_mode' => 'This server is running Bakong in demo mode, so live verification is switched off here.',
+    'pending_row_auto_checking' => 'Checking automatically via Bakong',
+    'pending_row_started_before_auto' => 'Started before auto-confirm was turned on — confirm this one by hand.',
+    'pending_row_needs_setup' => 'Auto-confirm is not active yet:',
+    'pending_row_ask_owner' => 'Ask the account owner to finish setting it up in Payment Settings.',
+    'go_to_payment_settings' => 'Go to Payment Settings',
     'expires' => 'Expires',
     'waiting_for_payment' => 'Waiting for your payment',
     'waiting_for_payment_hint' => 'Scan the code and pay. This page checks with the bank on its own and updates as soon as the money arrives.',

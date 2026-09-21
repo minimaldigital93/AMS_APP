@@ -97,6 +97,22 @@
                 <p class="mt-0.5 text-xs text-gray-500">{{ __('messages.bakong_auto_confirm_body') }}</p>
             </div>
 
+            {{-- The diagnosis, not just the raw settings. "expired" and "not
+                 configured" are already visible from the fields below, so this
+                 only speaks up for the two causes that would otherwise leave
+                 the landlord staring at a correctly-filled form with no idea
+                 why nothing confirms itself: the checkbox being off, and the
+                 platform-level switch, which nothing else on this page shows. --}}
+            @unless(in_array($bakongDiagnosis['reason'], ['not_configured', 'expired'], true))
+                <div @class([
+                        'rounded-lg border px-4 py-3 text-xs',
+                        'bg-emerald-50 border-emerald-200 text-emerald-700' => $bakongDiagnosis['active'],
+                        'bg-amber-50 border-amber-200 text-amber-700' => ! $bakongDiagnosis['active'],
+                    ])>
+                    {{ __('messages.bakong_diag_'.$bakongDiagnosis['reason']) }}
+                </div>
+            @endunless
+
             @if($bakongToken['configured'])
                 <div class="flex flex-wrap items-center justify-between gap-3 rounded-lg bg-gray-50 border border-gray-200 px-4 py-3">
                     <div class="text-xs text-gray-600">
