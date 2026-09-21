@@ -8,6 +8,7 @@ use App\Services\NotificationService;
 use App\Services\Payment\PaymentManager;
 use App\Services\Period\WorkingMonthContext;
 use App\Services\Property\PropertyContext;
+use App\Services\RevenueExpense\PendingTenantPaymentsCount;
 use App\Services\Subscription\SubscriptionService;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\URL;
@@ -34,6 +35,10 @@ class AppServiceProvider extends ServiceProvider
         // the middleware gate, subscription-block composer and notification
         // due-alert all resolve this service on every page.
         $this->app->singleton(SubscriptionService::class, fn () => new SubscriptionService);
+
+        // The confirmation-queue count is asked for by every nav surface on
+        // every admin/supervisor page render — singleton so its memo holds.
+        $this->app->singleton(PendingTenantPaymentsCount::class, fn () => new PendingTenantPaymentsCount);
     }
 
     /**
@@ -86,6 +91,20 @@ class AppServiceProvider extends ServiceProvider
             $view->with('topbarActiveProperty', $activeProperty);
             $view->with('topbarPropertySelectorEnabled', $propertySelectorEnabled);
             $view->with('topbarShowingAllProperties', $showingAllProperties);
+        });
+
+        // "Tenant payments to confirm" is a work queue, not a destination: with
+        // auto-confirm on it is usually empty, and a permanently empty entry is
+        // one the operator stops seeing. So the four nav surfaces show it only
+        // when it holds something — or when it is the page being looked at, so
+        // confirming the last row doesn't delete the nav entry underneath it.
+        View::composer([
+            'layouts.sidebar',
+            'layouts.supervisor-sidebar',
+            'layouts.bottom-nav',
+            'layouts.supervisor-bottom-nav',
+        ], function ($view) {
+            $view->with('pendingTenantPaymentCount', app(PendingTenantPaymentsCount::class)->count());
         });
 
         // The subscription-expired blocking modal: mirrors EnsureSubscriptionActive

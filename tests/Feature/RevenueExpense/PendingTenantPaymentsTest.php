@@ -256,3 +256,92 @@ it('scopes the queue to a supervisor assigned properties', function () {
 
     expect($other->supervisor_id)->toBe($sup->id);
 });
+
+/*
+ * The queue is a WORK QUEUE, not a destination.
+ *
+ * With auto-confirm on (the landlord's own Bakong token) most rent settles
+ * without anyone pressing anything, so the entry would sit there empty month
+ * after month — and an entry that is permanently empty is one the operator
+ * stops seeing. That matters more here than anywhere else in the nav, because
+ * this page is the ONLY surface where the cases auto-confirm cannot reach stay
+ * visible: the tenant who closed the tab (there is no webhook), a row minted
+ * `manual` before the token was switched on, a Bakong refusal that is not a
+ * verdict, a confirmed payment that failed to book. khqr:expire-abandoned
+ * skips merchant rows, so nothing else will ever close one.
+ *
+ * So the entry appears exactly when it has something to say.
+ */
+it('keeps the queue out of the nav while nothing is waiting', function () {
+    $f = pendingFixture();
+
+    test()->actingAs($f['admin'])
+        ->get(route('admin.dashboard'))
+        ->assertOk()
+        ->assertDontSee(route('admin.revenue_expense.pending_payments'));
+});
+
+it('puts the queue in the nav once a tenant starts a payment', function () {
+    $f = pendingFixture();
+    tenantStartsPayment($f);
+
+    test()->actingAs($f['admin'])
+        ->get(route('admin.dashboard'))
+        ->assertOk()
+        ->assertSee(route('admin.revenue_expense.pending_payments'))
+        ->assertSee(__('messages.pending_tenant_payments'));
+});
+
+it('takes the queue back out of the nav once the landlord has confirmed', function () {
+    $f = pendingFixture();
+    $row = tenantStartsPayment($f);
+
+    test()->actingAs($f['admin'])
+        ->post(route('admin.revenue_expense.pending_confirm', $row->transaction_id));
+
+    test()->actingAs($f['admin'])
+        ->get(route('admin.dashboard'))
+        ->assertOk()
+        ->assertDontSee(route('admin.revenue_expense.pending_payments'));
+});
+
+/**
+ * Confirming the last row must not delete the nav entry out from under the
+ * page the user is standing on.
+ */
+it('keeps the entry while the queue page itself is open', function () {
+    $f = pendingFixture();
+
+    test()->actingAs($f['admin'])
+        ->get(route('admin.revenue_expense.pending_payments'))
+        ->assertOk()
+        ->assertSee(__('messages.no_pending_tenant_payments'))
+        ->assertSee(route('admin.revenue_expense.pending_payments'));
+});
+
+/**
+ * The badge counts what the page it opens would list — same trait, same
+ * apartment set — so a supervisor is never told there is work waiting in a
+ * building that is not theirs.
+ */
+it('counts the nav entry with the same property scope as the page', function () {
+    $f = pendingFixture();
+    $row = tenantStartsPayment($f);
+
+    $sup = makeSupervisor(['account_id' => $f['admin']->id]);
+    Property::create(['name' => 'Elsewhere', 'supervisor_id' => $sup->id]);
+
+    test()->actingAs($sup)
+        ->get(route('supervisor.dashboard'))
+        ->assertOk()
+        ->assertDontSee(route('supervisor.revenue_expense.pending_payments'));
+
+    $f['property']->update(['supervisor_id' => $sup->id]);
+
+    test()->actingAs($sup)
+        ->get(route('supervisor.dashboard'))
+        ->assertOk()
+        ->assertSee(route('supervisor.revenue_expense.pending_payments'));
+
+    expect($row->fresh()->status)->not->toBe(PaymentStatus::Paid->value);
+});

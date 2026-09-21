@@ -37,11 +37,11 @@
         </div>
         <div class="flex items-center gap-2 shrink-0" x-data="{ showFloorPeek: false }">
             @include('partials.floor-quick-view')
-            {{-- Billing & Payments for the month on screen (falls back to the
+            {{-- Revenue & Expense for the month on screen (falls back to the
                  remembered working month when viewing the whole period) --}}
-            <a href="{{ route('admin.revenue_expense.record_income', $isFullPeriod ? [] : ['month' => $displayMonth->month, 'year' => $displayMonth->year]) }}"
+            <a href="{{ route('admin.revenue_expense.index', $isFullPeriod ? [] : ['month' => $displayMonth->month, 'year' => $displayMonth->year]) }}"
                class="inline-flex items-center justify-center w-10 h-10 rounded-lg text-slate-500 bg-white border border-slate-200 hover:bg-slate-50 hover:text-indigo-600 transition shadow-sm"
-               title="{{ __('messages.monthly_billing_payments') }}" aria-label="{{ __('messages.monthly_billing_payments') }}">
+               title="{{ __('messages.revenue_expense') }}" aria-label="{{ __('messages.revenue_expense') }}">
                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V6m0 12v-2m0-14a9 9 0 11-9 9 9 9 0 019-9z"/>
                 </svg>

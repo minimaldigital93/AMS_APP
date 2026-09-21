@@ -180,6 +180,9 @@ app/
       BakongTransactionService     ← mint a subscription QR, verify, poll
       BakongUsageReport            ← the offline allowance report (panel + command)
       BakongPlatformIdentity       ← WHERE subscription money lands
+      BakongRuntimeConfig          ← Payment Settings columns override config('bakong.…')
+      MerchantBakongCredentials    ← the LANDLORD's own token: status, enable, diagnose
+      TenantPaymentVerifier        ← auto-confirms rent on the landlord's own token
     Payment/
       PaymentManager               ← resolves PaymentGateway drivers
       Gateways/BakongGateway       ← subscriptions
@@ -197,7 +200,8 @@ app/
                                       RevenueExpenseQueryService
     Subscription/SubscriptionService
     Tenants/                       ← TenantLeaveProcessor, TenantPendingChargesQuery,
-                                      TenantRentProgressCalculator, LeaseSyncService
+                                      TenantRentProgressCalculator, LeaseSyncService,
+                                      TenantObligationService (what one tenant owes)
     TenantLeaveCalculator          ← move-out proration calculator
     NotificationService
   Enums/
@@ -206,7 +210,7 @@ app/
   Contracts/PaymentGateway         ← interface for payment drivers
   helpers.php                      ← settings(), currency_symbol(), status_label(),
                                       current_account_id()
-routes/web.php                     ← all app routes (role groups, SaaS funnel, KHQR webhook)
+routes/web.php                     ← all app routes (role groups, SaaS funnel, tenant self-service)
 routes/auth.php                    ← Breeze auth routes
 bootstrap/app.php                  ← middleware aliases, trusted proxies, CSRF exemptions
 ```
@@ -389,6 +393,26 @@ the same party. The rules:
   ANSWER, never a clock: expiring one on age would close a payment nobody asked
   Bakong about and drop it out of the landlord's queue, which is the one place
   it was still visible.
+- **A landlord who set it up right and still sees nothing is told why.**
+  `MerchantBakongCredentials::diagnose()` re-reads the settings in the same
+  order `BakongProviderClient::call()`'s gates do — not configured, not
+  enabled, expired, `platform_disabled`, `demo_mode` — so the reason printed is
+  the reason a real verification would be refused. Most of those are already
+  visible on Admin → Settings → Payment (no token, unticked box, expired
+  badge); **`BAKONG_API_ENABLED` is not**, and that is the whole point of the
+  method: a landlord can do everything correctly on their own page and get
+  silence because of a platform switch nothing on that page mentions. It is
+  printed on the settings page and at the top of the confirmation queue, and
+  suppressed on `not_configured` — a queue full of manual rows already says
+  that.
+- **The channel is decided once, at mint time.** `createQr()` stamps
+  `provider`/`channel` from the landlord's credential as it stood then, so a
+  session started before auto-confirm was switched on stays `manual` forever
+  and still needs a hand confirmation; the queue says so on the row. The
+  converse is the invariant to respect when touching that page:
+  `confirmManual()` / `rejectManual()` **refuse a non-manual row outright**
+  (`LogicException`) — a landlord must never hand-confirm a row that Bakong is
+  also answering about, or the same money gets booked from two directions.
 
 `tests/Feature/Tenants/TenantAutoConfirmTest.php` and
 `tests/Feature/Payment/MerchantBakongTokenTest.php` pin all of it.
@@ -400,6 +424,73 @@ reimplementing it, so there is exactly one path from "the money arrived" to "the
 books say so". **`Http::` does not appear anywhere in that file** — keep it that
 way; a rent payment needing a provider again is a new `PaymentGateway` driver,
 not an outbound call reintroduced there.
+
+### A tenant pays their own bill — and it lands in the landlord's queue
+
+`App\Http\Controllers\Tenant\PaymentController` (`tenant.payments.*`,
+`views/tenant/payments/{index,show,qr}.blade.php`) is the tenant's own view of
+what they owe and the way to pay it: the outstanding list → one side of one
+month spelled out → a KHQR → a status poll. It mints through the same
+`KhqrPaymentService::createQr()` the landlord's checkout uses, so a
+tenant-started payment is the rent channel's Flow B like any other.
+
+- **Its route group is deliberately bare** — `auth` + `role:tenant`, and
+  neither `subscription.active` nor `fiscal.period`. `EnsureSubscriptionActive`
+  sends a non-admin to `supervisor.dashboard`, which a tenant cannot reach: a
+  lapsed landlord subscription would bounce every tenant into a 403 loop
+  instead of a page. The mint path does its **own** open-period check, where a
+  missing period refuses to mint rather than redirecting.
+- **Nothing that decides money comes from the request.** The tenancy is
+  resolved from the session user on every action, the amount is re-derived
+  server-side, the payment date is the server clock — there is no tenant id,
+  rental id or amount field to tamper with. The month *is* a URL segment, which
+  is why it is validated against the tenancy rather than trusted. Account scope
+  isolates accounts from each other, **not tenants within one account**, so
+  `ownedSession()` re-resolves the row's rental to the signed-in tenant and
+  404s — never 403s — on a miss: a tenant has no business learning that another
+  transaction id exists.
+- **`TenantObligationService` is a second CALL SITE, not a second derivation.**
+  It asks `BillingCycleService` the same question `recordIncome()` asks and
+  applies the same three-bucket vocabulary and the same two-sided rent/charges
+  split, because the one thing a tenant-facing balance must never do is
+  disagree with the landlord's.
+  `tests/Feature/Tenants/TenantObligationParityTest.php` pins it against the
+  collection page scenario by scenario.
+- **One open session per (side, month).** `pay()` hands back the live QR when
+  one already exists rather than minting a second — two live QRs for one debt
+  is how a tenant pays twice.
+- **A tenant is never quoted a late fee.** `late_fee_suggested` is the
+  landlord's figure to set at collection (it is editable on their checkout
+  form), so the tenant's rent side is `rent_outstanding` alone and the minted
+  row carries `late_fee => 0`.
+- **`khqr_payments.initiated_by_user_id` is what makes the queue exist.**
+  `KhqrPayment::scopeAwaitingLandlord()` = a rental row, started by somebody,
+  still open — which is **Revenue & Expense → Tenant payments to confirm**
+  (`{panel}.revenue_expense.pending_payments`, confirm/reject beside it).
+  A landlord-started session is excluded on purpose: it is already on the
+  screen that created it, and listing it twice invites a double confirmation.
+  Confirming books through `confirmManual()` → `finalize()`, the same single
+  path everything else settles through; rejecting books nothing.
+- **The tenant's status poll contacts nobody by default.** It is a local read,
+  which is why the page may poll as often as it likes; `TenantPaymentVerifier`
+  is what turns it into a Bakong question, and only when the landlord has
+  switched their own token on. The JSON carries `auto` (is this page actually
+  watching for the money, or is only the landlord?) and `gateway_error`, so the
+  page states one or the other instead of spinning in silence.
+- **The tenant panel has three nav surfaces too.** `layouts/tenant-sidebar` +
+  `layouts/tenant-bottom-nav` (dashboard / payments / settings), and
+  `tenant.settings` (`Tenant\SettingsController`) exists only because the
+  bottom nav replaces the off-canvas sidebar on a phone — without it a tenant
+  on mobile had no way to sign out or switch to Khmer. That page posts to the
+  existing global `language.switch` / `logout` routes and adds no write path of
+  its own. Tenant notifications deep-link here now (`tenant.payments.index`,
+  and a new charge to its own `payments.show`) rather than at the dashboard.
+
+`tests/Feature/Tenants/TenantPaymentFlowTest.php`,
+`TenantObligationParityTest.php`, `TenantSettingsPageTest.php` and
+`tests/Feature/RevenueExpense/PendingTenantPaymentsTest.php` pin this side;
+`TenantAutoConfirmTest.php` and `MerchantBakongTokenTest.php` pin the
+auto-confirm half above.
 
 ### SaaS signup funnel
 
@@ -1259,6 +1350,37 @@ Rules behind it:
 
 `tests/Feature/RevenueExpense/PrintReceiptTest.php` pins all of it;
 `SharedPanelViewsTest` renders both modes in both panels.
+
+---
+
+## A tenant's login is a `User` row — the admin fixes it from the tenant page
+
+A tenant has two phone numbers and they are **never synced**: `tenants.phone` is
+contact info (edited on the tenant edit page) and `users.phone` is the actual
+sign-in credential, globally unique like every other login. The "Tenant Login"
+card on the tenant detail page (`partials/tenant-show.blade.php`) is where the
+credential half is corrected — the login phone and a password reset — so an
+admin does not have to hunt the tenant's `User` row down in Team Management.
+
+- **It adds no backend.** Both forms post straight to the existing
+  `Admin\UserController` actions that already manage every login, staff or
+  tenant (`admin.users.update`, `admin.users.reset-password`).
+- **Admin only**, because those routes exist only in the admin route group —
+  the card is hidden on the supervisor panel rather than rendering a form that
+  would 404.
+- A reset flashes **`password_reveal`** (`['name', 'password']`), not
+  `success_sticky`: `partials/flash.blade.php` gives the generated value its
+  own selectable `<code>` + Copy button. Glued into a sentence
+  ("…reset to `Ab12Cd34Ef`.") an admin had nothing to select but the whole
+  sentence, full stop included — paste that into the password field and it can
+  never match. Both `Admin\UserController::resetPassword()` and
+  `SuperAdmin\AccountsController::resetPassword()` use it.
+- The password is shown **once** and never stored in readable form; the phone
+  (the login identifier) is left untouched by a reset.
+
+`tests/Feature/Tenants/TenantLoginManagementTest.php` pins the card, both
+verbs and the two-phones separation; `LoginUxTest` and
+`UserManagementScopingTest` pin the flash shape.
 
 ---
 

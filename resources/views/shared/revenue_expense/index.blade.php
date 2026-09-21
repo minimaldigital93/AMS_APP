@@ -10,6 +10,27 @@
             <h1 class="text-2xl font-semibold text-slate-800 tracking-tight">{{ __('messages.revenue_expense') }}</h1>
         </div>
         <div class="flex items-center gap-2">
+            {{-- Record actions live here now, not in the sidebar: the month on
+                 screen rides along so the form opens on the same month. --}}
+            @php
+                $recordMonthParams = (isset($filterMonth) && $filterMonth)
+                    ? ['month' => $filterMonth, 'year' => $filterYear]
+                    : [];
+            @endphp
+            <a href="{{ route($panel.'.revenue_expense.record_income', $recordMonthParams) }}"
+               class="inline-flex items-center justify-center w-10 h-10 rounded-lg text-emerald-600 bg-emerald-50 border border-emerald-100 hover:bg-emerald-100 transition shadow-sm"
+               title="{{ __('messages.record_income') }}" aria-label="{{ __('messages.record_income') }}">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V6m0 12v-2m0-14a9 9 0 11-9 9 9 9 0 019-9z"/>
+                </svg>
+            </a>
+            <a href="{{ route($panel.'.revenue_expense.record_expense', $recordMonthParams) }}"
+               class="inline-flex items-center justify-center w-10 h-10 rounded-lg text-red-600 bg-red-50 border border-red-100 hover:bg-red-100 transition shadow-sm"
+               title="{{ __('messages.record_expense') }}" aria-label="{{ __('messages.record_expense') }}">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
+                </svg>
+            </a>
             {{-- Property is now chosen from the global top-bar selector; only the
                  fiscal-period switcher remains here (period stays independent). --}}
             @if($fiscalPeriods->count() > 1)

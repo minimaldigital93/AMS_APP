@@ -142,24 +142,19 @@
                             </span>
                             <span>{{ __('messages.dashboard') }}</span>
                         </a>
+                        {{-- Only while something is waiting, or while it is the
+                             page on screen — see the sidebar comment. --}}
+                        @if (($pendingTenantPaymentCount ?? 0) > 0 || request()->routeIs('supervisor.revenue_expense.pending_payments'))
                         <a href="{{ route('supervisor.revenue_expense.pending_payments') }}" class="bn-sheet-link {{ request()->routeIs('supervisor.revenue_expense.pending_payments') ? 'active' : '' }}">
                             <span class="bn-sheet-icon">
                                 <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
                             </span>
                             <span>{{ __('messages.pending_tenant_payments') }}</span>
+                            @if (($pendingTenantPaymentCount ?? 0) > 0)
+                                <span class="ml-auto inline-flex h-5 min-w-[1.25rem] items-center justify-center rounded-md bg-amber-500 px-1.5 text-[0.625rem] font-bold text-white">{{ $pendingTenantPaymentCount }}</span>
+                            @endif
                         </a>
-                        <a href="{{ route('supervisor.revenue_expense.record_income') }}" class="bn-sheet-link {{ request()->routeIs('supervisor.revenue_expense.record_income') ? 'active' : '' }}">
-                            <span class="bn-sheet-icon">
-                                <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V6m0 12v-2m0-14a9 9 0 11-9 9 9 9 0 019-9z"/></svg>
-                            </span>
-                            <span>{{ __('messages.record_income') }}</span>
-                        </a>
-                        <a href="{{ route('supervisor.revenue_expense.record_expense') }}" class="bn-sheet-link {{ request()->routeIs('supervisor.revenue_expense.record_expense') ? 'active' : '' }}">
-                            <span class="bn-sheet-icon">
-                                <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
-                            </span>
-                            <span>{{ __('messages.record_expense') }}</span>
-                        </a>
+                        @endif
                         <a href="{{ route('supervisor.revenue_expense.monthly_calendar') }}" class="bn-sheet-link {{ request()->routeIs('supervisor.revenue_expense.monthly_calendar') ? 'active' : '' }}">
                             <span class="bn-sheet-icon">
                                 <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>

@@ -537,7 +537,10 @@
                 <span class="nav-text truncate sidebar-label">{{ __('messages.dashboard') }}</span>
             </a>
 
-            {{-- Income Records --}}
+            {{-- Tenant payments to confirm — only while there is something to
+                 confirm, or while it is the page on screen. Auto-confirm
+                 settles most rows without anyone pressing anything. --}}
+            @if (($pendingTenantPaymentCount ?? 0) > 0 || request()->routeIs('admin.revenue_expense.pending_payments'))
             <a href="{{ route('admin.revenue_expense.pending_payments') }}" class="submenu-item nav-link flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm {{ request()->routeIs('admin.revenue_expense.pending_payments') ? 'text-blue-700 active' : 'text-gray-700 hover:text-blue-700' }} transition-all sidebar-transition">
                 <span class="nav-icon sidebar-transition">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -545,25 +548,11 @@
                     </svg>
                 </span>
                 <span class="nav-text truncate sidebar-label">{{ __('messages.pending_tenant_payments') }}</span>
+                @if (($pendingTenantPaymentCount ?? 0) > 0)
+                    <span class="sidebar-label ml-auto inline-flex h-5 min-w-[1.25rem] items-center justify-center rounded-md bg-amber-500 px-1.5 text-[0.625rem] font-bold text-white">{{ $pendingTenantPaymentCount }}</span>
+                @endif
             </a>
-            <a href="{{ route('admin.revenue_expense.record_income') }}" class="submenu-item nav-link flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm {{ request()->routeIs('admin.revenue_expense.record_income') ? 'text-blue-700 active' : 'text-gray-700 hover:text-blue-700' }} transition-all sidebar-transition">
-                <span class="nav-icon sidebar-transition">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V6m0 12v-2m0-14a9 9 0 11-9 9 9 9 0 019-9z" />
-                    </svg>
-                </span>
-                <span class="nav-text truncate sidebar-label">{{ __('messages.record_income') }}</span>
-            </a>
-
-            {{-- Expense Records --}}
-            <a href="{{ route('admin.revenue_expense.record_expense') }}" class="submenu-item nav-link flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm {{ request()->routeIs('admin.revenue_expense.record_expense') ? 'text-blue-700 active' : 'text-gray-700 hover:text-blue-700' }} transition-all sidebar-transition">
-                <span class="nav-icon sidebar-transition">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
-                    </svg>
-                </span>
-                <span class="nav-text truncate sidebar-label">{{ __('messages.record_expense') }}</span>
-            </a>
+            @endif
             {{--Calendar View --}}
             <a href="{{ route('admin.revenue_expense.monthly_calendar') }}" class="submenu-item nav-link flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm {{ request()->routeIs('admin.revenue_expense.monthly_calendar') ? 'text-blue-700 active' : 'text-gray-700 hover:text-blue-700' }} transition-all sidebar-transition">
                 <span class="nav-icon sidebar-transition">
