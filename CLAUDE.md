@@ -1358,14 +1358,19 @@ Rules behind it:
 A tenant has two phone numbers and they are **never synced**: `tenants.phone` is
 contact info (edited on the tenant edit page) and `users.phone` is the actual
 sign-in credential, globally unique like every other login. The "Tenant Login"
-card on the tenant detail page (`partials/tenant-show.blade.php`) is where the
-credential half is corrected — the login phone and a password reset — so an
-admin does not have to hunt the tenant's `User` row down in Team Management.
+card on the tenant detail page (`partials/tenant-show.blade.php`) states that
+credential and offers a password reset, so an admin does not have to hunt the
+tenant's `User` row down in Team Management to hand out a new password.
 
-- **It adds no backend.** Both forms post straight to the existing
-  `Admin\UserController` actions that already manage every login, staff or
-  tenant (`admin.users.update`, `admin.users.reset-password`).
-- **Admin only**, because those routes exist only in the admin route group —
+- **The login phone is READ-ONLY there.** It is set from the contact phone when
+  the tenant is created (`TenantController::store()`) and displayed as text
+  afterwards; reassigning a sign-in identifier stays in Team Management
+  (`admin.users.update`), not beside a tenant's profile. The card carried an
+  editable field posting to that route until 2026-09 — don't reintroduce one.
+- **It adds no backend.** The reset posts straight to the existing
+  `Admin\UserController::resetPassword()` that already manages every login,
+  staff or tenant (`admin.users.reset-password`).
+- **Admin only**, because that route exists only in the admin route group —
   the card is hidden on the supervisor panel rather than rendering a form that
   would 404.
 - A reset flashes **`password_reveal`** (`['name', 'password']`), not
@@ -1378,8 +1383,8 @@ admin does not have to hunt the tenant's `User` row down in Team Management.
 - The password is shown **once** and never stored in readable form; the phone
   (the login identifier) is left untouched by a reset.
 
-`tests/Feature/Tenants/TenantLoginManagementTest.php` pins the card, both
-verbs and the two-phones separation; `LoginUxTest` and
+`tests/Feature/Tenants/TenantLoginManagementTest.php` pins the card, the
+read-only phone and the two-phones separation; `LoginUxTest` and
 `UserManagementScopingTest` pin the flash shape.
 
 ---

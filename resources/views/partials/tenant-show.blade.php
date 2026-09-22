@@ -244,39 +244,25 @@
         </div>
     </div>
 
-    {{-- 2b. Tenant Login — admin only, because the routes it posts to
-         (admin.users.update / admin.users.reset-password) only exist in the
-         admin route group. `tenants.phone` (edited on the tenant edit page)
-         is contact info; `users.phone` here is the actual sign-in credential
-         and the two are never synced — this card is the only place either
-         can be corrected without hunting the tenant down in Team Management.
-         No new backend: both forms post straight to the existing
-         Admin\UserController actions that already manage every login,
-         tenant or staff. --}}
+    {{-- 2b. Tenant Login — admin only, because the route it posts to
+         (admin.users.reset-password) only exists in the admin route group.
+         `tenants.phone` (edited on the tenant edit page) is contact info;
+         `users.phone` shown here is the actual sign-in credential, set from
+         the contact phone when the tenant was created and read-only since:
+         the login identifier is not the admin's to reassign from the tenant
+         page. The password reset is the one correction offered here, and it
+         posts straight to the existing Admin\UserController action that
+         already manages every login, tenant or staff. --}}
     @if($role === 'admin' && $tenant->user)
     <div class="bg-white rounded-xl border border-slate-100 p-6">
         <h3 class="text-sm font-medium text-slate-500 uppercase tracking-wide mb-1">{{ __('messages.tenant_login_title') }}</h3>
         <p class="text-xs text-slate-400 mb-4">{{ __('messages.tenant_login_help') }}</p>
 
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
-            <form method="POST" action="{{ route('admin.users.update', $tenant->user) }}" class="space-y-2">
-                @csrf
-                @method('PUT')
-                <input type="hidden" name="name" value="{{ $tenant->user->name }}">
-                <input type="hidden" name="role" value="tenant">
-                <input type="hidden" name="status" value="{{ $tenant->user->status }}">
-                <label class="block text-xs text-slate-400 uppercase tracking-wide">{{ __('messages.login_phone') }}</label>
-                <div class="flex gap-2">
-                    <input type="text" name="phone" value="{{ old('phone', $tenant->user->phone) }}"
-                           class="flex-1 px-3 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 {{ $ringCls }} {{ $errors->has('phone') ? 'border-red-500' : 'border-slate-200' }}">
-                    <button type="submit" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-white text-sm font-medium rounded-lg transition whitespace-nowrap">
-                        {{ __('messages.save') }}
-                    </button>
-                </div>
-                @error('phone')
-                    <p class="text-red-600 text-xs mt-1">{{ $message }}</p>
-                @enderror
-            </form>
+            <div class="space-y-2">
+                <p class="text-xs text-slate-400 uppercase tracking-wide">{{ __('messages.login_phone') }}</p>
+                <p class="text-sm font-medium text-slate-800">{{ $tenant->user->phone ?: '—' }}</p>
+            </div>
 
             <div class="space-y-2">
                 <label class="block text-xs text-slate-400 uppercase tracking-wide">{{ __('messages.new_password') }}</label>

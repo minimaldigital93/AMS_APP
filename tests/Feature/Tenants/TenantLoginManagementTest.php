@@ -5,17 +5,21 @@ use App\Models\User;
 use Illuminate\Support\Facades\Auth;
 
 /**
- * The tenant detail page's "Tenant Login" card lets an admin see and fix a
- * tenant's sign-in phone and reset their password, without hunting the
- * tenant's User row down in Team Management. It adds no new backend — both
- * forms post straight to the existing Admin\UserController actions that
- * already manage every login (tenant or staff), scoped to admin because those
- * routes only exist in the admin route group.
+ * The tenant detail page's "Tenant Login" card shows a tenant's sign-in phone
+ * and lets an admin reset their password, without hunting the tenant's User
+ * row down in Team Management. It adds no new backend — the reset posts
+ * straight to the existing Admin\UserController action that already manages
+ * every login (tenant or staff), scoped to admin because that route only
+ * exists in the admin route group.
+ *
+ * The login phone is **read-only here**: it is set from the contact phone when
+ * the tenant is created, and reassigning a sign-in identifier is Team
+ * Management's job, not something offered beside a tenant's profile.
  *
  * `tenants.phone` (contact info, edited on the tenant edit page) and
- * `users.phone` (the login credential, managed here) are separate columns
- * that are never synced to each other — this file also pins that the card
- * touches one without disturbing the other.
+ * `users.phone` (the login credential) are separate columns that are never
+ * synced to each other — this file also pins that touching one leaves the
+ * other alone.
  */
 beforeEach(function () {
     $this->admin = makeAdmin();
@@ -40,6 +44,15 @@ it('shows the tenant login card with the login phone, not the contact phone', fu
         ->assertSee(__('messages.tenant_login_title'))
         ->assertSee('099-LOGIN-1')
         ->assertSee(__('messages.reset_password'));
+});
+
+it('offers no way to edit the login phone from the tenant page', function () {
+    $response = $this->actingAs($this->admin)->get(route('admin.tenants.show', $this->tenant));
+
+    $response->assertOk()
+        ->assertSee('099-LOGIN-1')
+        ->assertDontSee('name="phone"', false)
+        ->assertDontSee('value="PUT"', false);
 });
 
 it('hides the tenant login card from the supervisor panel', function () {
@@ -69,7 +82,9 @@ it('lets an admin reset a tenant login password without touching the contact pho
     expect(session('password_reveal.name'))->toBe($this->tenantUser->name);
 });
 
-it('lets an admin correct a tenant login phone independently of the contact phone', function () {
+// Team Management is where a login phone is reassigned now — the tenant card
+// only displays it. The two columns still move independently.
+it('lets an admin correct a tenant login phone from team management, independently of the contact phone', function () {
     $this->actingAs($this->admin)
         ->put(route('admin.users.update', $this->tenantUser), [
             'name' => $this->tenantUser->name,
