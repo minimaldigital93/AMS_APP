@@ -14,19 +14,8 @@ use Illuminate\View\View;
 class SettingsController extends Controller
 {
     /**
-     * Money settings — stored in USD, typed in the display currency, and
-     * printed on the rental contract.
-     */
-    public const PRICE_KEYS = [
-        'utility_electricity_price',
-        'utility_water_price',
-        'utility_parking_fee',
-        'utility_internet_fee',
-        'utility_garbage_fee',
-    ];
-
-    /**
-     * The settings page: stored values plus the defaults every form field needs.
+     * The settings page: a link per section, plus the System Preferences rows
+     * that are too small to be worth a page of their own.
      */
     public function index(): View
     {
@@ -38,9 +27,90 @@ class SettingsController extends Controller
             return $parts[0] ?? 'general';
         });
 
-        // Minimal, user-facing settings only. Language is handled by its own
-        // form (the /language/switch route + SetLocale middleware).
-        $defaultSettings = [
+        $defaultSettings = $this->defaultSettings();
+
+        return view('admin.settings.index', compact('settings', 'defaultSettings'));
+    }
+
+    /**
+     * General: the language select and the link to the theme picker. Neither
+     * writes a Settings row, so this page has nothing to save.
+     */
+    public function general(): View
+    {
+        return view('admin.settings.general');
+    }
+
+    public function company(): View
+    {
+        return $this->section('company');
+    }
+
+    public function owner(): View
+    {
+        return $this->section('owner');
+    }
+
+    public function billing(): View
+    {
+        return $this->section('billing');
+    }
+
+    /**
+     * The scan-to-pay QR and the account name printed under it. Neither is a
+     * Settings row — both live on the account's MerchantPaymentSetting, which
+     * is why this page is not one of defaultSettings()' categories. It posts to
+     * updateBatch() like the rest, and handleScanToPayQr() takes it from there.
+     */
+    public function paymentQr(): View
+    {
+        // The scan-to-pay QR rides the column the manual KHQR checkout channel
+        // already reads (merchant_payment_settings.khqr_image_path) — there is
+        // one static QR per account, not one per page that shows it.
+        $merchant = MerchantPaymentSetting::forAccount(current_account_id());
+        $khqrImageUrl = filled($merchant?->khqr_image_path)
+            ? asset('storage/'.$merchant->khqr_image_path)
+            : null;
+        // Whose account the QR pays into — printed under it on the bill.
+        $khqrAccountName = $merchant?->bank_account_name;
+
+        return view('admin.settings.payment_qr', compact('khqrImageUrl', 'khqrAccountName'));
+    }
+
+    /**
+     * One category of the settings form, on a page of its own.
+     *
+     * The index is a list of links now, so each card renders here and posts its
+     * own keys back to updateBatch() — the same save the whole form made, with
+     * fewer fields in the request. Values are read off the same account-scoped
+     * Settings rows the index read them from (which include the legacy
+     * NULL-account ones), so what a field shows has not changed either.
+     */
+    protected function section(string $category): View
+    {
+        $fields = $this->defaultSettings()[$category];
+        $stored = Settings::orderBy('key')->get();
+
+        $values = [];
+        foreach ($fields as $key => $default) {
+            $values[$key] = $stored->firstWhere('key', $key)?->value ?? $default;
+        }
+
+        return view('admin.settings.section', compact('category', 'fields', 'values'));
+    }
+
+    /**
+     * The fields the settings form renders — and, because updateBatch() writes
+     * through this same list, the only keys it can write. The default is what a
+     * blank setting falls back to.
+     *
+     * Minimal, user-facing settings only. Language has its own form (the
+     * /language/switch route + SetLocale middleware) and the default utility
+     * prices have their own page (UtilityPriceController).
+     */
+    protected function defaultSettings(): array
+    {
+        return [
             'company' => [
                 'company_name' => '',
                 'company_address' => '',
@@ -57,46 +127,22 @@ class SettingsController extends Controller
                 'owner_phone' => '',
                 'owner_address' => '',
             ],
-            // Default monthly charges printed in ប្រការ១ of the contract. A lease
-            // that carries its own price overrides these; see ContractGenerator.
-            'utility' => [
-                'utility_electricity_price' => '',
-                'utility_water_price' => '',
-                'utility_parking_fee' => '',
-                'utility_internet_fee' => '',
-                'utility_garbage_fee' => '',
-                // On: the charge is computed from the meter readings and locked.
-                // Off: the operator types it, meters still roll over. '1'/'0'.
-                'utility_meter_auto_calc' => '0',
-            ],
-            // Late-payment penalty: percent of the monthly rent charged per day
-            // overdue. Auto-fills the late-fee field on the rent-collection page.
-            'late' => [
-                'late_fee_percent' => '',
-            ],
-            // Blank = rent due on each tenant's own move-in day. Set = one day
-            // for everyone, move-in month prorated. See BillingCycleService.
+            // When rent falls due and what it costs to be late — one card,
+            // because the grace period is what the late fee counts from.
+            // Blank cycle day = rent due on each tenant's own move-in day. Set =
+            // one day for everyone, move-in month prorated. See BillingCycleService.
             'billing' => [
                 'billing_cycle_day' => '',
                 'billing_overdue_days' => (string) BillingCycleService::DEFAULT_OVERDUE_DAYS,
+                // Percent of the monthly rent charged per day overdue.
+                // Auto-fills the late-fee field on the rent-collection page.
+                'late_fee_percent' => '',
             ],
             'system' => [
                 'system_currency' => 'USD',
                 'khr_exchange_rate' => '4100',
             ],
         ];
-
-        // The scan-to-pay QR rides the column the manual KHQR checkout channel
-        // already reads (merchant_payment_settings.khqr_image_path) — there is
-        // one static QR per account, not one per page that shows it.
-        $merchant = MerchantPaymentSetting::forAccount(current_account_id());
-        $khqrImageUrl = filled($merchant?->khqr_image_path)
-            ? asset('storage/'.$merchant->khqr_image_path)
-            : null;
-        // Whose account the QR pays into — printed under it on the bill.
-        $khqrAccountName = $merchant?->bank_account_name;
-
-        return view('admin.settings.index', compact('settings', 'defaultSettings', 'khqrImageUrl', 'khqrAccountName'));
     }
 
     /**
@@ -116,22 +162,22 @@ class SettingsController extends Controller
     }
 
     /**
-     * Save the whole settings form in one submit, logo included.
+     * Save a settings page in one submit, logo and QR included.
+     *
+     * Every section page posts here, each carrying only its own fields — which
+     * is what the allow-list below is for, and why handleCompanyLogo() and
+     * handleScanToPayQr() each no-op unless their own inputs are present.
      */
     public function updateBatch(Request $request): RedirectResponse
     {
         $request->validate([
-            'settings' => 'required|array',
+            // Nullable, not required: the QR page posts its image and account
+            // name with no settings keys at all.
+            'settings' => 'nullable|array',
             'settings.*' => 'nullable|string',
             'settings.khr_exchange_rate' => 'nullable|numeric|min:1',
             'settings.owner_gender' => 'nullable|in:male,female,other',
-            'settings.utility_electricity_price' => 'nullable|numeric|min:0',
-            'settings.utility_water_price' => 'nullable|numeric|min:0',
-            'settings.utility_parking_fee' => 'nullable|numeric|min:0',
-            'settings.utility_internet_fee' => 'nullable|numeric|min:0',
-            'settings.utility_garbage_fee' => 'nullable|numeric|min:0',
             'settings.late_fee_percent' => 'nullable|numeric|min:0|max:100',
-            'settings.utility_meter_auto_calc' => 'nullable|in:0,1',
             'settings.billing_cycle_day' => 'nullable|integer|min:1|max:'.BillingCycleService::MAX_COLLECTION_DAY,
             'settings.billing_overdue_days' => 'nullable|integer|min:0|max:31',
             'company_logo' => 'nullable|image|mimes:jpeg,jpg,png,webp|max:2048',
@@ -142,14 +188,12 @@ class SettingsController extends Controller
             'settings.khr_exchange_rate.min' => __('messages.exchange_rate_invalid'),
         ]);
 
-        // Prices are typed in the display currency but stored in USD like every
-        // other money column — see convert_money_input() / money_input().
-        $settings = convert_money_input(
-            ['settings' => $request->settings],
-            array_map(fn ($k) => "settings.$k", self::PRICE_KEYS)
-        )['settings'];
+        // Only keys this form owns. A stale tab posting the utility prices —
+        // which have their own page, with their own validation and currency
+        // conversion — must not write them back unchecked.
+        $allowed = array_merge(...array_values($this->defaultSettings()));
 
-        foreach ($settings as $key => $value) {
+        foreach (array_intersect_key($request->settings ?? [], $allowed) as $key => $value) {
             Settings::set($key, $value);
         }
 

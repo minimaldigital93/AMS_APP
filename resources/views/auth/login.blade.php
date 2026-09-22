@@ -53,10 +53,7 @@
                                 @endif
                                 <h4 class="text-lg font-semibold text-gray-900">{{ $plan->name }}</h4>
                                 <p class="mt-2">
-                                    <span class="text-4xl font-extrabold text-gray-900" x-show="cycle === 'monthly'">${{ rtrim(rtrim(number_format($plan->price_usd, 2), '0'), '.') }}</span>
-                                    <span class="text-sm text-gray-500" x-show="cycle === 'monthly'">/{{ __('mo') }}</span>
-                                    <span class="text-4xl font-extrabold text-gray-900" x-show="cycle === 'yearly'" x-cloak>${{ rtrim(rtrim(number_format($plan->hasYearly() ? $plan->price_yearly_usd : $plan->price_usd, 2), '0'), '.') }}</span>
-                                    <span class="text-sm text-gray-500" x-show="cycle === 'yearly'" x-cloak>/{{ __('messages.year') }}</span>
+                                    <x-plan-price :plan="$plan" amount-class="text-4xl font-extrabold text-gray-900" />
                                 </p>
                                 <ul class="mt-5 space-y-3 text-sm text-gray-600">
                                     @php($features = [

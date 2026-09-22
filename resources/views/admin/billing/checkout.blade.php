@@ -12,6 +12,17 @@
 
     <h1 class="text-2xl font-semibold text-slate-800 tracking-tight">{{ __('messages.payment_confirming_title') }}</h1>
 
+    {{-- What this QR buys. Read off the PAYMENT, never off the subscription:
+         the plan is not written to the subscription until the money lands, so
+         a switching customer would otherwise be shown the plan they're leaving. --}}
+    @if ($purchasedPlan)
+        <p class="mt-2 text-sm text-slate-600">
+            <span class="font-semibold text-slate-800">{{ $purchasedPlan->name }}</span>
+            <span class="text-slate-400">·</span>
+            {{ $purchasedCycle === 'yearly' ? __('messages.yearly') : __('messages.monthly') }}
+        </p>
+    @endif
+
     <p class="mt-3 text-sm text-gray-500" x-show="state === 'waiting'">
         {{ __('Once your payment is confirmed this page will update automatically.') }}
     </p>

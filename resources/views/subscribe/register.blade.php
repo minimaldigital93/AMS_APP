@@ -28,8 +28,9 @@
             <x-input-label :value="__('Selected plan')" class="form-label" />
             <div class="mt-2 rounded-xl border border-indigo-400 bg-indigo-500/30 p-4 text-center text-white/90">
                 <div class="text-base font-semibold">{{ $selected->name }}</div>
-                <div class="text-2xl font-bold" x-show="cycle === 'monthly'">${{ rtrim(rtrim(number_format($selected->price_usd, 2), '0'), '.') }}<span class="text-xs font-normal">/{{ __('mo') }}</span></div>
-                <div class="text-2xl font-bold" x-show="cycle === 'yearly'" x-cloak>${{ rtrim(rtrim(number_format($selected->hasYearly() ? $selected->price_yearly_usd : $selected->price_usd, 2), '0'), '.') }}<span class="text-xs font-normal">/{{ __('messages.year') }}</span></div>
+                <div class="text-2xl font-bold">
+                    <x-plan-price :plan="$selected" amount-class="" suffix-class="text-xs font-normal" />
+                </div>
                 <div class="mt-1 text-xs leading-tight opacity-80">
                     {{ $selected->max_properties === null ? '∞' : $selected->max_properties }} {{ __('messages.properties') }} ·
                     {{ $selected->max_rooms === null ? '∞' : $selected->max_rooms }} {{ __('messages.rooms') }} ·

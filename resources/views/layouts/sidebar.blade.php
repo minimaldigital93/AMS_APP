@@ -1,4 +1,4 @@
-<nav class="space-y-1" x-data="{ expandedSections: { 'Property': false, 'Tenant': false, 'Revenue': {{ request()->routeIs('admin.fiscalperiod.*') ? 'true' : 'false' }}, 'Settings': {{ request()->routeIs('admin.billing.*', 'admin.settings.*') ? 'true' : 'false' }} } }">
+<nav class="space-y-1" x-data="{ expandedSections: { 'Property': false, 'Tenant': false, 'Revenue': {{ request()->routeIs('admin.fiscalperiod.*') ? 'true' : 'false' }} } }">
     <style>
         /* Modern sidebar styling */
         .sidebar-transition {
@@ -585,62 +585,27 @@
         </div>
     </div>
 
-    {{-- Settings Section (Billing, System Settings) --}}
-    <div class="mt-4">
-        <button @click="expandedSections['Settings'] = !expandedSections['Settings']" :aria-expanded="expandedSections['Settings'].toString()"
-                class="section-header flex items-center justify-between w-full transition sidebar-transition {{ request()->routeIs('admin.billing.*', 'admin.settings.*') ? 'text-blue-700' : '' }}">
-            <span class="flex items-center gap-2.5">
-                <span class="section-icon">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                    </svg>
-                </span>
-                <span class="section-title sidebar-label">{{ __('messages.settings') }}</span>
-            </span>
-            <svg class="chevron h-5 w-5 transition-transform flex-shrink-0" :class="expandedSections['Settings'] ? 'rotate-90' : ''" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7" />
+    {{-- Settings.
+
+         A plain link, not a disclosure. Billing & Subscription used to sit
+         beside System Settings in here; it is a row INSIDE that page now, so
+         the section expanded to reveal exactly one option — which is worse
+         than the option itself. It lights on admin.billing.* too, because that
+         page is reached through here.
+
+         Billing keeps its own route rather than moving under /admin/settings:
+         it is the ONE page an admin with a lapsed subscription may still open
+         (EnsureSubscriptionActive exempts it and bounces every settings route
+         to it), so making it a settings URL would put the renewal behind the
+         gate that renewal exists to lift. --}}
+    <a href="{{ route('admin.settings.index') }}"
+       class="nav-link flex items-center gap-3 rounded-lg px-3 py-3 text-sm font-medium transition-all duration-200 {{ request()->routeIs('admin.settings.*', 'admin.billing.*') ? 'text-blue-700 active' : 'text-gray-700 hover:text-blue-700' }}">
+        <span class="nav-icon sidebar-transition">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
             </svg>
-        </button>
-        <div x-show="expandedSections['Settings']"
-             x-transition:enter="transition ease-out duration-300"
-             x-transition:enter-start="opacity-0 -translate-y-2"
-             x-transition:enter-end="opacity-100 translate-y-0"
-             x-transition:leave="transition ease-in duration-200"
-             x-transition:leave-start="opacity-100 translate-y-0"
-             x-transition:leave-end="opacity-0 -translate-y-2"
-             class="submenu-container mt-2 space-y-1">
-
-            {{-- Billing --}}
-            <a href="{{ route('admin.billing.index') }}" class="submenu-item nav-link flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm {{ request()->routeIs('admin.billing.*') ? 'text-blue-700 active' : 'text-gray-700 hover:text-blue-700' }} transition-all sidebar-transition">
-                <span class="nav-icon sidebar-transition">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-                    </svg>
-                </span>
-                <span class="nav-text truncate sidebar-label">{{ __('messages.billing') }}</span>
-            </a>
-
-            {{-- Payment Settings (bank / KHQR destination for rent) --}}
-            <a href="{{ route('admin.settings.payment') }}" class="submenu-item nav-link flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm {{ request()->routeIs('admin.settings.payment*') ? 'text-blue-700 active' : 'text-gray-700 hover:text-blue-700' }} transition-all sidebar-transition">
-                <span class="nav-icon sidebar-transition">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M3 14h18m-9-4v8m-7 4h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                    </svg>
-                </span>
-                <span class="nav-text truncate sidebar-label">{{ __('messages.payment_settings') }}</span>
-            </a>
-
-            {{-- System Settings --}}
-            <a href="{{ route('admin.settings.index') }}" class="submenu-item nav-link flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm {{ request()->routeIs('admin.settings.*') && ! request()->routeIs('admin.settings.payment*') ? 'text-blue-700 active' : 'text-gray-700 hover:text-blue-700' }} transition-all sidebar-transition">
-                <span class="nav-icon sidebar-transition">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                    </svg>
-                </span>
-                <span class="nav-text truncate sidebar-label">{{ __('messages.system_settings') }}</span>
-            </a>
-        </div>
-    </div>
+        </span>
+        <span class="nav-text truncate sidebar-label">{{ __('messages.system_settings') }}</span>
+    </a>
 </nav>

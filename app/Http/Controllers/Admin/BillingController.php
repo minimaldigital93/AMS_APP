@@ -24,13 +24,48 @@ class BillingController extends Controller
     public function index(): View
     {
         $accountId = current_account_id();
+        $usage = $this->subscriptions->usage($accountId);
+        $plans = Plan::where('is_active', true)->orderBy('price_usd')->get();
+
+        // A retired plan is off the menu — but an account SITTING on one must
+        // still be able to renew it, so it joins the grid rather than leaving
+        // the page with no button for the plan they are actually paying for.
+        if ($usage['plan'] && ! $plans->contains('id', $usage['plan']->id)) {
+            $plans = $plans->push($usage['plan'])->sortBy('price_usd')->values();
+        }
 
         return view('admin.billing.index', [
-            'usage' => $this->subscriptions->usage($accountId),
+            'usage' => $usage,
             'subscription' => $this->subscriptions->activeSubscription($accountId)
                 ?? Subscription::where('account_id', $accountId)->latest('id')->with('plan')->first(),
-            'plans' => Plan::where('is_active', true)->orderBy('price_usd')->get(),
+            'plans' => $plans,
+            // Why each plan may NOT be switched to — the refusal in words, or
+            // null when the plan fits. Keyed by plan id, computed off one set
+            // of counts and worded by the same service renew() enforces with,
+            // so the page cannot offer a switch the POST then refuses, or
+            // refuse one in different words.
+            'planFaults' => $plans->mapWithKeys(fn (Plan $p) => [
+                $p->id => $this->planFault($p, $usage),
+            ])->all(),
         ]);
+    }
+
+    /**
+     * Why this account may not switch onto $plan — null when it may.
+     *
+     * The account's CURRENT plan always passes: renewing what you are already
+     * on can never put you further over a cap, and refusing it would leave a
+     * lapsed account with no button on this page that works.
+     */
+    private function planFault(Plan $plan, array $usage): ?string
+    {
+        if ($usage['plan']?->id === $plan->id) {
+            return null;
+        }
+
+        $shortfalls = $this->subscriptions->planShortfalls($plan, $usage);
+
+        return $shortfalls === [] ? null : $this->subscriptions->shortfallMessage($plan, $shortfalls);
     }
 
     /**
@@ -45,6 +80,31 @@ class BillingController extends Controller
         $plan = Plan::where('slug', $validated['plan'])->firstOrFail();
         $cycle = ($validated['billing_cycle'] ?? 'monthly') === 'yearly' && $plan->hasYearly() ? 'yearly' : 'monthly';
         $accountId = current_account_id();
+
+        // ------------------------------------------------- is this switch allowed?
+        //
+        // Renewing the CURRENT plan is always allowed and is checked first, on
+        // purpose. Both rules below could otherwise trap an account with no way
+        // to pay at all: a plan the superadmin has since retired, or one whose
+        // caps were tightened under an account that had already outgrown them,
+        // would leave the only button on this page refusing itself — and
+        // EnsureSubscriptionActive sends them straight back here.
+        $usage = $this->subscriptions->usage($accountId);
+        $isRenewal = $usage['plan']?->id === $plan->id;
+
+        if (! $isRenewal && ! $plan->is_active) {
+            // A stale tab, or a slug typed by hand. The grid only ever offers
+            // active plans plus the one being renewed.
+            return back()->with('error', __('messages.plan_unavailable'));
+        }
+
+        if (($fault = $this->planFault($plan, $usage)) !== null) {
+            // Refused BEFORE the QR is minted. finalizeSubscription() applies
+            // the purchased plan the moment the money lands and the caps are
+            // read straight off subscriptions.plan_id, so letting this through
+            // takes the payment and then puts the account over every cap.
+            return back()->with('error', $fault);
+        }
 
         // There is deliberately NO gateway preflight here any more. It existed
         // because redirect()->away() to khqr.cc was a one-way door: a profile
@@ -119,6 +179,12 @@ class BillingController extends Controller
 
         return view('admin.billing.checkout', [
             'payment' => $payment,
+            // What this QR is BUYING, off the payment's own payload — the
+            // subscription still holds the old plan until the money lands, so
+            // reading it here would tell a switching customer they are paying
+            // for the plan they are leaving.
+            'purchasedPlan' => $payment->purchasedPlan(),
+            'purchasedCycle' => $payment->purchasedCycle(),
             'statusUrl' => route('admin.billing.status', $payment->public_token),
             'redirectUrl' => route('admin.billing.index'),
             // A data URI rendered from the row's own stored payload; null for

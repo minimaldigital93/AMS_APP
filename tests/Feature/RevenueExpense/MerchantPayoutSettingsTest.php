@@ -45,11 +45,7 @@ it('offers no khqr.cc credential fields, and never calls out to save', function 
 
     $page->assertDontSee('khqrpay_profile_id')
         ->assertDontSee('khqrpay_secret')
-        ->assertDontSee('khqrpay_enabled')
-        // The workflow is stated rather than left to be discovered: nobody but
-        // the landlord can see rent arrive in their own bank, so nobody but the
-        // landlord can confirm it.
-        ->assertSee(__('messages.rent_manual_confirm_title'));
+        ->assertDontSee('khqrpay_enabled');
 
     $this->actingAs($this->admin)->put(route('admin.settings.payment.update'), [
         'bakong_account_id' => 'landlord@aclb',

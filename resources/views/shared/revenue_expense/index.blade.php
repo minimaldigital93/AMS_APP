@@ -17,17 +17,35 @@
                     ? ['month' => $filterMonth, 'year' => $filterYear]
                     : [];
             @endphp
+            {{-- Reports & Exports lives on the fiscal period, which is where the
+                 statements and the CSV export are generated from. The route only
+                 exists in the admin group, so it is gated on the USER's role (not
+                 the panel) — a supervisor would only get a 403, while an admin
+                 previewing the supervisor panel keeps the link. --}}
+            @if(auth()->user()?->hasRole(['admin', 'superadmin']))
+            <a href="{{ route('admin.fiscalperiod.reports', $activePeriod->id) }}"
+               class="inline-flex items-center justify-center w-10 h-10 rounded-lg bg-white border border-slate-200 hover:bg-slate-50 transition shadow-sm"
+               title="{{ __('messages.reports_exports') }}" aria-label="{{ __('messages.reports_exports') }}">
+                {{-- The tint rides on the SVG, not the button: theme.css's
+                     unlayered card bridge sets `color` on every
+                     .bg-white.rounded-lg, which would swallow a text-* utility
+                     here and grey out the currentColor stroke. --}}
+                <svg class="w-5 h-5 text-sky-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-6m4 6V7m4 10v-3M5 21h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v14a2 2 0 002 2z"/>
+                </svg>
+            </a>
+            @endif
             <a href="{{ route($panel.'.revenue_expense.record_income', $recordMonthParams) }}"
-               class="inline-flex items-center justify-center w-10 h-10 rounded-lg text-emerald-600 bg-emerald-50 border border-emerald-100 hover:bg-emerald-100 transition shadow-sm"
+               class="inline-flex items-center justify-center w-10 h-10 rounded-lg bg-white border border-slate-200 hover:bg-slate-50 transition shadow-sm"
                title="{{ __('messages.record_income') }}" aria-label="{{ __('messages.record_income') }}">
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg class="w-5 h-5 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V6m0 12v-2m0-14a9 9 0 11-9 9 9 9 0 019-9z"/>
                 </svg>
             </a>
             <a href="{{ route($panel.'.revenue_expense.record_expense', $recordMonthParams) }}"
-               class="inline-flex items-center justify-center w-10 h-10 rounded-lg text-red-600 bg-red-50 border border-red-100 hover:bg-red-100 transition shadow-sm"
+               class="inline-flex items-center justify-center w-10 h-10 rounded-lg bg-white border border-slate-200 hover:bg-slate-50 transition shadow-sm"
                title="{{ __('messages.record_expense') }}" aria-label="{{ __('messages.record_expense') }}">
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg class="w-5 h-5 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
                 </svg>
             </a>

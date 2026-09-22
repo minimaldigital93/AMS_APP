@@ -96,6 +96,30 @@ class KhqrPayment extends Model
             ->whereIn('status', PaymentStatus::openValues());
     }
 
+    /**
+     * The plan this payment is BUYING — not the one the account has.
+     *
+     * checkout_payload is the authority: plan_id is deliberately never written
+     * to the live subscription before the money lands, so subscription->plan is
+     * the OLD plan for the whole life of an upgrade checkout, and a page that
+     * read it would tell the payer they are buying what they already have.
+     * Falls back to the subscription for rows minted before the payload
+     * existed, exactly as KhqrPaymentService::finalizeSubscription() resolves
+     * it — this is that same read, so the two cannot disagree.
+     */
+    public function purchasedPlan(): ?Plan
+    {
+        $id = $this->checkout_payload['plan_id'] ?? null;
+
+        return ($id ? Plan::find((int) $id) : null) ?? $this->subscription?->plan;
+    }
+
+    /** The billing cycle this payment is buying. Same rule as purchasedPlan(). */
+    public function purchasedCycle(): ?string
+    {
+        return $this->checkout_payload['billing_cycle'] ?? $this->subscription?->billing_cycle;
+    }
+
     public function isPaid(): bool
     {
         return $this->status === PaymentStatus::Paid->value;

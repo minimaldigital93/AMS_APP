@@ -63,18 +63,25 @@ function billSummary(): \Illuminate\Testing\TestResponse
     ]));
 }
 
-it('renders the upload card on the system settings page', function () {
-    test()->actingAs($this->admin)->get(route('admin.settings.index'))
+it('renders the upload card on its own settings page', function () {
+    test()->actingAs($this->admin)->get(route('admin.settings.payment_qr'))
         ->assertOk()
         ->assertSee(__('messages.payment_qr_code'))
         ->assertSee('name="khqr_image"', false)
         ->assertSee('name="khqr_account_name"', false);
 });
 
+it('is reachable from the settings index', function () {
+    test()->actingAs($this->admin)->get(route('admin.settings.index'))
+        ->assertOk()
+        ->assertSee(__('messages.payment_qr_code'))
+        ->assertSee(route('admin.settings.payment_qr'), false);
+});
+
 it('shows the stored QR back on the settings page', function () {
     saveQrSettings(['khqr_image' => UploadedFile::fake()->image('khqr.png')]);
 
-    test()->actingAs($this->admin)->get(route('admin.settings.index'))
+    test()->actingAs($this->admin)->get(route('admin.settings.payment_qr'))
         ->assertOk()
         // @json() escapes the slashes, so the file name is what to look for.
         ->assertSee(basename(storedQrPath()), false);

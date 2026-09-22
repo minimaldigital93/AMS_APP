@@ -335,6 +335,22 @@ Route::middleware(['auth', 'role:admin|superadmin', 'subscription.active'])->gro
     Route::put('/admin/settings/expense-categories/{expenseCategory}', [\App\Http\Controllers\Admin\ExpenseCategoryController::class, 'update'])->name('admin.settings.expense_categories.update');
     Route::delete('/admin/settings/expense-categories/{expenseCategory}', [\App\Http\Controllers\Admin\ExpenseCategoryController::class, 'destroy'])->name('admin.settings.expense_categories.destroy');
 
+    // Default Utility Prices — the prices new charges and the contract start
+    // from. Its own page, like Expense Categories, and declared above the
+    // '/admin/settings' group for the same reason.
+    Route::get('/admin/settings/utility-prices', [\App\Http\Controllers\Admin\UtilityPriceController::class, 'index'])->name('admin.settings.utility_prices');
+    Route::put('/admin/settings/utility-prices', [\App\Http\Controllers\Admin\UtilityPriceController::class, 'update'])->name('admin.settings.utility_prices.update');
+
+    // The settings form, one card per page: the index is a list of links and
+    // each page below renders its own fields, all of them posting back to the
+    // same updateBatch() route. Declared above the '/admin/settings' group for
+    // the same reason as the pages above.
+    Route::get('/admin/settings/general', [SettingsController::class, 'general'])->name('admin.settings.general');
+    Route::get('/admin/settings/company', [SettingsController::class, 'company'])->name('admin.settings.company');
+    Route::get('/admin/settings/owner', [SettingsController::class, 'owner'])->name('admin.settings.owner');
+    Route::get('/admin/settings/billing', [SettingsController::class, 'billing'])->name('admin.settings.billing');
+    Route::get('/admin/settings/payment-qr', [SettingsController::class, 'paymentQr'])->name('admin.settings.payment_qr');
+
     // System Settings Routes
     Route::get('/admin/settings', [SettingsController::class, 'index'])->name('admin.settings.index');
     Route::put('/admin/settings/batch', [SettingsController::class, 'updateBatch'])->name('admin.settings.updateBatch');

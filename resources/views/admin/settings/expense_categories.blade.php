@@ -8,10 +8,7 @@
 
         <!-- Header -->
         <div class="flex items-center gap-3">
-            <div>
-                <h1 class="text-3xl font-bold text-gray-900 tracking-tight">{{ __('messages.expense_categories') }}</h1>
-                <p class="mt-1 text-[13px] text-gray-500">{{ __('messages.expense_categories_hint') }}</p>
-            </div>
+            <h1 class="text-3xl font-bold text-gray-900 tracking-tight">{{ __('messages.expense_categories') }}</h1>
             <a href="{{ route('admin.settings.index') }}" class="ml-auto flex-shrink-0 inline-flex items-center justify-center w-9 h-9 rounded-lg text-gray-400 hover:bg-white hover:text-gray-600 transition" title="{{ __('messages.back') }}" aria-label="{{ __('messages.back') }}">
                 <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7" /></svg>
             </a>

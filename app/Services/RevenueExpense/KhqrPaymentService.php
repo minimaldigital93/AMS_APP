@@ -7,7 +7,6 @@ use App\Models\FiscalPeriods;
 use App\Models\KhqrPayment;
 use App\Models\MerchantPaymentSetting;
 use App\Models\MonthlyPeriod;
-use App\Models\Plan;
 use App\Models\Rentals;
 use App\Models\Subscription;
 use App\Models\User;
@@ -457,10 +456,9 @@ class KhqrPaymentService
             // abandoned checkout leaves the live plan alone. Falls back to the
             // subscription for rows minted before this field existed, and for a
             // plan deleted between minting and payment.
-            $payload = $locked->checkout_payload ?? [];
-            $plan = (isset($payload['plan_id']) ? Plan::find((int) $payload['plan_id']) : null)
-                ?? $subscription->plan;
-            $cycle = $payload['billing_cycle'] ?? $subscription->billing_cycle;
+            $locked->setRelation('subscription', $subscription); // already loaded — don't re-query
+            $plan = $locked->purchasedPlan();
+            $cycle = $locked->purchasedCycle();
 
             $days = $cycle === 'yearly'
                 ? 365

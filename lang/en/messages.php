@@ -141,6 +141,8 @@ return [
     'fiscal_period_settings' => 'Fiscal Period Settings',
     'notification_settings' => 'Notification Settings',
     'language_settings' => 'Language Settings',
+    'general_settings' => 'General',
+    'billing_late_fee_settings' => 'Billing & Late Fee',
     // Settings Fields
     'app_name' => 'Application Name',
     'app_timezone' => 'Timezone',
@@ -1248,6 +1250,17 @@ return [
     'off' => 'Off',
     'renew_via_khqr' => 'Renew via KHQR',
     'switch_via_khqr' => 'Switch via KHQR',
+
+    // Changing plan — validated before the QR is minted, because the purchased
+    // plan is applied the moment the money lands and the caps come off it.
+    'billing_subscription' => 'Billing & Subscription',
+    'plan_switch_confirm_title' => 'Change plan',
+    'plan_switch_confirm' => 'Switch to :plan for :amount? You will be taken to a KHQR page to pay. Your current plan stays active until the payment is confirmed.',
+    'plan_switch_confirm_ok' => 'Continue to payment',
+    'plan_downgrade_blocked' => ':plan is smaller than what this account already uses (:details). Remove what is over the limit first, or choose a larger plan.',
+    'plan_too_small_hint' => 'Your account already uses more than this plan allows.',
+    'plan_unavailable' => 'That plan is no longer available. Please choose one from the list.',
+    'plan_monthly_only' => 'Billed monthly — this plan has no yearly price.',
 
     // Rent payout (Flow B — tenant → landlord, confirmed by hand)
     'rent_payout_title' => 'Where rent is paid',

@@ -211,6 +211,67 @@ class SubscriptionService
     }
 
     /**
+     * Which of a plan's caps this account is ALREADY past.
+     *
+     * A plan change is applied by finalizeSubscription() the moment the money
+     * lands, and the caps are read straight off subscriptions.plan_id — so a
+     * customer who buys a plan smaller than what they are using ends up over
+     * every cap with the money already taken. This is the check that stops the
+     * sale before the QR is minted.
+     *
+     * It takes the usage snapshot rather than an account id so the billing page
+     * can price every plan in the grid off ONE set of counts, and so the answer
+     * the page shows and the answer renew() enforces are the same derivation
+     * rather than two that can disagree.
+     *
+     * A null cap is unlimited and never blocks. The caller must exempt the
+     * account's CURRENT plan — see shortfallMessage().
+     *
+     * @param  array  $usage  the snapshot from usage()
+     * @return array<int, array{key: string, used: int, max: int}> empty when the plan fits
+     */
+    public function planShortfalls(Plan $plan, array $usage): array
+    {
+        $dimensions = [
+            'properties' => [$usage['properties_used'], $plan->max_properties],
+            'floors' => [$usage['floors_used'], $plan->max_floors],
+            'rooms' => [$usage['rooms_used'], $plan->max_rooms],
+            'staff' => [$usage['staff_used'], $plan->max_staff],
+        ];
+
+        $over = [];
+        foreach ($dimensions as $key => [$used, $max]) {
+            if ($max !== null && $used > (int) $max) {
+                $over[] = ['key' => $key, 'used' => (int) $used, 'max' => (int) $max];
+            }
+        }
+
+        return $over;
+    }
+
+    /**
+     * The refusal, in words.
+     *
+     * Lives here so the disabled button on the billing page and the flash from
+     * a posted switch say the same thing — a refusal that reads differently
+     * depending on where it was hit from is how the same rule gets reported as
+     * two bugs.
+     *
+     * @param  array<int, array{key: string, used: int, max: int}>  $shortfalls
+     */
+    public function shortfallMessage(Plan $plan, array $shortfalls): string
+    {
+        $details = collect($shortfalls)
+            ->map(fn (array $s) => __('messages.'.$s['key']).' '.$s['used'].'/'.$s['max'])
+            ->implode(', ');
+
+        return __('messages.plan_downgrade_blocked', [
+            'plan' => $plan->name,
+            'details' => $details,
+        ]);
+    }
+
+    /**
      * Usage snapshot for billing/dashboard UI.
      *
      * @return array{plan: ?Plan, properties_used: int, properties_max: ?int, rooms_used: int, rooms_max: ?int, staff_used: int, staff_max: ?int, floors_used: int}

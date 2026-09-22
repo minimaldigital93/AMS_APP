@@ -46,13 +46,30 @@ function contractHtml(Rentals $rental): string
     return view('pdf.contract', app(ContractGenerator::class)->viewData($rental, forPdf: false))->render();
 }
 
-it('shows the owner and utility groups on the settings page', function () {
+it('links to the owner group and the utility prices from the settings page', function () {
+    // Every section has a page of its own now; the index only points at them.
     $this->actingAs($this->admin)
         ->get(route('admin.settings.index'))
         ->assertOk()
         ->assertSee(__('messages.owner_information'), false)
+        ->assertSee(route('admin.settings.owner'), false)
         ->assertSee(__('messages.default_utility_prices'), false)
-        ->assertSee('settings[owner_id_card]', false)
+        ->assertSee(route('admin.settings.utility_prices'), false);
+});
+
+it('shows the owner group on its own page', function () {
+    $this->actingAs($this->admin)
+        ->get(route('admin.settings.owner'))
+        ->assertOk()
+        ->assertSee(__('messages.owner_information'), false)
+        ->assertSee('settings[owner_id_card]', false);
+});
+
+it('shows the utility group on its own page', function () {
+    $this->actingAs($this->admin)
+        ->get(route('admin.settings.utility_prices'))
+        ->assertOk()
+        ->assertSee(__('messages.default_utility_prices'), false)
         ->assertSee('settings[utility_water_price]', false);
 });
 
@@ -65,6 +82,14 @@ it('saves owner information and the default utility prices', function () {
                 'owner_id_card' => '098765432',
                 'owner_phone' => '012345678',
                 'owner_address' => 'No. 653, Russey Keo, Phnom Penh',
+            ],
+        ])
+        ->assertRedirect(route('admin.settings.index'))
+        ->assertSessionHas('success');
+
+    $this->actingAs($this->admin)
+        ->put(route('admin.settings.utility_prices.update'), [
+            'settings' => [
                 'utility_electricity_price' => '0.25',
                 'utility_water_price' => '0.50',
                 'utility_parking_fee' => '10',
@@ -72,7 +97,7 @@ it('saves owner information and the default utility prices', function () {
                 'utility_garbage_fee' => '2',
             ],
         ])
-        ->assertRedirect(route('admin.settings.index'))
+        ->assertRedirect(route('admin.settings.utility_prices'))
         ->assertSessionHas('success');
 
     auth()->login($this->admin);
@@ -84,12 +109,16 @@ it('saves owner information and the default utility prices', function () {
 it('rejects a non-numeric utility price and an unknown owner gender', function () {
     $this->actingAs($this->admin)
         ->put(route('admin.settings.updateBatch'), [
-            'settings' => [
-                'utility_water_price' => 'free',
-                'owner_gender' => 'yes',
-            ],
+            'settings' => ['owner_gender' => 'yes'],
         ])
-        ->assertSessionHasErrors(['settings.utility_water_price', 'settings.owner_gender']);
+        ->assertSessionHasErrors('settings.owner_gender');
+
+    // The price rule travelled with the field to its own page.
+    $this->actingAs($this->admin)
+        ->put(route('admin.settings.utility_prices.update'), [
+            'settings' => ['utility_water_price' => 'free'],
+        ])
+        ->assertSessionHasErrors('settings.utility_water_price');
 });
 
 it('prints the configured owner and utility prices on the contract', function () {
