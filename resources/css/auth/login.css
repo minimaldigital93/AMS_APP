@@ -66,17 +66,28 @@
     text-shadow: 0 0 10px rgba(139, 92, 246, 0.5);
 }
 
-/* Form Checkbox */
+/* Form Checkbox — drawn in the same glass as .form-input, because the login
+   card is translucent over the dark 3D background and Tailwind's default
+   checkbox is built for a white page. */
 .form-checkbox {
-    background: rgba(255, 255, 255, 0.1) !important;
-    border-color: rgba(255, 255, 255, 0.3) !important;
+    background-color: rgba(255, 255, 255, 0.1) !important;
+    border-color: rgba(255, 255, 255, 0.35) !important;
+    /* @tailwindcss/forms paints the tick with currentColor, so this is the
+       checkmark's colour, not the box's. */
+    color: #8b5cf6;
 }
 
 .form-checkbox:checked {
-    background: linear-gradient(135deg, #8b5cf6, #6366f1) !important;
+    /* background-COLOR, never the `background` shorthand: the shorthand resets
+       background-image and takes the plugin's checkmark SVG with it, leaving a
+       filled square with no tick in it. */
+    background-color: #8b5cf6 !important;
+    border-color: #8b5cf6 !important;
 }
 
-/* Form Text */
+/* Form Text — the secondary line beside a control (the "Remember me" label).
+   One step lighter than .form-label so it reads as supporting text and still
+   holds its contrast against the dark background. */
 .form-text {
     color: rgba(255, 255, 255, 0.8) !important;
 }

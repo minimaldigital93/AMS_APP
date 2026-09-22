@@ -112,4 +112,26 @@ return [
 
     'password_timeout' => env('AUTH_PASSWORD_TIMEOUT', 10800),
 
+    /*
+    |--------------------------------------------------------------------------
+    | "Remember Me" Duration
+    |--------------------------------------------------------------------------
+    |
+    | How long a ticked "remember me" box keeps someone signed in, in minutes.
+    | Laravel's own default is 400 days; this is 90, because the device that
+    | holds this app holds a building's books — rent taken, tenants' phone
+    | numbers, the landlord's payment settings — and phones are replaced, sold
+    | and handed down inside a year. Three months is long enough that a
+    | landlord collecting rent every month is never asked twice; short enough
+    | that a device nobody uses any more stops being a way in.
+    |
+    | The window runs from the login, not from the last visit: the recaller
+    | cookie is minted once and never re-issued on use, so everyone signs in
+    | again about four times a year. A new device has no cookie at all, so it
+    | always starts with a password.
+    |
+    */
+
+    'remember_duration' => (int) env('AUTH_REMEMBER_DURATION', 60 * 24 * 90),
+
 ];

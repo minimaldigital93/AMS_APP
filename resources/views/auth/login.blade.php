@@ -121,12 +121,17 @@
             <x-input-error :messages="$errors->get('password')" class="mt-2" />
         </div>
 
-        <!-- Remember Me — LoginRequest already honors this flag -->
+        <!-- Remember Me — LoginRequest already honors this flag, for the window
+             config('auth.remember_duration') sets (90 days). The checkbox and
+             its label use this page's own .form-checkbox / .form-text (see
+             resources/css/auth/login.css), not Tailwind's grays: the login
+             card is translucent white over the dark 3D background, so
+             text-gray-600 rendered as near-black on a dark panel. -->
         <div class="mt-4">
             <label for="remember_me" class="inline-flex items-center gap-2 cursor-pointer">
                 <input id="remember_me" type="checkbox" name="remember"
-                       class="rounded border-gray-300 text-indigo-600 shadow-sm focus:ring-indigo-500">
-                <span class="text-sm text-gray-600">{{ __('messages.remember_me') }}</span>
+                       class="form-checkbox rounded shadow-sm focus:ring-indigo-500">
+                <span class="form-text text-sm">{{ __('messages.remember_me') }}</span>
             </label>
         </div>
 

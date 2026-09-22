@@ -26,9 +26,28 @@ use App\Http\Controllers\Tenant\PaymentController as TenantPaymentController;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
 
+// The PWA's start_url is this route ("./?source=pwa"), and it is the address
+// every browser user types — so it is the door almost nobody enters through
+// /login. It rendered the login form unconditionally, ignoring both a live
+// session and the "remember me" cookie: the guard had already resolved the
+// user by the time this closure ran, and the page still asked them to sign in
+// again. Every cold launch of the installed app looked exactly like
+// "remember me is broken", which is what it was reported as.
+//
+// The role check is what keeps this loop-proof: /dashboard's own fallback for
+// a user with no role is redirect('/'), so bouncing a roleless user onward
+// from here would ping-pong the two routes forever. They get the login form,
+// which is where that (fixture-shaped) user has always ended up.
 Route::get('/', function () {
-    return view('auth.login');
-});
+    /** @var \App\Models\User|null $user */
+    $user = Auth::user();
+
+    if ($user && $user->hasAnyRole(['superadmin', 'admin', 'supervisor', 'tenant'])) {
+        return redirect()->route('dashboard');
+    }
+
+    return app(\App\Http\Controllers\Auth\AuthenticatedSessionController::class)->create();
+})->name('home');
 
 // Public SaaS signup funnel (pricing modal → signup → KHQR checkout → activate).
 Route::middleware('guest')->group(function () {

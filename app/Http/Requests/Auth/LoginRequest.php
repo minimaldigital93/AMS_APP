@@ -3,6 +3,7 @@
 namespace App\Http\Requests\Auth;
 
 use Illuminate\Auth\Events\Lockout;
+use Illuminate\Auth\SessionGuard;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\RateLimiter;
@@ -40,6 +41,17 @@ class LoginRequest extends FormRequest
     public function authenticate(): void
     {
         $this->ensureIsNotRateLimited();
+
+        // This is the only place in the app that mints a "remember me" cookie,
+        // so it is the only place the window has to be set. Laravel's default
+        // is 400 days; config/auth.php explains why this app asks again after
+        // three months. The cookie is never re-issued on use, so the window
+        // runs from here — from the password — and not from the last visit.
+        $guard = Auth::guard();
+
+        if ($guard instanceof SessionGuard) {
+            $guard->setRememberDuration((int) config('auth.remember_duration'));
+        }
 
         if (! Auth::attempt($this->only('phone', 'password'), $this->boolean('remember'))) {
             RateLimiter::hit($this->throttleKey());
