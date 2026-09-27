@@ -512,22 +512,18 @@ class BreakEvenService
      * date can be any day of the month, and the room is freed for reassignment
      * the moment the leave is processed), so counting rentals reported 6 rooms
      * rented out of 5 while the dashboard and the rent collection page — which
-     * both de-duplicate per apartment — said 5. Same rule as theirs: the newest
-     * tenancy that had begun by month end is the occupant of record.
-     *
-     * Every rental reaching here already started on/before $monthEnd, so the
-     * first row of each newest-first group is that occupant.
+     * both de-duplicate per apartment — said 5. Same rule as theirs, shared
+     * through Rentals::occupantFor().
      *
      * @return \Illuminate\Support\Collection<int, Rentals>
      */
     private function monthOccupants($apartmentIds, Carbon $monthStart, Carbon $monthEnd)
     {
         return $this->activeRentalsQuery($apartmentIds, $monthStart, $monthEnd)
-            ->orderByDesc('start_date')
-            ->orderByDesc('id')
-            ->get(['id', 'apartment_id', 'rent_amount'])
+            ->with(['tenant' => fn ($q) => $q->withTrashed()->select('id', 'deleted_at')])
+            ->get(['id', 'apartment_id', 'tenant_id', 'rent_amount', 'start_date', 'end_date'])
             ->groupBy('apartment_id')
-            ->map(fn ($rentals) => $rentals->first())
+            ->map(fn ($rentals) => Rentals::occupantFor($rentals, $monthEnd))
             ->values();
     }
 

@@ -216,6 +216,8 @@ class DashboardStatsService
 
         $activeRentals = $this->scopedRentalQuery()
             ->with([
+                // occupantFor() reads an archived tenant's deleted_at.
+                'tenant' => fn ($tq) => $tq->withTrashed(),
                 'payments' => fn ($pq) => $pq->where('payment_status', 'paid'),
                 // The charges side of the reference month's bill.
                 'utilities' => fn ($uq) => $uq->where('billing_month', $currentMonth)
@@ -242,9 +244,7 @@ class DashboardStatsService
             // begun by month end (the occupant), else the earliest future one
             // so an empty room awaiting its next tenant is still represented.
             ->groupBy('apartment_id')
-            ->map(fn ($rentals) => $rentals->first(
-                fn ($r) => ! $r->start_date || Carbon::parse($r->start_date)->lte($referenceMonthEnd)
-            ) ?? $rentals->last())
+            ->map(fn ($rentals) => Rentals::occupantFor($rentals, $referenceMonthEnd))
             ->values();
 
         foreach ($activeRentals as $rental) {

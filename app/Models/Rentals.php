@@ -89,6 +89,48 @@ class Rentals extends Model
         return $this->hasMany(Utilities::class, 'rental_id');
     }
 
+    /**
+     * The one tenancy a room bills for in a month, picked from that room's
+     * rentals. Used by the rent collection page, the dashboard tiles and
+     * break-even, so all three name the same occupant.
+     *
+     * Newest start_date alone is not enough: a room change (and a backdated
+     * move-in) opens the new rental at the tenant's ORIGINAL move-in date, so
+     * the incoming tenant can "start" before the tenant they replaced — whose
+     * rental then won the month and the page named someone who had left.
+     * So: whoever was still in the room on the month's last day wins, newest
+     * start among those; else the tenancy that ended during the month; and a
+     * room nobody has begun yet shows its earliest future tenancy (upcoming).
+     *
+     * A rental left open (no end_date) for a tenant who is archived counts as
+     * ending when they were archived — otherwise it would hold the room forever.
+     */
+    public static function occupantFor($rentals, Carbon $monthEnd): ?self
+    {
+        $rentals = collect($rentals);
+        $lastDay = $monthEnd->copy()->startOfDay();
+        $start = fn ($r) => $r->start_date ? Carbon::parse($r->start_date) : null;
+
+        $begun = $rentals->filter(fn ($r) => ! $start($r) || $start($r)->lte($monthEnd));
+
+        if ($begun->isEmpty()) {
+            return $rentals->sortBy(fn ($r) => [$start($r)?->timestamp ?? 0, $r->id])->first();
+        }
+
+        return $begun->sortByDesc(function ($r) use ($start, $lastDay) {
+            $end = $r->end_date ? Carbon::parse($r->end_date) : null;
+            if (! $end && $r->relationLoaded('tenant') && $r->tenant?->deleted_at) {
+                $end = Carbon::parse($r->tenant->deleted_at);
+            }
+
+            return [
+                ! $end || $end->gte($lastDay) ? 1 : 0,
+                $start($r)?->timestamp ?? 0,
+                $r->id,
+            ];
+        })->first();
+    }
+
     // Scopes
 
     /**

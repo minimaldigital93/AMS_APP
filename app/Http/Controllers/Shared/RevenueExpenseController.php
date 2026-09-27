@@ -970,13 +970,11 @@ abstract class RevenueExpenseController extends Controller
             // moment the leave is processed — so the outgoing and incoming
             // rentals overlap, and the room was billed twice.
             //
-            // Rentals arrive newest-first. Take the newest tenancy that has
-            // actually begun by month end — the current occupant. If none has
-            // (room empty now, next tenant moves in later), fall back to the
-            // earliest future tenancy so it still surfaces as "upcoming".
-            $currentOccupant = $apartment->rentals
-                ->first(fn ($r) => ! $r->start_date || $r->start_date->lte($monthEnd))
-                ?? $apartment->rentals->last();
+            // Rentals::occupantFor() picks it — the tenancy still in the room
+            // at month end, else the one that ended in the month, else the
+            // earliest future one ("upcoming"). Shared with the dashboard
+            // tiles and break-even so all three name the same tenant.
+            $currentOccupant = Rentals::occupantFor($apartment->rentals, $monthEnd);
 
             $billableRentals = $currentOccupant ? [$currentOccupant] : [];
 

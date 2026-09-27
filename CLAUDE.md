@@ -1089,9 +1089,14 @@ occupancy, per month**. During turnover the outgoing and incoming tenancies
 *overlap*: `leave_date` may be any day of the month and the room is freed for
 reassignment the moment the leave is processed. Counting `rentals` rows in a
 month window therefore double-counts every turnover room. Each of these picks
-the **newest tenancy that had begun by month end** (else the earliest future
-one, so an empty room awaiting its next tenant still shows) and must keep doing
-so:
+one occupant through **`Rentals::occupantFor()`** — the tenancy still in the
+room on the month's last day (newest start among those), else the one that
+ended during the month, else the earliest future one so an empty room awaiting
+its next tenant still shows. Newest-start alone (the rule until 2026-09) named
+a tenant who had left: a room change opens the new rental at the tenant's
+*original* move-in date, so the incoming tenant "started" before the one they
+replaced. An open rental of an archived tenant counts as ending at
+`deleted_at`. `RoomOccupantAfterRoomChangeTest` pins it. The callers:
 
 - `Shared\RevenueExpenseController::recordIncome()` — one bill row per room.
 - `DashboardStatsService::countRentPaymentStatus()` — the paid/pending/overdue
