@@ -64,6 +64,7 @@ class TenantLeaveCalculator
     ): array {
         $charges = array_merge([
             'pro_rata_rent' => 0,
+            'arrears_rent' => 0,
             'electricity' => 0,
             'water' => 0,
             'internet' => 0,
@@ -79,6 +80,7 @@ class TenantLeaveCalculator
         return [
             'stay_days' => $this->calculateStayDays($rental, $leaveDate),
             'pro_rata_rent' => round($charges['pro_rata_rent'], 2),
+            'arrears_rent' => round($charges['arrears_rent'], 2),
             'electricity_charge' => round($charges['electricity'], 2),
             'water_charge' => round($charges['water'], 2),
             'internet_charge' => round($charges['internet'], 2),

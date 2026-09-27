@@ -17,6 +17,9 @@ it('processes admin leave: archives tenant, frees apartment, writes ledger', fun
         ->post(route('admin.tenants.processLeave', $this->tenant), [
             'leave_date' => now()->toDateString(),
             'charge_full_month' => false,
+            // The rental began two months ago with no rent recorded: collect it,
+            // or the move-out is refused as an unexplained write-off.
+            'rent_months' => [now()->subMonths(2)->format('Y-m'), now()->subMonth()->format('Y-m')],
         ])
         ->assertRedirect(route('admin.tenants.archived'));
 
@@ -44,6 +47,9 @@ it('rolls back the entire leave when ledger writes fail', function () {
         ->post(route('admin.tenants.processLeave', $this->tenant), [
             'leave_date' => now()->toDateString(),
             'charge_full_month' => false,
+            // The rental began two months ago with no rent recorded: collect it,
+            // or the move-out is refused as an unexplained write-off.
+            'rent_months' => [now()->subMonths(2)->format('Y-m'), now()->subMonth()->format('Y-m')],
         ]);
 
     // Controller catches the exception and redirects back with an error.

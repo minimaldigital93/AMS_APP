@@ -27,6 +27,7 @@ class TenantLeave extends Model
         'original_move_out_date',
         'stay_days',
         'pro_rata_rent',
+        'arrears_rent',
         'electricity_reading',
         'electricity_charge',
         'water_reading',
@@ -37,6 +38,9 @@ class TenantLeave extends Model
         'deposit_applied',
         'balance_due',
         'refund_amount',
+        'written_off_amount',
+        'written_off_items',
+        'write_off_reason',
         'status',
         'notes',
     ];
@@ -57,6 +61,9 @@ class TenantLeave extends Model
             'deposit_applied' => 'float',
             'balance_due' => 'float',
             'refund_amount' => 'float',
+            'arrears_rent' => 'float',
+            'written_off_amount' => 'float',
+            'written_off_items' => 'array',
         ];
     }
 

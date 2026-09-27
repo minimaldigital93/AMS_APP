@@ -38,6 +38,12 @@ class ProcessTenantLeaveRequest extends FormRequest
             'charge_full_month' => 'nullable|boolean',
             'charge_ids' => 'nullable|array',
             'charge_ids.*' => 'string',
+            // Unpaid rent months (Y-m) collected in the settlement. Anything
+            // owed that is left out needs write_off_reason — enforced in
+            // TenantLeaveProcessor::prepare(), which knows what is owed.
+            'rent_months' => 'nullable|array',
+            'rent_months.*' => 'string|date_format:Y-m',
+            'write_off_reason' => 'nullable|string|max:1000',
             'extra_charges' => 'nullable|array',
             'extra_charges.*.description' => 'required_with:extra_charges.*.amount|string|max:255',
             'extra_charges.*.amount' => 'required_with:extra_charges.*.description|numeric|min:0.01|max:99999999.99',

@@ -27,6 +27,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 
 class TenantController extends Controller
@@ -438,9 +439,13 @@ class TenantController extends Controller
             $rental->end_date = null;
         }
 
-        $pendingCharges = $this->pendingChargesQuery->forRental($rental);
+        // Every open bill on any of the tenant's rentals, and the lease's
+        // month-by-month rent — the form derives the arrears for whichever
+        // leave date is picked; processLeave() re-derives it server-side.
+        $pendingCharges = $this->pendingChargesQuery->forTenant($tenant);
+        $rentLedger = $this->leaveProcessor->rentLedger($tenant, $rental, now()->addYear());
 
-        return view('shared.tenants.leave', compact('tenant', 'rental', 'pendingCharges') + ['panel' => 'supervisor']);
+        return view('shared.tenants.leave', compact('tenant', 'rental', 'pendingCharges', 'rentLedger') + ['panel' => 'supervisor']);
     }
 
     /**
@@ -471,6 +476,10 @@ class TenantController extends Controller
                 ->route('supervisor.tenants.archived')
                 ->with('success', __('messages.flash_leave_processed_settlement'));
 
+        } catch (ValidationException $e) {
+            // Owed money left unticked without a write-off reason: back to the
+            // form with the field error, not the generic failure flash.
+            throw $e;
         } catch (\Exception $e) {
             Log::error('Supervisor - Error processing tenant leave: '.$e->getMessage(), [
                 'tenant_id' => $tenant->id,
@@ -553,6 +562,9 @@ class TenantController extends Controller
                 'note' => 'Tenant: '.$tenant->name.' - '.$settlement['stay_days'].' days stay',
             ]);
         }
+
+        // 1b) Unpaid rent from earlier months, collected in the settlement
+        $this->leaveProcessor->bookArrearsRent($tenant, $context, $activePeriod, $ledgerUserId);
 
         // 2a) Mark selected Payments paid + record per-row income
         foreach ($selectedPayments as $charge) {

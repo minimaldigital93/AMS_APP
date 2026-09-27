@@ -1353,6 +1353,39 @@ Rules behind it:
 
 ---
 
+## A move-out settles everything owed — or writes it off, in writing
+
+`TenantLeaveProcessor::owed()` is the one answer to "what does this tenant owe
+on this leave date?", read by both the leave form and `prepare()`:
+
+- **Unpaid rent for every month before the leave month** (`rentLedger()`; the
+  leave month itself is the pro-rata line). A month is paid when **any** of the
+  tenant's rentals holds a rent payment dated in it — a room change opens a new
+  rental that restarts at the original move-in date, and the months spent in
+  the old room were paid against the old rental.
+- **Every open bill on any of the tenant's rentals**
+  (`TenantPendingChargesQuery::forTenant()`), not just the current room's.
+- **The leave month is not charged twice**: already-paid rent there ⇒ pro-rata
+  (and full-month) is 0.
+
+The form lists all of it **ticked**. Anything owed and left unticked is a
+**write-off**: `prepare()` refuses it without `write_off_reason`
+(ValidationException, re-thrown past the controllers' generic catch), and
+stores `written_off_amount` / `written_off_items` / `write_off_reason` on
+`tenant_leaves` plus a `tenant.leave.written_off` audit row. A write-off books
+nothing and leaves the forgiven rows unpaid. Submitted ids/months are
+intersected with the owed set, so a stale tab or another tenant's charge id is
+dropped, never settled. Collected arrears are booked by `bookArrearsRent()`
+(shared by both panels): one rent `Payments` row per month anchored in that
+month, ledger row dated on the leave date.
+
+Deliberately **not** a hard block: a tenant who disappears without paying still
+has to be moved out, or the room can never be let again.
+
+`tests/Feature/Tenants/LeaveSettlesEverythingTest.php` pins it.
+
+---
+
 ## A tenant's login is a `User` row — the admin fixes it from the tenant page
 
 A tenant has two phone numbers and they are **never synced**: `tenants.phone` is

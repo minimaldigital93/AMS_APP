@@ -1,12 +1,28 @@
 {{--
     Shared tenant move-out form (admin + supervisor).
 
-    Expects: $tenant, $rental, $pendingCharges, plus:
+    Expects: $tenant, $rental, $pendingCharges, $rentLedger, plus:
       $formAction — POST target (processLeave route)
       $backUrl    — cancel / back link
 --}}
 @php
     $step = 0;
+    // The rent months that could ever be arrears for some leave date. Which of
+    // them ARE is decided live from the picked date (arrearsMonths below) and
+    // again server-side in TenantLeaveProcessor::owed().
+    $rentLedger = collect($rentLedger ?? []);
+    $hasUnpaidRent = $rentLedger->contains(fn ($m) => ! $m['paid']);
+    $resubmitted = old('leave_date') !== null;
+    // Everything owed starts ticked: leaving money out is a write-off, which
+    // is a decision, never a default.
+    $initialCharges = $resubmitted ? array_values(old('charge_ids', [])) : $pendingCharges->pluck('id')->values()->all();
+    $initialMonths = $resubmitted ? array_values(old('rent_months', [])) : $rentLedger->where('paid', false)->pluck('key')->values()->all();
+    $ledgerForJs = $rentLedger->map(fn ($m) => [
+        'key' => $m['key'],
+        'label' => $m['label'],
+        'amount' => (float) money_input($m['amount']),
+        'paid' => $m['paid'],
+    ])->values()->all();
 @endphp
 
 <div class="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8 py-6" x-data="leaveForm()">
@@ -89,13 +105,13 @@
                     <span class="flex h-7 w-7 items-center justify-center rounded-full bg-blue-600 text-white text-sm font-bold flex-shrink-0">{{ ++$step }}</span>
                     <h3 class="text-base font-semibold text-gray-900">{{ __('messages.how_charge_last_rent') }}</h3>
                 </div>
-                <div class="grid gap-3 sm:grid-cols-2">
+                <p x-show="finalMonthPaid" x-cloak class="rounded-lg bg-emerald-50 border border-emerald-200 px-3 py-2.5 text-sm text-emerald-700">{{ __('messages.leave_final_month_paid') }}</p>
+                <div class="grid gap-3 sm:grid-cols-2" x-show="!finalMonthPaid">
                     <label class="flex items-start gap-3 p-4 rounded-xl border-2 cursor-pointer transition"
                         :class="!fullMonth ? 'border-blue-500 bg-blue-50/50' : 'border-slate-200 hover:border-slate-300'">
                         <input type="radio" name="rent_mode_ui" class="mt-1 h-4 w-4 text-blue-600" :checked="!fullMonth" @change="fullMonth = false">
                         <span class="flex-1">
                             <span class="block text-sm font-semibold text-gray-800">{{ __('messages.only_days_stayed') }}</span>
-                            <span class="block text-xs text-gray-500 mt-0.5"><span x-text="stayDays"></span> {{ __('messages.days_times_daily_rate') }}</span>
                             <span class="block text-lg font-bold text-blue-600 mt-1.5" x-text="fmt(proRataRent)"></span>
                         </span>
                     </label>
@@ -104,21 +120,47 @@
                         <input type="radio" name="rent_mode_ui" class="mt-1 h-4 w-4 text-blue-600" :checked="fullMonth" @change="fullMonth = true">
                         <span class="flex-1">
                             <span class="block text-sm font-semibold text-gray-800">{{ __('messages.full_month_rent') }}</span>
-                            <span class="block text-xs text-gray-500 mt-0.5">{{ __('messages.charge_entire_month') }}</span>
                             <span class="block text-lg font-bold text-blue-600 mt-1.5" x-text="fmt(monthlyRent)"></span>
                         </span>
                     </label>
                 </div>
             </div>
 
+            <!-- Step: Unpaid rent from earlier months -->
+            @if($hasUnpaidRent)
+            <div class="bg-white rounded-xl border border-slate-100 p-5" x-show="arrearsMonths.length > 0" x-cloak>
+                <div class="flex items-center gap-3 mb-3">
+                    <span class="flex h-7 w-7 items-center justify-center rounded-full bg-blue-600 text-white text-sm font-bold flex-shrink-0">{{ ++$step }}</span>
+                    <h3 class="text-base font-semibold text-gray-900">{{ __('messages.leave_unpaid_rent') }}</h3>
+                </div>
+
+                <div class="border border-slate-200 rounded-xl overflow-hidden divide-y divide-slate-100">
+                    <label class="flex items-center gap-3 px-4 py-2.5 bg-slate-50 cursor-pointer">
+                        <input type="checkbox" class="h-4 w-4 text-blue-600 rounded" :checked="allMonthsSelected" @change="toggleAllMonths()">
+                        <span class="text-xs font-semibold text-slate-500 uppercase flex-1">{{ __('messages.select_all') }}</span>
+                        <span class="text-xs font-medium text-slate-500">
+                            <span x-text="selectedArrears.length"></span>/<span x-text="arrearsMonths.length"></span>
+                        </span>
+                    </label>
+                    <template x-for="m in arrearsMonths" :key="m.key">
+                        <label class="flex items-center gap-3 px-4 py-3 cursor-pointer transition hover:bg-slate-50"
+                            :class="selectedMonths.includes(m.key) ? 'bg-blue-50/40' : 'bg-amber-50/40'">
+                            <input type="checkbox" name="rent_months[]" :value="m.key" x-model="selectedMonths" class="h-4 w-4 text-blue-600 rounded">
+                            <span class="flex-1 text-sm text-gray-700">{{ __('messages.rent') }} — <span x-text="m.label"></span></span>
+                            <span class="text-sm font-semibold text-gray-800" x-text="fmt(m.amount)"></span>
+                        </label>
+                    </template>
+                </div>
+            </div>
+            @endif
+
             <!-- Step: Unpaid bills -->
             @if($pendingCharges->isNotEmpty())
             <div class="bg-white rounded-xl border border-slate-100 p-5">
-                <div class="flex items-center gap-3 mb-1">
+                <div class="flex items-center gap-3 mb-3">
                     <span class="flex h-7 w-7 items-center justify-center rounded-full bg-blue-600 text-white text-sm font-bold flex-shrink-0">{{ ++$step }}</span>
                     <h3 class="text-base font-semibold text-gray-900">{{ __('messages.unpaid_bills') }}</h3>
                 </div>
-                <p class="text-xs text-gray-400 mb-3 ml-10">{{ __('messages.unpaid_bills_hint') }}</p>
 
                 <div class="border border-slate-200 rounded-xl overflow-hidden divide-y divide-slate-100">
                     <label class="flex items-center gap-3 px-4 py-2.5 bg-slate-50 cursor-pointer">
@@ -130,7 +172,7 @@
                     </label>
                     @foreach($pendingCharges as $charge)
                     <label class="flex items-center gap-3 px-4 py-3 cursor-pointer transition hover:bg-slate-50"
-                        :class="selectedCharges.includes('{{ $charge->id }}') && 'bg-blue-50/40'">
+                        :class="selectedCharges.includes('{{ $charge->id }}') ? 'bg-blue-50/40' : 'bg-amber-50/40'">
                         <input type="checkbox" name="charge_ids[]" value="{{ $charge->id }}" x-model="selectedCharges"
                             class="h-4 w-4 text-blue-600 rounded">
                         <span class="flex-1 min-w-0">
@@ -163,7 +205,6 @@
                         <input type="radio" name="deposit_action_ui" class="mt-1 h-4 w-4 text-blue-600" :checked="depositAction === 'return_deposit'" @change="depositAction = 'return_deposit'">
                         <span class="flex-1">
                             <span class="block text-sm font-semibold text-gray-800">{{ __('messages.return_deposit_option') }}</span>
-                            <span class="block text-xs text-gray-500 mt-0.5">{{ __('messages.return_deposit_hint') }}</span>
                         </span>
                     </label>
                     <label class="flex items-start gap-3 p-4 rounded-xl border-2 cursor-pointer transition"
@@ -171,7 +212,6 @@
                         <input type="radio" name="deposit_action_ui" class="mt-1 h-4 w-4 text-green-600" :checked="depositAction === 'last_payment'" @change="depositAction = 'last_payment'">
                         <span class="flex-1">
                             <span class="block text-sm font-semibold text-gray-800">{{ __('messages.deposit_as_last_payment_option') }}</span>
-                            <span class="block text-xs text-gray-500 mt-0.5">{{ __('messages.deposit_as_last_payment_hint') }}</span>
                         </span>
                     </label>
                 </div>
@@ -191,8 +231,6 @@
                         {{ __('messages.add_extra_charge') }}
                     </button>
                 </div>
-
-                <p class="text-xs text-gray-400 mb-3 ml-10" x-show="extraCharges.length === 0">{{ __('messages.no_extra_charges_yet') }}</p>
 
                 <template x-for="(row, idx) in extraCharges" :key="idx">
                     <div class="flex gap-2 mb-2">
@@ -217,15 +255,29 @@
                     class="w-full mt-2 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm">{{ old('notes') }}</textarea>
             </div>
 
+            <!-- Write-off: owed money left unticked must be explained -->
+            <div x-show="writtenOffTotal > 0" x-cloak class="rounded-xl border border-amber-300 bg-amber-50 p-5">
+                <h3 class="text-sm font-semibold text-amber-800 mb-3">{{ __('messages.leave_write_off_title') }} <span x-text="fmt(writtenOffTotal)"></span></h3>
+                <textarea name="write_off_reason" rows="2" maxlength="1000" x-model="writeOffReason" :required="writtenOffTotal > 0"
+                    placeholder="{{ __('messages.leave_write_off_placeholder') }}"
+                    class="w-full px-3 py-2 border border-amber-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent text-sm bg-white"></textarea>
+                @error('write_off_reason')
+                    <p class="text-xs text-red-600 mt-1">{{ $message }}</p>
+                @enderror
+            </div>
+
             <!-- Settlement summary -->
             <div class="bg-white rounded-xl border border-slate-100 p-5">
-                <h3 class="text-base font-semibold text-gray-900">{{ __('messages.settlement_summary') }}</h3>
-                <p class="text-xs text-slate-400 mb-4">{{ __('messages.updates_live') }}</p>
+                <h3 class="text-base font-semibold text-gray-900 mb-4">{{ __('messages.settlement_summary') }}</h3>
 
                 <div class="space-y-2.5 text-sm">
                     <div class="flex justify-between text-gray-600">
                         <span x-text="fullMonth ? '{{ __('messages.full_month_rent') }}' : '{{ __('messages.pro_rata_rent') }}'"></span>
                         <span class="font-semibold text-gray-800" x-text="fmt(rentCharge)"></span>
+                    </div>
+                    <div class="flex justify-between text-gray-600" x-show="arrearsTotal > 0">
+                        <span>{{ __('messages.leave_unpaid_rent') }} (<span x-text="selectedArrears.length"></span>)</span>
+                        <span class="font-semibold text-gray-800" x-text="fmt(arrearsTotal)"></span>
                     </div>
                     <div class="flex justify-between text-gray-600" x-show="chargeCount > 0">
                         <span>{{ __('messages.unpaid_bills') }} (<span x-text="selectedCharges.length"></span>)</span>
@@ -234,6 +286,11 @@
                     <div class="flex justify-between text-gray-600" x-show="extraTotal > 0">
                         <span>{{ __('messages.damage_extra_charges') }}</span>
                         <span class="font-semibold text-gray-800" x-text="fmt(extraTotal)"></span>
+                    </div>
+
+                    <div class="flex justify-between text-amber-700" x-show="writtenOffTotal > 0">
+                        <span>{{ __('messages.written_off_not_collected') }}</span>
+                        <span class="font-semibold" x-text="fmt(writtenOffTotal)"></span>
                     </div>
 
                     <div class="flex justify-between items-center border-t border-slate-200 pt-2.5">
@@ -267,9 +324,6 @@
                         <div class="rounded-lg bg-slate-50 border border-slate-200 px-3 py-3 text-center">
                             <p class="text-sm font-medium text-slate-500">{{ __('messages.all_settled') }}</p>
                         </div>
-                    </template>
-                    <template x-if="depositAction === 'last_payment' && deposit > 0">
-                        <p class="text-xs text-slate-400 mt-2 text-center">{{ __('messages.deposit_kept_note') }}</p>
                     </template>
                 </div>
 
@@ -315,6 +369,10 @@
                     <span>{{ __('messages.total_due') }}</span>
                     <span class="font-semibold text-gray-800" x-text="fmt(totalDue)"></span>
                 </div>
+                <div class="flex justify-between text-amber-700" x-show="writtenOffTotal > 0">
+                    <span>{{ __('messages.written_off_not_collected') }}</span>
+                    <span class="font-semibold" x-text="fmt(writtenOffTotal)"></span>
+                </div>
                 <div class="flex justify-between text-gray-600" x-show="balanceDue > 0">
                     <span>{{ __('messages.tenant_still_owes') }}</span>
                     <span class="font-semibold text-red-600" x-text="fmt(balanceDue)"></span>
@@ -352,7 +410,10 @@
             leaveDate: '{{ old('leave_date', today()->format('Y-m-d')) }}',
             fullMonth: {{ old('charge_full_month') ? 'true' : 'false' }},
             depositAction: '{{ old('deposit_action', 'return_deposit') }}',
-            selectedCharges: @json(array_values(old('charge_ids', []))),
+            selectedCharges: @json($initialCharges),
+            selectedMonths: @json($initialMonths),
+            writeOffReason: @json(old('write_off_reason', '')),
+            rentLedger: @json($ledgerForJs),
             extraCharges: @json(array_values(old('extra_charges', []))),
             showModal: false,
 
@@ -376,16 +437,39 @@
                 return Math.min(Math.max(days, 1), 30);
             },
             get proRataRent() { return this.finalMonthDays * (this.monthlyRent / 30); },
-            get rentCharge() { return this.fullMonth ? this.monthlyRent : this.proRataRent; },
+            // Mirrors TenantLeaveProcessor::owed(): unpaid months strictly before
+            // the leave month are arrears; a paid leave month charges nothing.
+            get leaveKey() { return (this.leaveDate || '').slice(0, 7); },
+            get arrearsMonths() { return this.rentLedger.filter(m => !m.paid && m.key < this.leaveKey); },
+            get selectedArrears() { return this.arrearsMonths.filter(m => this.selectedMonths.includes(m.key)); },
+            get arrearsTotal() { return this.selectedArrears.reduce((sum, m) => sum + m.amount, 0); },
+            get finalMonthPaid() { return this.rentLedger.some(m => m.key === this.leaveKey && m.paid); },
+            get rentCharge() {
+                if (this.finalMonthPaid) return 0;
+                return this.fullMonth ? this.monthlyRent : this.proRataRent;
+            },
             get billsTotal() { return this.selectedCharges.reduce((sum, id) => sum + (this.chargeAmounts[id] || 0), 0); },
             get extraTotal() { return this.extraCharges.reduce((sum, r) => sum + (parseFloat(r.amount) || 0), 0); },
-            get totalDue() { return this.rentCharge + this.billsTotal + this.extraTotal; },
+            get writtenOffTotal() {
+                const rent = this.arrearsMonths.filter(m => !this.selectedMonths.includes(m.key)).reduce((sum, m) => sum + m.amount, 0);
+                const bills = this.allIds.filter(id => !this.selectedCharges.includes(id)).reduce((sum, id) => sum + (this.chargeAmounts[id] || 0), 0);
+                return rent + bills;
+            },
+            get totalDue() { return this.rentCharge + this.arrearsTotal + this.billsTotal + this.extraTotal; },
             get depositApplied() { return Math.min(this.deposit, this.totalDue); },
             get balanceDue() { return Math.max(0, this.totalDue - this.deposit); },
             get refundAmount() { return this.depositAction === 'return_deposit' ? this.deposit - this.depositApplied : 0; },
             get allSelected() { return this.chargeCount > 0 && this.selectedCharges.length === this.chargeCount; },
 
+            get allMonthsSelected() { return this.arrearsMonths.length > 0 && this.selectedArrears.length === this.arrearsMonths.length; },
+
             toggleAll() { this.selectedCharges = this.allSelected ? [] : [...this.allIds]; },
+            toggleAllMonths() {
+                const keys = this.arrearsMonths.map(m => m.key);
+                this.selectedMonths = this.allMonthsSelected
+                    ? this.selectedMonths.filter(k => !keys.includes(k))
+                    : [...new Set([...this.selectedMonths, ...keys])];
+            },
             addExtraCharge() { this.extraCharges.push({ description: '', amount: '' }); },
             removeExtraCharge(idx) { this.extraCharges.splice(idx, 1); },
             fmt(v) {

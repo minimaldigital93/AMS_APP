@@ -432,7 +432,7 @@ abstract class RevenueExpenseController extends Controller
                 $q->orderBy('start_date', 'desc')
                     // vehicles: the bills section derives the tenant's parking
                     // charge from them (see the billSummary build below).
-                    ->with(['tenant.vehicles', 'payments' => function ($pq) use ($activePeriod) {
+                    ->with(['tenant' => fn ($tq) => $tq->withTrashed(), 'tenant.vehicles', 'payments' => function ($pq) use ($activePeriod) {
                         $pq->where('payment_status', 'paid')
                             ->whereHas('accounts', function ($aq) use ($activePeriod) {
                                 $aq->where('fiscal_period_id', $activePeriod->id);
@@ -909,7 +909,11 @@ abstract class RevenueExpenseController extends Controller
                     ->orderBy('id', 'desc')
                     // vehicles: the Add-Charge modal quotes parking off the
                     // tenant's own priced vehicles (see $vehicleContext below).
-                    ->with(['tenant.vehicles', 'payments' => function ($pq) use ($activePeriod, $currentMonth, $currentYear) {
+                    // withTrashed: a moved-out tenant is soft-deleted, but their
+                    // rental still owns the months they lived in (and the month
+                    // they leave, until the next tenancy begins) — the row
+                    // printed "N/A" without it.
+                    ->with(['tenant' => fn ($tq) => $tq->withTrashed(), 'tenant.vehicles', 'payments' => function ($pq) use ($activePeriod, $currentMonth, $currentYear) {
                         // Count a payment as "this month's" if it lands inside the
                         // active fiscal period window OR within the month being
                         // viewed. The month fallback guards against an active period
@@ -1776,7 +1780,7 @@ abstract class RevenueExpenseController extends Controller
         $currentMonth = $billMonth->month;
         $currentYear = $billMonth->year;
 
-        $rental = Rentals::with(['apartment.floor', 'apartment.activeFixedExpenses', 'tenant'])
+        $rental = Rentals::with(['apartment.floor', 'apartment.activeFixedExpenses', 'tenant' => fn ($q) => $q->withTrashed()])
             ->findOrFail($rentalId);
         $this->authorizeRentalAccess($rental);
 
@@ -1875,7 +1879,7 @@ abstract class RevenueExpenseController extends Controller
         $month = (int) $request->input('month', now()->month);
         $year = (int) $request->input('year', now()->year);
 
-        $rental = Rentals::with(['apartment.floor.property', 'tenant'])
+        $rental = Rentals::with(['apartment.floor.property', 'tenant' => fn ($q) => $q->withTrashed()])
             ->findOrFail($rentalId);
         $this->authorizeRentalAccess($rental);
 
@@ -2543,7 +2547,7 @@ abstract class RevenueExpenseController extends Controller
                     $q2->whereNull('end_date')->orWhere('end_date', '>=', now());
                 })
                     ->orderBy('start_date', 'desc')
-                    ->with(['tenant.vehicles', 'utilities' => function ($uq) use ($currentMonth, $currentYear) {
+                    ->with(['tenant' => fn ($tq) => $tq->withTrashed(), 'tenant.vehicles', 'utilities' => function ($uq) use ($currentMonth, $currentYear) {
                         $uq->where('billing_month', $currentMonth)
                             ->where('billing_year', $currentYear);
                     }]);
