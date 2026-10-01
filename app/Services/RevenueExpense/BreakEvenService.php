@@ -97,7 +97,9 @@ class BreakEvenService
         // rooms than it actually had tenants, so floor the denominator there.
         $totalApartments = max($rentableCount, $currentOccupancy);
 
-        $businessExpenses = $this->calculateBusinessExpenses($month, $year);
+        // Overhead comes off the SAME ledger records as total_expenses, so it can
+        // never exceed the total or drift from the Revenue & Expense page.
+        $businessExpenses = $this->businessExpensesFrom($expenses);
         $variableTotal = max(0, $totalExpenses - $businessExpenses);
         $variableCostPerUnit = $currentOccupancy > 0 ? $variableTotal / $currentOccupancy : 0;
 
@@ -256,9 +258,11 @@ class BreakEvenService
             'other' => round((float) $selectedIncome['other_income'], 2),
         ], fn ($v) => $v > 0);
 
+        // Every business expense is booked as `business_variable`, yet calculate()
+        // treats it as FIXED overhead — labelling that slice "Variable" made the
+        // donut contradict the break-even math above it. One overhead slice.
         $expenseMix = array_filter([
-            'fixed_expenses' => round((float) $selectedExpenses['fixed_expenses'], 2),
-            'variable_expenses' => round((float) $selectedExpenses['variable_expenses'], 2),
+            'business_expenses' => round($this->businessExpensesFrom($selectedExpenses), 2),
             'utilities' => round((float) $selectedExpenses['utility_expenses'], 2),
             'deposit_refunds' => round((float) $selectedExpenses['deposit_expenses'], 2),
             'other' => round((float) $selectedExpenses['other_expenses'], 2),
@@ -447,18 +451,20 @@ class BreakEvenService
      */
     public function calculateBusinessExpenses(?int $month = null, ?int $year = null): float
     {
-        $month = $month ?: now()->month;
-        $year = $year ?: now()->year;
+        $monthStart = Carbon::create($year ?: now()->year, $month ?: now()->month, 1)->startOfMonth();
 
-        $query = $this->scopeToProperty(BusinessExpense::where('user_id', $this->userId))
-            ->where('billing_month', $month)
-            ->where('billing_year', $year);
+        return $this->businessExpensesFrom(
+            $this->queryService->calculateExpenses($monthStart, $monthStart->copy()->endOfMonth())
+        );
+    }
 
-        if ($this->period) {
-            $query->where('fiscal_period_id', $this->period->id);
-        }
-
-        return (float) $query->sum('amount');
+    /**
+     * Business overhead out of a calculateExpenses() result — the ledger's
+     * business rows (legacy `business_fixed` + `business_variable`).
+     */
+    private function businessExpensesFrom(array $expenses): float
+    {
+        return (float) $expenses['fixed_expenses'] + (float) $expenses['variable_expenses'];
     }
 
     /**

@@ -234,8 +234,7 @@
             'utilities' => __('messages.utilities'),
             'late_fees' => __('messages.late_fees'),
             'deposit' => __('messages.deposit'),
-            'fixed_expenses' => __('messages.fixed_expenses'),
-            'variable_expenses' => __('messages.variable_expenses'),
+            'business_expenses' => __('messages.business_expenses'),
             'deposit_refunds' => __('messages.deposit_refunds'),
             'other' => __('messages.other'),
         ];

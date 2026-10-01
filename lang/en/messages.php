@@ -463,7 +463,7 @@ return [
     'edit_user' => 'Edit User',
     // Revenue & Expense — Break-even
     'this_month' => 'this month',
-    'money_in_rent' => 'Money in (rent)',
+    'money_in_rent' => 'Money in (all income)',
     'money_out_costs' => 'Money out (costs)',
     'apartments_rented' => 'Rooms rented',
     'units_bringing_rent' => 'How many of your units are bringing in rent',

@@ -460,7 +460,7 @@ return [
     'edit_user' => 'កែសម្រួលអ្នកប្រើ',
     // Revenue & Expense — Break-even
     'this_month' => 'ខែនេះ',
-    'money_in_rent' => 'ប្រាក់ចូល (ថ្លៃជួល)',
+    'money_in_rent' => 'ប្រាក់ចូល (ចំណូលសរុប)',
     'money_out_costs' => 'ប្រាក់ចេញ (ការចំណាយ)',
     'apartments_rented' => 'បន្ទប់ដែលបានជួល',
     'units_bringing_rent' => 'តើបន្ទប់ប៉ុន្មានកំពុងនាំចំណូលថ្លៃជួលចូល',
