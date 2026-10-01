@@ -345,31 +345,15 @@
                 </div>
                 {{-- Expense legend rows --}}
                 <div class="mt-4 space-y-1 border-t border-slate-100 pt-3">
-                    @php $businessExpensesTotal = ($expenses['fixed_expenses'] ?? 0) + ($expenses['variable_expenses'] ?? 0); @endphp
-                    @if($businessExpensesTotal > 0)
+                    @php
+                        $expensePalette = ['#F97316', '#6366F1', '#EF4444', '#0EA5E9', '#F59E0B', '#8B5CF6', '#14B8A6', '#EC4899', '#84CC16', '#06B6D4', '#A855F7', '#64748B'];
+                    @endphp
+                    @foreach($expenses['breakdown'] ?? [] as $i => $slice)
                     <div class="flex items-center justify-between text-xs">
-                        <div class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full inline-block" style="background:#F97316"></span><span class="text-slate-500">{{ __('messages.business_word') }}</span></div>
-                        <span class="font-semibold text-slate-700">{{ money($businessExpensesTotal) }}</span>
+                        <div class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full inline-block" style="background:{{ $expensePalette[$i % count($expensePalette)] }}"></span><span class="text-slate-500">{{ $slice['label'] }}</span></div>
+                        <span class="font-semibold text-slate-700">{{ money($slice['amount']) }}</span>
                     </div>
-                    @endif
-                    @if(($expenses['utility_expenses'] ?? 0) > 0)
-                    <div class="flex items-center justify-between text-xs">
-                        <div class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full inline-block" style="background:#6366F1"></span><span class="text-slate-500">{{ __('messages.utilities') }}</span></div>
-                        <span class="font-semibold text-slate-700">{{ money($expenses['utility_expenses']) }}</span>
-                    </div>
-                    @endif
-                    @if(($expenses['deposit_expenses'] ?? 0) > 0)
-                    <div class="flex items-center justify-between text-xs">
-                        <div class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full inline-block" style="background:#EC4899"></span><span class="text-slate-500">{{ __('messages.deposit_refunds') }}</span></div>
-                        <span class="font-semibold text-slate-700">{{ money($expenses['deposit_expenses']) }}</span>
-                    </div>
-                    @endif
-                    @if(($expenses['other_expenses'] ?? 0) > 0)
-                    <div class="flex items-center justify-between text-xs">
-                        <div class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full inline-block" style="background:#64748B"></span><span class="text-slate-500">{{ __('messages.type_other') }}</span></div>
-                        <span class="font-semibold text-slate-700">{{ money($expenses['other_expenses']) }}</span>
-                    </div>
-                    @endif
+                    @endforeach
                     <div class="flex items-center justify-between text-xs font-bold border-t border-slate-100 pt-2 mt-1">
                         <span class="text-slate-700">{{ __('messages.total_expenses') }}</span>
                         <span class="text-red-600">{{ money($expenses['total_expenses']) }}</span>
@@ -1208,20 +1192,10 @@ var incomeData = {
     ]
 };
 
-@php $businessExpensesTotal = ($expenses['fixed_expenses'] ?? 0) + ($expenses['variable_expenses'] ?? 0); @endphp
 var expenseData = {
-    labels: [
-        @if($businessExpensesTotal > 0) '{{ __('messages.business_word') }}', @endif
-        @if(($expenses['utility_expenses'] ?? 0) > 0) '{{ __('messages.utilities') }}', @endif
-        @if(($expenses['deposit_expenses'] ?? 0) > 0) '{{ __('messages.deposit_refunds') }}', @endif
-        @if(($expenses['other_expenses'] ?? 0) > 0) '{{ __('messages.type_other') }}', @endif
-    ],
-    values: [
-        @if($businessExpensesTotal > 0) {{ $businessExpensesTotal }}, @endif
-        @if(($expenses['utility_expenses'] ?? 0) > 0) {{ $expenses['utility_expenses'] }}, @endif
-        @if(($expenses['deposit_expenses'] ?? 0) > 0) {{ $expenses['deposit_expenses'] }}, @endif
-        @if(($expenses['other_expenses'] ?? 0) > 0) {{ $expenses['other_expenses'] }}, @endif
-    ]
+    labels: @json(array_column($expenses['breakdown'] ?? [], 'label')),
+    values: @json(array_column($expenses['breakdown'] ?? [], 'amount')),
+    colors: @json($expensePalette)
 };
 
 var chartOpts = {
@@ -1266,7 +1240,7 @@ function createOrUpdateCharts() {
         if (expenseChartObj) { expenseChartObj.destroy(); }
         expenseChartObj = new Chart(expenseCtx, {
             type: 'doughnut',
-            data: { labels: expenseData.labels, datasets: [{ data: expenseData.values, backgroundColor: ['#EF4444','#F97316','#6366F1','#EC4899','#14B8A6','#8B5CF6','#F59E0B','#64748B'], borderWidth: 0, hoverOffset: 6 }] },
+            data: { labels: expenseData.labels, datasets: [{ data: expenseData.values, backgroundColor: expenseData.values.map(function (_, i) { return expenseData.colors[i % expenseData.colors.length]; }), borderWidth: 0, hoverOffset: 6 }] },
             options: chartOpts
         });
     }

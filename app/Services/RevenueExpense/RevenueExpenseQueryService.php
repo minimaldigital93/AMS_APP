@@ -3,6 +3,8 @@
 namespace App\Services\RevenueExpense;
 
 use App\Models\Accounts;
+use App\Models\BusinessExpense;
+use App\Models\ExpenseCategory;
 use App\Models\FiscalPeriods;
 use App\Models\Utilities;
 use Carbon\Carbon;
@@ -177,9 +179,72 @@ class RevenueExpenseQueryService
             'deposit_expenses' => round($depositExpenses, 2),
             'other_expenses' => round($otherExpenses, 2),
             'by_category' => $byCategory,
+            'breakdown' => $this->expenseTypeBreakdown($records),
             'total_expenses' => round($totalExpenses, 2),
             'expense_count' => $records->count(),
         ];
+    }
+
+    /**
+     * One slice per expense TYPE, largest first: business expenses by their
+     * expense-category key, utility expenses by utility type, other expenses by
+     * their own category. Accounts.category only holds the coarse bucket, so
+     * the type comes from the linked BusinessExpense row / the utility type
+     * recordUtilityExpense() writes into the description.
+     *
+     * @return list<array{key: string, label: string, amount: float}>
+     */
+    private function expenseTypeBreakdown($records): array
+    {
+        $businessCategory = BusinessExpense::whereIn(
+            'ledger_entry_id',
+            $records->where('category', Accounts::CAT_BUSINESS_VARIABLE)->pluck('id')
+        )->pluck('category', 'ledger_entry_id');
+
+        $utilityLabels = [
+            'electricity' => __('messages.electric'),
+            'water' => __('messages.water'),
+            'internet' => __('messages.type_internet'),
+            'parking' => __('messages.type_parking'),
+            'trash' => __('messages.type_trash'),
+            'other' => __('messages.type_other'),
+        ];
+
+        $slices = [];
+        foreach ($records as $record) {
+            switch ($record->category) {
+                case Accounts::CAT_BUSINESS_VARIABLE:
+                case Accounts::CAT_BUSINESS_FIXED:
+                    $type = $businessCategory[$record->id] ?? null;
+                    [$key, $label] = $type
+                        ? ['business:'.$type, ExpenseCategory::labelFor($type)]
+                        : ['business', __('messages.business_word')];
+                    break;
+                case Accounts::CAT_UTILITIES_EXPENSE:
+                    $type = preg_match('/\]\s*([A-Za-z_]+)\s*$/', (string) $record->description, $m)
+                        ? strtolower($m[1]) : null;
+                    [$key, $label] = isset($utilityLabels[$type])
+                        ? ['utility:'.$type, __('messages.utilities').' · '.$utilityLabels[$type]]
+                        : ['utility', __('messages.utilities')];
+                    break;
+                case Accounts::CAT_DEPOSIT_EXPENSE:
+                    [$key, $label] = ['deposit', __('messages.deposit_refunds')];
+                    break;
+                default:
+                    [$key, $label] = ['other:'.$record->category, ExpenseCategory::labelFor($record->category)];
+            }
+
+            $slices[$key] ??= ['key' => $key, 'label' => $label, 'amount' => 0.0];
+            $slices[$key]['amount'] += (float) $record->amount;
+        }
+
+        $slices = array_values(array_filter(
+            array_map(fn ($s) => ['amount' => round($s['amount'], 2)] + $s, $slices),
+            fn ($s) => $s['amount'] > 0
+        ));
+        usort($slices, fn ($a, $b) => $b['amount'] <=> $a['amount']);
+
+        return $slices;
     }
 
     /**

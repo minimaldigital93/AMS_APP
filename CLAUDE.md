@@ -271,8 +271,30 @@ kept Pro's room/staff caps free until their Basic term expired.
   *resets* `expires_at` from today (the paid path **extends** from the existing
   one) and writes no `KhqrPayment`, so it never shows in Superadmin → Payments
   or platform finance revenue.
+- **A downgrade is refused before the QR is minted, not after.** Because caps
+  are read straight off whichever plan the row ends up with, letting a customer
+  pay for a plan smaller than what they already use takes the money and then
+  puts the account over every cap it can't otherwise be moved off.
+  `SubscriptionService::planShortfalls($plan, $usage)` compares one usage
+  snapshot against the target plan's `max_properties`/`max_floors`/`max_rooms`/
+  `max_staff` (`null` = unlimited, never blocks) and `shortfallMessage()` words
+  the refusal — both `Admin\BillingController::index()` (as `planFault()` per
+  plan, so the grid can disable/explain a button) and `renew()` (enforcing the
+  same call before minting) go through them, so the button and the POST can
+  never disagree. **The account's current plan is always exempt** — checked
+  first in both places — or a plan retired or re-capped out from under an
+  account that already exceeds it would leave the billing page with no working
+  button at all; a plan taken off sale the same way still joins the grid
+  when it's the one the account is on, so renewing it stays possible.
+- **The checkout page must show what is being BOUGHT, not what the account
+  already has** — `subscription->plan` is the OLD plan for an upgrade's whole
+  life, since plan/cycle land on the row only at `finalizeSubscription()`.
+  `KhqrPayment::purchasedPlan()` / `purchasedCycle()` read `checkout_payload`
+  first, falling back to the subscription exactly as `finalizeSubscription()`
+  does — it now calls these same methods rather than re-deriving them, so the
+  checkout view and the finalize path can't drift apart.
 
-`tests/Feature/Subscription/BillingCycleTest.php` pins all of it.
+`tests/Feature/Subscription/BillingCycleTest.php` pins the money rule above.
 
 ### Adding a payment provider
 
@@ -743,6 +765,39 @@ A lapsed owner never needs to re-register: `ExpireSubscriptions` only flips
 `EnsureSubscriptionActive` exempts precisely so there is no lockout loop.
 
 `tests/Feature/Subscription/SignupPhoneTakeoverTest.php` pins it.
+
+---
+
+## Sign-in: "remember me" expires on its own clock, and `/` must honour it
+
+`config/auth.php`'s **`remember_duration`** (`AUTH_REMEMBER_DURATION`, minutes,
+default 90 days) is set from `LoginRequest::authenticate()` via
+`Auth::guard()->setRememberDuration()` — the only place this app mints a
+"remember me" cookie, so the only place the window needs setting. Laravel's own
+default is 400 days; this app's device holds a building's books (rent taken,
+tenants' phone numbers, the landlord's own payment settings), and phones are
+resold and handed down inside a year, so 90 days was chosen deliberately
+shorter. **The cookie is never re-issued on use** — the window runs from the
+login itself, not from the last visit, so a "remembered" user still re-enters
+their password about four times a year regardless of how often they open the
+app.
+
+**The `/` route is the door almost nobody enters through `/login`** — it is
+the PWA's `start_url` (`./?source=pwa`), so it is what every installed-app cold
+launch actually requests. Until 2026-09 it rendered `auth.login`
+unconditionally, ignoring both a live session and a valid remember-me cookie —
+the guard had already resolved the user by the time the closure ran, and the
+page asked them to sign in again anyway. Every cold launch looked exactly like
+"remember me is broken", which is what it was reported as, and the actual
+remember-me plumbing was correct the whole time. `routes/web.php`'s `/` (named
+`home`) now checks `Auth::user()->hasAnyRole([...])` and redirects to
+`dashboard` when one matches, falling through to the login form otherwise. The
+role check is what keeps this loop-proof: `/dashboard` redirects a roleless
+user back to `/` (a fixture-shaped edge case), so `/` must not bounce them
+onward again or the two routes ping-pong forever — a roleless user is meant to
+land on the login form here, same as always.
+
+`tests/Feature/Auth/RememberMeTest.php` pins both halves.
 
 ---
 
