@@ -73,35 +73,83 @@
         </div>
     </div>
 
-    {{-- Income & Expense Breakdown (totals shown inline in each header) --}}
+    {{-- Income & Expense Breakdown — doughnuts + legend rows, same pattern as
+         the Revenue & Expense dashboard's overview tab. Slices are built once
+         here so the chart and its legend can never disagree on colour. --}}
+    @php
+        $ib = $incomeBreakdown;
+        // [group, label, amount, colour] — group null = a top-level line.
+        $incomeSlices = collect([
+            [null, __('messages.rent'), $ib['rent_income'], '#10B981'],
+            ['utilities', __('messages.electric'), $ib['utility_breakdown']['electricity'], '#F59E0B'],
+            ['utilities', __('messages.water'), $ib['utility_breakdown']['water'], '#38BDF8'],
+            ['other', __('messages.type_internet'), $ib['other_income_breakdown']['internet'], '#8B5CF6'],
+            ['other', __('messages.type_parking'), $ib['other_income_breakdown']['parking'], '#F97316'],
+            ['other', __('messages.type_trash'), $ib['other_income_breakdown']['trash'], '#14B8A6'],
+            ['other', __('messages.type_other'), $ib['other_income_breakdown']['other'], '#EC4899'],
+            [null, __('messages.deposits'), $ib['deposit_income'], '#6366F1'],
+            [null, __('messages.late_fees'), $ib['late_fees'], '#EF4444'],
+        ])->map(fn ($r) => ['group' => $r[0], 'label' => $r[1], 'amount' => (float) $r[2], 'color' => $r[3]])
+          ->filter(fn ($s) => $s['amount'] > 0)->values();
+        $incomeGroups = [
+            'utilities' => [__('messages.utilities_income'), $ib['total_utility_income']],
+            'other' => [__('messages.other_income'), $ib['other_income']],
+        ];
+
+        $expensePalette = ['#F97316', '#6366F1', '#EF4444', '#0EA5E9', '#F59E0B', '#8B5CF6', '#14B8A6', '#EC4899', '#84CC16', '#06B6D4', '#A855F7', '#64748B'];
+        $expenseSlices = collect($expenseBreakdown['breakdown'])
+            ->map(fn ($s, $i) => ['label' => $s['label'], 'amount' => (float) $s['amount'], 'color' => $expensePalette[$i % count($expensePalette)]])
+            ->values();
+    @endphp
     <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-        <div class="bg-white rounded-lg shadow p-5">
-            <div class="flex items-baseline justify-between mb-3">
-                <h3 class="font-semibold text-sm text-gray-700">{{ __('messages.income') }}</h3>
-                <span class="text-xl font-bold text-green-600">{{ money($financialData['total_income']) }}</span>
-            </div>
-            <div class="space-y-2 text-sm">
-                <div class="flex justify-between"><span class="text-gray-600">{{ __('messages.rent') }}</span><span class="font-medium">{{ money($financialData['rent_income']) }}</span></div>
-                <div class="flex justify-between"><span class="text-gray-600">{{ __('messages.late_fees') }}</span><span class="font-medium">{{ money($financialData['late_fees']) }}</span></div>
-                @if($financialData['other_income'] > 0)
-                    <div class="flex justify-between"><span class="text-gray-600">{{ __('messages.type_other') }}</span><span class="font-medium">{{ money($financialData['other_income']) }}</span></div>
-                @endif
+        <div class="bg-white rounded-xl border border-slate-100 p-5">
+            <h2 class="text-sm font-semibold text-slate-800 mb-3">{{ __('messages.income_breakdown') }}</h2>
+            @if($incomeSlices->isNotEmpty())
+                <div class="relative" style="height:220px;">
+                    <canvas id="fpIncomeChart"></canvas>
+                </div>
+            @endif
+            <div class="mt-4 space-y-1 border-t border-slate-100 pt-3">
+                @php $lastGroup = null; @endphp
+                @foreach($incomeSlices as $slice)
+                    @if($slice['group'] && $slice['group'] !== $lastGroup)
+                        <div class="flex items-center justify-between text-xs font-medium text-slate-600 pt-1">
+                            <span class="uppercase tracking-wider text-[10px] text-slate-400">{{ $incomeGroups[$slice['group']][0] }}</span>
+                            <span class="text-slate-500">{{ money($incomeGroups[$slice['group']][1]) }}</span>
+                        </div>
+                    @endif
+                    @php $lastGroup = $slice['group']; @endphp
+                    <div class="flex items-center justify-between text-xs {{ $slice['group'] ? 'pl-3' : '' }}">
+                        <div class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full inline-block" style="background:{{ $slice['color'] }}"></span><span class="text-slate-500">{{ $slice['label'] }}</span></div>
+                        <span class="font-semibold text-slate-700">{{ money($slice['amount']) }}</span>
+                    </div>
+                @endforeach
+                <div class="flex items-center justify-between text-xs font-bold border-t border-slate-100 pt-2 mt-1">
+                    <span class="text-slate-700">{{ __('messages.total_income') }}</span>
+                    <span class="text-emerald-600">{{ money($financialData['total_income']) }}</span>
+                </div>
             </div>
         </div>
-        <div class="bg-white rounded-lg shadow p-5">
-            <div class="flex items-baseline justify-between mb-3">
-                <h3 class="font-semibold text-sm text-gray-700">{{ __('messages.expenses_word') }}</h3>
-                <span class="text-xl font-bold text-red-600">{{ money($financialData['total_expenses']) }}</span>
-            </div>
-            <div class="space-y-2 text-sm">
-                @forelse($financialData['utility_expenses'] as $type => $amount)
-                    <div class="flex justify-between"><span class="text-gray-600 capitalize">{{ str_replace('_', ' ', $type) }}</span><span class="font-medium">{{ money($amount) }}</span></div>
+        <div class="bg-white rounded-xl border border-slate-100 p-5">
+            <h2 class="text-sm font-semibold text-slate-800 mb-3">{{ __('messages.expense_breakdown') }}</h2>
+            @if($expenseSlices->isNotEmpty())
+                <div class="relative" style="height:220px;">
+                    <canvas id="fpExpenseChart"></canvas>
+                </div>
+            @endif
+            <div class="mt-4 space-y-1 border-t border-slate-100 pt-3">
+                @forelse($expenseSlices as $slice)
+                    <div class="flex items-center justify-between text-xs">
+                        <div class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full inline-block" style="background:{{ $slice['color'] }}"></span><span class="text-slate-500">{{ $slice['label'] }}</span></div>
+                        <span class="font-semibold text-slate-700">{{ money($slice['amount']) }}</span>
+                    </div>
                 @empty
-                    <p class="text-gray-400 text-xs">{{ __('messages.no_utility_expenses') }}</p>
+                    <p class="text-slate-400 text-xs">{{ __('messages.no_data') }}</p>
                 @endforelse
-                @if($financialData['fixed_expenses'] > 0)
-                    <div class="flex justify-between"><span class="text-gray-600">{{ __('messages.fixed_other') }}</span><span class="font-medium">{{ money($financialData['fixed_expenses']) }}</span></div>
-                @endif
+                <div class="flex items-center justify-between text-xs font-bold border-t border-slate-100 pt-2 mt-1">
+                    <span class="text-slate-700">{{ __('messages.total_expenses') }}</span>
+                    <span class="text-red-600">{{ money($financialData['total_expenses']) }}</span>
+                </div>
             </div>
         </div>
     </div>
@@ -380,3 +428,59 @@
     @endif
 </div>
 @endsection
+
+@push('scripts')
+<script>
+(function () {
+    var slices = {
+        fpIncomeChart: @json($incomeSlices),
+        fpExpenseChart: @json($expenseSlices)
+    };
+    var symbol = @json(currency_symbol());
+
+    var opts = {
+        responsive: true,
+        maintainAspectRatio: false,
+        cutout: '55%',
+        plugins: {
+            legend: { position: 'bottom', labels: { padding: 12, usePointStyle: true, pointStyle: 'circle', font: { size: 11 } } },
+            tooltip: {
+                callbacks: {
+                    label: function (ctx) {
+                        var val = ctx.parsed;
+                        var total = ctx.dataset.data.reduce(function (a, b) { return a + b; }, 0);
+                        var pct = total > 0 ? ((val / total) * 100).toFixed(1) : 0;
+                        return ctx.label + ': ' + symbol + val.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',') + ' (' + pct + '%)';
+                    }
+                }
+            }
+        }
+    };
+
+    function render() {
+        Object.keys(slices).forEach(function (id) {
+            var el = document.getElementById(id);
+            var data = slices[id];
+            if (!el || !data.length) return;
+            new Chart(el, {
+                type: 'doughnut',
+                data: {
+                    labels: data.map(function (s) { return s.label; }),
+                    datasets: [{
+                        data: data.map(function (s) { return Number(s.amount); }),
+                        backgroundColor: data.map(function (s) { return s.color; }),
+                        borderWidth: 0,
+                        hoverOffset: 6
+                    }]
+                },
+                options: opts
+            });
+        });
+    }
+
+    document.addEventListener('DOMContentLoaded', function () {
+        if (window.ensureChart) window.ensureChart().then(render);
+    });
+})();
+</script>
+@endpush

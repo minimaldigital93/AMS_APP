@@ -8,6 +8,7 @@ use App\Http\Requests\FiscalPeriod\CloseMonthlyPeriodRequest;
 use App\Http\Requests\FiscalPeriod\StoreBalanceSheetItemRequest;
 use App\Http\Requests\FiscalPeriod\StoreFiscalPeriodRequest;
 use App\Http\Requests\FiscalPeriod\UpdateFiscalPeriodRequest;
+use App\Models\Apartments;
 use App\Models\BalanceSheet;
 use App\Models\FiscalPeriods;
 use App\Models\MonthlyPeriod;
@@ -17,6 +18,7 @@ use App\Services\FiscalPeriod\FiscalPeriodReportsService;
 use App\Services\FiscalPeriod\MonthClosePreflight;
 use App\Services\FiscalPeriod\MonthlyPeriodManager;
 use App\Services\Property\PropertyContext;
+use App\Services\RevenueExpense\RevenueExpenseQueryService;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\View\View;
@@ -111,13 +113,26 @@ class FiscalPeriodController extends Controller
         );
         $balanceSummary = $this->balanceSheetService->summary($fiscalperiod);
 
+        // Per-type income/expense slices for the breakdown doughnuts — the same
+        // service the Revenue & Expense dashboard reads, run over the whole
+        // period, so the two pages itemise money identically.
+        $breakdown = new RevenueExpenseQueryService(
+            userId: (int) $fiscalperiod->user_id,
+            period: $fiscalperiod,
+            apartmentsScope: Apartments::query()->forProperty($scopePropertyId),
+            propertyId: $scopePropertyId,
+        );
+        $incomeBreakdown = $breakdown->calculateIncome($fiscalperiod->opening_date, $fiscalperiod->closing_date);
+        $expenseBreakdown = $breakdown->calculateExpenses($fiscalperiod->opening_date, $fiscalperiod->closing_date);
+
         // The opening balance is account-wide, so a single-property view has no
         // cash seed of its own and starts at zero.
         $periodOpening = $consolidated ? (float) $fiscalperiod->opening_balance : 0.0;
 
         return view('admin.fiscalperiod.show', compact(
             'fiscalperiod', 'financialData', 'monthlyPeriods', 'balanceSummary',
-            'consolidated', 'showingAll', 'selectedProperty', 'periodOpening'
+            'consolidated', 'showingAll', 'selectedProperty', 'periodOpening',
+            'incomeBreakdown', 'expenseBreakdown'
         ));
     }
 

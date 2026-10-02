@@ -112,6 +112,46 @@ it('marks rows so the page can hide suspended users', function () {
         ->assertSee('data-suspended="0"', false);
 });
 
+it('reads a moved-out tenant from their archived tenancy', function () {
+    // A move-out archives (soft-deletes) the tenant and suspends the login.
+    $dara = User::where('name', 'Sok Dara')->first();
+    $tenant = $dara->tenants()->first();
+    $tenant->forceFill(['gender' => 'female', 'id_card_number' => '998877', 'move_in_date' => '2026-02-01'])->save();
+    // A move-out closes the rental on the leave date (TenantLeaveProcessor::persist()).
+    makeRental($tenant, null, ['start_date' => '2026-02-01', 'end_date' => '2026-08-15']);
+    $tenant->delete();
+    $dara->forceFill(['status' => 'suspended'])->save();
+
+    $data = captureUserListData();
+    $this->get(route('admin.users.pdf', ['role' => 'tenant']))->assertOk();
+
+    $row = $data['rows']->firstWhere('name', 'Sok Dara');
+    expect($row['suspended'])->toBeTrue()
+        ->and($row['gender'])->toBe('female')
+        ->and($row['id_card_number'])->toBe('998877')
+        ->and($row['end_date']->toDateString())->toBe('2026-08-15');
+});
+
+it('prints a gender column and colours suspended rows red', function () {
+    User::where('name', 'Sok Dara')->first()->forceFill(['status' => 'suspended'])->save();
+    User::where('name', 'Chan Sophea')->first()->tenants()->first()->forceFill(['gender' => 'male'])->save();
+
+    $html = view('pdf.user_list', [
+        'rows' => collect([
+            ['name' => 'A', 'gender' => 'male', 'suspended' => false, 'role' => 'tenant', 'phone' => null, 'id_card_number' => null, 'address' => null, 'start_date' => null, 'end_date' => null],
+            ['name' => 'B', 'gender' => null, 'suspended' => true, 'role' => 'tenant', 'phone' => null, 'id_card_number' => null, 'address' => null, 'start_date' => null, 'end_date' => null],
+        ]),
+        'role' => null, 'search' => null, 'activeOnly' => false,
+        'company' => ['name' => 'X', 'address' => null, 'phone' => null, 'email' => null],
+        'generatedAt' => now(),
+    ])->render();
+
+    expect($html)->toContain('ភេទ')
+        ->and(strpos($html, 'ភេទ'))->toBeLessThan(strpos($html, 'តួនាទី'))
+        ->and($html)->toContain('ប្រុស')
+        ->and($html)->toMatch('/<tr class="[^"]*suspended[^"]*">/');
+});
+
 it('rejects an unknown status', function () {
     $this->get(route('admin.users.pdf', ['status' => 'suspended']))->assertSessionHasErrors('status');
 });

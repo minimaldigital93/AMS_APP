@@ -86,6 +86,7 @@ class UserController extends Controller
 
             return [
                 'name' => $u->name,
+                'gender' => $tenant?->gender,
                 'suspended' => ($u->status ?? null) === 'suspended',
                 'role' => $role,
                 'phone' => $u->phone ?: $tenant?->phone,
@@ -94,7 +95,11 @@ class UserController extends Controller
                 'start_date' => $tenant
                     ? ($rental?->start_date ?? $tenant->move_in_date)
                     : $u->created_at,
-                'end_date' => $tenant ? ($rental?->end_date ?? $tenant->move_out_date) : null,
+                'end_date' => $tenant
+                    ? ($rental?->end_date
+                        ?? $tenant->move_out_date
+                        ?? $tenant->deleted_at)
+                    : null,
             ];
         });
 
@@ -135,7 +140,13 @@ class UserController extends Controller
         $query = User::where('account_id', current_account_id())
             ->with(array_merge(
                 ['roles', 'permissions', 'tenants.apartment.floor'],
-                $withTenancy ? ['tenants.rentals'] : [],
+                // A moved-out tenant is archived (soft-deleted) and their login
+                // suspended, so the PDF reads archived tenancies too — that is
+                // where a suspended tenant's ID, address and end date live.
+                $withTenancy ? [
+                    'tenants' => fn ($q) => $q->withTrashed(),
+                    'tenants.rentals',
+                ] : [],
             ));
 
         $propertyId = current_property_id();

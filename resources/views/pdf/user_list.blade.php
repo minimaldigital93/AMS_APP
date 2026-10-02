@@ -7,7 +7,9 @@
     styles only — mPDF has no flex/grid. The Khmer wording is document content,
     so it lives inline here.
 
-    Vars: $rows (name, suspended, role, phone, id_card_number, address,
+    Suspended rows (moved-out tenants) print in red.
+
+    Vars: $rows (name, gender, suspended, role, phone, id_card_number, address,
           start_date, end_date)  $role ('admin'|'supervisor'|'tenant'|null)
           $search  $activeOnly  $company[] (name, address, phone, email)  $generatedAt
 --}}
@@ -27,10 +29,13 @@
     $countUnit = $role === 'tenant' ? 'អ្នកជួលសរុប' : 'ចំនួនសរុប';
     $showRole = ! $role;
     // Column widths (%); the address column takes what is left. Narrower with
-    // the extra role column so the address still has room to read.
+    // the extra role column so the address still has room to read. The date
+    // columns are wide enough for dd/mm/yyyy on one line (nowrap). Only the name
+    // and address may wrap.
     $w = $showRole
-        ? ['no' => 5, 'name' => 15, 'role' => 11, 'phone' => 12, 'id' => 17, 'date' => 11]
-        : ['no' => 6, 'name' => 17, 'role' => 0, 'phone' => 14, 'id' => 19, 'date' => 12];
+        ? ['no' => 4, 'name' => 15, 'gender' => 5, 'role' => 12, 'phone' => 11, 'id' => 15, 'date' => 10]
+        : ['no' => 4, 'name' => 17, 'gender' => 5, 'role' => 0, 'phone' => 12, 'id' => 16, 'date' => 10];
+    $genderNames = ['male' => 'ប្រុស', 'female' => 'ស្រី'];
 @endphp
 <style>
     body { font-family: {{ KhmerPdf::BODY }}; font-size: 10pt; color: #111827; }
@@ -40,10 +45,12 @@
     .title { text-align: center; font-family: {{ KhmerPdf::TITLE }}; font-size: 13pt; margin: 6px 0 2px; }
     .meta { text-align: center; font-size: 9pt; color: #6b7280; margin-bottom: 10px; }
     table.list { width: 100%; border-collapse: collapse; }
-    table.list th { background: #1e40af; color: #ffffff; font-weight: bold; font-size: 9.5pt; padding: 5px 4px; border: 1px solid #1e40af; }
-    table.list td { font-size: 9.5pt; padding: 4px; border: 1px solid #d1d5db; vertical-align: top; }
+    table.list th { background: #1e40af; color: #ffffff; font-weight: bold; font-size: 8pt; padding: 4px 3px; white-space: nowrap; border: 1px solid #1e40af; }
+    table.list td { font-size: 8pt; padding: 3px; border: 1px solid #d1d5db; vertical-align: top; }
     table.list tr.alt td { background: #f3f4f6; }
+    table.list tr.suspended td { color: #dc2626; }
     .c { text-align: center; }
+    .nw { white-space: nowrap; }
 </style>
 
 <div class="company">
@@ -71,30 +78,32 @@
 <table class="list">
     <thead>
         <tr>
-            <th style="width:{{ $w['no'] }}%">ល.រ</th>
+            <th nowrap style="width:{{ $w['no'] }}%">ល.រ</th>
             <th style="width:{{ $w['name'] }}%">ឈ្មោះ</th>
-            @if($showRole)<th style="width:{{ $w['role'] }}%">តួនាទី</th>@endif
-            <th style="width:{{ $w['phone'] }}%">លេខទូរស័ព្ទ</th>
-            <th style="width:{{ $w['id'] }}%">លេខអត្តសញ្ញាណប័ណ្ណ</th>
+            <th nowrap style="width:{{ $w['gender'] }}%">ភេទ</th>
+            @if($showRole)<th nowrap style="width:{{ $w['role'] }}%">តួនាទី</th>@endif
+            <th nowrap style="width:{{ $w['phone'] }}%">លេខទូរស័ព្ទ</th>
+            <th nowrap style="width:{{ $w['id'] }}%">លេខអត្តសញ្ញាណប័ណ្ណ</th>
             <th>អាសយដ្ឋាន</th>
-            <th style="width:{{ $w['date'] }}%">ថ្ងៃចាប់ផ្តើម</th>
-            <th style="width:{{ $w['date'] }}%">ថ្ងៃបញ្ចប់</th>
+            <th class="nw" nowrap style="width:{{ $w['date'] }}%">ថ្ងៃចាប់ផ្តើម</th>
+            <th class="nw" nowrap style="width:{{ $w['date'] }}%">ថ្ងៃបញ្ចប់</th>
         </tr>
     </thead>
     <tbody>
         @forelse($rows as $i => $t)
-            <tr class="{{ $i % 2 ? 'alt' : '' }}">
-                <td class="c">{{ $khDigits($i + 1) }}</td>
-                <td>{{ $t['name'] }}@if($t['suspended']) <span style="white-space:nowrap; color:#b45309">(ផ្អាក)</span>@endif</td>
-                @if($showRole)<td>{{ $roleNames[$t['role']] ?? '—' }}</td>@endif
-                <td>{{ $t['phone'] ?: '—' }}</td>
-                <td>{{ $t['id_card_number'] ?: '—' }}</td>
+            <tr class="{{ $i % 2 ? 'alt' : '' }} {{ $t['suspended'] ? 'suspended' : '' }}">
+                <td class="c nw" nowrap>{{ $khDigits($i + 1) }}</td>
+                <td>{{ $t['name'] }}@if($t['suspended']) <span style="white-space:nowrap">(ផ្អាក)</span>@endif</td>
+                <td class="c nw" nowrap>{{ $genderNames[$t['gender']] ?? '—' }}</td>
+                @if($showRole)<td class="nw" nowrap>{{ $roleNames[$t['role']] ?? '—' }}</td>@endif
+                <td class="nw" nowrap>{{ $t['phone'] ?: '—' }}</td>
+                <td class="nw" nowrap>{{ $t['id_card_number'] ?: '—' }}</td>
                 <td>{{ $t['address'] ?: '—' }}</td>
-                <td class="c">{{ $date($t['start_date']) }}</td>
-                <td class="c">{{ $date($t['end_date']) }}</td>
+                <td class="c nw" nowrap>{{ $date($t['start_date']) }}</td>
+                <td class="c nw" nowrap>{{ $date($t['end_date']) }}</td>
             </tr>
         @empty
-            <tr><td colspan="{{ $showRole ? 8 : 7 }}" class="c">មិនមានទិន្នន័យទេ</td></tr>
+            <tr><td colspan="{{ $showRole ? 9 : 8 }}" class="c">មិនមានទិន្នន័យទេ</td></tr>
         @endforelse
     </tbody>
 </table>
