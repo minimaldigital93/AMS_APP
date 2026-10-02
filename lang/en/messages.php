@@ -577,6 +577,7 @@ return [
     'recurring' => 'Recurring',
     'remove_expense_confirm' => 'Remove this expense?',
     'download_pdf' => 'Download PDF',
+    'download_user_list' => 'Download this list (PDF)',
     'no_other_business' => 'No other or business expenses recorded yet.',
     // Record income / billing
     'monthly_billing_payments' => 'Billing & Payments',
@@ -951,6 +952,8 @@ return [
     'user_management_title' => 'User',
     'create_new_user' => 'Create New User',
     'all_roles' => 'All Roles',
+    'all_statuses' => 'All Statuses',
+    'active_only' => 'Active only',
     'assign_role' => 'Assign Role',
     'assigned_roles' => 'Assigned Roles',
     'select_a_role' => 'Select a role',

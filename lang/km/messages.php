@@ -574,6 +574,7 @@ return [
     'recurring' => 'ដដែលៗ',
     'remove_expense_confirm' => 'លុបការចំណាយនេះ?',
     'download_pdf' => 'ទាញយក PDF',
+    'download_user_list' => 'ទាញយកបញ្ជីនេះ (PDF)',
     'no_other_business' => 'មិនទាន់មានការចំណាយផ្សេងៗ ឬអាជីវកម្មត្រូវបានកត់ត្រាទេ។',
     // Record income / billing
     'monthly_billing_payments' => 'វិក្កយបត្រ និងការទូទាត់',
@@ -946,6 +947,8 @@ return [
     'user_management_title' => 'អ្នកប្រើ',
     'create_new_user' => 'បង្កើតអ្នកប្រើថ្មី',
     'all_roles' => 'តួនាទីទាំងអស់',
+    'all_statuses' => 'ស្ថានភាពទាំងអស់',
+    'active_only' => 'សកម្មតែប៉ុណ្ណោះ',
     'assign_role' => 'ផ្តល់តួនាទី',
     'assigned_roles' => 'តួនាទីដែលបានផ្តល់',
     'select_a_role' => 'ជ្រើសរើសតួនាទី',

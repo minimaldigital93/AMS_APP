@@ -255,6 +255,7 @@ Route::middleware(['auth', 'role:admin|superadmin', 'subscription.active'])->gro
 
     // User Management Routes
     Route::get('/admin/users', [UserController::class, 'index'])->name('admin.users.index');
+    Route::get('/admin/users/pdf', [UserController::class, 'rosterPdf'])->name('admin.users.pdf');
     Route::get('/admin/users/create', [UserController::class, 'create'])->name('admin.users.create');
     Route::get('/admin/users/{user}/edit', [UserController::class, 'edit'])->name('admin.users.edit');
     Route::post('/admin/users', [UserController::class, 'store'])->name('admin.users.store');

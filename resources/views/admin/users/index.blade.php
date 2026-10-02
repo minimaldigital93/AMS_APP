@@ -8,6 +8,47 @@
     <div class="flex items-center justify-between gap-3" x-data="{ searchOpen: false }">
         <h1 class="text-2xl font-semibold text-slate-800 tracking-tight">{{ __('messages.user_management_title') }}</h1>
         <div class="flex items-center gap-2">
+            <!-- Download: the icon opens the role/status filters + the PDF link.
+                 The filters also narrow the list on the page, so the PDF is
+                 always what is on screen (href rewritten by filterList()). -->
+            <div class="relative" x-data="{ open: false }" @keydown.escape.window="open = false">
+                <button type="button" @click="open = !open" :aria-expanded="open"
+                    class="inline-flex items-center justify-center h-10 w-10 text-gray-600 bg-gray-50 border border-gray-200 rounded-lg hover:bg-gray-100 hover:text-gray-800 transition" title="{{ __('messages.download_user_list') }}">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5 5-5M12 15V3" />
+                    </svg>
+                </button>
+
+                <div x-show="open" x-transition @click.outside="open = false" style="display: none"
+                    class="absolute right-0 mt-2 z-40 w-64 max-w-xs p-4 space-y-3 bg-white border border-gray-200 rounded-xl shadow-lg">
+                    <label class="block">
+                        <span class="block mb-1 text-xs font-medium text-gray-500">{{ __('messages.role') }}</span>
+                        <select id="roleFilter" class="w-full h-10 px-3 text-sm text-gray-700 bg-gray-50 border border-gray-200 rounded-lg focus:bg-white focus:outline-none focus:ring-2 focus:ring-slate-300 focus:border-slate-300 transition">
+                            <option value="">{{ __('messages.all_roles') }}</option>
+                            @foreach($roles as $role)
+                                <option value="{{ $role->name }}">{{ ucfirst($role->name) }}</option>
+                            @endforeach
+                        </select>
+                    </label>
+
+                    <label class="block">
+                        <span class="block mb-1 text-xs font-medium text-gray-500">{{ __('messages.status') }}</span>
+                        <select id="statusFilter" class="w-full h-10 px-3 text-sm text-gray-700 bg-gray-50 border border-gray-200 rounded-lg focus:bg-white focus:outline-none focus:ring-2 focus:ring-slate-300 focus:border-slate-300 transition">
+                            <option value="">{{ __('messages.all_statuses') }}</option>
+                            <option value="active">{{ __('messages.active_only') }}</option>
+                        </select>
+                    </label>
+
+                    <a id="userPdfLink" href="{{ route('admin.users.pdf') }}" data-base="{{ route('admin.users.pdf') }}" @click="open = false"
+                        class="flex items-center justify-center gap-2 w-full h-10 bg-slate-800 hover:bg-slate-700 text-white text-sm font-medium rounded-lg transition">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5 5-5M12 15V3" />
+                        </svg>
+                        {{ __('messages.download_pdf') }}
+                    </a>
+                </div>
+            </div>
+
             <!-- Search (expands from icon) -->
             <input id="userSearch" type="text" placeholder="{{ __('messages.search_name_phone') }}"
                 x-show="searchOpen" style="display: none"
@@ -21,14 +62,6 @@
                     <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-4.35-4.35M11 18a7 7 0 100-14 7 7 0 000 14z" />
                 </svg>
             </button>
-
-            <!-- Role filter -->
-            <select id="roleFilter" class="h-10 w-32 sm:w-40 px-3 text-sm text-gray-700 bg-gray-50 border border-gray-200 rounded-lg focus:bg-white focus:outline-none focus:ring-2 focus:ring-slate-300 focus:border-slate-300 transition">
-                <option value="">{{ __('messages.all_roles') }}</option>
-                @foreach($roles as $role)
-                    <option value="{{ $role->name }}">{{ ucfirst($role->name) }}</option>
-                @endforeach
-            </select>
 
             <a href="{{ route('admin.users.create') }}" class="inline-flex items-center gap-2 bg-slate-800 hover:bg-slate-700 text-white text-sm font-medium py-2.5 px-5 rounded-lg transition" title="Add User">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
@@ -122,7 +155,7 @@
                         @endforeach
 
                         @if($suspended->isNotEmpty())
-                            <tr class="bg-amber-50/60">
+                            <tr class="suspended-heading bg-amber-50/60">
                                 <td colspan="8" class="px-4 py-2 text-xs font-semibold uppercase tracking-wide text-amber-700">
                                     {{ __('messages.suspended') }} ({{ $suspended->count() }})
                                 </td>
@@ -149,7 +182,7 @@
                 @endforeach
 
                 @if($suspended->isNotEmpty())
-                    <div class="px-3 py-2 bg-amber-50/60 text-xs font-semibold uppercase tracking-wide text-amber-700">
+                    <div class="suspended-heading px-3 py-2 bg-amber-50/60 text-xs font-semibold uppercase tracking-wide text-amber-700">
                         {{ __('messages.suspended') }} ({{ $suspended->count() }})
                     </div>
                     @foreach($suspended as $user)
@@ -167,18 +200,25 @@
     document.addEventListener('DOMContentLoaded', function () {
         const searchInput = document.getElementById('userSearch');
         const roleFilter = document.getElementById('roleFilter');
+        const statusFilter = document.getElementById('statusFilter');
         const tbody = document.querySelector('table tbody');
         const cards = document.querySelectorAll('.user-card');
+        const pdfLink = document.getElementById('userPdfLink');
 
         function normalize(text){ return (text||'').toString().trim().toLowerCase(); }
 
         function filterList() {
             const q = normalize(searchInput.value);
             const role = normalize(roleFilter.value);
+            const activeOnly = statusFilter.value === 'active';
 
             // Desktop table rows
             if (tbody) {
                 Array.from(tbody.querySelectorAll('tr')).forEach(row => {
+                    if (row.classList.contains('suspended-heading')) {
+                        row.style.display = activeOnly ? 'none' : '';
+                        return;
+                    }
                     // skip empty/no-data row
                     if (row.querySelectorAll('td').length === 1) return;
                     const name = normalize(row.children[1].innerText);
@@ -187,8 +227,9 @@
 
                     const matchesQuery = q === '' || name.includes(q) || phone.includes(q);
                     const matchesRole = role === '' || roleText === role;
+                    const matchesStatus = !activeOnly || row.dataset.suspended !== '1';
 
-                    row.style.display = (matchesQuery && matchesRole) ? '' : 'none';
+                    row.style.display = (matchesQuery && matchesRole && matchesStatus) ? '' : 'none';
                 });
             }
 
@@ -199,12 +240,25 @@
                 const roleText = card.dataset.role || '';
                 const matchesQuery = q === '' || name.includes(q) || phone.includes(q);
                 const matchesRole = role === '' || roleText === role;
-                card.style.display = (matchesQuery && matchesRole) ? '' : 'none';
+                const matchesStatus = !activeOnly || card.dataset.suspended !== '1';
+                card.style.display = (matchesQuery && matchesRole && matchesStatus) ? '' : 'none';
             });
+            document.querySelectorAll('#userCards .suspended-heading').forEach(el => {
+                el.style.display = activeOnly ? 'none' : '';
+            });
+
+            // Keep the PDF download in step with what is on screen.
+            const params = new URLSearchParams();
+            if (roleFilter.value) params.set('role', roleFilter.value);
+            if (activeOnly) params.set('status', 'active');
+            if (searchInput.value.trim()) params.set('search', searchInput.value.trim());
+            const qs = params.toString();
+            pdfLink.href = pdfLink.dataset.base + (qs ? '?' + qs : '');
         }
 
         searchInput.addEventListener('input', filterList);
         roleFilter.addEventListener('change', filterList);
+        statusFilter.addEventListener('change', filterList);
     });
     </script>
     @endpush

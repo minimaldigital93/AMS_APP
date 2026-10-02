@@ -9,7 +9,7 @@
     $isSelf = $user->getKey() === auth()->id();
     $rowLocked = $isOwner || $isSelf || $user->hasRole('superadmin');
 @endphp
-<div class="user-card flex items-center gap-2 px-3 py-2.5" data-name="{{ strtolower($user->name) }}" data-phone="{{ strtolower($user->phone ?? '') }}" data-role="{{ strtolower($cardRole) }}">
+<div class="user-card flex items-center gap-2 px-3 py-2.5" data-name="{{ strtolower($user->name) }}" data-phone="{{ strtolower($user->phone ?? '') }}" data-role="{{ strtolower($cardRole) }}" data-suspended="{{ ($user->status ?? null) === 'suspended' ? '1' : '0' }}">
     <span class="w-6 flex-shrink-0 text-xs text-gray-500 text-center">{{ $number }}</span>
     <div class="min-w-0 flex-1">
         <p class="text-sm font-medium text-gray-900 truncate">{{ $user->name }}</p>

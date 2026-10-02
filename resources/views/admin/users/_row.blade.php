@@ -7,7 +7,7 @@
     $isSelf = $user->getKey() === auth()->id();
     $rowLocked = $isOwner || $isSelf || $user->hasRole('superadmin');
 @endphp
-<tr class="hover:bg-gray-50 transition {{ ($user->status ?? null) === 'suspended' ? 'bg-gray-50/60' : '' }}">
+<tr data-suspended="{{ ($user->status ?? null) === 'suspended' ? '1' : '0' }}" class="hover:bg-gray-50 transition {{ ($user->status ?? null) === 'suspended' ? 'bg-gray-50/60' : '' }}">
     <td class="px-4 py-3 text-gray-600">{{ $number }}</td>
     <td class="px-4 py-3 font-medium text-gray-900">{{ $user->name }}</td>
     <td class="px-4 py-3 text-gray-600">{{ $user->phone }}</td>

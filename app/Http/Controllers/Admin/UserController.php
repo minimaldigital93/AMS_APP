@@ -4,9 +4,11 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Services\Pdf\KhmerPdf;
 use App\Services\Subscription\SubscriptionService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
@@ -35,9 +37,106 @@ class UserController extends Controller
 
     public function index(Request $request): View
     {
+        [$users, $suspended] = $this->roster($request);
+
+        $roles = Role::whereIn('name', self::ASSIGNABLE_ROLES)->get();
+
+        // Summary card counts, taken off the already-loaded collections so no
+        // extra queries are fired.
+        $adminCount = $users->filter(fn (User $u) => $u->hasAnyRole(['admin', 'superadmin']))->count();
+        $supervisorCount = $users->filter(fn (User $u) => $u->hasRole('supervisor'))->count();
+        $tenantCount = $users->filter(fn (User $u) => $u->hasRole('tenant'))->count();
+        $suspendedCount = $suspended->count();
+
+        return view('admin.users.index', compact(
+            'users', 'suspended', 'roles',
+            'adminCount', 'supervisorCount', 'tenantCount', 'suspendedCount',
+        ));
+    }
+
+    /**
+     * Download the roster as a Khmer PDF under the company letterhead.
+     *
+     * It is the SAME list the page shows — roster() with the page's `role`
+     * dropdown and `search` box, same property scope, same order, suspended
+     * rows last — so the download always matches what is on screen. The page
+     * keeps the icon's href in step with both filters as they change.
+     *
+     * Tenant rows carry their tenancy (ID card, address, lease dates); staff
+     * rows have no ID/address on record and start on the day they were added.
+     * Rendered with mPDF (KhmerPdf), not Dompdf — Dompdf cannot shape Khmer.
+     */
+    public function rosterPdf(Request $request, KhmerPdf $pdf): Response
+    {
+        $request->validate([
+            'role' => ['nullable', Rule::in(self::ASSIGNABLE_ROLES)],
+            'search' => ['nullable', 'string', 'max:100'],
+            'status' => ['nullable', Rule::in(['active'])],
+        ]);
+
+        [$users, $suspended] = $this->roster($request, withTenancy: true);
+        $activeOnly = $request->get('status') === 'active';
+
+        $rows = ($activeOnly ? $users : $users->concat($suspended))->values()->map(function (User $u) {
+            $role = $u->roles->first()?->name;
+            $tenant = $role === 'tenant'
+                ? ($u->tenants->whereIn('status', ['active', 'pending'])->first() ?? $u->tenants->sortByDesc('move_in_date')->first())
+                : null;
+            $rental = $tenant?->rentals->sortByDesc('start_date')->first();
+
+            return [
+                'name' => $u->name,
+                'suspended' => ($u->status ?? null) === 'suspended',
+                'role' => $role,
+                'phone' => $u->phone ?: $tenant?->phone,
+                'id_card_number' => $tenant?->id_card_number,
+                'address' => $tenant?->address,
+                'start_date' => $tenant
+                    ? ($rental?->start_date ?? $tenant->move_in_date)
+                    : $u->created_at,
+                'end_date' => $tenant ? ($rental?->end_date ?? $tenant->move_out_date) : null,
+            ];
+        });
+
+        $role = $request->get('role');
+
+        $bytes = $pdf->render('pdf.user_list', [
+            'rows' => $rows,
+            'role' => $role,
+            'search' => $request->get('search'),
+            'activeOnly' => $activeOnly,
+            'company' => [
+                'name' => settings('company_name') ?: config('app.name'),
+                'address' => settings('company_address'),
+                'phone' => settings('company_phone'),
+                'email' => settings('company_email'),
+            ],
+            'generatedAt' => now(),
+        ]);
+
+        $file = ($role ? $role.'-list' : 'user-list').'-'.now()->format('Y-m-d').'.pdf';
+
+        return response($bytes, 200, [
+            'Content-Type' => 'application/pdf',
+            'Content-Disposition' => 'attachment; filename="'.$file.'"',
+        ]);
+    }
+
+    /**
+     * The account's roster as the page lists it: [active, suspended], each in
+     * userSortKey() order. Shared by index() and rosterPdf() so the screen and
+     * the download can never disagree about who is on the list.
+     *
+     * @return array{0: \Illuminate\Support\Collection<int, User>, 1: \Illuminate\Support\Collection<int, User>}
+     */
+    private function roster(Request $request, bool $withTenancy = false): array
+    {
         // Isolate to the current account (admins only see their own team).
         $query = User::where('account_id', current_account_id())
-            ->with('roles', 'permissions', 'tenants.apartment.floor');
+            ->with(array_merge(
+                ['roles', 'permissions', 'tenants.apartment.floor'],
+                $withTenancy ? ['tenants.rentals'] : [],
+            ));
 
         $propertyId = current_property_id();
         if ($propertyId !== null) {
@@ -67,26 +166,12 @@ class UserController extends Controller
             });
         }
 
-        $all = $query->get();
+        [$suspended, $active] = $query->get()->partition(fn (User $u) => ($u->status ?? null) === 'suspended');
 
-        [$suspended, $active] = $all->partition(fn (User $u) => ($u->status ?? null) === 'suspended');
-
-        $users = $active->sortBy(fn (User $u) => $this->userSortKey($u), SORT_NATURAL | SORT_FLAG_CASE)->values();
-        $suspended = $suspended->sortBy(fn (User $u) => $this->userSortKey($u), SORT_NATURAL | SORT_FLAG_CASE)->values();
-
-        $roles = Role::whereIn('name', self::ASSIGNABLE_ROLES)->get();
-
-        // Summary card counts, taken off the already-loaded collections so no
-        // extra queries are fired.
-        $adminCount = $active->filter(fn (User $u) => $u->hasAnyRole(['admin', 'superadmin']))->count();
-        $supervisorCount = $active->filter(fn (User $u) => $u->hasRole('supervisor'))->count();
-        $tenantCount = $active->filter(fn (User $u) => $u->hasRole('tenant'))->count();
-        $suspendedCount = $suspended->count();
-
-        return view('admin.users.index', compact(
-            'users', 'suspended', 'roles',
-            'adminCount', 'supervisorCount', 'tenantCount', 'suspendedCount',
-        ));
+        return [
+            $active->sortBy(fn (User $u) => $this->userSortKey($u), SORT_NATURAL | SORT_FLAG_CASE)->values(),
+            $suspended->sortBy(fn (User $u) => $this->userSortKey($u), SORT_NATURAL | SORT_FLAG_CASE)->values(),
+        ];
     }
 
     /**
