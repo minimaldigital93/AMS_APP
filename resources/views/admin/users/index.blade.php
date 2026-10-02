@@ -11,7 +11,7 @@
             <!-- Download: the icon opens the role/status filters + the PDF link.
                  The filters also narrow the list on the page, so the PDF is
                  always what is on screen (href rewritten by filterList()). -->
-            <div class="relative" x-data="{ open: false }" @keydown.escape.window="open = false">
+            <div class="relative" x-data="{ open: false }" @keydown.escape.window="open = false" @user-pdf-shared.window="open = false">
                 <button type="button" @click="open = !open" :aria-expanded="open"
                     class="inline-flex items-center justify-center h-10 w-10 text-gray-600 bg-gray-50 border border-gray-200 rounded-lg hover:bg-gray-100 hover:text-gray-800 transition" title="{{ __('messages.download_user_list') }}">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
@@ -39,12 +39,12 @@
                         </select>
                     </label>
 
-                    <a id="userPdfLink" href="{{ route('admin.users.pdf') }}" data-base="{{ route('admin.users.pdf') }}" @click="open = false"
+                    <a id="userPdfLink" href="{{ route('admin.users.pdf') }}" data-base="{{ route('admin.users.pdf') }}" @click="if (!$el.hasAttribute('data-share')) open = false"
                         class="flex items-center justify-center gap-2 w-full h-10 bg-slate-800 hover:bg-slate-700 text-white text-sm font-medium rounded-lg transition">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5 5-5M12 15V3" />
                         </svg>
-                        {{ __('messages.download_pdf') }}
+                        <span id="userPdfLabel">{{ __('messages.download_pdf') }}</span>
                     </a>
                 </div>
             </div>
@@ -259,6 +259,76 @@
         searchInput.addEventListener('input', filterList);
         roleFilter.addEventListener('change', filterList);
         statusFilter.addEventListener('change', filterList);
+
+        // Installed app (home screen): a PDF opened in place takes over the whole
+        // screen with no browser bar, so there is no way to share it or get back.
+        // Fetch it here and hand it to the phone's share sheet instead.
+        const standalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+        const pdfLabel = document.getElementById('userPdfLabel');
+        const labels = {
+            download: @json(__('messages.download_pdf')),
+            preparing: @json(__('messages.preparing_pdf')),
+            share: @json(__('messages.tap_to_share_pdf')),
+        };
+        let readyFile = null, readyHref = null, busy = false;
+
+        function sharePdf(file) {
+            return navigator.share({ files: [file], title: file.name }).then(() => {
+                readyFile = null;
+                pdfLabel.textContent = labels.download;
+                window.dispatchEvent(new CustomEvent('user-pdf-shared'));
+            });
+        }
+
+        if (standalone && navigator.share && navigator.canShare) {
+            pdfLink.setAttribute('data-share', '1');
+            pdfLink.addEventListener('click', function (e) {
+                e.preventDefault();
+                if (busy) return;
+
+                // A file prepared earlier for this same filter: share it straight
+                // from this tap, which still counts as the user's own gesture.
+                if (readyFile && readyHref === pdfLink.href) {
+                    sharePdf(readyFile).catch(() => {});
+                    return;
+                }
+
+                busy = true;
+                pdfLabel.textContent = labels.preparing;
+                const href = pdfLink.href;
+                fetch(href, { credentials: 'same-origin' })
+                    .then(res => {
+                        if (!res.ok) throw new Error('HTTP ' + res.status);
+                        const cd = res.headers.get('Content-Disposition') || '';
+                        const m = cd.match(/filename="?([^";]+)"?/);
+                        return res.blob().then(blob => new File([blob], m ? m[1] : 'users.pdf', { type: 'application/pdf' }));
+                    })
+                    .then(file => {
+                        busy = false;
+                        if (!navigator.canShare({ files: [file] })) {
+                            pdfLabel.textContent = labels.download;
+                            window.location.href = href;
+                            return;
+                        }
+                        readyFile = file;
+                        readyHref = href;
+                        return sharePdf(file).catch(err => {
+                            // The download took long enough that the phone no longer
+                            // treats the share as a tap; ask for one more tap.
+                            if (err && err.name === 'NotAllowedError') {
+                                pdfLabel.textContent = labels.share;
+                            } else {
+                                pdfLabel.textContent = labels.download;
+                            }
+                        });
+                    })
+                    .catch(() => {
+                        busy = false;
+                        pdfLabel.textContent = labels.download;
+                        window.location.href = href;
+                    });
+            });
+        }
     });
     </script>
     @endpush

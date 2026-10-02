@@ -954,6 +954,8 @@ return [
     'all_roles' => 'All Roles',
     'all_statuses' => 'All Statuses',
     'active_only' => 'Active only',
+    'preparing_pdf' => 'Preparing PDF…',
+    'tap_to_share_pdf' => 'Tap to share PDF',
     'assign_role' => 'Assign Role',
     'assigned_roles' => 'Assigned Roles',
     'select_a_role' => 'Select a role',

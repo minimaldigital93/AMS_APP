@@ -949,6 +949,8 @@ return [
     'all_roles' => 'តួនាទីទាំងអស់',
     'all_statuses' => 'ស្ថានភាពទាំងអស់',
     'active_only' => 'សកម្មតែប៉ុណ្ណោះ',
+    'preparing_pdf' => 'កំពុងរៀបចំ PDF…',
+    'tap_to_share_pdf' => 'ចុចដើម្បីចែករំលែក PDF',
     'assign_role' => 'ផ្តល់តួនាទី',
     'assigned_roles' => 'តួនាទីដែលបានផ្តល់',
     'select_a_role' => 'ជ្រើសរើសតួនាទី',
