@@ -79,6 +79,11 @@ class FiscalPeriodFinancialsService
         ])->sum('amount');
         $totalIncome = $incomeRecords->sum('amount');
 
+        // The parts of other_income, itemised for the printed statement. Purely
+        // additive: other_income and every total above stay exactly as they were.
+        $utilityIncome = $incomeRecords->where('category', Accounts::CAT_UTILITY_INCOME)->sum('amount');
+        $depositIncome = $incomeRecords->where('category', Accounts::CAT_DEPOSIT_INCOME)->sum('amount');
+
         $utilityExpensesTotal = $expenseRecords->where('category', Accounts::CAT_UTILITIES_EXPENSE)->sum('amount');
         $fixedExpenses = $expenseRecords->where('category', '!=', Accounts::CAT_UTILITIES_EXPENSE)->sum('amount');
         $totalExpenses = $expenseRecords->sum('amount');
@@ -92,6 +97,15 @@ class FiscalPeriodFinancialsService
             $utilityExpensesByCategory = ['utilities' => round($utilityExpensesTotal, 2)];
         }
 
+        // Non-utility expenses by ledger category (business expenses store the
+        // account's expense-category key here), largest first.
+        $operatingExpensesByCategory = $expenseRecords
+            ->where('category', '!=', Accounts::CAT_UTILITIES_EXPENSE)
+            ->groupBy('category')
+            ->map(fn ($items) => round($items->sum('amount'), 2))
+            ->sortDesc()
+            ->toArray();
+
         $paymentCount = $incomeRecords->whereNotNull('payment_id')->pluck('payment_id')->unique()->count();
         $netIncome = $totalIncome - $totalExpenses;
 
@@ -99,10 +113,14 @@ class FiscalPeriodFinancialsService
             'rent_income' => round($rentIncome, 2),
             'late_fees' => round($lateFees, 2),
             'other_income' => round($otherIncome, 2),
+            'utility_income' => round($utilityIncome, 2),
+            'deposit_income' => round($depositIncome, 2),
+            'misc_income' => round($otherIncome - $utilityIncome - $depositIncome, 2),
             'total_income' => round($totalIncome, 2),
             'utility_expenses' => $utilityExpensesByCategory,
             'total_util_expenses' => round($utilityExpensesTotal, 2),
             'fixed_expenses' => round($fixedExpenses, 2),
+            'operating_expenses' => $operatingExpensesByCategory,
             'total_expenses' => round($totalExpenses, 2),
             'net_income' => round($netIncome, 2),
             'is_profitable' => $netIncome >= 0,

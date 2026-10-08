@@ -109,6 +109,87 @@ class FiscalPeriodReportsService
     }
 
     /**
+     * Cash reconciliation for an arbitrary date range inside the period — the
+     * downloadable statement's version of cashFlow(), built on the same rules:
+     * a single-property view starts from zero with no draws.
+     *
+     * Opening cash on $from is the period's opening balance plus everything
+     * earned before $from, less the draws already taken. An owner draw is
+     * entered per month with no date of its own, so it is placed on its month's
+     * last day: it falls in the range when that day does. Over the whole period
+     * this reproduces cashFlow()'s closing balance exactly.
+     *
+     * `months` is cashFlow()'s per-month rows for the same dates — a month the
+     * range only partly covers is cut to the covered days (`partial`), so the
+     * rows add up to the range totals and the last one closes on the same cash.
+     */
+    public function cashForRange(FiscalPeriods $fiscalPeriod, Carbon $from, Carbon $to, ?int $propertyId = null): array
+    {
+        $isConsolidated = $propertyId === null;
+        $from = $from->copy()->startOfDay();
+        $to = $to->copy()->endOfDay();
+        $periodStart = Carbon::parse($fiscalPeriod->opening_date)->startOfDay();
+
+        $earnedBefore = $from->gt($periodStart)
+            ? $this->financials->forRange($fiscalPeriod, $periodStart, $from->copy()->subDay(), $propertyId)['net_income']
+            : 0.0;
+
+        $monthlyPeriods = $fiscalPeriod->monthlyPeriods()->orderBy('start_date')->get();
+
+        $drawsBefore = 0.0;
+        $drawsInRange = 0.0;
+        if ($isConsolidated) {
+            foreach ($monthlyPeriods as $month) {
+                $placedOn = Carbon::parse($month->end_date);
+                if ($placedOn->lt($from)) {
+                    $drawsBefore += (float) $month->owner_withdrawal;
+                } elseif ($placedOn->lte($to)) {
+                    $drawsInRange += (float) $month->owner_withdrawal;
+                }
+            }
+        }
+
+        $opening = ($isConsolidated ? (float) $fiscalPeriod->opening_balance : 0.0) + $earnedBefore - $drawsBefore;
+        $net = $this->financials->forRange($fiscalPeriod, $from, $to, $propertyId)['net_income'];
+
+        $months = [];
+        $runningBalance = $opening;
+        foreach ($monthlyPeriods as $month) {
+            $monthStart = Carbon::parse($month->start_date)->startOfDay();
+            $monthEnd = Carbon::parse($month->end_date)->endOfDay();
+            if ($monthEnd->lt($from) || $monthStart->gt($to)) {
+                continue;
+            }
+
+            $data = $this->financials->forRange($fiscalPeriod, $monthStart->max($from), $monthEnd->min($to), $propertyId);
+            $withdrawal = ($isConsolidated && $monthEnd->lte($to)) ? (float) $month->owner_withdrawal : 0.0;
+            $closeBal = $runningBalance + $data['net_income'] - $withdrawal;
+
+            $months[] = [
+                'name' => $month->name,
+                'short' => $monthStart->format('M'),
+                'partial' => $monthStart->lt($from) || $monthEnd->gt($to),
+                'opening_balance' => round($runningBalance, 2),
+                'cash_in' => $data['total_income'],
+                'cash_out' => $data['total_expenses'],
+                'net_cash_flow' => $data['net_income'],
+                'owner_withdrawal' => $withdrawal,
+                'closing_balance' => round($closeBal, 2),
+            ];
+
+            $runningBalance = $closeBal;
+        }
+
+        return [
+            'months' => $months,
+            'opening_balance' => round($opening, 2),
+            'closing_balance' => round($opening + $net - $drawsInRange, 2),
+            'total_withdrawals' => round($drawsInRange, 2),
+            'is_consolidated' => $isConsolidated,
+        ];
+    }
+
+    /**
      * Post-closing Trial Balance — assets on the debit side, liabilities and
      * equity on the credit side. Reports is_balanced when |debit − credit| < 0.01.
      *

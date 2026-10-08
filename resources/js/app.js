@@ -24,3 +24,15 @@ window.ensureChart = function () {
 
     return window.__chartReady;
 };
+
+// pdf.js is lazy for the same reason: only the in-app PDF viewer needs it.
+// Resolves with renderPdf(container, bytes) from ./pdf-viewer.js.
+window.ensurePdfViewer = function () {
+    if (!window.__pdfViewerReady) {
+        window.__pdfViewerReady = import('./pdf-viewer').then(function (m) {
+            return m.renderPdf;
+        });
+    }
+
+    return window.__pdfViewerReady;
+};

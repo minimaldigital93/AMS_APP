@@ -5,8 +5,12 @@
     "src": "node_modules/chart.js/auto/auto.js",
     "isDynamicEntry": true
   },
+  "node_modules/pdfjs-dist/legacy/build/pdf.worker.min.mjs": {
+    "file": "assets/pdf.worker.min-rsCePomN.js",
+    "src": "node_modules/pdfjs-dist/legacy/build/pdf.worker.min.mjs"
+  },
   "resources/css/app.css": {
-    "file": "assets/app-CPwYNi7r.css",
+    "file": "assets/app-Djjph3Co.css",
     "src": "resources/css/app.css",
     "isEntry": true,
     "name": "app",
@@ -36,12 +40,22 @@
     "src": "resources/fonts/material-icons.woff2"
   },
   "resources/js/app.js": {
-    "file": "assets/app-BRF8naME.js",
+    "file": "assets/app-DiDKws7o.js",
     "name": "app",
     "src": "resources/js/app.js",
     "isEntry": true,
     "dynamicImports": [
-      "node_modules/chart.js/auto/auto.js"
+      "node_modules/chart.js/auto/auto.js",
+      "resources/js/pdf-viewer.js"
+    ]
+  },
+  "resources/js/pdf-viewer.js": {
+    "file": "assets/pdf-viewer-Cit7qkYc.js",
+    "name": "pdf-viewer",
+    "src": "resources/js/pdf-viewer.js",
+    "isDynamicEntry": true,
+    "assets": [
+      "assets/pdf.worker.min-rsCePomN.js"
     ]
   }
 }

@@ -17,10 +17,14 @@ use App\Services\FiscalPeriod\FiscalPeriodFinancialsService;
 use App\Services\FiscalPeriod\FiscalPeriodReportsService;
 use App\Services\FiscalPeriod\MonthClosePreflight;
 use App\Services\FiscalPeriod\MonthlyPeriodManager;
+use App\Services\Pdf\KhmerPdf;
 use App\Services\Property\PropertyContext;
 use App\Services\RevenueExpense\RevenueExpenseQueryService;
+use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
+use Illuminate\Http\Response;
 use Illuminate\View\View;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
@@ -481,6 +485,63 @@ class FiscalPeriodController extends Controller
             'fiscalperiod', 'monthlyPeriod', 'financials', 'balanceSheet',
             'consolidated', 'showingAll', 'selectedProperty', 'openingBalance', 'closingBalance', 'closingIsFirm'
         ));
+    }
+
+    /**
+     * Download the summary financial statement for a chosen date range inside
+     * the period (the "Download PDF" popup on Reports & Exports). Same figures
+     * and layout as the printed Overview tab; follows the global property
+     * selector like the rest of the page.
+     */
+    public function statementPdf(Request $request, FiscalPeriods $fiscalperiod, PropertyContext $propertyContext, KhmerPdf $pdf): Response
+    {
+        $this->authorizeUser($fiscalperiod);
+
+        $periodStart = $fiscalperiod->opening_date->toDateString();
+        $periodEnd = $fiscalperiod->closing_date?->toDateString();
+        $range = __('messages.fs_pdf_range_error', [
+            'from' => $fiscalperiod->opening_date->format('d M Y'),
+            'to' => $fiscalperiod->closing_date?->format('d M Y') ?? __('messages.current'),
+        ]);
+
+        $validated = $request->validateWithBag('statementPdf', [
+            'from' => ['required', 'date', 'after_or_equal:'.$periodStart],
+            'to' => array_filter(['required', 'date', 'after_or_equal:from', $periodEnd ? 'before_or_equal:'.$periodEnd : null]),
+        ], [
+            'from.after_or_equal' => $range,
+            'to.before_or_equal' => $range,
+            'to.after_or_equal' => __('messages.fs_pdf_order_error'),
+        ]);
+
+        $from = Carbon::parse($validated['from']);
+        $to = Carbon::parse($validated['to']);
+        $selectedProperty = $propertyContext->activeProperty();
+        $propertyId = $selectedProperty?->id;
+
+        $bytes = $pdf->render('admin.fiscalperiod.statement-pdf', [
+            'fiscalperiod' => $fiscalperiod,
+            'pf' => $this->financials->forRange($fiscalperiod, $from, $to, $propertyId),
+            'cash' => $this->reportsService->cashForRange($fiscalperiod, $from, $to, $propertyId),
+            'from' => $from,
+            'to' => $to,
+            'scopeLabel' => $selectedProperty?->name ?? __('messages.all_properties_consolidated'),
+            'drawsByMonthEnd' => $from->toDateString() !== $periodStart || $to->toDateString() !== $periodEnd,
+            'company' => [
+                'name' => settings('company_name') ?: config('app.name'),
+                'address' => settings('company_address'),
+                'phone' => settings('company_phone'),
+                'email' => settings('company_email'),
+            ],
+        ]);
+
+        $file = 'financial-statement-'.$from->format('Y-m-d').'-to-'.$to->format('Y-m-d').'.pdf';
+
+        // Inline: the page shows it in its own viewer; the filename is still
+        // what Download / Share save it as.
+        return response($bytes, 200, [
+            'Content-Type' => 'application/pdf',
+            'Content-Disposition' => 'inline; filename="'.$file.'"',
+        ]);
     }
 
     /**
