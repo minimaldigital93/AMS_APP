@@ -109,6 +109,28 @@ class FiscalPeriodReportsService
     }
 
     /**
+     * cashFlow() narrowed to one of its months. The month keeps the opening and
+     * closing cash of the whole-period running balance, so a single month reads
+     * the same figures its row does in the full table instead of restarting
+     * from the period's opening balance.
+     */
+    public function cashFlowForMonth(array $cashFlow, int $index): array
+    {
+        $row = $cashFlow['months'][$index];
+
+        return [
+            'months' => [$row],
+            'opening_balance' => $row['opening_balance'],
+            'closing_balance' => $row['closing_balance'],
+            'total_cash_in' => $row['cash_in'],
+            'total_cash_out' => $row['cash_out'],
+            'total_withdrawals' => $row['owner_withdrawal'],
+            'net_change' => $row['closing_balance'] - $row['opening_balance'],
+            'is_consolidated' => $cashFlow['is_consolidated'],
+        ];
+    }
+
+    /**
      * Cash reconciliation for an arbitrary date range inside the period — the
      * downloadable statement's version of cashFlow(), built on the same rules:
      * a single-property view starts from zero with no draws.

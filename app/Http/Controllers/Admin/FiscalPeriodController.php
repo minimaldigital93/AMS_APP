@@ -435,7 +435,7 @@ class FiscalPeriodController extends Controller
     /**
      * Income statement, cash flow, trial balance and the monthly breakdown.
      */
-    public function reports(FiscalPeriods $fiscalperiod, PropertyContext $propertyContext): View
+    public function reports(Request $request, FiscalPeriods $fiscalperiod, PropertyContext $propertyContext): View
     {
         $this->authorizeUser($fiscalperiod);
 
@@ -445,24 +445,41 @@ class FiscalPeriodController extends Controller
         $summary = $this->balanceSheetService->summary($fiscalperiod);
         $monthlyPeriods = $fiscalperiod->monthlyPeriods()->orderBy('start_date')->get();
 
+        // Month navigation: null = the whole period. The income statement,
+        // cash flow, overview and monthly breakdown narrow to the month; the
+        // balance sheet and trial balance are as-of figures and stay whole.
+        $reportMonth = $this->reportMonth($request, $monthlyPeriods);
+        $reportIndex = $reportMonth ? $monthlyPeriods->search(fn ($m) => $m->is($reportMonth)) : null;
+        $prevReportMonth = $reportMonth ? $monthlyPeriods->get($reportIndex - 1) : null;
+        $nextReportMonth = $reportMonth ? $monthlyPeriods->get($reportIndex + 1) : $monthlyPeriods->first();
+        $scopeMonths = $reportMonth ? $monthlyPeriods->slice($reportIndex, 1)->values() : $monthlyPeriods;
+
         $monthlyData = [];
-        foreach ($monthlyPeriods as $month) {
+        foreach ($scopeMonths as $month) {
             $monthlyData[] = [
                 'period' => $month,
                 'financials' => $this->financials->forMonth($fiscalperiod, $month, $selectedPropertyId),
             ];
         }
 
-        $periodFinancials = $this->financials->forPeriod($fiscalperiod, $selectedPropertyId);
-        $incomeStatement = $this->reportsService->incomeStatement($fiscalperiod, $monthlyPeriods, $selectedPropertyId);
+        $periodFinancials = $reportMonth
+            ? $monthlyData[0]['financials']
+            : $this->financials->forPeriod($fiscalperiod, $selectedPropertyId);
+        $incomeStatement = $this->reportsService->incomeStatement($fiscalperiod, $scopeMonths, $selectedPropertyId);
+        // The whole-period cash flow is always built: a month's opening cash is
+        // the running balance carried in from the months before it.
         $cashFlow = $this->reportsService->cashFlow($fiscalperiod, $monthlyPeriods, $selectedPropertyId);
+        if ($reportMonth) {
+            $cashFlow = $this->reportsService->cashFlowForMonth($cashFlow, $reportIndex);
+        }
         $trialBalance = $this->reportsService->trialBalance($fiscalperiod);
 
         return view('admin.fiscalperiod.period_reports_exports', compact(
             'fiscalperiod', 'balanceSheetItems', 'summary',
             'monthlyPeriods', 'monthlyData', 'periodFinancials',
             'incomeStatement', 'cashFlow', 'trialBalance',
-            'selectedProperty', 'selectedPropertyId'
+            'selectedProperty', 'selectedPropertyId',
+            'reportMonth', 'prevReportMonth', 'nextReportMonth'
         ));
     }
 
@@ -547,23 +564,31 @@ class FiscalPeriodController extends Controller
     /**
      * Stream the period's figures as CSV.
      */
-    public function exportCSV(FiscalPeriods $fiscalperiod, PropertyContext $propertyContext): StreamedResponse
+    public function exportCSV(Request $request, FiscalPeriods $fiscalperiod, PropertyContext $propertyContext): StreamedResponse
     {
         $this->authorizeUser($fiscalperiod);
 
         $selectedProperty = $propertyContext->activeProperty();
         $selectedPropertyId = $selectedProperty?->id;
 
+        // The page's export link carries its month; a bare link is the whole
+        // period (no working-month fallback — a download should say what it is).
+        $monthlyPeriods = $fiscalperiod->monthlyPeriods()->orderBy('start_date')->get();
+        $reportMonth = $this->reportMonth($request, $monthlyPeriods, followWorkingMonth: false);
+
         $balanceSheetItems = $fiscalperiod->balanceSheets()->orderBy('item_type')->get();
         $summary = $this->balanceSheetService->summary($fiscalperiod);
-        $periodFinancials = $this->financials->forPeriod($fiscalperiod, $selectedPropertyId);
+        $periodFinancials = $reportMonth
+            ? $this->financials->forMonth($fiscalperiod, $reportMonth, $selectedPropertyId)
+            : $this->financials->forPeriod($fiscalperiod, $selectedPropertyId);
 
         $scopeLabel = $selectedProperty?->name ?? 'All Properties (consolidated)';
         $scopeSlug = $selectedProperty ? str()->slug($selectedProperty->name) : 'all';
-        $fileName = "fiscal_report_{$fiscalperiod->id}_{$scopeSlug}_".now()->format('Y-m-d').'.csv';
+        $monthSlug = $reportMonth ? '_'.$reportMonth->start_date->format('Y-m') : '';
+        $fileName = "fiscal_report_{$fiscalperiod->id}_{$scopeSlug}{$monthSlug}_".now()->format('Y-m-d').'.csv';
 
         return response()->stream(
-            function () use ($fiscalperiod, $balanceSheetItems, $summary, $periodFinancials, $scopeLabel) {
+            function () use ($fiscalperiod, $balanceSheetItems, $summary, $periodFinancials, $scopeLabel, $reportMonth) {
                 $file = fopen('php://output', 'w');
 
                 // Formula-injection guard: a value starting = + - @ (or tab/CR)
@@ -577,6 +602,7 @@ class FiscalPeriodController extends Controller
                 fputcsv($file, [
                     'Fiscal Period: '.$safe($fiscalperiod->name),
                     'Period: '.$fiscalperiod->opening_date.' to '.$fiscalperiod->closing_date,
+                    'Month: '.($reportMonth ? $safe($reportMonth->name) : 'All months'),
                     'Property: '.$safe($scopeLabel),
                     'Generated: '.now()->format('Y-m-d H:i:s'),
                 ]);
@@ -627,6 +653,41 @@ class FiscalPeriodController extends Controller
     }
 
     // --- Helpers ---
+
+    /**
+     * The month the reports page (and its CSV) is narrowed to, or null for the
+     * whole period. ?month=all is the explicit whole-period view. An explicit
+     * ?month=&year= before or after the period is clamped to its first or last
+     * month, as the break-even page clamps. With neither, the remembered
+     * working month is used when it falls inside this period — otherwise the
+     * whole period, which is what an older period opened from its own page
+     * should show.
+     */
+    private function reportMonth(Request $request, Collection $monthlyPeriods, bool $followWorkingMonth = true): ?MonthlyPeriod
+    {
+        if ($monthlyPeriods->isEmpty() || $request->input('month') === 'all') {
+            return null;
+        }
+
+        $byKey = fn (string $key) => $monthlyPeriods->first(fn ($m) => $m->start_date->format('Y-m') === $key);
+
+        if ($request->integer('month') && $request->integer('year')) {
+            $key = sprintf('%04d-%02d', $request->integer('year'), $request->integer('month'));
+
+            if ($key < $monthlyPeriods->first()->start_date->format('Y-m')) {
+                return $monthlyPeriods->first();
+            }
+            if ($key > $monthlyPeriods->last()->start_date->format('Y-m')) {
+                return $monthlyPeriods->last();
+            }
+
+            return $byKey($key);
+        }
+
+        $working = $followWorkingMonth ? working_month() : null;
+
+        return $working ? $byKey($working->format('Y-m')) : null;
+    }
 
     /**
      * Resolve the active property scope for the fiscal-period display pages.

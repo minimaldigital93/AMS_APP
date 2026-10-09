@@ -1622,6 +1622,7 @@ return [
     'fs_pdf_title' => 'View financial statement',
     'fs_pdf_hint' => 'Choose the dates the statement should cover. Property: :name.',
     'fs_pdf_whole_period' => 'Whole period',
+    'report_period_wide_note' => 'The balance sheet and trial balance always cover the whole fiscal period.',
     'fs_pdf_pick_month' => 'Or pick a month…',
     'fs_pdf_generate' => 'View PDF',
     'fs_pdf_range_error' => 'Choose dates between :from and :to — the dates of this fiscal period.',

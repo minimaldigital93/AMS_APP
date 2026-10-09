@@ -22,6 +22,17 @@
         'draw'     => 'M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z',
         'cash'     => 'M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z',
     ];
+
+    // Month navigation ($reportMonth null = the whole period). The income
+    // statement, cash flow, overview and monthly breakdown follow it; the
+    // balance sheet and trial balance are as-of figures for the whole period.
+    $rangeFrom = $reportMonth?->start_date ?? $fiscalperiod->opening_date;
+    $rangeTo = $reportMonth?->end_date ?? $fiscalperiod->closing_date;
+    $monthParams = fn ($m) => $m
+        ? ['fiscalperiod' => $fiscalperiod->id, 'month' => $m->start_date->month, 'year' => $m->start_date->year]
+        : ['fiscalperiod' => $fiscalperiod->id, 'month' => 'all'];
+    $navUrl = fn ($m) => route('admin.fiscalperiod.reports', $monthParams($m));
+    $isCurrentMonth = $reportMonth && $reportMonth->start_date->isSameMonth(now());
 @endphp
 <div class="container mx-auto py-8" x-data="reportsPdf({{ $errors->statementPdf->any() ? 'true' : 'false' }})" x-on:keydown.escape.window="pdfOpen = false; closeViewer()">
     {{-- Print letterhead. Landscape: the monthly income-statement matrix and
@@ -30,9 +41,10 @@
     <x-print.report-header
         :landscape="true"
         :title="__('messages.reports_exports')"
-        :subtitle="$fiscalperiod->opening_date?->format('M j, Y').' — '.($fiscalperiod->closing_date?->format('M j, Y') ?? __('messages.current'))"
+        :subtitle="$rangeFrom?->format('M j, Y').' — '.($rangeTo?->format('M j, Y') ?? __('messages.current'))"
         :meta="[
             __('messages.fiscal_period') => $fiscalperiod->name,
+            __('messages.month') => $reportMonth?->name ?? __('messages.all_months'),
             __('messages.property') => $propertyScopeLabel,
         ]" />
 
@@ -66,7 +78,7 @@
                         <svg class="w-5 h-5 text-slate-600 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>
                         <span class="text-sm font-medium text-slate-800">{{ __('messages.fs_menu_print') }}</span>
                     </button>
-                    <a href="{{ route('admin.fiscalperiod.exportCSV', $fiscalperiod->id) }}" role="menuitem" x-on:click="menu = false"
+                    <a href="{{ route('admin.fiscalperiod.exportCSV', $reportMonth ? $monthParams($reportMonth) : $fiscalperiod->id) }}" role="menuitem" x-on:click="menu = false"
                        class="flex items-center gap-3 px-4 py-2.5 hover:bg-gray-50">
                         <svg class="w-5 h-5 text-emerald-600 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M3 14h18M10 4v16M5 4h14a2 2 0 012 2v12a2 2 0 01-2 2H5a2 2 0 01-2-2V6a2 2 0 012-2z"/></svg>
                         <span class="text-sm font-medium text-slate-800">{{ __('messages.export_csv') }}</span>
@@ -76,6 +88,56 @@
             <a href="{{ route('admin.fiscalperiod.show', $fiscalperiod->id) }}" class="text-sm bg-gray-100 text-gray-700 px-3 py-2 rounded-lg hover:bg-gray-200 flex items-center" title="{{ __('messages.back') }}">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/></svg></a>
         </div>
+    </div>
+
+    {{-- Month navigation, the same control as the break-even page. "All months"
+         is the whole period and sits before the first month; the open tab
+         rides along in the #hash so stepping a month keeps it. --}}
+    <div class="flex flex-wrap items-center justify-center gap-3 mb-6 no-print">
+        <div class="inline-flex max-w-full items-center bg-white rounded-xl border border-slate-100 px-1.5 sm:px-2 py-1.5 gap-0.5 sm:gap-1">
+            @if($reportMonth)
+                <a :href="@js($navUrl($prevReportMonth)) + '#' + activeTab"
+                   href="{{ $navUrl($prevReportMonth) }}"
+                   class="inline-flex shrink-0 items-center justify-center w-9 h-9 sm:w-10 sm:h-10 rounded-lg text-slate-500 hover:bg-slate-50 hover:text-sky-600 transition" title="{{ $prevReportMonth ? __('messages.previous_month') : __('messages.all_months') }}">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
+                </a>
+            @else
+                <span class="inline-flex shrink-0 items-center justify-center w-9 h-9 sm:w-10 sm:h-10 rounded-lg text-slate-200 cursor-not-allowed">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
+                </span>
+            @endif
+
+            <div class="px-2 sm:px-4 py-2 min-w-0 sm:min-w-[180px] text-center">
+                @if($reportMonth)
+                    <span class="text-base sm:text-lg font-bold text-slate-800 whitespace-nowrap">{{ $reportMonth->start_date->translatedFormat('F') }}</span>
+                    <span class="text-base sm:text-lg text-slate-400 ml-1">{{ $reportMonth->start_date->format('Y') }}</span>
+                    @if($isCurrentMonth)
+                        <span class="ml-2 hidden sm:inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-700">{{ __('messages.current') }}</span>
+                    @endif
+                @else
+                    <span class="text-base sm:text-lg font-bold text-slate-800 whitespace-nowrap">{{ __('messages.all_months') }}</span>
+                @endif
+            </div>
+
+            @if($nextReportMonth)
+                <a :href="@js($navUrl($nextReportMonth)) + '#' + activeTab"
+                   href="{{ $navUrl($nextReportMonth) }}"
+                   class="inline-flex shrink-0 items-center justify-center w-9 h-9 sm:w-10 sm:h-10 rounded-lg text-slate-500 hover:bg-slate-50 hover:text-sky-600 transition" title="{{ __('messages.next_month') }}">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+                </a>
+            @else
+                <span class="inline-flex shrink-0 items-center justify-center w-9 h-9 sm:w-10 sm:h-10 rounded-lg text-slate-200 cursor-not-allowed">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+                </span>
+            @endif
+        </div>
+        @if($reportMonth)
+            <a :href="@js($navUrl(null)) + '#' + activeTab" href="{{ $navUrl(null) }}"
+               class="inline-flex items-center justify-center w-10 h-10 rounded-lg border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 hover:text-sky-600 transition"
+               title="{{ __('messages.all_months') }}" aria-label="{{ __('messages.all_months') }}">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+            </a>
+        @endif
     </div>
 
     {{-- Statement PDF popup: pick the dates the statement covers (inside this
@@ -90,11 +152,15 @@
             'from' => max($pdfMin, \Carbon\Carbon::parse($m->start_date)->toDateString()),
             'to' => $pdfMax ? min($pdfMax, \Carbon\Carbon::parse($m->end_date)->toDateString()) : \Carbon\Carbon::parse($m->end_date)->toDateString(),
         ])->values();
+        // Opened from a month, the popup starts on that month.
+        $pdfMonthIndex = $reportMonth ? $monthlyPeriods->search(fn ($m) => $m->is($reportMonth)) : null;
+        $pdfDefaultFrom = $pdfMonthIndex !== null ? $pdfMonths[$pdfMonthIndex]['from'] : $pdfMin;
+        $pdfDefaultTo = $pdfMonthIndex !== null ? $pdfMonths[$pdfMonthIndex]['to'] : ($pdfMax ?? now()->toDateString());
     @endphp
     <div x-show="pdfOpen" x-cloak class="fixed inset-0 z-[80] flex items-center justify-center p-4 no-print" role="dialog" aria-modal="true" aria-labelledby="statementPdfTitle">
         <div class="absolute inset-0 bg-slate-900/40" @click="pdfOpen = false"></div>
         <form id="statementPdfForm" method="GET" action="{{ route('admin.fiscalperiod.statement-pdf', $fiscalperiod->id) }}"
-              x-data="{ from: @js(old('from', $pdfMin)), to: @js(old('to', $pdfMax ?? now()->toDateString())), months: @js($pdfMonths), month: '' }"
+              x-data="{ from: @js(old('from', $pdfDefaultFrom)), to: @js(old('to', $pdfDefaultTo)), months: @js($pdfMonths), month: @js(old('from') || $pdfMonthIndex === null ? '' : (string) $pdfMonthIndex) }"
               x-on:submit.prevent="viewPdf($el)"
               class="relative w-full max-w-md bg-white rounded-xl shadow-xl p-6 space-y-4">
             <div class="flex items-start justify-between gap-4">
@@ -269,8 +335,8 @@
             @include('admin.fiscalperiod.partials.summary-statement', [
                 'pf' => $periodFinancials,
                 'cash' => $cashFlow,
-                'from' => $fiscalperiod->opening_date,
-                'to' => $fiscalperiod->closing_date,
+                'from' => $rangeFrom,
+                'to' => $rangeTo,
                 'scopeLabel' => $propertyScopeLabel,
             ])
         </div>
@@ -279,7 +345,7 @@
     <!-- ==================== INCOME STATEMENT TAB ==================== -->
     <div x-show="activeTab === 'income_statement'" x-cloak class="bg-white rounded-b-lg shadow p-6">
         <h2 class="text-xl font-bold mb-1">{{ __('messages.income_statement_title') }}</h2>
-        <p class="text-sm text-gray-500 mb-6">{{ $fiscalperiod->opening_date->format('M d, Y') }} – {{ $fiscalperiod->closing_date->format('M d, Y') }}</p>
+        <p class="text-sm text-gray-500 mb-6">{{ $rangeFrom->format('M d, Y') }} – {{ $rangeTo?->format('M d, Y') }}</p>
 
         @if(count($incomeStatement['months']) > 0)
             <div class="overflow-x-auto">
@@ -362,7 +428,10 @@
     <!-- ==================== BALANCE SHEET TAB ==================== -->
     <div x-show="activeTab === 'balance_sheet'" x-cloak class="bg-white rounded-b-lg shadow p-6">
         <h2 class="text-xl font-bold mb-1">{{ __('messages.balance_sheet') }}</h2>
-        <p class="text-sm text-gray-500 mb-6">As of {{ $fiscalperiod->closing_date->format('M d, Y') }}</p>
+        <p class="text-sm text-gray-500 {{ $reportMonth ? 'mb-1' : 'mb-6' }}">As of {{ $fiscalperiod->closing_date->format('M d, Y') }}</p>
+        @if($reportMonth)
+            <p class="text-xs text-gray-400 mb-6 no-print">{{ __('messages.report_period_wide_note') }}</p>
+        @endif
 
         @if($selectedProperty)
             <div class="mb-6 px-4 py-2.5 bg-amber-50 border border-amber-200 rounded-lg text-sm text-amber-800 flex items-start gap-2">
@@ -444,7 +513,7 @@
     <!-- ==================== CASH FLOW TAB ==================== -->
     <div x-show="activeTab === 'cash_flow'" x-cloak class="bg-white rounded-b-lg shadow p-6">
         <h2 class="text-xl font-bold mb-1">{{ __('messages.cash_flow_statement') }}</h2>
-        <p class="text-sm text-gray-500 mb-6">{{ $fiscalperiod->opening_date->format('M d, Y') }} – {{ $fiscalperiod->closing_date->format('M d, Y') }}</p>
+        <p class="text-sm text-gray-500 mb-6">{{ $rangeFrom->format('M d, Y') }} – {{ $rangeTo?->format('M d, Y') }}</p>
 
         @if($selectedProperty)
             <div class="mb-6 px-4 py-2.5 bg-sky-50 border border-sky-200 rounded-lg text-sm text-sky-800 flex items-start gap-2">
@@ -543,6 +612,9 @@
     <div x-show="activeTab === 'trial_balance'" x-cloak class="bg-white rounded-b-lg shadow p-6">
         <h2 class="text-xl font-bold mb-1">{{ __('messages.trial_balance') }}</h2>
         <p class="text-sm text-gray-500 mb-1">As of {{ $fiscalperiod->closing_date->format('M d, Y') }}</p>
+        @if($reportMonth)
+            <p class="text-xs text-gray-400 mb-1 no-print">{{ __('messages.report_period_wide_note') }}</p>
+        @endif
         <p class="text-xs text-gray-400 mb-6">Post-closing: net income (retained earnings of {{ money($trialBalance['retained_earnings']) }}) is folded into equity, not listed as a separate account.</p>
 
         @if($selectedProperty)
@@ -700,7 +772,9 @@
         let file = null; // kept off the reactive state: navigator.share needs the raw File
 
         return {
-            activeTab: 'overview',
+            // The open tab survives month navigation via the #hash.
+            activeTab: ['overview', 'income_statement', 'balance_sheet', 'cash_flow', 'trial_balance', 'monthly']
+                .includes(location.hash.slice(1)) ? location.hash.slice(1) : 'overview',
             pdfOpen: popupOpen,
             viewer: false, loading: false, error: false, ready: false,
             url: null, fileName: null, range: '', canShare: false,
