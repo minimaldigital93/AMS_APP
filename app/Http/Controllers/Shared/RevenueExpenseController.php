@@ -2452,6 +2452,12 @@ abstract class RevenueExpenseController extends Controller
 
     public function deleteBusinessExpenseAttachment(BusinessExpense $businessExpense, Attachment $attachment, AttachmentService $attachments)
     {
+        // Same guard deleteBusinessExpense() applies: a supervisor may only touch
+        // receipts on expenses recorded against one of their assigned properties
+        // (account-wide rows and admins pass through). Without it any supervisor
+        // in the account could delete another property's receipts by URL.
+        $this->authorizeSupervisorPropertyRow($businessExpense->property_id);
+
         abort_unless(
             $attachment->attachable_type === BusinessExpense::class && $attachment->attachable_id === $businessExpense->id,
             404
