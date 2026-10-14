@@ -283,7 +283,7 @@
     </div>
 
     <!-- ==================== OVERVIEW TAB ==================== -->
-    <div x-show="activeTab === 'overview'" class="bg-white rounded-b-lg shadow p-6">
+    <div x-show="activeTab === 'overview'" class="bg-white rounded-b-lg shadow p-4 sm:p-6">
         <!-- Summary Cards (screen only — the printed page is the statement below) -->
         <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8 no-print">
             <x-summary-card :label="__('messages.total_revenue')" tone="emerald" :icon="$icons['revenue']"
@@ -302,8 +302,8 @@
 
         <!-- Revenue vs Expenses Breakdown -->
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 no-print">
-            <div class="border border-gray-100 rounded-lg p-5">
-                <h3 class="font-semibold text-sm text-gray-700 mb-3">{{ __('messages.revenue_sources') }}</h3>
+            <div class="bg-gradient-to-br from-white to-emerald-50 border border-slate-200 rounded-xl p-5">
+                <h3 class="font-semibold text-sm text-emerald-700 mb-3 flex items-center gap-2"><span class="w-2 h-2 rounded-full bg-emerald-500"></span>{{ __('messages.revenue_sources') }}</h3>
                 <div class="space-y-2 text-sm">
                     <div class="flex justify-between"><span class="text-gray-600">{{ __('messages.rent_income') }}</span><span class="font-medium text-green-600">{{ money($periodFinancials['rent_income']) }}</span></div>
                     <div class="flex justify-between"><span class="text-gray-600">{{ __('messages.late_fees') }}</span><span class="font-medium text-green-600">{{ money($periodFinancials['late_fees']) }}</span></div>
@@ -313,8 +313,8 @@
                     <div class="flex justify-between border-t pt-2 font-semibold"><span>{{ __('messages.total') }}</span><span class="text-green-700">{{ money($periodFinancials['total_income']) }}</span></div>
                 </div>
             </div>
-            <div class="border border-gray-100 rounded-lg p-5">
-                <h3 class="font-semibold text-sm text-gray-700 mb-3">{{ __('messages.expense_categories') }}</h3>
+            <div class="bg-gradient-to-br from-white to-rose-50 border border-slate-200 rounded-xl p-5">
+                <h3 class="font-semibold text-sm text-red-600 mb-3 flex items-center gap-2"><span class="w-2 h-2 rounded-full bg-red-500"></span>{{ __('messages.expense_categories') }}</h3>
                 <div class="space-y-2 text-sm">
                     @forelse($periodFinancials['utility_expenses'] as $type => $amount)
                         <div class="flex justify-between"><span class="text-gray-600 capitalize">{{ str_replace('_', ' ', $type) }}</span><span class="font-medium text-red-600">{{ money($amount) }}</span></div>
@@ -343,7 +343,7 @@
     </div>
 
     <!-- ==================== INCOME STATEMENT TAB ==================== -->
-    <div x-show="activeTab === 'income_statement'" x-cloak class="bg-white rounded-b-lg shadow p-6">
+    <div x-show="activeTab === 'income_statement'" x-cloak class="bg-white rounded-b-lg shadow p-4 sm:p-6">
         <h2 class="text-xl font-bold mb-1">{{ __('messages.income_statement_title') }}</h2>
         <p class="text-sm text-gray-500 mb-6">{{ $rangeFrom->format('M d, Y') }} – {{ $rangeTo?->format('M d, Y') }}</p>
 
@@ -426,7 +426,7 @@
     </div>
 
     <!-- ==================== BALANCE SHEET TAB ==================== -->
-    <div x-show="activeTab === 'balance_sheet'" x-cloak class="bg-white rounded-b-lg shadow p-6">
+    <div x-show="activeTab === 'balance_sheet'" x-cloak class="bg-white rounded-b-lg shadow p-4 sm:p-6">
         <h2 class="text-xl font-bold mb-1">{{ __('messages.balance_sheet') }}</h2>
         <p class="text-sm text-gray-500 {{ $reportMonth ? 'mb-1' : 'mb-6' }}">As of {{ $fiscalperiod->closing_date->format('M d, Y') }}</p>
         @if($reportMonth)
@@ -511,7 +511,7 @@
     </div>
 
     <!-- ==================== CASH FLOW TAB ==================== -->
-    <div x-show="activeTab === 'cash_flow'" x-cloak class="bg-white rounded-b-lg shadow p-6">
+    <div x-show="activeTab === 'cash_flow'" x-cloak class="bg-white rounded-b-lg shadow p-4 sm:p-6">
         <h2 class="text-xl font-bold mb-1">{{ __('messages.cash_flow_statement') }}</h2>
         <p class="text-sm text-gray-500 mb-6">{{ $rangeFrom->format('M d, Y') }} – {{ $rangeTo?->format('M d, Y') }}</p>
 
@@ -609,7 +609,7 @@
     </div>
 
     <!-- ==================== TRIAL BALANCE TAB ==================== -->
-    <div x-show="activeTab === 'trial_balance'" x-cloak class="bg-white rounded-b-lg shadow p-6">
+    <div x-show="activeTab === 'trial_balance'" x-cloak class="bg-white rounded-b-lg shadow p-4 sm:p-6">
         <h2 class="text-xl font-bold mb-1">{{ __('messages.trial_balance') }}</h2>
         <p class="text-sm text-gray-500 mb-1">As of {{ $fiscalperiod->closing_date->format('M d, Y') }}</p>
         @if($reportMonth)
@@ -690,7 +690,7 @@
     </div>
 
     <!-- ==================== MONTHLY BREAKDOWN TAB ==================== -->
-    <div x-show="activeTab === 'monthly'" x-cloak class="bg-white rounded-b-lg shadow p-6">
+    <div x-show="activeTab === 'monthly'" x-cloak class="bg-white rounded-b-lg shadow p-4 sm:p-6">
         <div class="flex items-center justify-between mb-6">
             <div>
                 <h2 class="text-xl font-bold">{{ __('messages.monthly_breakdown') }}</h2>
@@ -705,7 +705,7 @@
             <div class="space-y-4">
                 @foreach($monthlyData as $md)
                     @php $mp = $md['period']; $mf = $md['financials']; @endphp
-                    <div class="border rounded-lg overflow-hidden {{ $mp->isClosed() ? 'border-gray-200' : 'border-sky-200' }}">
+                    <div class="border rounded-xl overflow-hidden bg-gradient-to-br from-white {{ $mp->isClosed() ? 'to-slate-50 border-slate-200' : 'to-sky-50 border-sky-200' }}">
                         <div class="flex items-center justify-between px-5 py-3 {{ $mp->isClosed() ? 'bg-gray-50' : 'bg-sky-50' }}">
                             <div class="flex items-center gap-3">
                                 <h3 class="font-semibold">{{ $mp->name }}</h3>
